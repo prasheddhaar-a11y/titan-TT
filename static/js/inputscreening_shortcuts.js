@@ -4,15 +4,18 @@
  * Shortcuts only fire on the IS Pick Table page.
  * Guards:
  *   - Ignored when focus is inside input / textarea / select / contenteditable
- *   - F1 is always intercepted (prevents browser Help dialog)
+ *   - F2 is always intercepted (prevents default browser action)
  *
  * Key map:
  *   F2     → Display "Please Scan" hint and open tray verification modal for selected / highlighted row (or first row if none selected)
- *   A      → accept selected / highlighted lot
- *   R      → open reject window for selected / highlighted lot
+ *   A      → focus/select row for Accept action (press Enter to confirm)
+ *   R      → focus/select row for Reject action (press Enter to open reject modal)
+ *   V      → View / open tray verification modal for selected row (same as clicking eye icon)
+ *   D      → Save as Draft (when tray verification modal is open)
  *   Esc    → close top-most open popup (priority order below)
  *   ↑ / ↓  → move row selection up / down in the pick table
- *   Enter  → open tray-verification modal for selected row
+ *   Enter  → open tray-verification modal for selected row OR execute action if already focused
+ *   ← / →  → horizontal scroll in tables (Pick/Accept/Reject/Completed)
  */
 (function () {
   "use strict";
@@ -59,15 +62,16 @@
     if (document.getElementById("is-kbd-selection-style")) return;
     var style = document.createElement("style");
     style.id = "is-kbd-selection-style";
-    // Apply highlight to both the row and its cells so the background
-    // shows even when individual <td>s have their own background-color
-    // (e.g. .row-inactive-blur). Outline on the row gives the border
-    // effect and works regardless of cell-level styling.
-    // Outline only — avoids conflict with existing row background colours
+    // Apply light yellow background highlight to the selected row
+    // Works on both regular and sticky (frozen) columns
     style.textContent =
       "tr." + ROW_SELECTED_CLASS +
-      " { outline: 2px solid #028084 !important;" +
-      " outline-offset: -2px !important; }";
+      " { background: rgba(255, 250, 205, 0.4) !important; }" +
+      "tr." + ROW_SELECTED_CLASS + " td:nth-child(1)," +
+      "tr." + ROW_SELECTED_CLASS + " td:nth-child(2)," +
+      "tr." + ROW_SELECTED_CLASS + " td:nth-child(3)" +
+      " { background: rgba(255, 250, 205, 0.4) !important;" +
+      " z-index: 35 !important; }";
     document.head.appendChild(style);
   }
 
@@ -203,10 +207,38 @@
       confirmButtonText: "Accept",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#028084",
-      cancelButtonColor: "#6c757d",
+      cancelButtonColor: "#dc3545",  // Red for Cancel (clear visual difference)
       focusCancel: true,   // Cancel is the default-focused (safe default)
       reverseButtons: false,
+      customClass: {
+        confirmButton: 'swal2-styled-accept',
+        cancelButton: 'swal2-styled-cancel'
+      },
       didOpen: function (popup) {
+        // Inject custom styles for clear button differentiation
+        var style = document.createElement('style');
+        style.textContent = `
+          .swal2-styled-accept {
+            background-color: #028084 !important;
+            border: 2px solid #028084 !important;
+            color: #fff !important;
+            font-weight: 700 !important;
+          }
+          .swal2-styled-accept:focus {
+            box-shadow: 0 0 0 4px rgba(2, 128, 132, 0.3) !important;
+          }
+          .swal2-styled-cancel {
+            background-color: #dc3545 !important;
+            border: 2px solid #dc3545 !important;
+            color: #fff !important;
+            font-weight: 700 !important;
+          }
+          .swal2-styled-cancel:focus {
+            box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.3) !important;
+          }
+        `;
+        popup.appendChild(style);
+        
         // Left / Right arrows toggle focus between the two buttons
         popup.addEventListener("keydown", function (ev) {
           if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
@@ -241,11 +273,34 @@
     }
   }
 
-  /** Trigger the Accept button on the selected / highlighted row. */
-  function _openAcceptConfirm() {
+  /** Focus/select row for Accept action. Pressing Enter then opens confirmation. */
+  function _focusAcceptRow() {
     var row = _selectedRow || _getRows()[0];
     if (!row) {
       _toast("No lot available.", "info");
+      return;
+    }
+    _selectRow(row);  // Highlight the row
+    var acceptBtn = row.querySelector(".btn-accept-is");
+    if (!acceptBtn) {
+      _toast("Accept button not found for this row.", "error");
+      return;
+    }
+    if (acceptBtn.disabled) {
+      _toast(
+        "Accept is not available — all trays must be verified first.",
+        "warning"
+      );
+      return;
+    }
+    _toast("Press Enter to Accept this lot, or ↑↓ to select another row.", "info");
+  }
+
+  /** Trigger the Accept confirmation dialog. */
+  function _openAcceptConfirm() {
+    var row = _selectedRow;
+    if (!row) {
+      _toast("No row selected.", "info");
       return;
     }
     var acceptBtn = row.querySelector(".btn-accept-is");
@@ -264,11 +319,34 @@
     _confirmAndAccept(acceptBtn);
   }
 
-  /** Trigger the Reject button on the selected / highlighted row. */
-  function _openRejectWindow() {
+  /** Focus/select row for Reject action. Pressing Enter then opens reject modal. */
+  function _focusRejectRow() {
     var row = _selectedRow || _getRows()[0];
     if (!row) {
       _toast("No lot available.", "info");
+      return;
+    }
+    _selectRow(row);  // Highlight the row
+    var rejectBtn = row.querySelector(".btn-reject-is");
+    if (!rejectBtn) {
+      _toast("Reject button not found for this row.", "error");
+      return;
+    }
+    if (rejectBtn.disabled) {
+      _toast(
+        "Reject is not available — all trays must be verified first.",
+        "warning"
+      );
+      return;
+    }
+    _toast("Press Enter to Reject this lot, or ↑↓ to select another row.", "info");
+  }
+
+  /** Trigger the Reject button on the selected / highlighted row. */
+  function _openRejectWindow() {
+    var row = _selectedRow;
+    if (!row) {
+      _toast("No row selected.", "info");
       return;
     }
     var rejectBtn = row.querySelector(".btn-reject-is");
@@ -286,10 +364,30 @@
     rejectBtn.click();
   }
 
-  /** Open tray verification modal for selected row (Enter key). */
+  /** Open tray verification modal OR execute focused action (Enter key). */
   function _openSelectedRowDetail() {
     var row = _selectedRow;
     if (!row) return;
+    
+    // Check if Accept or Reject button was previously focused by A or R shortcut
+    var acceptBtn = row.querySelector(".btn-accept-is");
+    var rejectBtn = row.querySelector(".btn-reject-is");
+    
+    // If A was pressed and Accept is available, open confirmation
+    if (acceptBtn && !acceptBtn.disabled && row.classList.contains("accept-focused")) {
+      row.classList.remove("accept-focused");
+      _openAcceptConfirm();
+      return;
+    }
+    
+    // If R was pressed and Reject is available, open reject modal
+    if (rejectBtn && !rejectBtn.disabled && row.classList.contains("reject-focused")) {
+      row.classList.remove("reject-focused");
+      _openRejectWindow();
+      return;
+    }
+    
+    // Otherwise open tray verification modal (view icon)
     var viewBtn = row.querySelector(".tray-scan-btn-DayPlanning-view, .tray-scan-btn-BQ-view, .tray-scan-btn-Jig");
     if (viewBtn) viewBtn.click();
   }
@@ -332,16 +430,18 @@
   // ─── Global keydown handler ────────────────────────────────────────────────
 
   function _onKeydown(e) {
-    // F1 — always intercept, regardless of focus
-    if (e.key === "F1") {
+    // F2 — always intercept, regardless of focus (changed from F1)
+    if (e.key === "F2") {
       e.preventDefault();
+      // Show "Please Scan" hint
+      _showPleaseScan();
       // If the selected (or first) row already has all trays verified,
       // just highlight it so the operator can hit A/R immediately.
-      var _f1row = _selectedRow || _getRows()[0];
-      if (_f1row) {
-        var _f1accept = _f1row.querySelector(".btn-accept-is");
-        if (_f1accept && !_f1accept.disabled) {
-          _selectRow(_f1row);
+      var _f2row = _selectedRow || _getRows()[0];
+      if (_f2row) {
+        var _f2accept = _f2row.querySelector(".btn-accept-is");
+        if (_f2accept && !_f2accept.disabled) {
+          _selectRow(_f2row);
           _toast("All trays verified \u2013 press A to Accept or R to Reject", "success");
           return;
         }
@@ -374,29 +474,84 @@
       case "a":
       case "A":
         e.preventDefault();
-        _openAcceptConfirm();
+        _focusAcceptRow();  // Only focus the row, don't open confirmation yet
+        if (_selectedRow) _selectedRow.classList.add("accept-focused");
         break;
 
       case "r":
       case "R":
         e.preventDefault();
-        _openRejectWindow();
+        _focusRejectRow();  // Only focus the row, don't open modal yet
+        if (_selectedRow) _selectedRow.classList.add("reject-focused");
+        break;
+
+      case "d":
+      case "D":
+        // Save as Draft shortcut (when tray verification modal is open)
+        e.preventDefault();
+        var tvmModal = document.getElementById("trayVerificationModal");
+        if (tvmModal && tvmModal.style.display !== "none") {
+          var draftBtn = document.getElementById("tvm-save-draft-btn");
+          if (draftBtn && !draftBtn.disabled) draftBtn.click();
+        }
+        break;
+
+      case "v":
+      case "V":
+        // View / Open tray verification modal for selected row
+        e.preventDefault();
+        _openScanMode();
         break;
 
       case "ArrowUp":
         e.preventDefault();
         _moveSelection(-1);
+        // Clear action focus classes when moving up/down
+        if (_selectedRow) {
+          _selectedRow.classList.remove("accept-focused", "reject-focused");
+        }
         break;
 
       case "ArrowDown":
         e.preventDefault();
         _moveSelection(1);
+        // Clear action focus classes when moving up/down
+        if (_selectedRow) {
+          _selectedRow.classList.remove("accept-focused", "reject-focused");
+        }
+        break;
+
+      case "ArrowLeft":
+        // Horizontal scroll left in tables
+        e.preventDefault();
+        _scrollTableHorizontal(-100);
+        break;
+
+      case "ArrowRight":
+        // Horizontal scroll right in tables
+        e.preventDefault();
+        _scrollTableHorizontal(100);
         break;
 
       case "Enter":
         e.preventDefault();
-        _openSelectedRowDetail();
+        _openSelectedRowDetail();  // Execute focused action or open view modal
         break;
+    }
+  }
+
+  /** Scroll table horizontally (for Pick/Accept/Reject/Completed tables). */
+  function _scrollTableHorizontal(delta) {
+    // Target the actual scrollable container - .table-responsive div
+    var container = document.querySelector(".table-responsive");
+    if (!container) {
+      // Fallback: try finding the card-body
+      container = document.querySelector(".card-body");
+    }
+    if (container) {
+      container.scrollLeft += delta;
+    } else {
+      console.warn("Horizontal scroll: scrollable container not found");
     }
   }
 

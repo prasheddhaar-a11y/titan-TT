@@ -157,6 +157,7 @@ def pick_table_queryset() -> QuerySet:
             | Q(rejected_ip_stock=True)
             | Q(remove_lot=True)
             | Q(submitted=True)  # ERR3: Exclude submitted lots
+            | Q(last_process_module='Jig Loading (Excess)')  # Exclude Jig Loading (Excess) lots
         )
         .order_by("-created_at")
     )

@@ -1,4 +1,4 @@
-﻿// ====== Original inline block #1 ======
+// ====== Original inline block #1 ======
 document.addEventListener("DOMContentLoaded", function () {
   // ✅ HELPER FUNCTION: Get edited tray qty from modal
   function getEditedTrayQtyFromModal() {
@@ -1024,13 +1024,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const topTag = t.top_tray
           ? ' <sup style="color:#028084;font-size:10px;font-weight:700;">TOP</sup>'
           : "";
-        const undoBtn = t.is_verified
-          ? '<button class="tvm-undo-btn" data-tray-id="' + t.tray_id + '" ' +
-            'title="Redo \u2013 revert to Not Verified" ' +
-            'style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;border-radius:20px;' +
-            'padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer;' +
-            'white-space:nowrap;margin-left:6px;">\u21ba Undo</button>'
-          : "";
+        // REMOVED: Individual undo buttons per tray - using common Undo All button instead
         return (
           '<tr id="tvm-row-' +
           sid +
@@ -1055,7 +1049,6 @@ document.addEventListener("DOMContentLoaded", function () {
           '">' +
           label +
           "</span>" +
-          undoBtn +
           "</td>" +
           "</tr>"
         );
@@ -1089,13 +1082,6 @@ document.addEventListener("DOMContentLoaded", function () {
           });
       });
     });
-    // Undo (unverify) button handlers
-    tbody.querySelectorAll(".tvm-undo-btn").forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        tvmUnverifyTray(this.getAttribute("data-tray-id"));
-      });
-    });
   }
   // Unverify a tray (redo option)
   function tvmUnverifyTray(trayId) {
@@ -1114,19 +1100,116 @@ document.addEventListener("DOMContentLoaded", function () {
           var sid = tvmSafeId(trayId);
           var badge = document.getElementById("tvm-badge-" + sid);
           var row = document.getElementById("tvm-row-" + sid);
-          if (badge) { badge.style.cssText = UNVERIFIED_BADGE_STYLE; badge.textContent = "Not Verified"; }
-          if (row) { var btn = row.querySelector(".tvm-undo-btn"); if (btn) btn.remove(); }
+          if (badge) {
+            badge.style.cssText = PENDING_BADGE_STYLE;
+            badge.textContent = "Not Verified";
+          }
+          // Update local tray store
           if (window._tvmTrays) {
-            var tr = window._tvmTrays.find(function (t) { return t.tray_id === trayId; });
+            var tr = window._tvmTrays.find(function (t) {
+              return t.tray_id === trayId;
+            });
             if (tr) tr.is_verified = false;
           }
           isEnableActionButtons(lotId, data.all_verified);
+          // Enable Undo button when trays become unverified (pending > 0)
+          if (data.pending > 0) {
+            var undoBtn = document.getElementById("tvm-undo-all-btn");
+            if (undoBtn) {
+              undoBtn.disabled = false;
+              undoBtn.style.opacity = "1";
+              undoBtn.style.cursor = "pointer";
+              undoBtn.title = "Undo all verifications - mark all trays as Not Verified";
+            }
+          }
           tvmSetActivity("wait", "Tray unverified \u2013 " + data.pending + " pending. Scan next tray\u2026");
         } else {
           tvmSetActivity("error", data.error || "Failed to unverify tray");
         }
       })
       .catch(function () { tvmSetActivity("error", "Network error \u274c"); });
+  }
+
+  // ─── TVM Undo All ───────────────────────────────────────────────────────
+  function tvmUndoAll() {
+    var lotId = window._tvmCurrentLotId;
+    if (!lotId) return;
+    
+    // Confirm before clearing all verifications
+    if (window.Swal) {
+      Swal.fire({
+        title: 'Undo All Verifications?',
+        text: 'This will mark all trays as Not Verified. Are you sure?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Undo All',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#e65100',
+        cancelButtonColor: '#6c757d',
+        focusCancel: true,
+      }).then(function(result) {
+        if (result.isConfirmed) {
+          _performUndoAll(lotId);
+        }
+      });
+    } else {
+      if (confirm('Undo all verifications? All trays will be marked as Not Verified.')) {
+        _performUndoAll(lotId);
+      }
+    }
+  }
+  
+  function _performUndoAll(lotId) {
+    var btn = document.getElementById("tvm-undo-all-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Undoing..."; }
+    tvmSetActivity("info", "Clearing all verifications...");
+    
+    fetch("/inputscreening/clear_all_verifications/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": tvmGetCookie("csrftoken") },
+      body: JSON.stringify({ lot_id: lotId }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          tvmSetActivity("success", "All verifications cleared ✓");
+          tvmSetRunningInfo("Status: All verifications cleared");
+          // Reload trays to show all as unverified
+          tvmLoadTrays(lotId);
+          // Reset Accept/Reject buttons to disabled
+          isEnableActionButtons(lotId, false);
+          // Update Q icon to grey (not verified)
+          var table = document.getElementById("order-listing");
+          if (table) {
+            table.querySelectorAll("tbody tr").forEach(function (row) {
+              if (row.getAttribute("data-stock-lot-id") === lotId) {
+                var qIcon = row.querySelector(".process-status-group div:first-child");
+                if (qIcon) {
+                  qIcon.style.backgroundColor = "#bdbdbd";
+                  qIcon.style.background = "#bdbdbd";
+                }
+              }
+            });
+          }
+          Swal.fire({
+            icon: "success",
+            title: "All Verifications Cleared",
+            text: data.message || "All trays are now Not Verified.",
+            timer: 1800,
+            timerProgressBar: true,
+            showConfirmButton: false,
+          });
+        } else {
+          tvmSetActivity("error", data.error || "Failed to undo verifications.");
+          Swal.fire("Error", data.error || "Failed to clear verifications.", "error");
+        }
+        if (btn) { btn.disabled = false; btn.innerHTML = "↶ Undo All"; }
+      })
+      .catch(function () {
+        tvmSetActivity("error", "Network error ✗");
+        Swal.fire("Error", "Network error while undoing verifications.", "error");
+        if (btn) { btn.disabled = false; btn.innerHTML = "↶ Undo All"; }
+      });
   }
 
   // ─── TVM Draft Save ─────────────────────────────────────────────────────
@@ -1315,11 +1398,27 @@ document.addEventListener("DOMContentLoaded", function () {
           );
           // Enable action buttons when all verified
           isEnableActionButtons(lotId, true);
+          // Disable Undo button when all trays verified
+          var undoBtn = document.getElementById("tvm-undo-all-btn");
+          if (undoBtn) {
+            undoBtn.disabled = true;
+            undoBtn.style.opacity = "0.5";
+            undoBtn.style.cursor = "not-allowed";
+            undoBtn.title = "All trays verified - cannot undo";
+          }
         } else {
           tvmSetActivity(
             "wait",
             "Waiting for tray scan… (" + data.pending + " pending)",
           );
+          // Enable Undo button when trays are pending
+          var undoBtn = document.getElementById("tvm-undo-all-btn");
+          if (undoBtn) {
+            undoBtn.disabled = false;
+            undoBtn.style.opacity = "1";
+            undoBtn.style.cursor = "pointer";
+            undoBtn.title = "Undo all verifications - mark all trays as Not Verified";
+          }
         }
       })
       .catch(function () {
@@ -1370,24 +1469,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (row) {
             // FIX 5: Auto-scroll to row and apply highlight
             tvmScrollToTray(trayId, true);
-            // Inject undo button into verification td if not already present
-            var verifyTd = row.querySelector("td:last-child");
-            if (verifyTd && !verifyTd.querySelector(".tvm-undo-btn")) {
-              var undoEl = document.createElement("button");
-              undoEl.className = "tvm-undo-btn";
-              undoEl.setAttribute("data-tray-id", trayId);
-              undoEl.title = "Redo \u2013 revert to Not Verified";
-              undoEl.style.cssText =
-                "background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" +
-                "border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;" +
-                "cursor:pointer;white-space:nowrap;margin-left:6px;";
-              undoEl.textContent = "\u21ba Undo";
-              undoEl.addEventListener("click", function (e) {
-                e.stopPropagation();
-                tvmUnverifyTray(this.getAttribute("data-tray-id"));
-              });
-              verifyTd.appendChild(undoEl);
-            }
+            // REMOVED: Individual undo button injection - using common Undo All button instead
           }
           // Update local tray store so next scan of this tray auto-selects
           if (window._tvmTrays) {
@@ -1401,6 +1483,14 @@ document.addEventListener("DOMContentLoaded", function () {
           if (data.all_verified) {
             // ── SSOT: enable action buttons from backend response ──────────
             isEnableActionButtons(window._tvmCurrentLotId, true);
+            // ── Disable Undo button when all trays verified ────────────────
+            var undoBtn = document.getElementById("tvm-undo-all-btn");
+            if (undoBtn) {
+              undoBtn.disabled = true;
+              undoBtn.style.opacity = "0.5";
+              undoBtn.style.cursor = "not-allowed";
+              undoBtn.title = "All trays verified - cannot undo";
+            }
             // ── Show auto-dismissing success alert ────────────────────────
             Swal.fire({
               icon: "success",
@@ -1494,6 +1584,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // Reset Save Draft button state (may have been disabled by a previous draft save)
     var draftBtn = document.getElementById("tvm-save-draft-btn");
     if (draftBtn) { draftBtn.disabled = false; draftBtn.innerHTML = "\uD83D\uDCBE Save Draft"; }
+    // Reset Undo button state (will be updated by tvmLoadTrays based on verification status)
+    var undoBtn = document.getElementById("tvm-undo-all-btn");
+    if (undoBtn) {
+      undoBtn.disabled = false;
+      undoBtn.style.opacity = "1";
+      undoBtn.style.cursor = "pointer";
+      undoBtn.title = "Undo all verifications - mark all trays as Not Verified";
+    }
     // Reset success banner on modal open
     var banner = document.getElementById("tvm-success-banner");
     if (banner) banner.style.display = "none";
@@ -1528,11 +1626,17 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("click", function (e) {
     const viewBtn = e.target.closest(".tray-scan-btn-DayPlanning-view");
     if (viewBtn) {
+      console.log("👁️ View icon clicked, opening tray verification modal");
       e.preventDefault();
       e.stopPropagation();
       const lotId = viewBtn.getAttribute("data-stock-lot-id");
       const batchId = viewBtn.getAttribute("data-batch-id");
-      tvmOpen(lotId, batchId);
+      console.log("📦 Opening modal for Lot:", lotId, "Batch:", batchId);
+      if (lotId && batchId) {
+        tvmOpen(lotId, batchId);
+      } else {
+        console.error("❌ Missing lotId or batchId attributes on view button");
+      }
     }
   });
   // ─── Event: close button ───────────────────────────────────────────────────
@@ -1551,6 +1655,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (modal && modal.style.display !== "none") tvmClose();
     }
   });
+  // ─── Event: Undo All button ────────────────────────────────────────────────
+  var tvmUndoAllBtn = document.getElementById("tvm-undo-all-btn");
+  if (tvmUndoAllBtn) tvmUndoAllBtn.addEventListener("click", tvmUndoAll);
   // ─── Event: scan input — Enter & formatting ───────────────────────────────
   const scanInput = document.getElementById("tvm-scan-input");
   if (scanInput) {

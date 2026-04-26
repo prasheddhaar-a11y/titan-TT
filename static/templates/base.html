@@ -974,7 +974,65 @@
             <span class="icon-menu"></span>
             </button>
 
-            <ul class="navbar-nav navbar-nav-right" style="gap: 0px; align-items: center;">
+            <ul class="navbar-nav navbar-nav-right" style="gap: 8px; align-items: center;">
+               <!-- ✅ SCAN INFO BOX - live status of current scan -->
+               <li class="nav-item">
+                  <div id="scanInfoBox" 
+                       style="background:rgba(2,128,132,0.06);border:1px solid #b3e5e6;
+                              border-radius:8px;padding:5px 14px;font-size:11px;color:#025254;
+                              min-width:160px;max-width:250px;text-align:center;
+                              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                              transition:all 0.3s ease;">
+                     <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/scanner.png' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan" onerror="this.outerHTML='&#128225;';"/></span>
+                     <span id="scanInfoText" style="margin-left:4px;font-weight:600;">Press F2 to scan</span>
+                  </div>
+               </li>
+               
+               <!-- ✅ GLOBAL SCAN BUTTON -->
+               <li class="nav-item position-relative">
+                  <button id="globalScanBtn" class="nav-link btn d-flex flex-row align-items-center" 
+                          title="Global Tray Scan (F2)"
+                          style="gap:10px;padding:8px 16px;
+                                 background:linear-gradient(135deg,#00a8ad,#028084);
+                                 border:none;border-radius:10px;
+                                 box-shadow:0 3px 10px rgba(2,128,132,0.25);
+                                 transition:all 0.3s ease;"
+                          onmouseover="this.style.background='linear-gradient(135deg,#00c4c9,#02999e)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 5px 15px rgba(2,128,132,0.35)';"
+                          onmouseout="this.style.background='linear-gradient(135deg,#00a8ad,#028084)';this.style.transform='translateY(0)';this.style.boxShadow='0 3px 10px rgba(2,128,132,0.25)';">
+                     <img src="{% static 'assets/icons/barcode.png' %}" alt="Scan" 
+                          style="width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);"
+                          onerror="this.onerror=null; this.outerHTML='';" />
+                     <small style="font-size:13px;color:#fff !important;font-weight:700;margin:0;text-shadow:0 1px 2px rgba(0,0,0,0.1);">Scan (F2)</small>
+                  </button>
+                  <!-- Inline scan status box -->
+                  <div id="globalScanStatus" 
+                       style="display:none;position:absolute;top:100%;right:0;margin-top:8px;
+                              background:linear-gradient(to bottom,#fff,#f9feff);
+                              border:2px solid #028084;border-radius:12px;
+                              padding:14px 18px;min-width:300px;
+                              box-shadow:0 6px 20px rgba(2,128,132,0.2);
+                              z-index:10000;font-size:13px;">
+                     <!-- Close Button -->
+                     <button id="closeScanBtn" 
+                             style="position:absolute;top:8px;right:8px;background:transparent;
+                                    border:none;font-size:20px;color:#999;cursor:pointer;
+                                    padding:0;width:24px;height:24px;line-height:1;
+                                    transition:color 0.2s;"
+                             onmouseover="this.style.color='#dc3545';"
+                             onmouseout="this.style.color='#999';">
+                        ×
+                     </button>
+                     <div id="scanStatusMessage" style="font-weight:600;color:#333;margin-bottom:4px;margin-top:4px;"></div>
+                     <input type="text" id="globalScanInput" 
+                            placeholder="Scan or type Tray ID..."
+                            autocomplete="off"
+                            style="width:100%;padding:10px 12px;border:1.5px solid #b3e5e6;border-radius:6px;
+                                   font-size:13px;margin-top:8px;transition:border-color 0.2s;"
+                            onfocus="this.style.borderColor='#028084';"
+                            onblur="this.style.borderColor='#b3e5e6';"/>
+                     <div id="scanResult" style="margin-top:10px;font-size:12px;"></div>
+                  </div>
+               </li>
                <li class="nav-item">
                   <a class="nav-link btn btn-outline d-flex flex-row align-items-center" href="{% url 'reports_module:reports' %}" data-tooltip="Reports" style="gap:8px;padding:7px 12px;">
                      <i class="ti-file" style="font-size:1.25rem;color:#028084;"></i>
@@ -1036,18 +1094,7 @@
                      </a>
                   </div>
                </li>
-               <li class="nav-item">
-                  <a class="nav-link btn btn-outline d-flex flex-row align-items-center"
-                     href="#"
-                     onclick="hardRefreshPage(); return false;"
-                     data-tooltip="Hard Refresh"
-                     style="gap:8px;padding:7px 12px;background: rgba(0,123,255,0.1);">
-                     <i class="ti-reload" style="font-size:1.25rem;color:#007bff;"></i>
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">
-                        Hard Refresh
-                     </small>
-                  </a>
-               </li>
+
                <!-- Place this after the user/profile icon dropdown in your navbar-nav navbar-nav-right list -->
                <li class="nav-item d-flex align-items-center ms-2">
                   <a id="flagGalleryBtn" class="navbar-brand brand-logo me-2" href="{% url 'index' %}">
@@ -2707,5 +2754,370 @@ document.addEventListener('keydown', function(e) {
 
 });
 </script>
+
+<!-- ✅ GLOBAL SCAN FEATURE: F2 Shortcut + Tray Search + Step-by-Step Info -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+
+  const scanBtn     = document.getElementById('globalScanBtn');
+  const scanStatus  = document.getElementById('globalScanStatus');
+  const scanMessage = document.getElementById('scanStatusMessage');
+  const scanInput   = document.getElementById('globalScanInput');
+  const scanResult  = document.getElementById('scanResult');
+  const closeScanBtn = document.getElementById('closeScanBtn');
+  const scanInfoIcon = document.getElementById('scanInfoIcon');
+  const scanInfoText = document.getElementById('scanInfoText');
+
+  if (!scanBtn || !scanStatus || !scanInput) return;
+
+  let scanActive = false;
+  let navTimer = null;  // tracks pending navigation so a new scan can cancel it
+
+  // ─── Info box helper ────────────────────────────────────────────────────
+  function setInfo(icon, text, color) {
+    if (scanInfoIcon) {
+      if (icon === '📡') {
+        var src = scanInfoIcon.getAttribute('data-scanner-src');
+        if (src) {
+          scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
+        } else {
+          scanInfoIcon.textContent = '📡';
+        }
+      } else {
+        scanInfoIcon.textContent = icon;
+      }
+    }
+    if (scanInfoText) { scanInfoText.textContent = text; scanInfoText.style.color = color || '#025254'; }
+  }
+
+  // ─── Keyboard shortcuts ─────────────────────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'F2') { e.preventDefault(); activateScan(); }
+    if (e.key === 'Escape' && scanActive) closeScan();
+  });
+
+  // ─── Button clicks ──────────────────────────────────────────────────────
+  scanBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); activateScan(); });
+  if (closeScanBtn) closeScanBtn.addEventListener('click', function(e) { e.stopPropagation(); closeScan(); });
+
+  // ─── Outside click closes ───────────────────────────────────────────────
+  document.addEventListener('click', function(e) {
+    if (scanActive && !scanStatus.contains(e.target) && !scanBtn.contains(e.target)) closeScan();
+  });
+
+  // ─── Activate ───────────────────────────────────────────────────────────
+  function activateScan() {
+    // Cancel any in-flight navigation from previous scan
+    clearTimeout(navTimer);
+    navTimer = null;
+    scanActive = true;
+    scanStatus.style.display = 'block';
+    scanMessage.textContent = '📡 Scan or type Tray ID';
+    scanMessage.style.color = '#028084';
+    scanInput.value = '';
+    scanResult.innerHTML = '';  // clear any leftover content
+    scanInput.disabled = false;
+    setInfo('📡', 'Ready — scan tray', '#028084');
+    scanInput.focus();
+  }
+
+  // ─── Close ──────────────────────────────────────────────────────────────
+  function closeScan() {
+    scanActive = false;
+    scanStatus.style.display = 'none';
+    scanInput.value = '';
+    scanResult.innerHTML = '';
+    setInfo('📡', 'Press F2 to scan', '#025254');
+  }
+
+  // ─── Live typing: Step 1 ────────────────────────────────────────────────
+  let scanTimeout;
+  scanInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(scanTimeout);  // cancel any pending auto-trigger to avoid duplicate call
+      const v = this.value.trim().toUpperCase();
+      if (v.length >= 9) searchTray(v);
+      else { scanMessage.textContent = '⚠️ Enter at least 9 characters'; scanMessage.style.color = '#ff6b00'; }
+    }
+  });
+
+  scanInput.addEventListener('input', function() {
+    clearTimeout(scanTimeout);
+    const v = this.value.trim().toUpperCase();
+    if (v.length > 0) {
+      // Step 1: show tray id live
+      setInfo('🔍', v.length > 14 ? v.slice(0, 14) + '…' : v, '#028084');
+    } else {
+      setInfo('📡', 'Ready — scan tray', '#028084');
+    }
+    if (v.length === 9) scanTimeout = setTimeout(() => searchTray(v), 300);
+  });
+
+  // ─── Search: Steps 2 → 3 → 4 ────────────────────────────────────────────
+  function searchTray(trayId) {
+    // Step 2: Searching
+    setInfo('⏳', 'Searching modules…', '#028084');
+    scanMessage.textContent = '⏳ Searching...';
+    scanMessage.style.color = '#028084';
+    scanResult.innerHTML = `
+      <div style="text-align:center;padding:12px;">
+        <img src="{% static 'assets/gif/2.gif' %}" alt="Loading..."
+             style="width:40px;height:40px;object-fit:contain;" />
+        <div style="margin-top:6px;font-size:11px;color:#666;">Scanning all modules...</div>
+      </div>`;
+    scanInput.disabled = true;
+
+    fetch('/adminportal/global_tray_search/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ tray_id: trayId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      // DEBUG: Log full response
+      console.log('[SCAN RESPONSE]', JSON.stringify(data, null, 2));
+      
+      scanInput.disabled = false;
+
+      if (data.success && data.found) {
+        // Step 3: Found — all result detail goes to the info box, not the popup
+        const shortMod = data.module.replace('Recovery ', 'Rec. ');
+        setInfo('✅', trayId + ' — ' + shortMod, '#28a745');
+        scanMessage.textContent = '✅ Found in ' + shortMod;
+        scanMessage.style.color = '#28a745';
+        scanResult.innerHTML = '';  // no duplicate result box inside popup
+
+        // Store context so destination page can continue showing info
+        sessionStorage.setItem('globalScanModule', data.module);
+        sessionStorage.setItem('globalScanTrayId', trayId);
+
+        // Step 4: Opening — update info box after brief pause, then navigate
+        navTimer = setTimeout(() => setInfo('🚀', 'Opening ' + shortMod + '…', '#028084'), 1000);
+        
+        // Determine if we're already in the correct module
+        const currentModule = window.location.pathname.split('/').filter(Boolean)[0] || '';
+        const targetModule = (data.url || '').split('/').filter(Boolean)[0] || '';
+        
+        console.log('[SCAN] Current module:', currentModule, '| Target module:', targetModule);
+        
+        navTimer = setTimeout(() => {
+          if (currentModule === targetModule && currentModule) {
+            // Same module — reload current page with highlight (use scanned tray ID)
+            console.log('[SCAN] Same module refresh:', currentModule);
+            console.log('[SCAN] Reloading:', window.location.pathname + '?highlight=' + trayId);
+            window.location.href = window.location.pathname + '?highlight=' + encodeURIComponent(trayId);
+          } else {
+            // Different module — navigate to backend-returned URL (use scanned tray ID, not lot_id)
+            console.log('[SCAN] Cross-module navigation: ' + currentModule + ' → ' + targetModule);
+            console.log('[SCAN] Redirecting to:', data.url + '?highlight=' + trayId);
+            window.location.href = data.url + '?highlight=' + encodeURIComponent(trayId);
+          }
+        }, 2000);
+
+      } else {
+        setInfo('❌', trayId + ' — not found', '#dc3545');
+        scanMessage.textContent = '❌ ' + (data.message || 'Not found in any module');
+        scanMessage.style.color = '#dc3545';
+        scanResult.innerHTML = '';  // no inline result box
+        console.log('[SCAN] Tray not found:', trayId);
+        navTimer = setTimeout(() => {
+          scanInput.value = '';
+          setInfo('📡', 'Ready — scan tray', '#028084');
+          scanMessage.textContent = '📡 Scan or type Tray ID';
+          scanMessage.style.color = '#028084';
+          scanInput.focus();
+        }, 2500);
+      }
+    })
+    .catch(err => {
+      console.error('[SCAN ERROR]', err);
+      scanInput.disabled = false;
+      setInfo('❌', 'Error — try again', '#dc3545');
+      scanMessage.textContent = '❌ Network error';
+      scanMessage.style.color = '#dc3545';
+      scanResult.innerHTML = '';
+    });
+  }
+
+  function getCookie(name) {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    if (p.length === 2) return p.pop().split(';').shift();
+    return '';
+  }
+
+})();
+</script>
+
+<!-- ✅ AUTO-HIGHLIGHT ROW: page-hunt + sticky-safe highlight -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+
+  const urlParams    = new URLSearchParams(window.location.search);
+  const highlightLot = urlParams.get('highlight');
+  const scanInfoIcon = document.getElementById('scanInfoIcon');
+  const scanInfoText = document.getElementById('scanInfoText');
+
+  function setInfo(icon, text, color) {
+    if (scanInfoIcon) {
+      if (icon === '📡') {
+        var src = scanInfoIcon.getAttribute('data-scanner-src');
+        if (src) {
+          scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
+        } else {
+          scanInfoIcon.textContent = '📡';
+        }
+      } else {
+        scanInfoIcon.textContent = icon;
+      }
+    }
+    if (scanInfoText) { scanInfoText.textContent = text; scanInfoText.style.color = color || '#025254'; }
+  }
+
+  if (!highlightLot) {
+    // Idle state (no scan in progress)
+    setInfo('📡', 'Press F2 to scan', '#025254');
+    return;
+  }
+
+  // ── Read context stored before navigation ────────────────────────────────
+  const scanModule = sessionStorage.getItem('globalScanModule') || '';
+  const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightLot;
+  sessionStorage.removeItem('globalScanModule');
+  sessionStorage.removeItem('globalScanTrayId');
+
+  const shortMod = scanModule.replace('Recovery ', 'Rec. ');
+
+  // Show immediately: "NB-A00031 — Input Screening"
+  setInfo('🔍', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · locating…', '#028084');
+
+  // ── Inject CSS class that overrides sticky-column backgrounds ────────────
+  const styleEl = document.createElement('style');
+  styleEl.id = 'gs-hi-style';
+  styleEl.textContent =
+    'tr.gs-hi > td {' +
+      'background-color: #fff9e6 !important;' +
+      'box-shadow: inset 0 2px 0 #f39c12, inset 0 -2px 0 #f39c12 !important;' +
+      'transition: background-color 0.3s ease;' +
+    '}' +
+    'tr.gs-hi > td:first-child {' +
+      'box-shadow: inset 4px 2px 0 #e67e22, inset 0 -2px 0 #f39c12 !important;' +
+    '}' +
+    '@keyframes gs-pulse {' +
+      '0%,100%{ background-color: #fff9e6 !important; }' +
+      '50%{ background-color: #fdeea3 !important; }' +
+    '}' +
+    'tr.gs-hi > td { animation: gs-pulse 0.75s ease 4; }';
+  document.head.appendChild(styleEl);
+
+  // ── Row finder ───────────────────────────────────────────────────────────
+  function findRow() {
+    for (const row of document.querySelectorAll('table tbody tr')) {
+      if (row.querySelector('[data-batch-id="' + highlightLot + '"],[data-lot-id="' + highlightLot + '"]')) return row;
+      for (const td of row.querySelectorAll('td')) {
+        if (td.textContent.trim() === highlightLot) return row;
+      }
+    }
+    return null;
+  }
+
+  // ── Read current page number from pagination widget ──────────────────────
+  function getCurrentPage() {
+    const sel = '.pagination .page-item.active .page-link, .pagination .active > a, .dataTables_paginate .current';
+    const el = document.querySelector(sel);
+    return el ? el.textContent.trim() : '1';
+  }
+
+  // ── Highlight and scroll (sticky-header aware) ────────────────────────────
+  function highlightRow(row) {
+    row.classList.add('gs-hi');
+    const pg = getCurrentPage();
+    setInfo('✅', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
+
+    // Scroll: offset by navbar height so row isn't hidden under sticky header
+    const navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
+    const rect = row.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + rect.top - navH - 80, behavior: 'smooth' });
+
+    setTimeout(() => {
+      row.classList.remove('gs-hi');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setInfo('📡', 'Press F2 to scan', '#025254');
+    }, 12000);
+  }
+
+  // ── DataTables next-page ─────────────────────────────────────────────────
+  function dtNextPage() {
+    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.dataTable) {
+      try {
+        const api = jQuery.fn.dataTable.tables({ visible: true, api: true });
+        if (api.length) {
+          const info = api.page.info();
+          if (info.page < info.pages - 1) { api.page('next').draw('page'); return true; }
+          return false; // exhausted
+        }
+      } catch(e) {}
+    }
+    return null; // DataTables not present
+  }
+
+  // ── Generic Bootstrap pagination next button ─────────────────────────────
+  function genericNextPage() {
+    const candidates = [
+      '.pagination .page-item:not(.disabled) a[aria-label*="Next"]',
+      '.pagination li:not(.disabled) a[aria-label*="Next"]',
+      '.pagination .next:not(.disabled) > a',
+      '#nextPageBtn:not([disabled])'
+    ];
+    for (const s of candidates) {
+      const btn = document.querySelector(s);
+      if (btn) { btn.click(); return true; }
+    }
+    return false;
+  }
+
+  // ── Main hunt loop ────────────────────────────────────────────────────────
+  let huntPage = 1;
+  let huntTimer = null;
+  const MAX_PAGES = 30;
+
+  function hunt() {
+    const row = findRow();
+    if (row) { highlightRow(row); return; }
+
+    if (huntPage >= MAX_PAGES) {
+      setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    huntPage++;
+    setInfo('🔍', scanTrayId + ' · checking page ' + huntPage + '…', '#028084');
+
+    const dtResult = dtNextPage();
+    if (dtResult === true) return;   // MutationObserver fires → re-hunt
+    if (dtResult === false) { setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545'); return; }
+    // DataTables not present — try generic
+    if (!genericNextPage()) { setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545'); }
+    // else MutationObserver fires
+  }
+
+  // ── Watch for AJAX pagination DOM changes ────────────────────────────────
+  const watchTarget = document.querySelector('#order-listing_wrapper, .dataTables_wrapper, .table-responsive, table');
+  if (watchTarget) {
+    new MutationObserver(() => {
+      clearTimeout(huntTimer);
+      huntTimer = setTimeout(hunt, 350);
+    }).observe(watchTarget.closest('[id]') || watchTarget, { childList: true, subtree: true });
+  }
+
+  // ── Initial search after page load ───────────────────────────────────────
+  huntTimer = setTimeout(hunt, 800);
+
+})();
+</script>
+
    </body>
 </html>

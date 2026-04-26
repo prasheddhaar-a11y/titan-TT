@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import *
+from .global_scan import GlobalTraySearchView
 
 urlpatterns = [
     path('index/',IndexView.as_view(),name="index"),
@@ -85,6 +86,9 @@ urlpatterns = [
     path('module-table/', ModuleTableView.as_view(), name='module-table'),
     # or for kwarg style:
     path('module-table/<str:module_name>/', ModuleTableView.as_view(), name='module-table-by-name'),
+
+    # Global tray search (F2 scan feature)
+    path('global_tray_search/', GlobalTraySearchView.as_view(), name='global_tray_search'),
 
 
 ]
