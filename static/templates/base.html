@@ -978,7 +978,7 @@
                <!-- ✅ SCAN INFO BOX - live status of current scan -->
                <li class="nav-item">
                   <div id="scanInfoBox" 
-                       style="background:rgba(2,128,132,0.06);border:1px solid #b3e5e6;
+                       style="background:rgba(2,128,132,0.06);
                               border-radius:8px;padding:5px 14px;font-size:11px;color:#025254;
                               min-width:160px;max-width:250px;text-align:center;
                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -996,9 +996,7 @@
                                  background:linear-gradient(135deg,#00a8ad,#028084);
                                  border:none;border-radius:10px;
                                  box-shadow:0 3px 10px rgba(2,128,132,0.25);
-                                 transition:all 0.3s ease;"
-                          onmouseover="this.style.background='linear-gradient(135deg,#00c4c9,#02999e)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 5px 15px rgba(2,128,132,0.35)';"
-                          onmouseout="this.style.background='linear-gradient(135deg,#00a8ad,#028084)';this.style.transform='translateY(0)';this.style.boxShadow='0 3px 10px rgba(2,128,132,0.25)';">
+                                 transition:all 0.3s ease;">
                      <img src="{% static 'assets/icons/barcode.png' %}" alt="Scan" 
                           style="width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);"
                           onerror="this.onerror=null; this.outerHTML='';" />
@@ -1017,9 +1015,7 @@
                              style="position:absolute;top:8px;right:8px;background:transparent;
                                     border:none;font-size:20px;color:#999;cursor:pointer;
                                     padding:0;width:24px;height:24px;line-height:1;
-                                    transition:color 0.2s;"
-                             onmouseover="this.style.color='#dc3545';"
-                             onmouseout="this.style.color='#999';">
+                                    transition:color 0.2s;">
                         ×
                      </button>
                      <div id="scanStatusMessage" style="font-weight:600;color:#333;margin-bottom:4px;margin-top:4px;"></div>
@@ -1027,9 +1023,7 @@
                             placeholder="Scan or type Tray ID..."
                             autocomplete="off"
                             style="width:100%;padding:10px 12px;border:1.5px solid #b3e5e6;border-radius:6px;
-                                   font-size:13px;margin-top:8px;transition:border-color 0.2s;"
-                            onfocus="this.style.borderColor='#028084';"
-                            onblur="this.style.borderColor='#b3e5e6';"/>
+                                   font-size:13px;margin-top:8px;transition:border-color 0.2s;"/>
                      <div id="scanResult" style="margin-top:10px;font-size:12px;"></div>
                   </div>
                </li>
@@ -2947,6 +2941,50 @@ document.addEventListener('keydown', function(e) {
     return '';
   }
 
+})();
+</script>
+
+<!-- ✅ CSP-COMPLIANT EVENT HANDLERS: Replace inline handlers with addEventListener -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+
+  // Global Scan Button hover effects
+  const scanBtn = document.getElementById('globalScanBtn');
+  if (scanBtn) {
+    scanBtn.addEventListener('mouseover', function() {
+      this.style.background = 'linear-gradient(135deg,#00c4c9,#02999e)';
+      this.style.transform = 'translateY(-2px)';
+      this.style.boxShadow = '0 5px 15px rgba(2,128,132,0.35)';
+    });
+    scanBtn.addEventListener('mouseout', function() {
+      this.style.background = 'linear-gradient(135deg,#00a8ad,#028084)';
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = '0 3px 10px rgba(2,128,132,0.25)';
+    });
+  }
+
+  // Close button hover effect
+  const closeScanBtn = document.getElementById('closeScanBtn');
+  if (closeScanBtn) {
+    closeScanBtn.addEventListener('mouseover', function() {
+      this.style.color = '#dc3545';
+    });
+    closeScanBtn.addEventListener('mouseout', function() {
+      this.style.color = '#999';
+    });
+  }
+
+  // Scan input focus/blur effects
+  const scanInput = document.getElementById('globalScanInput');
+  if (scanInput) {
+    scanInput.addEventListener('focus', function() {
+      this.style.borderColor = '#028084';
+    });
+    scanInput.addEventListener('blur', function() {
+      this.style.borderColor = '#b3e5e6';
+    });
+  }
 })();
 </script>
 
