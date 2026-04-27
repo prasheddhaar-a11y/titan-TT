@@ -123,6 +123,7 @@
       modal.style.display = "none";
     }
     clearTimeout(state.previewTimer);
+    if (typeof window.restoreRowPosition === "function") window.restoreRowPosition();
   }
 
   function resetUI() {
@@ -921,7 +922,44 @@
           setInsight("error", (resp.data && resp.data.error) || "Draft save failed.");
           return;
         }
-        setInsight("success", "Draft saved.");
+        setInsight("success", "Drafted successfully.");
+        // Update lot status pill in pick table row
+        var lotId = state.lotId;
+        if (lotId) {
+          var table = document.getElementById("order-listing");
+          if (table) {
+            table.querySelectorAll("tbody tr").forEach(function (row) {
+              if (row.getAttribute("data-stock-lot-id") === lotId) {
+                var lotStatusCell = row.querySelector("[data-lot-status-cell]") ||
+                  (function () {
+                    var tds = row.querySelectorAll("td");
+                    for (var i = 0; i < tds.length; i++) {
+                      if (tds[i].textContent.trim().match(/Yet to Start|Draft|On Hold/)) return tds[i];
+                    }
+                    return null;
+                  })();
+                if (lotStatusCell) {
+                  lotStatusCell.innerHTML =
+                    '<div class="d-inline-block px-3 fw-semibold text-center rounded-pill" ' +
+                    'style="border:1px solid #4997ac;background-color:#d1f2f3;color:#03425d;' +
+                    'font-size:12px;white-space:nowrap;padding:5px;">Draft</div>';
+                }
+              }
+            });
+          }
+        }
+        // Show success toast and close the reject modal
+        if (typeof Swal !== "undefined") {
+          Swal.fire({
+            icon: "success",
+            title: "Drafted successfully",
+            timer: 1800,
+            timerProgressBar: true,
+            showConfirmButton: false,
+          }).then(function () { closeModal(); });
+        } else {
+          closeModal();
+        }
       })
       .catch(function () {
         if (draftBtn) { draftBtn.disabled = false; draftBtn.textContent = "Save Draft"; }
@@ -1177,18 +1215,28 @@
         var body = document.querySelector("#isRejectModal .isrm-body");
         var submitBtnEl = $("isrm-submit-btn");
         var rmEl = $("isrm-remarks");
+        var grid = $("isrm-reason-grid");
+        
         if (this.checked) {
           if (body) body.classList.add("isrm-full-reject-mode");
           if (submitBtnEl) {
             submitBtnEl.disabled = false;
             submitBtnEl.textContent = "Submit Lot Rejection";
           }
+          // ✅ HIDE & DISABLE all individual rejection quantity inputs
+          if (grid) {
+            grid.querySelectorAll(".isrm-qty-input").forEach(function (inp) {
+              inp.style.display = "none";
+              inp.disabled = true;
+              inp.value = 0; // reset to 0 since the entire lot is being rejected
+            });
+          }
           setInsight(
             "warning",
             "Lot Rejection mode — enter remarks and click Submit."
           );
           setStatus(
-            "warning",
+            "info",
             "Lot Rejection: the entire lot will be rejected. Remarks are required."
           );
           if (rmEl) {
@@ -1198,6 +1246,13 @@
         } else {
           if (body) body.classList.remove("isrm-full-reject-mode");
           if (submitBtnEl) submitBtnEl.textContent = "Submit";
+          // ✅ SHOW & ENABLE all individual rejection quantity inputs
+          if (grid) {
+            grid.querySelectorAll(".isrm-qty-input").forEach(function (inp) {
+              inp.style.display = "";
+              inp.disabled = false;
+            });
+          }
           setInsight("info", "Lot Rejection mode disabled.");
           setStatus("info", "Resume scanning to submit a partial reject.");
           updateSubmitState();

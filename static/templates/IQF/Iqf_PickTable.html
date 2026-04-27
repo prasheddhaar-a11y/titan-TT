@@ -1628,20 +1628,20 @@
                       Plating <br> Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                     <th>
-                      Action <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
                     <th>
-                      No of Trays<i class="fa fa-filter" aria-hidden="true"></i>
+                      Action <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       RW Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      No of Trays<i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Accept Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
-                      </th>
+                    </th>
                     <th>
                       Reject Qty<i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -1658,6 +1658,10 @@
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Tray Cate- <br> Capacity
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Polishing Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -1665,16 +1669,12 @@
                       Plating Color
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                     <th>
+                    <th>
                       Category
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Polish Finish
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Tray Cate- <br> Capacity
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -1771,109 +1771,6 @@
                         </div>
                       </span>
                     </td>
-                    <td class="{{ data.ui.row_blur }}">{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
-
-                    <td class="{{ data.ui.row_blur }}">{{ data.plating_color }}</td>
-                    <td class="{{ data.ui.row_blur }}">{{ data.category }}</td>
-                    <td class="{{ data.ui.row_blur }}">{{data.polish_finish}}</td>
-                    <td style="display: none;">{{data.version__version_name}}</td>
-                    <td class="{{ data.ui.row_blur }}">
-                      {% if data.tray_type %}
-                        {{data.tray_type}}-{{data.tray_capacity}}
-                      {% elif data.tray_capacity %}
-                        {{data.tray_capacity}}
-                      {% else %}
-                        <span style="color:#ccc;">—</span>
-                      {% endif %}
-                    </td>
-                    <td class="{{ data.ui.row_blur }}">{{data.location__location_name}}</td>
-                    
-                    <td class="{{ data.ui.row_blur }}">{{data.no_of_trays}}</td>
-                    <td class="{{ data.ui.row_blur }}">
-                      <span class="lot-qty" style="min-width: 30px; text-align: right">
-                        {{ data.rw_qty|default:'0' }}
-                      </span>
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        {% if not data.ui.qty_verified %}
-                          <!-- Show checkbox before save -->
-                          <input type="checkbox"
-                            class="ip-checkbox"
-                            data-lot-id="{{ data.stock_lot_id }}"
-                            style="width: 15px; height: 15px" />
-                          {% else %}
-                          <!-- Show green tick after save -->
-                          <span style="
-                            display: inline-flex;
-                            align-items: center;
-                            justify-content: center;
-                            width: 19px;
-                            height: 19px;
-                            border-radius: 50%;
-                            background: #0c8249;
-                            color: white;
-                            font-size: 14px;
-                            font-weight: bold;
-                            margin-left: 2px;
-                          ">
-                            &#10003;
-                          </span>
-                        {% endif %}
-                        <input type="text"
-                          class="missing-qty-input"
-                          value="{{ data.iqf_missing_qty|default_if_none:'' }}"
-                          style="width: 36px; padding: 1px 3px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; display: none;"
-                          {% if data.ui.qty_verified %}disabled{% endif %} />
-                      </span>
-                    </td>
-                      <!-- <td class="{{ data.ui.row_blur }}">
-                      {{data.iqf_physical_qty}}
-                    </td> -->
-
-                    <td class="{{ data.ui.row_blur }}">
-                        {{data.iqf_accepted_qty|default:0}}
-                    </td>
-                    <td class="{{ data.ui.row_blur }}">
-                        {{data.iqf_rejection_qty|default:0}}
-                    </td>
-                    <!-- Process Status Column — colors pre-computed by backend -->
-                    <td class="{{ data.ui.row_blur }}">
-                      <div class="d-flex">
-                        <!-- Q circle -->
-                        <div
-                          title="Quantity"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            background-color: {{ data.ui.q_color }};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding: 5px;
-                          "
-                        >
-                          Q
-                        </div>
-                        <!-- QC circle -->
-                        <div 
-                          title="Quality Check"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            {{ data.ui.qc_style }};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding: 5px;
-                          "
-                        >
-                          QC
-                        </div>
-                      </div>
-                    </td>
                     <td class="{{ data.ui.row_blur }}">
                       
                       {% if data.ui.can_delete %}
@@ -1945,6 +1842,92 @@
     />
 </a>
                     </td>
+                    <td class="{{ data.ui.row_blur }}">
+                      <span class="lot-qty" style="min-width: 30px; text-align: right">
+                        {{ data.rw_qty|default:'0' }}
+                      </span>
+                      <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        {% if not data.ui.qty_verified %}
+                          <!-- Show checkbox before save -->
+                          <input type="checkbox"
+                            class="ip-checkbox"
+                            data-lot-id="{{ data.stock_lot_id }}"
+                            style="width: 15px; height: 15px" />
+                          {% else %}
+                          <!-- Show green tick after save -->
+                          <span style="
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            width: 19px;
+                            height: 19px;
+                            border-radius: 50%;
+                            background: #0c8249;
+                            color: white;
+                            font-size: 14px;
+                            font-weight: bold;
+                            margin-left: 2px;
+                          ">
+                            &#10003;
+                          </span>
+                        {% endif %}
+                        <input type="text"
+                          class="missing-qty-input"
+                          value="{{ data.iqf_missing_qty|default_if_none:'' }}"
+                          style="width: 36px; padding: 1px 3px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; display: none;"
+                          {% if data.ui.qty_verified %}disabled{% endif %} />
+                      </span>
+                    </td>
+                    <td class="{{ data.ui.row_blur }}">{{data.no_of_trays}}</td>
+                      <!-- <td class="{{ data.ui.row_blur }}">
+                      {{data.iqf_physical_qty}}
+                    </td> -->
+
+                    <td class="{{ data.ui.row_blur }}">
+                        {{data.iqf_accepted_qty|default:0}}
+                    </td>
+                    <td class="{{ data.ui.row_blur }}">
+                        {{data.iqf_rejection_qty|default:0}}
+                    </td>
+                    <!-- Process Status Column — colors pre-computed by backend -->
+                    <td class="{{ data.ui.row_blur }}">
+                      <div class="d-flex">
+                        <!-- Q circle -->
+                        <div
+                          title="Quantity"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 25px;
+                            height: 25px;
+                            background-color: {{ data.ui.q_color }};
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding: 5px;
+                          "
+                        >
+                          Q
+                        </div>
+                        <!-- QC circle -->
+                        <div 
+                          title="Quality Check"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 25px;
+                            height: 25px;
+                            {{ data.ui.qc_style }};
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding: 5px;
+                          "
+                        >
+                          QC
+                        </div>
+                      </div>
+                    </td>
                     <!-- Lot Status — pre-computed pill from backend -->
                     <td class="{{ data.ui.row_blur }}">
                       <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
@@ -1969,6 +1952,21 @@
                         {{ data.last_process_module|default:"N/A" }}
                       </div>
                     </td>
+                    <td class="{{ data.ui.row_blur }}">
+                      {% if data.tray_type %}
+                        {{data.tray_type}}-{{data.tray_capacity}}
+                      {% elif data.tray_capacity %}
+                        {{data.tray_capacity}}
+                      {% else %}
+                        <span style="color:#ccc;">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="{{ data.ui.row_blur }}">{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
+                    <td class="{{ data.ui.row_blur }}">{{ data.plating_color }}</td>
+                    <td class="{{ data.ui.row_blur }}">{{ data.category }}</td>
+                    <td class="{{ data.ui.row_blur }}">{{data.polish_finish}}</td>
+                    <td style="display: none;">{{data.version__version_name}}</td>
+                    <td class="{{ data.ui.row_blur }}">{{data.location__location_name}}</td>
                     <!-- Remarks — pre-computed allow_remarks from backend -->
                     <td class="{{ data.ui.row_blur }}">
                       {% if data.ui.allow_remarks %}

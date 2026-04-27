@@ -18,7 +18,7 @@
         transform-style: preserve-3d;
         will-change: transform;
         backface-visibility: hidden;
-        animation: flipflop 3s ease-in-out infinite;
+        animation: none;
       }
 
       /* flip-flop keyframes */
@@ -42,13 +42,18 @@
         }
       }
 
+      html,
       body {
-        background-image: url("{% static 'assets/images/img6.jpg' %}");
-        background-repeat: no-repeat;
-        background-position: center center;
-        background-attachment: scroll;
-        /* Fill viewport while preserving aspect ratio (may crop edges) */
-        background-size: cover !important;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: radial-gradient(circle at top left, rgba(20, 160, 160, 0.16), transparent 24%),
+          radial-gradient(circle at bottom right, rgba(17, 89, 96, 0.28), transparent 22%),
+          linear-gradient(180deg, #08111a 0%, #0b2432 100%);
+        color: #f4f7fb;
+        overflow-x: hidden;
         position: relative;
       }
       /* Right-side static illustration */
@@ -94,55 +99,55 @@
       }
       /* New centered card layout (override earlier positioning) */
       .page-card {
-        width: min(1100px, 92%);
-        margin: 6vh auto;
-        background: #ffffff;
-        border-radius: 14px;
+        width: min(940px, 92%);
+        margin: 4vh auto;
+        background: linear-gradient(135deg, rgba(12, 23, 34, 0.94) 0%, rgba(20, 35, 50, 0.92) 50%, rgba(12, 23, 34, 0.94) 100%);
+        background-size: 400% 400%;
+        animation: subtle-shift 8s ease infinite;
+        border-radius: 28px;
         box-shadow:
-          0 30px 80px rgba(18, 52, 67, 0.2),
-          0 8px 24px rgba(13, 148, 136, 0.06),
-          inset 0 1px 0 rgba(255, 255, 255, 0.6);
-        border: 1px solid rgba(10, 10, 10, 0.04);
+          0 28px 90px rgba(0, 0, 0, 0.24),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          inset 0 0 40px rgba(58, 213, 216, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         overflow: hidden;
         display: flex;
-        min-height: 520px;
+        min-height: 460px;
+        max-height: 84vh;
+        backdrop-filter: blur(18px);
+      }
+      @keyframes subtle-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
       .page-card .card-left {
-        width: 56%;
-        padding: 56px 64px;
+        width: 52%;
+        padding: 42px 44px;
         display: flex;
-        align-items: center;
+        flex-direction: column;
         justify-content: center;
         background: transparent;
       }
       .page-card .card-right {
-        width: 44%;
+        width: 48%;
         position: relative;
-        background: linear-gradient(
-          90deg,
-          rgba(13, 148, 136, 0.06) 0%,
-          rgba(13, 148, 136, 0.14) 50%,
-          rgba(10, 107, 102, 0.18) 100%
-        );
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 32px;
+        padding: 30px;
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
       }
       .card-right::before {
         content: "";
         position: absolute;
-        left: -20%;
-        width: 140%;
-        height: 140%;
-        background: radial-gradient(
-          circle at 80% 20%,
-          rgba(13, 148, 136, 0.18),
-          rgba(13, 148, 136, 0.06) 40%,
-          transparent 60%
-        );
+        left: 5%;
+        top: 4%;
+        width: 90%;
+        height: 90%;
+        background: radial-gradient(circle at 20% 20%, rgba(13, 148, 136, 0.18), transparent 45%);
         border-radius: 50%;
-        transform: translateY(-10%);
         z-index: 0;
       }
       .card-right img {
@@ -153,12 +158,55 @@
         object-fit: contain;
         pointer-events: none;
       }
-      /* Make the auth card look like the mock inside the left column */
+      /* Keep only the outer page card as the visual container */
       .auth-form-light.text-left.py-5.px-4.px-sm-5 {
         background: transparent !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         padding: 0 !important;
+        border: none !important;
+      }
+      .login-title {
+        color: #f5fbff;
+        font-size: clamp(2.2rem, 2.6vw, 2.8rem);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-bottom: 10px;
+        line-height: 1.05;
+      }
+      .login-subtitle {
+        color: #b8d8ea;
+        font-weight: 400;
+        font-family: inherit;
+        margin: 0 0 20px;
+        text-align: left;
+        font-size: 1.02rem;
+        line-height: 1.7;
+        letter-spacing: 0.01em;
+      }
+      .login-note {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.95rem;
+        margin-bottom: 28px;
+      }
+      .mt-3 {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+      }
+      .btn-primary.auth-form-btn {
+        width: auto !important;
+        min-width: 150px !important;
+        padding: 14px 28px !important;
+      }
+      .btn-microsoft.auth-form-btn {
+        width: auto !important;
+        min-width: 150px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
       }
       /* Responsive: stack vertically on small screens */
       @media (max-width: 900px) {
@@ -173,6 +221,10 @@
         }
         .card-right::before {
           display: none;
+        }
+        .mt-3 {
+          flex-wrap: wrap;
+          justify-content: center;
         }
       }
       /* Image carousel styles */
@@ -212,16 +264,63 @@
       }
       .form-control,
       .form-control-lg {
-        border-radius: 15px !important;
-        background: #fff !important;
-        color: #222 !important;
-        transition: none !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.11) !important;
+        color: #f3fafc !important;
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.16);
+        transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        min-height: 56px;
+        padding: 14px 16px !important;
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .form-control::placeholder,
+      .form-control-lg::placeholder {
+        color: rgba(255, 255, 255, 0.65) !important;
+        font-weight: 400;
       }
       .form-control:focus,
       .form-control-lg:focus {
-        background: #fff !important;
-        color: #222 !important;
-        box-shadow: 0 0 0 2px #e0e0e0 !important;
+        background: rgba(255, 255, 255, 0.11) !important;
+        color: #f3fafc !important;
+        border-color: rgba(58, 213, 216, 0.9) !important;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.16), 0 0 16px rgba(58, 213, 216, 0.24) !important;
+        outline: none !important;
+      }
+      
+      /* Prevent browser autofill from changing background */
+      .form-control:-webkit-autofill,
+      .form-control-lg:-webkit-autofill {
+        -webkit-box-shadow: 0 0 0 1000px rgba(30, 43, 58, 0.7) inset !important;
+        -webkit-text-fill-color: #f3fafc !important;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+      
+      /* Loading overlay styles */
+      .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(8, 17, 26, 0.95);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(8px);
+      }
+      .loading-overlay.active {
+        display: flex;
+      }
+      .loading-overlay img {
+        max-width: 300px;
+        max-height: 300px;
+        width: 80%;
+        height: auto;
+        filter: drop-shadow(0 0 40px rgba(58, 213, 216, 0.4));
       }
 
       /* Input icon styles */
@@ -230,37 +329,53 @@
       }
       .input-with-icon .input-icon {
         position: absolute;
-        left: 14px;
+        left: 16px;
         top: 50%;
         transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
-        display: inline-block;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         pointer-events: none;
-        fill: #0d9488; /* teal */
-        color: #0d9488;
+        color: rgba(255, 255, 255, 0.92);
+        opacity: 1;
+      }
+      .input-with-icon .input-icon svg {
+        width: 24px;
+        height: 24px;
+        display: block;
+      }
+      .input-with-icon .input-icon svg path,
+      .input-with-icon .input-icon svg circle,
+      .input-with-icon .input-icon svg rect,
+      .input-with-icon .input-icon svg line {
+        fill: currentColor;
+        stroke: currentColor;
       }
       .input-with-icon .form-control {
-        padding-left: 44px !important;
+        padding-left: 52px !important;
       }
       .auth-form-btn {
-        width: 48% !important;
-        display: inline-block;
-        margin-left: 0;
-        margin-right: 0;
-        padding: 14px 22px !important;
+        width: auto !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 !important;
+        padding: 14px 26px !important;
         line-height: 1;
         font-size: 16px !important;
-        border-radius: 12px !important;
+        border-radius: 14px !important;
         text-transform: none; /* keep original casing */
         letter-spacing: normal;
-        font-weight: 400; /* normal weight */
+        font-weight: 500 !important;
+        min-height: 52px;
       }
       .mt-3 {
         display: flex;
-        flex-direction: row;
-        justify-content: center;
-        gap: 0;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-start;
       }
       .btn-primary:hover,
       .btn-primary:active {
@@ -268,31 +383,18 @@
         border-color: rgb(35, 88, 82) !important;
         color: #fff !important;
       }
-      /* Specific styling for the large auth button (match provided shade) */
+      /* Specific styling for the large auth button */
       .btn-primary.auth-form-btn {
-        border-radius: 12px !important;
-        background: linear-gradient(
-          180deg,
-          #28c3bd 0%,
-          #0f7f7a 45%,
-          #0a6b66 100%
-        ) !important;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
-          linear-gradient(180deg, #28c3bd 0%, #0f7f7a 45%, #0a6b66 100%) !important;
+        border-radius: 8px !important;
+        background: linear-gradient(180deg, #28c3bd 0%, #0f7f7a 45%, #0a6b66 100%) !important;
         color: #ffffff !important;
-        box-shadow: 0 6px 18px rgba(10, 95, 90, 0.22);
-        /* make primary (Login) narrower so MS button can be larger */
-        width: 34% !important;
-        min-width: 120px !important;
+        box-shadow: 0 8px 20px rgba(10, 95, 90, 0.28);
+        min-width: 150px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
       }
       .btn-primary.auth-form-btn:hover,
       .btn-primary.auth-form-btn:active {
-        background: linear-gradient(
-          180deg,
-          #0c7d77 0%,
-          #06524f 100%
-        ) !important;
+        background: linear-gradient(180deg, #0c7d77 0%, #06524f 100%) !important;
         border-color: rgba(0, 0, 0, 0.08) !important;
         box-shadow: 0 10px 28px rgba(6, 70, 63, 0.28) !important;
         transform: translateY(-1px);
@@ -303,27 +405,28 @@
         align-items: center;
         justify-content: center;
         gap: 10px;
-        padding: 8px 12px;
-        height: 44px;
-        min-height: 40px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        color: #111827;
-        border: 1px solid #e6edf0;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(16,24,40,0.04);
+        padding: 12px 18px;
+        height: 52px;
+        min-height: 52px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #f3fafc;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 8px;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(0, 0, 0, 0.1);
         text-decoration: none;
-        font-weight: 400;
+        font-weight: 500;
         align-self: center;
-        transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
       }
       /* smaller variant when used with .auth-form-btn */
       .btn-microsoft.auth-form-btn {
-        /* make MS button wider than primary */
-        width: 60% !important;
-        padding: 8px 12px !important;
-        height: 44px !important;
-        box-shadow: 0 4px 14px rgba(16,24,40,0.06) !important;
-        justify-content: flex-start;
+        width: auto !important;
+        min-width: 150px !important;
+        padding: 14px 20px !important;
+        min-height: 52px !important;
+        height: 52px !important;
+        box-shadow: 0 6px 18px rgba(10, 15, 30, 0.1) !important;
+        justify-content: center;
       }
       .btn-microsoft .ms-logo {
         margin-right: 10px;
@@ -338,12 +441,12 @@
       .btn-microsoft .ms-text {
         font-size: 14px;
         font-weight: 500;
-        color: #393d45;
+        color: #f3fafc;
       }
       .btn-microsoft:hover {
-        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+        background: rgba(255, 255, 255, 0.18);
         transform: translateY(-2px);
-        box-shadow: 0 8px 26px rgba(16,24,40,0.08);
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.12), 0 14px 28px rgba(0, 0, 0, 0.14);
       }
       .ms-logo {
         width: 16px;
@@ -396,23 +499,6 @@
         max-width: 180px;
         max-height: 120px;
       }
-      .auth-form-light.text-left.py-5.px-4.px-sm-5 {
-        background: rgba(255, 255, 255, 0.19) !important;
-        border-radius: 30px !important;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.24);
-      }
-      .login-subtitle {
-        color: #383939; /* teal */
-        font-weight: 400; /* normal */
-        font-family: inherit;
-        margin-top: 6px;
-        margin-bottom: 6px;
-        text-align: center;
-        font-size: 1.15rem;
-      }
       @media (max-width: 991px) {
         .col-lg-4 {
           margin-right: 0 !important;
@@ -429,7 +515,7 @@
           justify-content: center !important;
         }
         .brand-logo {
-          margin-top: -60px !important;
+          margin-top: -48px !important;
           margin-bottom: 10px !important;
         }
         .mt-3 {
@@ -446,12 +532,12 @@
       }
       @media (max-width: 600px) {
         .auth-form-light.text-left.py-5.px-4.px-sm-5 {
-          padding: 18px 6px !important;
-          border-radius: 50px !important;
+          padding: 18px 10px !important;
+          border-radius: 28px !important;
         }
         .brand-logo img {
-          max-width: 120px !important;
-          max-height: 80px !important;
+          max-width: 130px !important;
+          max-height: 90px !important;
         }
         h4,
         h6 {
@@ -488,12 +574,15 @@
       }
       .mt-3 {
         display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        width: 100%;
       }
       .auth-form-btn,
       .cancelBtn {
-        width: 100% !important;
+        width: auto !important;
         margin: 0 !important;
       }
       @media (max-width: 480px) {
@@ -562,6 +651,11 @@
 
   <body>
     <div class="bg-blur-overlay"></div>
+    
+    <!-- Loading overlay with scanner animation -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <img src="{% static 'assets/gif/2.gif' %}" alt="Loading..." />
+    </div>
 
     <div class="container-scroller">
       <div class="container-fluid page-body-wrapper full-page-wrapper">
@@ -575,10 +669,12 @@
                 <div class="brand-logo">
                   <img
                     src="{% static 'assets/logo/titan_logo.png' %}"
-                    alt="logo"
+                    alt="Titan logo"
                   />
                 </div>
-                <p class="login-subtitle">Welcome to Login!</p>
+                <h1 class="login-title">Titan Track & Trace</h1>
+              <p class="login-subtitle">Secure access to the factory workflow dashboard.</p>
+                <!-- <p class="login-note">Sign in with your Titan credentials or continue with Microsoft SSO.</p> -->
                 {% if error %}
                 <div class="alert alert-danger" style="margin-bottom: 16px">
                   {{ error }}
@@ -605,6 +701,7 @@
                       id="usernameInput"
                       class="form-control form-control-lg"
                       placeholder="Email or phone number"
+                      autocomplete="off"
                     />
                   </div>
                   <div
@@ -629,9 +726,11 @@
                       id="passwordInput"
                       class="form-control form-control-lg"
                       placeholder="Password"
+                      autocomplete="off"
                     />
                     <span
                       id="togglePassword"
+                      class="toggle-password-icon"
                       role="button"
                       aria-label="Show or hide password"
                       tabindex="0"
@@ -645,13 +744,13 @@
                         gap: 6px;
                         align-items: center;
                         z-index: 3;
+                        color: rgba(255, 255, 255, 0.92);
                       "
                     >
-                      <!-- Eye open (visible) -->
- <!--                      <svg
+                      <svg
                         id="eyeOpen"
-                        width="20"
-                        height="20"
+                        width="24"
+                        height="24"
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -659,8 +758,8 @@
                       >
                         <path
                           d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
-                          stroke="#0d9488"
-                          stroke-width="1.2"
+                          stroke="currentColor"
+                          stroke-width="1.8"
                           stroke-linecap="round"
                           stroke-linejoin="round"
                         />
@@ -668,17 +767,16 @@
                           cx="12"
                           cy="12"
                           r="3"
-                          stroke="#0d9488"
-                          stroke-width="1.2"
+                          stroke="currentColor"
+                          stroke-width="1.8"
                           stroke-linecap="round"
                           stroke-linejoin="round"
                         />
-                      </svg> -->
-                      <!-- Eye closed (hidden) -->
+                      </svg>
                       <svg
                         id="eyeClosed"
-                        width="20"
-                        height="20"
+                        width="24"
+                        height="24"
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -686,14 +784,14 @@
                       >
                         <path
                           d="M17.94 17.94A10.94 10.94 0 0112 19c-7 0-11-7-11-7a22.79 22.79 0 015.06-6.06"
-                          stroke="#0d9488"
+                          stroke="currentColor"
                           stroke-width="1.2"
                           stroke-linecap="round"
                           stroke-linejoin="round"
                         />
                         <path
                           d="M1 1l22 22"
-                          stroke="#0d9488"
+                          stroke="currentColor"
                           stroke-width="1.4"
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -701,11 +799,8 @@
                       </svg>
                     </span>
                   </div>
-                  <div
-                    class="mt-3"
-                    style="display: flex; gap: 12px; align-items: center"
-                  >
-                    <button type="submit" class="btn btn-primary auth-form-btn">
+                  <div class="mt-3">
+                    <button type="submit" class="btn btn-primary auth-form-btn" id="loginBtn">
                       Login
                     </button>
                     <a href="{% url 'microsoft_login' %}" class="btn-microsoft auth-form-btn" aria-label="Login with Microsoft">
@@ -718,32 +813,16 @@
                           <rect x="13" y="13" width="10" height="10" fill="#ffba08" />
                         </svg>
                       </span>
-                      <span class="ms-text">Login with Microsoft</span>
+                      <span class="ms-text">Sign-in with Microsoft</span>
                     </a>
                   </div>
                 </form>
               </div>
             </div>
             <div class="card-right" aria-hidden="true">
-              <h4
-                style="
-                    position: absolute;
-                    top: 30px;
-                    left: 215px;
-                    transform: translateX(-50%);
-                    z-index: 2;
-                    color: #646464 !important;
-                    margin: 0;
-                    padding: 8px 12px;
-                    background: rgba(0, 0, 0, 0.08);
-                    border-radius: 8px;
-                    font-weight: 600 !important;
-                "
-              >
-                Titan - Track &amp; Trace
-              </h4>
+
               <img
-                src="{% static 'assets/images/loginVec.png' %}"
+                src="{% static 'assets/images/1.jpg' %}"
                 alt="illustration"
               />
             </div>
@@ -790,7 +869,16 @@
         const eyeClosed = document.getElementById("eyeClosed");
         const usernameInput = document.getElementById("usernameInput");
         const cancelBtn = document.getElementById("cancelBtn");
+        const loginForm = document.querySelector("form");
+        const loadingOverlay = document.getElementById("loadingOverlay");
         let visible = false;
+        
+        // Show loading overlay on form submit
+        if (loginForm && loadingOverlay) {
+          loginForm.addEventListener("submit", function(e) {
+            loadingOverlay.classList.add("active");
+          });
+        }
 
         // ensure icons reflect current password field state
         if (passwordInput && eyeOpen && eyeClosed) {

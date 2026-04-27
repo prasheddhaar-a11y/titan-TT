@@ -694,7 +694,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               <table id="order-listing" class="table">
                 <thead>
                   <tr>
-                    <!-- 🔥 NEW: Select All Checkbox Column -->
+                    <!-- Select All Checkbox Column -->
                     <th style="background: #008080; color: #fff; text-align: center; vertical-align: middle;">
                       <div style="display: flex;align-items: center;justify-content: center;flex-direction: row;">
                         <input type="checkbox" id="select-all-checkbox" style="transform: scale(1.2); margin: 5px;" />
@@ -704,12 +704,24 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <th class="sortable" data-column-index="1">
                       S.No <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
-                     <th class="sortable" data-column-index="2">
+                    <th class="sortable" data-column-index="2">
                       Last<br>Updated
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th class="sortable" data-column-index="3">
                       Plating <br> Stk No
+                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    </th>
+                    <th class="sortable" data-column-index="9"> 
+                      Lot Qty
+                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    </th>
+                    <th class="sortable" data-column-index="10">
+                      Reject Qty
+                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    </th>
+                    <th class="sortable" data-column-index="8">
+                      Tray Type <br> Capacity
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th class="sortable" data-column-index="4">
@@ -726,18 +738,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </th>
                     <th class="sortable" data-column-index="7">
                       Source - Location
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="8">
-                      Tray Type <br> Capacity
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="9"> 
-                      Lot Qty
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="10">
-                      Reject Qty
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -797,11 +797,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         </div>
                       </span>
                     </td>
-                    <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
-                    <td>{{ data.plating_color }}</td>
-                    <td>{{data.polish_finish}}</td>
-                    <td>{{data.location__location_name}}</td>
-                    <td>{{data.tray_type}} {{data.tray_capacity}}</td>
                     <td>
                       {% if data.original_lot_qty %}
                         {{ data.original_lot_qty }}
@@ -832,6 +827,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
           style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
     </a>
                     </td>
+                    <td>{{data.tray_type}} {{data.tray_capacity}}</td>
+                    <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
+                    <td>{{ data.plating_color }}</td>
+                    <td>{{data.polish_finish}}</td>
+                    <td>{{data.location__location_name}}</td>
         <td>
   <div class="avatar-group rejection-popup-trigger"
        style="cursor:pointer; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"

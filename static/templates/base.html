@@ -983,7 +983,7 @@
                               min-width:160px;max-width:250px;text-align:center;
                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                               transition:all 0.3s ease;">
-                     <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/scanner.png' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan" onerror="this.outerHTML='&#128225;';"/></span>
+                     <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/scanner.png' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/></span>
                      <span id="scanInfoText" style="margin-left:4px;font-weight:600;">Press F2 to scan</span>
                   </div>
                </li>
@@ -1020,21 +1020,46 @@
                      </button>
                      <div id="scanStatusMessage" style="font-weight:600;color:#333;margin-bottom:4px;margin-top:4px;"></div>
                      <input type="text" id="globalScanInput" 
-                            placeholder="Scan or type Tray ID..."
+                            placeholder="Scan or type Tray ID (max 9 chars)..."
                             autocomplete="off"
+                            maxlength="9"
                             style="width:100%;padding:10px 12px;border:1.5px solid #b3e5e6;border-radius:6px;
                                    font-size:13px;margin-top:8px;transition:border-color 0.2s;"/>
                      <div id="scanResult" style="margin-top:10px;font-size:12px;"></div>
                   </div>
                </li>
+               
+               <!-- ✅ SHORTCUTS BUTTON -->
                <li class="nav-item">
-                  <a class="nav-link btn btn-outline d-flex flex-row align-items-center" href="{% url 'reports_module:reports' %}" data-tooltip="Reports" style="gap:8px;padding:7px 12px;">
-                     <i class="ti-file" style="font-size:1.25rem;color:#028084;"></i>
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Reports</small>
+                  <button id="shortcutsBtn" class="nav-link btn d-flex flex-row align-items-center" title="Keyboard Shortcuts (⌨️)" style="gap:8px;padding:7px 12px;background:linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;cursor:pointer;transition:all 0.3s;border-radius:8px;box-shadow:0 2px 6px rgba(255,182,193,0.25);">
+                     <img src="{% static 'assets/icons/6.png' %}" style="width:23px !important;height:23px!important;object-fit:contain;transition:all 0.3s;" alt="Shortcuts Icon">
+                     <small style="font-size:12px;color:#8B4513;font-weight:600;margin:0;transition:all 0.3s;">Shortcuts</small>
+                  </button>
+                  <style>
+                    #shortcutsBtn {
+                      background: linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;
+                    }
+                    #shortcutsBtn:hover {
+                      background: linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;
+                      box-shadow: 0 4px 12px rgba(255,182,193,0.4) !important;
+                    }
+                    #shortcutsBtn:active {
+                      transform: scale(0.98);
+                    }
+                  </style>
+               </li>
+               
+               <!-- ✅ TRAY SCAN BUTTON -->
+               <li class="nav-item">
+                  <a class="nav-link btn btn-outline d-flex flex-row align-items-center" id="barcodeStatus" href="#" style="gap:8px;padding:6px 10px;margin-right: 0px;transition:all 0.3s;">
+                     <img src="{% static 'assets/gif/barcode.gif' %}" alt="Barcode" class="barcode-icon" style="height:1.4rem;width:auto;" />
+                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Tray Scan</small>
                   </a>
                </li>
+               
+               <!-- ✅ SETTINGS DROPDOWN -->
                <li class="nav-item dropdown">
-                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" id="settingsDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;">
+                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" id="settingsDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;transition:all 0.3s;">
                      <i class="ti-settings" style="font-size:1.25rem;color:#028084;"></i>
                      <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Settings</small>
                   </a>
@@ -1053,16 +1078,14 @@
                      <i class="ti-package text-primary" style="margin-right: 8px;"></i>
                      Model Master
                      </a>
+                     <a class="dropdown-item" href="{% url 'reports_module:reports' %}">
+                     <i class="ti-file text-primary" style="margin-right: 8px;"></i>
+                     Reports
+                     </a>
                   </div>
                </li>
-               <li class="nav-item">
-                  <a class="nav-link btn btn-outline d-flex flex-row align-items-center" id="barcodeStatus" href="#" style="gap:8px;padding:6px 10px;margin-right: 0px;">
-                     <img src="{% static 'assets/gif/barcode.gif' %}" alt="Barcode" class="barcode-icon" style="height:1.4rem;width:auto;" />
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Tray Scan</small>
-                  </a>
-               </li>
-               
 
+               <!-- ✅ PROFILE DROPDOWN -->
                <li class="nav-item nav-profile dropdown">
                   <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" href="#" data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;">
                      <i class="ti-user" style="font-size:1.25rem;color:#028084;"></i>
@@ -2041,6 +2064,67 @@
             </style>
          </div>
       </div>
+      <!-- ✅ SHORTCUTS BACKDROP -->
+      <div id="shortcutsBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgb(0 0 0 / 62%); backdrop-filter:blur(4px); z-index:1999;"></div>
+
+      <!-- ✅ SHORTCUTS BANNER - ELEGANT TWO-COLUMN LAYOUT -->
+      <div id="shortcutsModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:2000; width:95%; max-width:900px; max-height:85vh; overflow-y:auto;">
+         <div style="background:linear-gradient(135deg,#fff,#fafcfd); border:1px solid rgba(2,128,132,0.12); border-radius:16px; box-shadow:0 12px 40px rgba(2,128,132,0.15); overflow:hidden; display:flex; flex-direction:row;">
+            
+            <!-- LEFT: Banner Image -->
+            <div style="flex:0 0 35%; background:#f8fafb; display:flex; align-items:center; justify-content:center; min-height:380px; position:relative; overflow:hidden;">
+               <img src="{% static 'assets/images/5.jpg' %}" style="width:100%; height:100%; object-fit:cover;">
+               <div style="position:absolute; top:0; left:0; right:0; bottom:0; background:linear-gradient(135deg, rgba(2,128,132,0.05), transparent);"></div>
+            </div>
+            
+            <!-- RIGHT: Shortcuts Content -->
+            <div style="flex:1; padding:15px 55px; display:flex; flex-direction:column; justify-content:space-between;">
+               <div>
+                  <!-- Header -->
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+                     <div>
+                        <h5 style="margin:0 0 4px 0; font-weight:800; color:#025254; font-size:18px; letter-spacing:-0.5px;">⌨️ Keyboard Shortcuts</h5>
+                        <p style="margin:0; font-size:12px; color:#888; font-weight:500;">Quick reference guide</p>
+                     </div>
+                     <button id="shortcutsClose" style="background:none; border:none; color:#ccc; font-size:28px; cursor:pointer; padding:0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; hover-color:#999;">×</button>
+                  </div>
+                  
+                  <!-- Shortcuts Grid -->
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px 20px;">
+                     <style>
+                       .sc-item { display:flex; align-items:center; gap:10px; }
+                       .sc-key { 
+                         background:linear-gradient(135deg, #e8f1f5, #dce8ed);
+                         color:#025254; padding:6px 12px; border-radius:8px; 
+                         font-weight:700; font-size:12px; min-width:56px; text-align:center;
+                         border:1px solid rgba(2,128,132,0.12); box-shadow:0 2px 6px rgba(2,128,132,0.08);
+                         font-family:'Courier New', monospace;
+                       }
+                       .sc-label { color:#444; font-size:13px; font-weight:500; }
+                     </style>
+                     
+                     <div class="sc-item"><kbd class="sc-key">F2</kbd> <span class="sc-label">Scan Tray</span></div>
+                     <div class="sc-item"><kbd class="sc-key">A</kbd> <span class="sc-label">Accept</span></div>
+                     <div class="sc-item"><kbd class="sc-key">R</kbd> <span class="sc-label">Reject</span></div>
+                     <div class="sc-item"><kbd class="sc-key">V</kbd> <span class="sc-label">View Details</span></div>
+                     <div class="sc-item"><kbd class="sc-key">D</kbd> <span class="sc-label">Delete</span></div>
+                     <div class="sc-item"><kbd class="sc-key">↑↓</kbd> <span class="sc-label">Navigate Rows</span></div>
+                     <div class="sc-item"><kbd class="sc-key">←→</kbd> <span class="sc-label">Scroll Table</span></div>
+                     <div class="sc-item"><kbd class="sc-key">1-9</kbd> <span class="sc-label">Jump Page</span></div>
+                     <div class="sc-item"><kbd class="sc-key">J</kbd> <span class="sc-label">Add Jig</span></div>
+                     <div class="sc-item"><kbd class="sc-key">S</kbd> <span class="sc-label">Spider Spindle</span></div>
+                     <div class="sc-item"><kbd class="sc-key">Esc</kbd> <span class="sc-label">Close</span></div>
+                     <div class="sc-item"><kbd class="sc-key">⏎</kbd> <span class="sc-label">Execute</span></div>
+                  </div>
+               </div>
+               
+               <!-- Footer -->
+               <div style="border-top:1px solid rgba(2,128,132,0.08); padding-top:16px; margin-top:16px;">
+                  <p style="margin:0; font-size:11px; color:#999; text-align:center; font-weight:500;">Press any key to get started</p>
+               </div>
+            </div>
+         </div>
+      </div>
       <footer class="footer">
          <span>
          &copy; 2026 Pinesphere. All rights reserved.
@@ -2351,6 +2435,47 @@
          document.getElementById('swapUserModal').onclick = function(e) {
            if (e.target === this) this.style.display = 'none';
          };
+      </script>
+      <!-- ✅ SHORTCUTS BUTTON HANDLER -->
+      <script nonce="{{ csp_nonce }}">
+         document.addEventListener('DOMContentLoaded', function() {
+            const shortcutsBtn = document.getElementById('shortcutsBtn');
+            const shortcutsModal = document.getElementById('shortcutsModal');
+            const shortcutsBackdrop = document.getElementById('shortcutsBackdrop');
+            const shortcutsClose = document.getElementById('shortcutsClose');
+            
+            if (shortcutsBtn && shortcutsModal && shortcutsBackdrop) {
+               // Toggle banner
+               shortcutsBtn.addEventListener('click', function(e) {
+                  e.preventDefault();
+                  const isHidden = shortcutsModal.style.display === 'none';
+                  shortcutsModal.style.display = isHidden ? 'block' : 'none';
+                  shortcutsBackdrop.style.display = isHidden ? 'block' : 'none';
+               });
+               
+               // Close banner
+               if (shortcutsClose) {
+                  shortcutsClose.addEventListener('click', function() {
+                     shortcutsModal.style.display = 'none';
+                     shortcutsBackdrop.style.display = 'none';
+                  });
+               }
+               
+               // Close on backdrop click
+               shortcutsBackdrop.addEventListener('click', function() {
+                  shortcutsModal.style.display = 'none';
+                  shortcutsBackdrop.style.display = 'none';
+               });
+               
+               // Close on Escape
+               document.addEventListener('keydown', function(e) {
+                  if (e.key === 'Escape' && shortcutsModal.style.display === 'block') {
+                     shortcutsModal.style.display = 'none';
+                     shortcutsBackdrop.style.display = 'none';
+                  }
+               });
+            }
+         });
       </script>
       <!-- /* Highlight active sidebar link based on current URL */ -->
       <script nonce="{{ csp_nonce }}">
@@ -2732,22 +2857,7 @@
       });
       </script>
 
-      <script nonce="{{ csp_nonce }}">
-document.addEventListener('keydown', function(e) {
-
-    // CTRL + SHIFT + R
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'r') {
-        e.preventDefault();
-
-        if (typeof hardRefreshPage === 'function') {
-            hardRefreshPage();
-        } else {
-            location.reload(true);
-        }
-    }
-
-});
-</script>
+      <!-- CTRL+SHIFT+R handled in centralized keydown handler below -->
 
 <!-- ✅ GLOBAL SCAN FEATURE: F2 Shortcut + Tray Search + Step-by-Step Info -->
 <script nonce="{{ csp_nonce }}">
@@ -2785,11 +2895,10 @@ document.addEventListener('keydown', function(e) {
     if (scanInfoText) { scanInfoText.textContent = text; scanInfoText.style.color = color || '#025254'; }
   }
 
-  // ─── Keyboard shortcuts ─────────────────────────────────────────────────
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'F2') { e.preventDefault(); activateScan(); }
-    if (e.key === 'Escape' && scanActive) closeScan();
-  });
+  // ─── Expose globals for centralized keydown handler ─────────────────────
+  window._gScanActivate = activateScan;
+  window._gScanClose    = closeScan;
+  window._gScanIsActive = function() { return scanActive; };
 
   // ─── Button clicks ──────────────────────────────────────────────────────
   scanBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); activateScan(); });
@@ -2800,21 +2909,27 @@ document.addEventListener('keydown', function(e) {
     if (scanActive && !scanStatus.contains(e.target) && !scanBtn.contains(e.target)) closeScan();
   });
 
-  // ─── Activate ───────────────────────────────────────────────────────────
-  function activateScan() {
-    // Cancel any in-flight navigation from previous scan
-    clearTimeout(navTimer);
-    navTimer = null;
-    scanActive = true;
-    scanStatus.style.display = 'block';
-    scanMessage.textContent = '📡 Scan or type Tray ID';
-    scanMessage.style.color = '#028084';
-    scanInput.value = '';
-    scanResult.innerHTML = '';  // clear any leftover content
-    scanInput.disabled = false;
-    setInfo('📡', 'Ready — scan tray', '#028084');
-    scanInput.focus();
-  }
+
+// ─── Activate ───────────────────────────────────────────────────────────
+function activateScan() {
+  // Cancel any in-flight navigation from previous scan
+  clearTimeout(navTimer);
+  navTimer = null;
+  scanActive = true;
+  scanStatus.style.display = 'block';
+  // Replace text emoji with scanner image
+  scanMessage.innerHTML = '<img src="/static/assets/icons/scanner.png" style="width:35px;height:35px;vertical-align:middle;margin-right:6px;"> Scan or type Tray ID';
+  scanMessage.style.color = '#028084';
+  scanInput.value = '';
+  scanResult.innerHTML = '';
+  scanInput.disabled = false;
+  setInfo(
+    '📡',
+    'Ready — scan tray',
+    '#028084'
+  );
+  scanInput.focus();
+}
 
   // ─── Close ──────────────────────────────────────────────────────────────
   function closeScan() {
@@ -2827,26 +2942,45 @@ document.addEventListener('keydown', function(e) {
 
   // ─── Live typing: Step 1 ────────────────────────────────────────────────
   let scanTimeout;
+  
+  // Force uppercase input in real-time and enforce 9-char limit
   scanInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      clearTimeout(scanTimeout);  // cancel any pending auto-trigger to avoid duplicate call
+      clearTimeout(scanTimeout);
       const v = this.value.trim().toUpperCase();
-      if (v.length >= 9) searchTray(v);
-      else { scanMessage.textContent = '⚠️ Enter at least 9 characters'; scanMessage.style.color = '#ff6b00'; }
+      if (v.length === 9) searchTray(v);
+      else if (v.length > 0) { scanMessage.textContent = '⚠️ Enter exactly 9 characters'; scanMessage.style.color = '#ff6b00'; }
+      else { scanMessage.textContent = '⚠️ Enter Tray ID'; scanMessage.style.color = '#ff6b00'; }
     }
   });
 
   scanInput.addEventListener('input', function() {
+    // Convert to uppercase and trim
+    let v = this.value.trim().toUpperCase();
+    
+    // Enforce max 9 characters
+    if (v.length > 9) {
+      v = v.slice(0, 9);
+      this.value = v;
+    } else {
+      this.value = v;
+    }
+    
     clearTimeout(scanTimeout);
-    const v = this.value.trim().toUpperCase();
+    
     if (v.length > 0) {
       // Step 1: show tray id live
       setInfo('🔍', v.length > 14 ? v.slice(0, 14) + '…' : v, '#028084');
     } else {
       setInfo('📡', 'Ready — scan tray', '#028084');
     }
-    if (v.length === 9) scanTimeout = setTimeout(() => searchTray(v), 300);
+    
+    // Auto-search when exactly 9 characters are entered (no auto-select for invalid cases)
+    if (v.length === 9) {
+      // Trigger search after brief delay (don't auto-select, let validation determine next action)
+      scanTimeout = setTimeout(() => searchTray(v), 300);
+    }
   });
 
   // ─── Search: Steps 2 → 3 → 4 ────────────────────────────────────────────
@@ -2878,52 +3012,72 @@ document.addEventListener('keydown', function(e) {
       if (data.success && data.found) {
         // Step 3: Found — all result detail goes to the info box, not the popup
         const shortMod = data.module.replace('Recovery ', 'Rec. ');
-        setInfo('✅', trayId + ' — ' + shortMod, '#28a745');
-        scanMessage.textContent = '✅ Found in ' + shortMod;
+        const moduleLabel = data.module;
+        const lotId = data.lot_id || trayId;
+        
+        setInfo('✅', trayId + ' found in ' + shortMod, '#28a745');
+        scanMessage.innerHTML = '✅ Tray <strong>' + trayId + '</strong> found<br/><small>' + shortMod + ' — Lot ' + lotId + '</small>';
         scanMessage.style.color = '#28a745';
         scanResult.innerHTML = '';  // no duplicate result box inside popup
 
         // Store context so destination page can continue showing info
         sessionStorage.setItem('globalScanModule', data.module);
         sessionStorage.setItem('globalScanTrayId', trayId);
+        sessionStorage.setItem('globalScanLotId', lotId);
 
-        // Step 4: Opening — update info box after brief pause, then navigate
-        navTimer = setTimeout(() => setInfo('🚀', 'Opening ' + shortMod + '…', '#028084'), 1000);
+        // Step 4: Navigating — show navigating icon, then navigate
+        navTimer = setTimeout(() => {
+          setInfo('🚀', 'Navigating to ' + shortMod + '…', '#0066cc');
+          scanMessage.textContent = '🚀 Navigating...';
+          scanMessage.style.color = '#0066cc';
+        }, 800);
         
         // Determine if we're already in the correct module
         const currentModule = window.location.pathname.split('/').filter(Boolean)[0] || '';
         const targetModule = (data.url || '').split('/').filter(Boolean)[0] || '';
         
         console.log('[SCAN] Current module:', currentModule, '| Target module:', targetModule);
+        console.log('[SCAN] Tray:', trayId, '| Lot:', lotId, '| Module:', moduleLabel);
         
         navTimer = setTimeout(() => {
           if (currentModule === targetModule && currentModule) {
-            // Same module — reload current page with highlight (use scanned tray ID)
+            // Same module — reload current page with highlight (use scanned tray ID and lot_id)
             console.log('[SCAN] Same module refresh:', currentModule);
-            console.log('[SCAN] Reloading:', window.location.pathname + '?highlight=' + trayId);
-            window.location.href = window.location.pathname + '?highlight=' + encodeURIComponent(trayId);
+            const redirectUrl = window.location.pathname + '?highlight=' + encodeURIComponent(trayId) + '&lot=' + encodeURIComponent(lotId);
+            console.log('[SCAN] Reloading:', redirectUrl);
+            window.location.href = redirectUrl;
           } else {
-            // Different module — navigate to backend-returned URL (use scanned tray ID, not lot_id)
+            // Different module — navigate to backend-returned URL (use scanned tray ID and lot_id)
             console.log('[SCAN] Cross-module navigation: ' + currentModule + ' → ' + targetModule);
-            console.log('[SCAN] Redirecting to:', data.url + '?highlight=' + trayId);
-            window.location.href = data.url + '?highlight=' + encodeURIComponent(trayId);
+            const redirectUrl = data.url + '?highlight=' + encodeURIComponent(trayId) + '&lot=' + encodeURIComponent(lotId) + '&module=' + encodeURIComponent(moduleLabel);
+            console.log('[SCAN] Redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
           }
         }, 2000);
 
       } else {
-        setInfo('❌', trayId + ' — not found', '#dc3545');
-        scanMessage.textContent = '❌ ' + (data.message || 'Not found in any module');
+        // Invalid/Not found — NO auto-select, show error and reset
+        setInfo('❌', trayId + ' not found', '#dc3545');
+        scanMessage.textContent = '❌ ' + (data.message || 'Tray not found in any module');
         scanMessage.style.color = '#dc3545';
         scanResult.innerHTML = '';  // no inline result box
         console.log('[SCAN] Tray not found:', trayId);
-        navTimer = setTimeout(() => {
-          scanInput.value = '';
-          setInfo('📡', 'Ready — scan tray', '#028084');
-          scanMessage.textContent = '📡 Scan or type Tray ID';
-          scanMessage.style.color = '#028084';
-          scanInput.focus();
-        }, 2500);
-      }
+        
+      // Reset after delay (don't auto-select on invalid)
+      navTimer = setTimeout(() => {
+      scanInput.value = '';
+      setInfo(
+         '<img src="/static/assets/icons/scanner.png" style="width:16px;height:16px;vertical-align:middle;">',
+         'Ready — scan tray',
+         '#025254'
+      );
+      scanMessage.innerHTML =
+         '<img src="/static/assets/icons/scanner.png" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"> Scan or type Tray ID';
+
+      scanMessage.style.color = '#028084';
+      scanInput.focus();
+      }, 2500);
+            }
     })
     .catch(err => {
       console.error('[SCAN ERROR]', err);
@@ -2948,6 +3102,8 @@ document.addEventListener('keydown', function(e) {
 <script nonce="{{ csp_nonce }}">
 (function() {
   'use strict';
+  
+  // Global Scan auto-highlight removed - info shown in user insights icon instead
 
   // Global Scan Button hover effects
   const scanBtn = document.getElementById('globalScanBtn');
@@ -3023,13 +3179,20 @@ document.addEventListener('keydown', function(e) {
   // ── Read context stored before navigation ────────────────────────────────
   const scanModule = sessionStorage.getItem('globalScanModule') || '';
   const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightLot;
-  sessionStorage.removeItem('globalScanModule');
-  sessionStorage.removeItem('globalScanTrayId');
+  const scanLotId = sessionStorage.getItem('globalScanLotId') || '';
+  const isValidScan = !!(scanModule && scanTrayId); // Valid scan if we have context
+  
+  // Don't remove yet - let the fallback banner use them
+  // sessionStorage will be cleared by the banner after display
 
   const shortMod = scanModule.replace('Recovery ', 'Rec. ');
 
-  // Show immediately: "NB-A00031 — Input Screening"
-  setInfo('🔍', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · locating…', '#028084');
+  // Show immediately: "JB-A00071 found in Brass QC"
+  if (isValidScan) {
+    setInfo('✅', scanTrayId + ' found in ' + shortMod, '#28a745');
+  } else {
+    setInfo('🔍', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · locating…', '#028084');
+  }
 
   // ── Inject CSS class that overrides sticky-column backgrounds ────────────
   const styleEl = document.createElement('style');
@@ -3072,7 +3235,13 @@ document.addEventListener('keydown', function(e) {
   function highlightRow(row) {
     row.classList.add('gs-hi');
     const pg = getCurrentPage();
-    setInfo('✅', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
+    
+    // Show success with full context for valid scans
+    if (isValidScan && scanLotId) {
+      setInfo('✅', scanTrayId + ' • Lot ' + scanLotId + ' • ' + shortMod + ' • Page ' + pg, '#28a745');
+    } else {
+      setInfo('✅', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
+    }
 
     // Scroll: offset by navbar height so row isn't hidden under sticky header
     const navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
@@ -3126,19 +3295,36 @@ document.addEventListener('keydown', function(e) {
     if (row) { highlightRow(row); return; }
 
     if (huntPage >= MAX_PAGES) {
-      setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+      // For valid global scans, don't show error - the green banner will show valid info
+      if (!isValidScan) {
+        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+      }
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
 
     huntPage++;
-    setInfo('🔍', scanTrayId + ' · checking page ' + huntPage + '…', '#028084');
+    // Only show page-hunting status if not a valid scan
+    if (!isValidScan) {
+      setInfo('🔍', scanTrayId + ' · checking page ' + huntPage + '…', '#028084');
+    }
 
     const dtResult = dtNextPage();
     if (dtResult === true) return;   // MutationObserver fires → re-hunt
-    if (dtResult === false) { setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545'); return; }
+    if (dtResult === false) { 
+      // For valid scans, silently fail - banner shows the real info
+      if (!isValidScan) {
+        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+      }
+      return;
+    }
     // DataTables not present — try generic
-    if (!genericNextPage()) { setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545'); }
+    if (!genericNextPage()) {
+      // For valid scans, silently fail - banner shows the real info
+      if (!isValidScan) {
+        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+      }
+    }
     // else MutationObserver fires
   }
 
@@ -3153,6 +3339,337 @@ document.addEventListener('keydown', function(e) {
 
   // ── Initial search after page load ───────────────────────────────────────
   huntTimer = setTimeout(hunt, 800);
+  
+  // Clean up sessionStorage after navigation cycle completes
+  setTimeout(() => {
+    sessionStorage.removeItem('globalScanModule');
+    sessionStorage.removeItem('globalScanTrayId');
+    sessionStorage.removeItem('globalScanLotId');
+  }, 20000);
+
+})();
+</script>
+
+<!-- ✅ CENTRALIZED GLOBAL KEYBOARD SHORTCUT HANDLER -->
+<!-- One listener only. F2 (scan), Esc (close), Ctrl+Shift+R (refresh),     -->
+<!-- A/R/V/D (row actions), T/J/B/U/S (module actions), ↑↓ row nav,         -->
+<!-- ←/→ table scroll, 1-9 pagination jump.                                   -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+
+  // ── Inject highlight CSS once: light yellow only, no border/outline box ──
+  if (!document.getElementById('gkb-highlight-style')) {
+    var s = document.createElement('style');
+    s.id = 'gkb-highlight-style';
+    s.textContent = 'tr.gkb-row-focus > td { background-color: #fff5bd !important; }';
+    document.head.appendChild(s);
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  var _pendingEl    = null;   // element to click on Enter
+  var _pendingRow   = null;   // currently highlighted row
+  var _lastSelector = null;   // last row-action selector (kept for ↑↓ navigation)
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function _inInput() {
+    var t = document.activeElement;
+    if (!t) return false;
+    var tag = t.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable;
+  }
+
+  function _isModalOpen() {
+    if (document.querySelector('.swal2-container')) return true;
+    if (document.querySelector('.modal.show, .modal[aria-modal="true"]')) return true;
+    var ovs = document.querySelectorAll('.modal-overlay, .overlay-modal');
+    for (var i = 0; i < ovs.length; i++) {
+      if (getComputedStyle(ovs[i]).display !== 'none') return true;
+    }
+    return false;
+  }
+
+  function _visible(el) {
+    return !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
+  }
+
+  // All visible tbody rows, deduplicated (DataTables or plain table)
+  function _getRows() {
+    var rows = Array.from(document.querySelectorAll(
+      '#order-listing tbody tr, table.dataTable tbody tr, table tbody tr'
+    ));
+    var seen = new Set();
+    return rows.filter(function(r) {
+      if (seen.has(r)) return false;
+      seen.add(r);
+      return getComputedStyle(r).display !== 'none';
+    });
+  }
+
+  function _scrollRowIntoView(row) {
+    var navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
+    var rect = row.getBoundingClientRect();
+    if (rect.top < navH + 20 || rect.bottom > window.innerHeight - 20) {
+      window.scrollTo({ top: window.scrollY + rect.top - navH - 50, behavior: 'smooth' });
+    }
+  }
+
+  function _highlightRow(row) {
+    if (_pendingRow && _pendingRow !== row) {
+      _pendingRow.classList.remove('gkb-row-focus', 'dp-row-action-highlight');
+    }
+    _pendingRow = row;
+    row.classList.add('gkb-row-focus', 'dp-row-action-highlight');
+    _scrollRowIntoView(row);
+  }
+
+  function _clearPending() {
+    if (_pendingRow) {
+      _pendingRow.classList.remove('gkb-row-focus', 'dp-row-action-highlight');
+      _pendingRow = null;
+    }
+    _pendingEl    = null;
+    _lastSelector = null;
+  }
+
+  function _focusEl(el, row) {
+    _pendingEl = el;
+    if (row) _highlightRow(row);
+  }
+
+  // Find first visible row containing an element matching selector
+  function _findRowWithEl(selector) {
+    var rows = _getRows();
+    for (var i = 0; i < rows.length; i++) {
+      var el = rows[i].querySelector(selector);
+      if (el && _visible(el)) return { row: rows[i], el: el, idx: i };
+    }
+    return null;
+  }
+
+  // Row action: use current row if set, else first matching row
+  function _doRowAction(selector) {
+    _lastSelector = selector;
+    if (_pendingRow) {
+      var el = _pendingRow.querySelector(selector);
+      if (el && _visible(el)) { _focusEl(el, _pendingRow); return; }
+    }
+    var found = _findRowWithEl(selector);
+    if (found) _focusEl(found.el, found.row);
+  }
+
+  // Move row selection up (-1) or down (+1), keeping same action selector
+  function _moveRow(dir) {
+    var rows = _getRows();
+    if (!rows.length) return;
+    var cur = _pendingRow ? rows.indexOf(_pendingRow) : -1;
+    var next = cur < 0 ? (dir > 0 ? 0 : rows.length - 1)
+                       : Math.min(Math.max(cur + dir, 0), rows.length - 1);
+    var newRow = rows[next];
+    if (!newRow || newRow === _pendingRow) return;
+    if (_lastSelector) {
+      var el = newRow.querySelector(_lastSelector);
+      if (el && _visible(el)) { _focusEl(el, newRow); return; }
+    }
+    // No selector yet — just highlight the row
+    _highlightRow(newRow);
+    _pendingEl = null;
+  }
+
+  // Per-row button (row highlighted) with optional page-level fallback
+  function _doRowOrPageAction(rowSel, pageFallbackSel) {
+    _lastSelector = rowSel;
+    if (_pendingRow) {
+      var el = _pendingRow.querySelector(rowSel);
+      if (el && _visible(el)) { _focusEl(el, _pendingRow); return; }
+    }
+    var found = _findRowWithEl(rowSel);
+    if (found) { _focusEl(found.el, found.row); return; }
+    // Fallback to a page-level button (no row highlight)
+    if (pageFallbackSel) {
+      var fb = document.querySelector(pageFallbackSel);
+      if (fb && _visible(fb)) { _pendingEl = fb; }
+    }
+  }
+
+  // Horizontal table scroll
+  function _scrollTable(delta) {
+    var wrapper = document.querySelector(
+      '.table-responsive, .dataTables_scrollBody, .dataTables_wrapper .table-responsive, .table-scroll-wrapper'
+    );
+    if (wrapper) { wrapper.scrollLeft += delta; }
+  }
+
+  // Go to pagination page by number
+  function _gotoPage(num) {
+    // DataTables API
+    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.dataTable) {
+      try {
+        var api = jQuery.fn.dataTable.tables({ visible: true, api: true });
+        if (api && api.length) {
+          var info = api.page.info();
+          if (num >= 1 && num <= info.pages) { api.page(num - 1).draw('page'); return; }
+        }
+      } catch(e) {}
+    }
+    // Bootstrap pagination links — match by text
+    var links = document.querySelectorAll('.pagination .page-item:not(.disabled) .page-link');
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].textContent.trim() === String(num)) { links[i].click(); return; }
+    }
+  }
+
+  // Close any open modal/popup
+  function _closeModal() {
+    if (document.querySelector('.swal2-container')) {
+      var sc = document.querySelector('.swal2-close');
+      if (sc) { sc.click(); return true; }
+      var sk = document.querySelector('.swal2-cancel');
+      if (sk) { sk.click(); return true; }
+      if (window.Swal) { Swal.close(); return true; }
+    }
+    if (typeof jQuery !== 'undefined') {
+      var $m = jQuery('.modal.show');
+      if ($m.length) { $m.first().modal('hide'); return true; }
+    }
+    var bsModal = document.querySelector('.modal.show, .modal[aria-modal="true"]');
+    if (bsModal) {
+      var cb = bsModal.querySelector('[data-dismiss="modal"],[data-bs-dismiss="modal"],.close,.btn-close,.modal-close');
+      if (cb) { cb.click(); return true; }
+      bsModal.style.display = 'none'; return true;
+    }
+    var ovs = document.querySelectorAll('.modal-overlay, .overlay-modal, [role="dialog"]');
+    for (var i = 0; i < ovs.length; i++) {
+      var ov = ovs[i];
+      if (ov.style.display !== 'none' && getComputedStyle(ov).display !== 'none') {
+        var ob = ov.querySelector('.close, .btn-close, .modal-close, [data-dismiss]');
+        if (ob) { ob.click(); return true; }
+        ov.style.display = 'none'; return true;
+      }
+    }
+    var bm = document.querySelector('.barcode-modal');
+    if (bm && getComputedStyle(bm).display !== 'none') {
+      var bc = bm.querySelector('.barcode-modal-close');
+      if (bc) { bc.click(); return true; }
+      bm.style.display = 'none'; return true;
+    }
+    return false;
+  }
+
+  // ── CENTRALIZED KEYDOWN LISTENER ─────────────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    var key = e.key;
+
+    // ── F2: Global Scan ────────────────────────────────────────────────────
+    if (key === 'F2') {
+      e.preventDefault();
+      if (typeof window._gScanActivate === 'function') window._gScanActivate();
+      return;
+    }
+
+    // ── Ctrl+Shift+R: Hard refresh ─────────────────────────────────────────
+    if (e.ctrlKey && e.shiftKey && key.toLowerCase() === 'r') {
+      e.preventDefault();
+      if (typeof hardRefreshPage === 'function') { hardRefreshPage(); }
+      else { location.reload(true); }
+      return;
+    }
+
+    // ── Escape: Close scan → modal → clear pending ────────────────────────
+    if (key === 'Escape') {
+      if (typeof window._gScanIsActive === 'function' && window._gScanIsActive()) {
+        if (typeof window._gScanClose === 'function') window._gScanClose();
+        return;
+      }
+      _closeModal();
+      _clearPending();
+      return;
+    }
+
+    // ── Block everything else while typing in an input ─────────────────────
+    if (_inInput()) return;
+
+    // ── Enter: Execute the focused shortcut element ───────────────────────
+    if (key === 'Enter') {
+      if (_pendingEl) {
+        e.preventDefault();
+        var ex = _pendingEl;
+        _clearPending();
+        ex.click();
+      }
+      return;
+    }
+
+    // ── ↑↓: Move row selection (works regardless of modal state) ─────────
+    if (key === 'ArrowUp')   { e.preventDefault(); _moveRow(-1); return; }
+    if (key === 'ArrowDown') { e.preventDefault(); _moveRow(1);  return; }
+
+    // ── ←/→: Horizontal table scroll ─────────────────────────────────────
+    if (key === 'ArrowLeft')  { e.preventDefault(); _scrollTable(-240); return; }
+    if (key === 'ArrowRight') { e.preventDefault(); _scrollTable(240);  return; }
+
+    // ── Block letter/number shortcuts when a modal is open ────────────────
+    if (_isModalOpen()) return;
+
+    // ── 1-9: Jump to pagination page ──────────────────────────────────────
+    if (key >= '1' && key <= '9') {
+      e.preventDefault();
+      _gotoPage(parseInt(key, 10));
+      return;
+    }
+
+    // ── Row / module action shortcuts ─────────────────────────────────────
+    var k = key.toLowerCase();
+    switch (k) {
+
+      case 'a':  // Accept — IS, BrassQC
+        e.preventDefault();
+        _doRowAction('.btn-accept-is');
+        break;
+
+      case 'r':  // Reject — IS, BrassQC
+        e.preventDefault();
+        _doRowAction('.btn-reject-is');
+        break;
+
+      case 'v':  // View icon — DP, Jig Loading, IQF, BrassAudit
+        e.preventDefault();
+        _doRowAction('.tray-scan-btn, .tray-scan-btn-Jig, .jig-view-btn, .view-icon-btn, .bq-view-btn, .ba-view-btn');
+        break;
+
+      case 'd':  // Delete icon — IQF
+        e.preventDefault();
+        _doRowAction('.delete-batch-btn');
+        break;
+
+      case 't':  // Tray Scan — Day Planning
+        e.preventDefault();
+        _doRowAction('.tray-scan-btn');
+        break;
+
+      case 'j':  // Add Jig — Jig Loading (per-row button, row is highlighted)
+        e.preventDefault();
+        _doRowOrPageAction('.open-jig-modal-btn', '#addJigBtnAlt');
+        break;
+
+      case 'b':  // Bath Number — Inprocess Inspection
+        e.preventDefault();
+        var bathSel = document.querySelector('.bath-number-select');
+        if (bathSel && _visible(bathSel)) { bathSel.focus(); }
+        break;
+
+      case 'u':  // Unload — Jig Unloading
+        e.preventDefault();
+        _doRowAction('.z1-unload-link, .z1-unload-btn');
+        break;
+
+      case 's':  // Add Spider — Spider Spindle Z1/Z2
+        e.preventDefault();
+        _doRowOrPageAction('.btn-add-spider', null);
+        break;
+    }
+  });
 
 })();
 </script>

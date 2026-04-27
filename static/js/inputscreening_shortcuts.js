@@ -194,65 +194,11 @@
   // ─── Action helpers ────────────────────────────────────────────────────────
 
   /**
-   * Show a SweetAlert2 confirm with Cancel as the default focused button.
-   * Left / Right arrows swap focus between Cancel and Accept.
-   * Only proceeds to acceptBtn.click() if the operator confirms.
+   * Trigger accept button directly - the picktable.js handler shows the confirmation.
+   * No need for duplicate Swal here.
    */
   function _confirmAndAccept(acceptBtn) {
-    if (!window.Swal) { acceptBtn.click(); return; }
-    Swal.fire({
-      title: "Accept this lot?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Accept",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#028084",
-      cancelButtonColor: "#dc3545",  // Red for Cancel (clear visual difference)
-      focusCancel: true,   // Cancel is the default-focused (safe default)
-      reverseButtons: false,
-      customClass: {
-        confirmButton: 'swal2-styled-accept',
-        cancelButton: 'swal2-styled-cancel'
-      },
-      didOpen: function (popup) {
-        // Inject custom styles for clear button differentiation
-        var style = document.createElement('style');
-        style.textContent = `
-          .swal2-styled-accept {
-            background-color: #028084 !important;
-            border: 2px solid #028084 !important;
-            color: #fff !important;
-            font-weight: 700 !important;
-          }
-          .swal2-styled-accept:focus {
-            box-shadow: 0 0 0 4px rgba(2, 128, 132, 0.3) !important;
-          }
-          .swal2-styled-cancel {
-            background-color: #dc3545 !important;
-            border: 2px solid #dc3545 !important;
-            color: #fff !important;
-            font-weight: 700 !important;
-          }
-          .swal2-styled-cancel:focus {
-            box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.3) !important;
-          }
-        `;
-        popup.appendChild(style);
-        
-        // Left / Right arrows toggle focus between the two buttons
-        popup.addEventListener("keydown", function (ev) {
-          if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
-          ev.preventDefault();
-          var focused = document.activeElement;
-          var confirmBtn = popup.querySelector(".swal2-confirm");
-          var cancelBtn  = popup.querySelector(".swal2-cancel");
-          if (focused === confirmBtn) cancelBtn.focus();
-          else confirmBtn.focus();
-        });
-      },
-    }).then(function (result) {
-      if (result.isConfirmed) acceptBtn.click();
-    });
+    acceptBtn.click();
   }
 
   /** Open the tray verification scan for the selected row (or first row). */
@@ -293,7 +239,9 @@
       );
       return;
     }
-    _toast("Press Enter to Accept this lot, or ↑↓ to select another row.", "info");
+    // Mark row as accept-focused and immediately open confirmation
+    row.classList.add("accept-focused");
+    _openAcceptConfirm();
   }
 
   /** Trigger the Accept confirmation dialog. */

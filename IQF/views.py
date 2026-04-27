@@ -28,6 +28,7 @@ from math import ceil
 from django.utils import timezone
 from datetime import datetime, timedelta
 import pytz
+import time
 from django.db.models import Sum
 from django.views.decorators.http import require_http_methods
 from django.views import View
@@ -1345,6 +1346,7 @@ def iqf_submit_audit(request):
 
                 # ── Generate child lot IDs ──
                 accepted_lot_id = generate_new_lot_id()
+                time.sleep(0.001)  # Ensure different microsecond timestamp for rejected lot
                 rejected_lot_id = generate_new_lot_id()
                 print(f'[PARTIAL SPLIT] accepted_lot={accepted_lot_id}, rejected_lot={rejected_lot_id}')
 

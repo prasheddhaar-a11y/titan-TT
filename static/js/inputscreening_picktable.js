@@ -372,14 +372,20 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".tray-scan-btn-Jig").forEach(function (link) {
     link.addEventListener("click", handleRowHighlight);
   });
-  // Add event listeners for Set Top Tray/Reject buttons (tray-scan-btn)
-  // Add event listeners for Accept buttons (btn-twitter)
   // Add event listeners for Tray Verification View buttons
   document
     .querySelectorAll(".tray-scan-btn-DayPlanning-view")
     .forEach(function (button) {
       button.addEventListener("click", handleRowHighlight);
     });
+  // Add event listeners for Accept buttons (btn-accept-is)
+  document.querySelectorAll(".btn-accept-is").forEach(function (button) {
+    button.addEventListener("click", handleRowHighlight);
+  });
+  // Add event listeners for Reject buttons (btn-reject-is)
+  document.querySelectorAll(".btn-reject-is").forEach(function (button) {
+    button.addEventListener("click", handleRowHighlight);
+  });
   // Expose restoreRowPosition globally so other scripts (e.g. tvmClose) can call it
   window.restoreRowPosition = restoreRowPosition;
   // On modal close events, restore row to original position and remove highlight
@@ -387,6 +393,20 @@ document.addEventListener("DOMContentLoaded", function () {
   var closeViewBtn = document.getElementById("closeTrayScanModal_DayPlanning");
   if (closeViewBtn) {
     closeViewBtn.addEventListener("click", restoreRowPosition);
+  }
+  // On Reject modal close (isRejectModal)
+  var isRejectModal = document.getElementById("isRejectModal");
+  if (isRejectModal) {
+    var observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'class') {
+          if (!isRejectModal.classList.contains('open')) {
+            restoreRowPosition();
+          }
+        }
+      });
+    });
+    observer.observe(isRejectModal, { attributes: true });
   }
 });
 // ====== Original inline block #5 ======
@@ -1856,8 +1876,23 @@ document.addEventListener("DOMContentLoaded", function () {
         reverseButtons: true,
         confirmButtonColor: "#1ba878",
         cancelButtonColor: "#888",
+        didOpen: function(popup) {
+          popup.addEventListener("keydown", function(ev) {
+            if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+            ev.preventDefault();
+            var focused = document.activeElement;
+            var confirmBtn = popup.querySelector(".swal2-confirm");
+            var cancelBtn = popup.querySelector(".swal2-cancel");
+            if (focused === confirmBtn) cancelBtn.focus();
+            else confirmBtn.focus();
+          });
+        },
+        willClose: function() {
+          restoreRowPosition();
+        },
       }).then(function (r) {
         if (r.isConfirmed) doSubmit();
+        else restoreRowPosition();
       });
     } else if (window.confirm("Accept this lot? All trays have been verified.")) {
       doSubmit();

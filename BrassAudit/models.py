@@ -1,4 +1,13 @@
 from django.db import models
+from django.utils import timezone
+from django.utils.timezone import now
+from django.contrib.postgres.fields import ArrayField
+try:
+    # Django 3.1+ has JSONField on models
+    from django.db.models import JSONField
+except Exception:
+    # Fallback for older versions (should not happen for Django>=4)
+    from django.contrib.postgres.fields import JSONField
 from modelmasterapp.models import *
 
 # Create your models here.

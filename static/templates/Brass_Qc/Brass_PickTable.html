@@ -915,18 +915,14 @@ tr.row-inactive td.action-td {
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Polishing Stk No
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
                       Action <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      No of Trays <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Lot Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      No of Trays <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Accept Qty
@@ -948,6 +944,14 @@ tr.row-inactive td.action-td {
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Tray Cate- <br> Capacity
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Polishing Stk No
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Plating Color
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -961,10 +965,6 @@ tr.row-inactive td.action-td {
                     </th>
                     <th style="display:none;">
                       Version <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Tray Cate- <br> Capacity
-                      <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Input Source
@@ -1065,7 +1065,6 @@ tr.row-inactive td.action-td {
                         </div>
                       </span>
                     </td>
-                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
 
                     <!-- ACTION COLUMN (moved to position 5) -->
                     <td class="action-td">
@@ -1211,8 +1210,7 @@ tr.row-inactive td.action-td {
                               style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
                         </a>
                     </td>
-                    <!-- NO OF TRAYS (moved to position 6) -->
-                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.no_of_trays}}</td>
+                    <!-- LOT QTY first (matching IS order), No of Trays second -->
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>
                       <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_accepted_qty }}</span>
                       <span style="display: inline-flex; align-items: center; gap: 4px;">
@@ -1250,6 +1248,7 @@ tr.row-inactive td.action-td {
                           {% if data.brass_qc_accepted_qty_verified %}disabled{% endif %} />
                       </span>
                     </td>
+                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.no_of_trays}}</td>
                     <!-- <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {{ data.brass_physical_qty|default:0 }}
                     </td> -->
@@ -1347,11 +1346,12 @@ tr.row-inactive td.action-td {
                       </div>
                     </td>
                     <!-- METADATA columns (positions 13-18, moved from earlier) -->
+                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.tray_type|tray_full_name}}-{{data.tray_capacity}}</td>
+                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.plating_color }}</td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.category }}</td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.polish_finish}}</td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %} style="display:none">{{data.version__version_name}}</td>
-                    <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.tray_type|tray_full_name}}-{{data.tray_capacity}}</td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.location__location_name}}</td>
                     <!-- REMARKS (position 19) -->
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>

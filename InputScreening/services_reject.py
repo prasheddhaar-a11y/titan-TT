@@ -651,18 +651,18 @@ def get_reject_modal_context(lot_id: str) -> Dict[str, Any]:
     )
 
     # ── Draft restore data ───────────────────────────────────────────────────
+    from .models import IP_Rejection_Draft
+
     draft_data = None
-    saved_draft = InputScreening_Submitted.objects.filter(
-        lot_id=lot_id, Draft_Saved=True, is_submitted=False
-    ).first()
+    saved_draft = IP_Rejection_Draft.objects.filter(lot_id=lot_id).first()
     if saved_draft:
-        alloc = saved_draft.allocation_preview_json or {}
+        stored_data = saved_draft.draft_data or {}
         draft_data = {
-            "rejection_reasons_json": saved_draft.rejection_reasons_json or {},
-            "remarks": saved_draft.remarks or "",
-            "reject_assignments": alloc.get("reject_assignments", []),
-            "accept_assignments": alloc.get("accept_assignments", []),
-            "delinked_tray_ids": alloc.get("delinked_tray_ids", []),
+            "rejection_reasons_json": stored_data.get("rejection_reasons_json", {}),
+            "remarks": saved_draft.lot_rejection_remarks or "",
+            "reject_assignments": stored_data.get("reject_assignments", []),
+            "accept_assignments": stored_data.get("accept_assignments", []),
+            "delinked_tray_ids": stored_data.get("delinked_tray_ids", []),
         }
 
     return {
@@ -1478,61 +1478,44 @@ def save_draft_partial_reject(
         if e.get("reason_id")
     }
 
-    allocation_preview_json = {
-        "total_reject_qty": total_reject,
-        "total_accept_qty": total_accept,
-        "delinked_tray_ids": delinked_ids,
-        "reject_assignments": reject_trays_json,
-        "accept_assignments": accept_trays_json,
-    }
-
-    defaults = {
+    # Store draft data in the dedicated draft model
+    draft_data = {
         "batch_id": batch_id_val,
-        "module_name": "Input Screening",
         "plating_stock_no": ctx.get("plating_stk_no"),
         "model_no": ctx.get("model_no"),
         "tray_type": tray_type,
         "tray_capacity": capacity,
-        "original_lot_qty": lot_qty,
-        "submitted_lot_qty": lot_qty,
-        "accepted_qty": total_accept,
-        "rejected_qty": total_reject,
-        "active_trays_count": len(active_trays),
-        "reject_trays_count": len(reject_trays_json),
-        "accept_trays_count": len(accept_trays_json),
-        "remarks": remarks or "",
-        "is_partial_accept": False,
-        "is_partial_reject": False,
-        "is_full_accept": False,
-        "is_full_reject": False,
-        "is_active": True,
-        "is_submitted": False,
-        "Draft_Saved": True,
-        "submitted_at": None,
-        "all_trays_json": reject_trays_json + accept_trays_json,
-        "accepted_trays_json": accept_trays_json,
-        "rejected_trays_json": reject_trays_json,
+        "lot_qty": lot_qty,
+        "total_reject_qty": total_reject,
+        "total_accept_qty": total_accept,
         "rejection_reasons_json": rejection_reasons_json,
-        "allocation_preview_json": allocation_preview_json,
-        "delink_trays_json": [{"tray_id": tid} for tid in delinked_ids],
-        "created_by": user if getattr(user, "is_authenticated", False) else None,
+        "reject_assignments": reject_trays_json,
+        "accept_assignments": accept_trays_json,
+        "delinked_tray_ids": delinked_ids,
+        "active_trays_count": len(active_trays),
     }
 
-    submission, created = InputScreening_Submitted.objects.update_or_create(
+    from .models import IP_Rejection_Draft
+
+    draft_obj, created = IP_Rejection_Draft.objects.update_or_create(
         lot_id=lot_id,
-        defaults=defaults,
+        defaults={
+            "user": user if getattr(user, "is_authenticated", False) else None,
+            "draft_data": draft_data,
+            "lot_rejection_remarks": remarks or "",
+        },
     )
 
     logger.info(
-        "[IS][SAVE_DRAFT] lot=%s sub=%s created=%s reject=%d accept=%d user=%s",
-        lot_id, submission.id, created, total_reject, total_accept,
+        "[IS][SAVE_DRAFT] lot=%s draft_id=%s created=%s reject=%d accept=%d user=%s",
+        lot_id, draft_obj.id, created, total_reject, total_accept,
         getattr(user, "username", "anonymous"),
     )
 
     return {
         "success": True,
         "lot_id": lot_id,
-        "submission_id": submission.id,
+        "draft_id": draft_obj.id,
         "created": created,
         "total_reject_qty": total_reject,
         "total_accept_qty": total_accept,

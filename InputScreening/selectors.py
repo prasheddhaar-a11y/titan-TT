@@ -746,10 +746,12 @@ def get_submitted_detail(lot_id: str) -> Dict[str, Any]:
                 }
                 for t in rl.allocation_trays.all()
             ]
+        # ✅ FIX: Delinked trays have source="reused" AND qty=0
+        # Reused reject trays have source="reused" AND qty>0
         delinked = [
             t["tray_id"]
             for t in rl_trays
-            if t.get("source") == "reused"
+            if t.get("source") == "reused" and t.get("qty", 0) == 0
         ]
         reject_lots_data.append({
             "new_lot_id": rl.new_lot_id,

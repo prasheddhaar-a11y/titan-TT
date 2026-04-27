@@ -1621,7 +1621,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const rows = trays.map((t, i) => {
           const top = t.top_tray ? '<span style="background:#0288d1;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">TOP</span>' : '';
           const reason = t.reason_text ? `<span style="background:#b71c1c;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">${_esc(t.reason_text)}</span>` : '';
-          const _srcLabel = t.source === 'reused' ? 'Delinked' : t.source;
+          // ✅ FIX: Distinguish between reused reject trays (qty>0) and delinked trays (qty=0)
+          let _srcLabel = t.source;
+          if (t.source === 'reused') {
+            _srcLabel = (t.qty === 0) ? 'Delinked' : 'Reused';
+          } else if (t.source === 'new') {
+            _srcLabel = 'new';
+          }
           const src = _srcLabel ? `<span style="color:#666;font-size:10px;margin-left:6px;">(${_esc(_srcLabel)})</span>` : '';
           return `<tr><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:center;">${i+1}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;font-family:monospace;">${_esc(t.tray_id)}${top}${reason}${src}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;">${_esc(t.qty)}</td></tr>`;
         }).join('');
