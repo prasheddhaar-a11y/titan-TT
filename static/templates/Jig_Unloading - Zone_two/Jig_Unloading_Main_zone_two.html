@@ -1601,20 +1601,16 @@ body.add-model-mode #selectAllCheckbox {
                     </th>
                     <th>JIG ID <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Last<br>Updated <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <!--<th>Plating<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>-->
-                    <!--<th>Plating Color <i class="fa fa-filter" aria-hidden="true"></i></th>-->
-                    <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th style="display: none;">Version <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <!--<th>Source-Location <i class="fa fa-filter" aria-hidden="true"></i></th>-->
-                    <th>Tray Cate - Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
-                      <!--<th>No of Trays <i class="fa fa-filter" aria-hidden="true"></i></th>-->
+                    <th>Tray Cate - Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Bath No <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Lot Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Stage <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Version <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1629,10 +1625,10 @@ body.add-model-mode #selectAllCheckbox {
                       data-lot-id-model-map='{{ jig_detail.lot_id_model_map|json_encode }}'
                       data-has-draft="{{ jig_detail.has_unload_draft|yesno:'true,false' }}">                    
                                       
+                    <!-- S.No -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>                  
                         <span style="display:flex; align-items:center; gap:3px;">
                     {% if is_admin %}
-                      <!-- Admin users: Show toggle switch -->
                       <label class="hold-toggle-switch" style="margin-bottom:0;">
                         {% if not jig_detail.unload_hold_lot %}
                           <input type="checkbox" class="hold-toggle-btn" checked />
@@ -1642,7 +1638,6 @@ body.add-model-mode #selectAllCheckbox {
                           <span class="hold-slider"></span>
                         {% endif %}
                       </label>
-                      <!-- Hold remark icon -->
                       <span class="hold-remark-icon" 
                             style="display:{% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or data.unload_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
                             title="{% if jig_detail.unload_holding_reason %}Holding Reason: {{ jig_detail.unload_holding_reason }}{% endif %}{% if jig_detail.unload_holding_reason and jig_detail.unload_release_reason %}&#10;{% endif %}{% if jig_detail.unload_release_reason %}Release Reason: {{ jig_detail.unload_release_reason }}{% endif %}">
@@ -1651,7 +1646,6 @@ body.add-model-mode #selectAllCheckbox {
                         {% endif %}
                       </span>
                     {% else %}
-                      <!-- Non-admin: Only show view icon if there's a holding/release reason -->
                       {% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or jig_detail.unload_release_reason %}
                         <span class="hold-remark-icon" 
                               style="display:inline-block; cursor:pointer;" 
@@ -1662,16 +1656,148 @@ body.add-model-mode #selectAllCheckbox {
                     {% endif %}
                     <span class="sno-value">{{ forloop.counter }}</span>
                     <input type="checkbox" class="row-checkbox" style="vertical-align:middle; margin-left:4px;" />
-
-                  </span>
-
+                        </span>
                     </td>
+                    
+                    <!-- JIG ID -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.jig_qr_id }}</td>
+                    
+                    <!-- Last Updated -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
                       {{ jig_detail.jig_loaded_date_time|date:"d-M-y" }}<br>
                       <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig_detail.jig_loaded_date_time|date:"h:i A" }}</span>
-                    </td>                      
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %} class="model-stock-no-cell" 
+                    </td>
+                    
+                    <!-- Action -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <a href="#" title="Delete" class="delete-jig-btn" data-lot-id="{{ jig_detail.lot_id }}">
+                          <img src="{% static 'assets/icons/bin.png' %}" alt="Delete" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;"/>
+                        </a>
+                        {% if jig_detail.all_models_submitted_z1 %}
+                          <a href="#" class="text-success z1-view-btn" style="text-decoration: none; font-weight:600;"
+                             data-jig-completed-id="{{ jig_detail.id }}"
+                             title="View unloaded tray data">
+                             <img src="{% static 'assets/icons/view2.png' %}" alt="View" style="width:18px; height:18px; margin-right:4px; vertical-align:middle;" />
+                             <span>Unloaded</span>
+                          </a>
+                        {% else %}
+                          <a href="#" class="text-primary z1-unload-btn" style="text-decoration: underline; font-weight:600;"
+                             data-jig-completed-id="{{ jig_detail.id }}"
+                             title="Unload jig trays">
+                             <span>Unload</span>
+                          </a>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Lot Qty -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        {% if jig_detail.colored_quantities %}
+                          {% for item in jig_detail.colored_quantities %}
+                            <span class="quantity-badge"
+                                  data-color="{{ item.color }}"
+                                  title="{{ item.tooltip }}">
+                              {{ item.quantity }}
+                            </span>
+                          {% endfor %}
+                        {% else %}
+                          {{jig_detail.lot_id_quantities.values|join:", "|default:"0"}}
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Tray Cate - Capacity -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        {% if jig_detail.tray_type and jig_detail.tray_capacity %}
+                          {% if jig_detail.tray_capacity == 20 %}
+                            <div class="tray-capacity-badge normal-tray"
+                                 style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
+                                 title="Normal Tray - 20 Capacity (Custom for Jig Unloading)">
+                              Normal - 20
+                            </div>
+                          {% elif jig_detail.tray_capacity == 12 %}
+                            <div class="tray-capacity-badge jumbo-tray"
+                                 style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
+                                 title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
+                              Jumbo - 12
+                            </div>
+                          {% else %}
+                            <div class="tray-capacity-badge other-tray"
+                                 style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
+                                 title="{{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }} Capacity">
+                              {{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }}
+                            </div>
+                          {% endif %}
+                        {% else %}
+                          <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Bath No -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{% firstof jig_detail.bath_numbers.bath_number jig_detail.bath_number "N/A" %}</td>
+
+                    <!-- Process Status -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                      {% if jig_detail.jig_unload_draft %}
+                        <div title="Draft (Halfway Unloaded)" style="
+                          background: linear-gradient(to right, #0c8249 0 50%, #ccc 50% 100%);
+                          color: #fff;
+                          border-radius: 50%;
+                          width: 20px;
+                          height: 20px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          font-weight: 500;
+                          line-height: 20px;
+                          text-align: center;
+                          padding-top: 1px;
+                          padding-right: 1px;
+                          padding: 15px !important;
+                        ">UL</div>
+                      {% else %}
+                        <div style="background:#ccc;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0;">UL</div>
+                      {% endif %}
+                    </td>
+
+                    <!-- Lot Status -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                      {% if jig_detail.jig_unload_draft %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Draft
+                        </div>
+                      {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #b3b3b3; background-color: #f5f5f5; color: #888; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Pending
+                        </div>
+                      {% elif jig_detail.unload_hold_lot %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 12px; white-space: nowrap; padding: 5px;">
+                          On Hold
+                        </div>
+                      {% elif jig_detail.batch_status == "Completed" %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #007bff; background-color: #e3f2fd; color: #0d47a1; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Released
+                        </div>
+                      {% else %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
+                          Yet To Start
+                        </div>
+                      {% endif %}
+                    </td>
+                    
+                    <!-- Current Stage -->
+                    <td>
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          {% if jig_detail.electroplating_only %}Electroplating{% else %}Jig Unloading{% endif %}
+                        </div>
+                    </td>
+                    
+                    <!-- Model Presents -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %} class="model-stock-no-cell" 
                           data-images='{{ jig_detail.model_images|json_encode }}'
                           data-model-colors='{{ jig_detail.model_colors|json_encode }}'
                           data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'
@@ -1709,7 +1835,6 @@ body.add-model-mode #selectAllCheckbox {
                                   {% endwith %}
                               {% endfor %}
                               
-                              <!-- Gallery Arrow Icon -->
                               <span class="model-gallery-icon" 
                                     style="display:inline-block;
                                            margin-left:8px;
@@ -1724,9 +1849,6 @@ body.add-model-mode #selectAllCheckbox {
                                   <i class="fa fa-arrow-right"></i>
                               </span>
                               
-                             
-                              
-                              <!-- Hover tooltip listing model numbers -->
                               <div class="model-hover-list">
                                 {% for model_no in jig_detail.no_of_model_cases %}
                                   {% with color=jig_detail.model_colors|get_item:model_no %}
@@ -1738,7 +1860,6 @@ body.add-model-mode #selectAllCheckbox {
                                 {% endfor %}
                               </div>
 
-                              <!-- Expand menu icon -->
                               <span class="expand-model-remark" 
                                     style="display:inline-block;
                                            width:18px;
@@ -1753,243 +1874,77 @@ body.add-model-mode #selectAllCheckbox {
                                   </svg>
                               </span>
                           </span>
-                      </td>
-                      <!--<td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.all_plating_stk_nos|join:", " }}</td>-->
-                      <!--<td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.all_polishing_stk_nos|join:", " }}</td>-->
-                      <!--<td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}</td>-->
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.polish_finish_name|default:"N/A" }}</td>
+                    </td>
+                    
+                    <!-- Polish Finish -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.polish_finish_name|default:"N/A" }}</td>
 
-                    <!-- Version display -->
+                    <!-- Version -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %} style="display: none;">
                       {{ jig_detail.all_versions|join:", " }}
                     </td>
-                    <!--
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% for location in jig_detail.unique_locations %}
-                          {{ location }}{% if not forloop.last %}, {% endif %}
-                        {% endfor %}
-                      </td>-->
-                      <!-- Tray Cate - Capacity (now uses tray_type and tray_capacity) -->
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% if jig_detail.tray_type and jig_detail.tray_capacity %}
-                          {% if jig_detail.tray_capacity == 20 %}
-                            <div class="tray-capacity-badge normal-tray"
-                                 style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Normal Tray - 20 Capacity (Custom for Jig Unloading)">
-                              Normal - 20
-                            </div>
-                          {% elif jig_detail.tray_capacity == 12 %}
-                            <div class="tray-capacity-badge jumbo-tray"
-                                 style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
-                              Jumbo - 12
-                            </div>
-                          {% else %}
-                            <div class="tray-capacity-badge other-tray"
-                                 style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
-                                 title="{{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }} Capacity">
-                              {{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }}
-                            </div>
-                          {% endif %}
-                        {% else %}
-                          <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
-                        {% endif %}
-                      </td>
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% if jig_detail.colored_quantities %}
-                          {% for item in jig_detail.colored_quantities %}
-                            <span class="quantity-badge"
-                                  data-color="{{ item.color }}"
-                                  title="{{ item.tooltip }}">
-                              {{ item.quantity }}
-                            </span>
-                          {% endfor %}
-                        {% else %}
-                          {{jig_detail.lot_id_quantities.values|join:", "|default:"0"}}
-                        {% endif %}
-                      </td>
-                      <!-- No of Trays -->
-                        <!--<td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.calculated_no_of_trays|default:"0" }}</td>-->
-
-                      
-                      <!-- Bath No -->
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{% firstof jig_detail.bath_numbers.bath_number jig_detail.bath_number "N/A" %}</td>
-
-                      <!-- Process Status column -->
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if jig_detail.jig_unload_draft %}
-                        <!-- Half green filled circle for draft -->
-                        <div title="Draft (Halfway Unloaded)" style="
-                          background: linear-gradient(to right, #0c8249 0 50%, #ccc 50% 100%);
-                          color: #fff;
-                          border-radius: 50%;
-                          width: 20px;
-                          height: 20px;
-                          display: flex;
-                          align-items: center;
-                          justify-content: center;
-                          font-weight: 500;
-                          line-height: 20px;
-                          text-align: center;
-                          padding-top: 1px;
-                          padding-right: 1px;
-                          padding: 15px !important;
-                        ">UL</div>
-
-                      {% else %}
-                        <div style="background:#ccc;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0;">UL</div>                      {% endif %}
-                      </td>
-
-                      <!-- Action -->
-                      <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-
-                        <a href="#" title="Delete" class="delete-jig-btn" data-lot-id="{{ jig_detail.lot_id }}">
-                          <img src="{% static 'assets/icons/bin.png' %}" alt="Delete" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;"/>
-                        </a>
-                        
-                        {% if jig_detail.all_models_submitted_z1 %}
-                          <a href="#" class="text-success z1-view-btn" style="text-decoration: none; font-weight:600;"
-                             data-jig-completed-id="{{ jig_detail.id }}"
-                             title="View unloaded tray data">
-                             <img src="{% static 'assets/icons/view2.png' %}" alt="View" style="width:18px; height:18px; margin-right:4px; vertical-align:middle;" />
-                             <span>Unloaded</span>
-                          </a>
-                        {% else %}
-                          <a href="#" class="text-primary z1-unload-btn" style="text-decoration: underline; font-weight:600;"
-                             data-jig-completed-id="{{ jig_detail.id }}"
-                             title="Unload jig trays">
-                             <span>Unload</span>
-                          </a>
-                        {% endif %}
- 
-                      </td>
-                      <!-- Lot Status -->
+                    
+                    <!-- Remarks -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if jig_detail.jig_unload_draft %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 2px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          Draft
-                        </div>
-                      {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 2px solid #b3b3b3; background-color: #f5f5f5; color: #888; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          Pending
-                        </div>
-                      {% elif jig_detail.unload_hold_lot %}
-                        <div
-                          class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 12px; white-space: nowrap; padding: 5px;">
-                          On Hold
-                        </div>
-                        {% elif jig_detail.batch_status == "Completed" %}
-                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                        style="border: 2px solid #007bff; background-color: #e3f2fd; color: #0d47a1; font-size: 12px; white-space: nowrap; padding: 6px;">
-                        Released
-                      </div>
-                      {% else %}
-                          <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
-                            Yet To Start
+                      <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
+                        <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec" style="width: 20px; height: 20px"/>
+                        <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 265px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 10px; z-index: 1000;">
+                          <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" style="background: #28a745; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+                              <i class="fa fa-microphone"></i>
+                            </button>
+                            <span style="font-size: 14px; color: #333;">Hold to record audio</span>
+                            <div style="text-align: right; margin-top: 10px;">
+                              <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                <i class="fa fa-send"></i>
+                              </button>
+                            </div>
                           </div>
-                      {% endif %}
-                    </td>
-                      <!-- Current Stage -->
-                      <td>
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          {% if jig_detail.electroplating_only %}Electroplating{% else %}Jig Unloading{% endif %}
                         </div>
-                      </td>
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-
-                      <!-- VoiceRec with tooltip (audio remark) -->
-                          <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
-                            <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec" style="width: 20px; height: 20px"/>
-                            <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 265px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 10px; z-index: 1000;">
-                              <!-- Audio recording UI placeholder -->
-                              <div style="display: flex; align-items: center; gap: 10px;">
-                                <button type="button" style="background: #28a745; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; display: flex; align-items: center; justify-content: center;">
-                                  <i class="fa fa-microphone"></i>
-                                </button>
-                                <span style="font-size: 14px; color: #333;">Hold to record audio</span>
-                                  <div style="text-align: right; margin-top: 10px;">
-                                <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                  <i class="fa fa-send"></i>
-                                </button>
-                              </div>
-                              </div>
-                            
+                      </a>
+                      <a href="#" title="Add Remark" class="remark-tooltip-trigger" data-jig-lot-id="{{ jig_detail.jig_lot_id }}" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
+                        <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat" style="width: 20px; height: 20px; {% if jig_detail.unloading_remarks %}filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;{% endif %}" />
+                        <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
+                          <textarea placeholder="Type your remark..." style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;" {% if jig_detail.unloading_remarks %}readonly{% endif %}>{{ jig_detail.unloading_remarks|default_if_none:"" }}</textarea>
+                          <div style="text-align: right; margin-top: -35px">
+                            {% if not jig_detail.unloading_remarks %}
+                            <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                              <i class="fa fa-send"></i>
+                            </button>
+                            {% else %}
+                            <div style="margin-top: 40px; color: #31708f; background: #d9edf7; border: 1px solid #bce8f1; border-radius: 4px; padding: 8px 12px; font-size: 10px; text-align: left;">
+                              <i class="fa fa-info-circle" style="margin-right: 6px;"></i>
+                              Remark already saved and cannot be edited.
                             </div>
-                          </a>
-                          <a
-                              href="#"
-                              title="Add Remark"
-                              class="remark-tooltip-trigger"
-                              data-jig-lot-id="{{ jig_detail.jig_lot_id }}"
-                              style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
-                            >
-                              <img
-                                src="{% static 'assets/icons/chat_icon.png' %}"
-                                alt="Chat"
-                                style="width: 20px; height: 20px; {% if jig_detail.unloading_remarks %}filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;{% endif %}"
-                              />
-                              <div
-                                class="remark-tooltip"
-                                style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;"
-                              >
-                                <textarea
-                                  placeholder="Type your remark..."
-                                  style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;"
-                                  {% if jig_detail.unloading_remarks %}readonly{% endif %}
-                                >{{ jig_detail.unloading_remarks|default_if_none:"" }}</textarea>
-                                <div style="text-align: right; margin-top: -35px">
-                                  {% if not jig_detail.unloading_remarks %}
-                                  <button
-                                    type="button"
-                                    style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;"
-                                  >
-                                    <i class="fa fa-send"></i>
-                                  </button>
-                                  {% else %}
-                                  <div style="margin-top: 40px; color: #31708f; background: #d9edf7; border: 1px solid #bce8f1; border-radius: 4px; padding: 8px 12px; font-size: 10px; text-align: left;">
-                                    <i class="fa fa-info-circle" style="margin-right: 6px;"></i>
-                                    Remark already saved and cannot be edited.
-                                  </div>
-                                  {% endif %}
-                                </div>
-                              </div>
-                          </a>
-
-                          <!-- ERR4: Previous module remark icon (Jig Loading remarks) -->
-                          {% if jig_detail.remarks or jig_detail.pick_remarks %}
-                          <a href="#" title="Previous Module Remark" class="remark-tooltip-trigger"
-                             style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
-                            <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Previous Remark"
-                                 style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(190deg) saturate(3) contrast(1.2); opacity: 1;" />
-                            <div class="remark-tooltip"
-                                 style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #a0c4e8; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-                              <div style="font-size: 11px; font-weight: 700; color: #0d47a1; margin-bottom: 6px;">
-                                <i class="fa fa-history" style="margin-right: 4px;"></i> Previous Module Remark
-                              </div>
-                              {% if jig_detail.pick_remarks %}
-                              <div style="font-size: 12px; color: #333; margin-bottom: 4px;">
-                                <strong>Pick Remark:</strong> {{ jig_detail.pick_remarks }}
-                              </div>
-                              {% endif %}
-                              {% if jig_detail.remarks %}
-                              <div style="font-size: 12px; color: #333;">
-                                <strong>Remark:</strong> {{ jig_detail.remarks }}
-                              </div>
-                              {% endif %}
-                            </div>
-                          </a>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </a>
+                      {% if jig_detail.remarks or jig_detail.pick_remarks %}
+                      <a href="#" title="Previous Module Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
+                        <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Previous Remark" style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(190deg) saturate(3) contrast(1.2); opacity: 1;" />
+                        <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #a0c4e8; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
+                          <div style="font-size: 11px; font-weight: 700; color: #0d47a1; margin-bottom: 6px;">
+                            <i class="fa fa-history" style="margin-right: 4px;"></i> Previous Module Remark
+                          </div>
+                          {% if jig_detail.pick_remarks %}
+                          <div style="font-size: 12px; color: #333; margin-bottom: 4px;">
+                            <strong>Pick Remark:</strong> {{ jig_detail.pick_remarks }}
+                          </div>
                           {% endif %}
-                 
+                          {% if jig_detail.remarks %}
+                          <div style="font-size: 12px; color: #333;">
+                            <strong>Remark:</strong> {{ jig_detail.remarks }}
+                          </div>
+                          {% endif %}
+                        </div>
+                      </a>
+                      {% endif %}
                     </td>
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="19" style="text-align: center; padding: 20px; color: #888;">
+                      <td colspan="14" style="text-align: center; padding: 20px; color: #888;">
                         No jig details found for unloading.
                       </td>
                     </tr>

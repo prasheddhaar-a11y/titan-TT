@@ -321,12 +321,12 @@ def _allocate_accept_trays(
 ) -> List[Dict[str, Any]]:
     """Distribute accept_qty items across accept tray containers.
 
-    Uses remaining active trays (those NOT delinked for reject) first, then
-    pulls free validated trays from the TrayId master if more capacity is
-    needed.
+    ONLY uses remaining active trays (those NOT delinked for reject).
+    Accept trays must always come from the lot's existing active trays —
+    no free master trays are permitted for accept allocation.
 
     Raises:
-        ValueError: if accept_qty > 0 and no free master trays are available.
+        ValueError: if accept_qty cannot fit in remaining active trays.
     """
     delinked_set = set(delinked_ids)
     remaining_active = [t for t in active_trays if t["tray_id"] not in delinked_set]
@@ -347,32 +347,13 @@ def _allocate_accept_trays(
         )
         remaining -= fill_qty
 
-    # If more accept qty than existing containers can hold, fetch free trays
-    if remaining > 0:
-        extra_slots_needed = math.ceil(remaining / capacity)
-        free_accept_ids = _fetch_free_accept_tray_ids(
-            tray_type=tray_type,
-            tray_capacity=capacity,
-            needed=extra_slots_needed,
-            reserved=reserved_ids,
-        )
-        for new_tid in free_accept_ids:
-            if remaining <= 0:
-                break
-            fill_qty = min(remaining, capacity)
-            allocations.append(
-                {
-                    "tray_id": new_tid,
-                    "qty": fill_qty,
-                    "source": "new_free",
-                }
-            )
-            remaining -= fill_qty
-
+    # Accept must ONLY use existing active trays. If accept qty exceeds
+    # capacity of remaining active trays, block the submission.
     if remaining > 0:
         raise ValueError(
-            f"Accept allocation incomplete — {remaining} items could not be placed. "
-            "Check free tray availability."
+            f"Accept allocation incomplete — {remaining} items could not fit in "
+            f"remaining active trays. Accept trays must come from existing active "
+            f"trays only. Reduce reject qty or adjust delink count."
         )
 
     return allocations
@@ -400,6 +381,39 @@ def _validate_reject_qty(total_reject_qty: int, lot_qty: int) -> None:
             f"Reject qty ({total_reject_qty}) must be less than lot qty ({lot_qty}). "
             "Use Full Reject for total rejection."
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SHORTAGE HELPERS
+# Shortage = missing items that never arrived; reduces effective lot qty.
+# They do NOT create reject trays and do NOT trigger reject scan flow.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_shortage_entry(entry: Dict[str, Any]) -> bool:
+    """Return True if this rejection entry represents a SHORTAGE (missing items).
+
+    Shortage entries (reason_text contains 'SHORTAGE', case-insensitive) reduce
+    the effective lot qty but do NOT create reject trays or require reject scans.
+    """
+    return "shortage" in (entry.get("reason_text") or "").lower()
+
+
+def _split_shortage_entries(
+    rejection_entries: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Split rejection_entries into (shortage_entries, reject_entries).
+
+    shortage_entries → reduce effective lot qty, no reject tray created.
+    reject_entries   → create reject trays as normal.
+    """
+    shortage: List[Dict[str, Any]] = []
+    reject: List[Dict[str, Any]] = []
+    for e in rejection_entries:
+        if _is_shortage_entry(e):
+            shortage.append(e)
+        else:
+            reject.append(e)
+    return shortage, reject
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -512,15 +526,27 @@ def build_live_preview(
     tray_type: Optional[str] = ctx["tray_type"]
     active_trays: List[Dict] = ctx["active_trays"]
 
-    total_reject = sum(e.get("qty", 0) for e in rejection_entries)
-    total_accept = lot_qty - total_reject
+    # ── Shortage split ────────────────────────────────────────────────────────
+    # Shortage = missing items (never arrived). They reduce the effective lot qty
+    # but do NOT create reject trays and do NOT trigger the reject scan flow.
+    shortage_entries, reject_entries = _split_shortage_entries(rejection_entries)
+    shortage_qty: int = sum(e.get("qty", 0) for e in shortage_entries)
+    total_non_shortage_reject: int = sum(e.get("qty", 0) for e in reject_entries)
+
+    effective_lot_qty: int = lot_qty - shortage_qty      # adjusted lot qty
+    total_reject: int = total_non_shortage_reject        # drives reject tray allocation
+    total_accept: int = effective_lot_qty - total_reject # = lot_qty - shortage - reject
 
     # Basic validations
-    if total_reject <= 0:
+    if shortage_qty == 0 and total_reject <= 0:
         errors.append("Total reject quantity must be > 0.")
-    if total_reject >= lot_qty:
+    if shortage_qty > 0 and effective_lot_qty <= 0:
         errors.append(
-            f"Reject qty ({total_reject}) must be less than lot qty ({lot_qty})."
+            f"Shortage qty ({shortage_qty}) equals or exceeds lot qty ({lot_qty})."
+        )
+    if total_reject > 0 and total_reject >= effective_lot_qty:
+        errors.append(
+            f"Reject qty ({total_reject}) must be less than effective lot qty ({effective_lot_qty})."
         )
     if total_accept < 0:
         errors.append("Accept qty cannot be negative.")
@@ -530,7 +556,9 @@ def build_live_preview(
             "success": False,
             "validation_errors": errors,
             "total_reject_qty": total_reject,
-            "total_accept_qty": total_accept,
+            "total_accept_qty": max(0, total_accept),
+            "total_shortage_qty": shortage_qty,
+            "effective_lot_qty": effective_lot_qty,
         }
 
     reserved: set = set()
@@ -541,19 +569,21 @@ def build_live_preview(
     new_reject_ids: List[str] = []
 
     try:
-        reject_alloc, delinked_ids, new_reject_ids = _allocate_reject_trays(
-            reasons=rejection_entries,
-            active_trays=active_trays,
-            delink_count=delink_count,
-            capacity=capacity,
-            reserved_ids=reserved,
-        )
+        # Only non-shortage entries create reject trays.
+        if reject_entries:
+            reject_alloc, delinked_ids, new_reject_ids = _allocate_reject_trays(
+                reasons=reject_entries,
+                active_trays=active_trays,
+                delink_count=delink_count,
+                capacity=capacity,
+                reserved_ids=reserved,
+            )
 
-        if not validate_reason_single_tray_rule(reject_alloc):
-            errors.append("Single-reason-per-tray rule violated in reject allocation.")
+            if not validate_reason_single_tray_rule(reject_alloc):
+                errors.append("Single-reason-per-tray rule violated in reject allocation.")
 
         accept_alloc = _allocate_accept_trays(
-            accept_qty=total_accept,
+            accept_qty=max(0, total_accept),
             active_trays=active_trays,
             delinked_ids=delinked_ids,
             capacity=capacity,
@@ -566,6 +596,10 @@ def build_live_preview(
         # the warning but still return the slot plan so the modal renders.
         errors.append(str(exc))
 
+    # Drain engine uses shortage + reject combined (both physically reduce
+    # the active tray quantities, determining which trays become fully empty).
+    total_drain: int = shortage_qty + total_non_shortage_reject
+
     return {
         "success": True,
         "lot_id": lot_id,
@@ -576,21 +610,21 @@ def build_live_preview(
         "active_trays": active_trays,
         "total_reject_qty": total_reject,
         "total_accept_qty": total_accept,
+        "total_shortage_qty": shortage_qty,
+        "effective_lot_qty": effective_lot_qty,
         "reject_allocations": reject_alloc,
         "accept_allocations": accept_alloc,
         "delinked_tray_ids": delinked_ids,
         "new_reject_tray_ids": new_reject_ids,
         "validation_errors": errors,
         # ── Manual scan flow additions ────────────────────────────────
-        # Reuse cap is derived from the DRAIN ENGINE: only trays that
-        # become physically empty after draining ``total_reject`` qty
-        # may be reused.  One reason per tray (no mixing) is enforced
-        # elsewhere in validate_scanned_tray().
+        # Reuse cap from the DRAIN ENGINE: only trays emptied by combined
+        # shortage + reject drain may be reused / delinked.
         **_reuse_counters(
-            reject_slots=_build_reject_slots(rejection_entries, capacity),
+            reject_slots=_build_reject_slots(reject_entries, capacity),
             accept_slots=_build_accept_slots(max(0, total_accept), capacity),
             active_trays=active_trays,
-            total_reject=total_reject,
+            total_reject=total_drain,
         ),
     }
 
@@ -935,29 +969,38 @@ def compute_slot_plan(
     active_trays = ctx["active_trays"]
     active_count = len(active_trays)
 
-    total_reject = sum(int(e.get("qty") or 0) for e in rejection_entries)
-    total_accept = lot_qty - total_reject
+    # ── Shortage split ──────────────────────────────────────────────────────
+    shortage_entries, reject_entries = _split_shortage_entries(rejection_entries)
+    shortage_qty = sum(int(e.get("qty") or 0) for e in shortage_entries)
+    total_non_shortage_reject = sum(int(e.get("qty") or 0) for e in reject_entries)
+
+    effective_lot_qty = lot_qty - shortage_qty   # adjusted lot qty after shortage
+    total_reject = total_non_shortage_reject      # drives reject slots
+    total_accept = effective_lot_qty - total_reject
 
     errors: List[str] = []
     if total_reject < 0:
         errors.append("Reject qty cannot be negative.")
-    if total_reject > lot_qty:
+    if shortage_qty > 0 and effective_lot_qty <= 0:
         errors.append(
-            f"Reject qty ({total_reject}) cannot exceed lot qty ({lot_qty})."
+            f"Shortage qty ({shortage_qty}) equals or exceeds lot qty ({lot_qty})."
+        )
+    if total_reject > effective_lot_qty:
+        errors.append(
+            f"Reject qty ({total_reject}) cannot exceed effective lot qty ({effective_lot_qty})."
         )
 
-    reject_slots = _build_reject_slots(rejection_entries, capacity)
+    # Shortage excludes from reject slots; only reject_entries generate tray slots.
+    reject_slots = _build_reject_slots(reject_entries, capacity)
     accept_slots = _build_accept_slots(max(0, total_accept), capacity)
 
-    # Reuse policy is derived from the DRAIN ENGINE: only trays that
-    # become physically empty after draining ``total_reject`` qty may
-    # be reused.  ``delink_available`` exposes these emptied trays so
-    # the user can optionally delink any not consumed by reject scans.
+    # Drain engine: shortage + reject both physically drain from active trays.
+    total_drain = shortage_qty + total_non_shortage_reject
     counters = _reuse_counters(
         reject_slots=reject_slots,
         accept_slots=accept_slots,
         active_trays=active_trays,
-        total_reject=total_reject,
+        total_reject=total_drain,
     )
 
     return {
@@ -970,6 +1013,8 @@ def compute_slot_plan(
         "active_tray_count": active_count,
         "total_reject_qty": total_reject,
         "total_accept_qty": max(0, total_accept),
+        "total_shortage_qty": shortage_qty,
+        "effective_lot_qty": effective_lot_qty,
         "reject_slots": reject_slots,
         "accept_slots": accept_slots,
         "reusable_count": counters["reusable_count"],
@@ -997,12 +1042,13 @@ def validate_scanned_tray(
     tray_id: str,
     used_tray_ids: List[str],
     reject_qty: int = 0,
+    shortage_qty: int = 0,
 ) -> Dict[str, Any]:
     """Validate a single user-scanned tray ID for the given slot type.
 
     slot_type:
         ``reject``  – tray may be (a) an EMPTIED active tray of this lot
-                      (physically drained by reject qty, will be reused
+                      (physically drained by shortage + reject, will be reused
                       without further delink) or (b) a free master tray
                       (will be created new).  Active trays that are NOT
                       in the emptied set are blocked – they still hold
@@ -1015,8 +1061,9 @@ def validate_scanned_tray(
 
     used_tray_ids: tray IDs already consumed elsewhere in this scan session
                    (so the same tray cannot be assigned twice).
-    reject_qty:    total reject qty the user has entered.  Used to compute
-                   which active trays are physically emptied.
+    reject_qty:    non-shortage reject qty the user has entered.
+    shortage_qty:  shortage (missing items) qty. Used with reject_qty to
+                   compute total drain and which active trays are emptied.
     """
     from .selectors import get_lot_tray_context
     from modelmasterapp.models import TrayId
@@ -1043,7 +1090,11 @@ def validate_scanned_tray(
     # delinked.  The CAP is on COUNT, not on tray identity – the user is
     # free to scan any original active tray as long as the total reused
     # count does not exceed ``emptied_count``.
-    drain = calculate_emptied_trays(active_trays, max(0, int(reject_qty or 0)))
+    # CRITICAL: Use COMBINED drain (shortage + reject) to determine which
+    # trays become physically empty. Both shortage and reject items physically
+    # reduce tray quantities.
+    total_drain: int = max(0, int(shortage_qty or 0)) + max(0, int(reject_qty or 0))
+    drain = calculate_emptied_trays(active_trays, total_drain)
     emptied_count = drain["emptied_count"]
     # How many active trays has the user already consumed in this session?
     already_reused_count = sum(
@@ -1099,7 +1150,16 @@ def validate_scanned_tray(
                 "reason": "Existing active tray – will be reused.",
             }
 
-        # Otherwise must be a free master tray.
+        # ACCEPT slots: ONLY existing active trays are allowed.
+        # No free master trays accepted — all accept trays must come from
+        # the lot's original active trays.
+        if slot_type == "accept":
+            return {
+                "valid": False,
+                "reason": f"Accept trays must be from existing active trays only. {tid} is not an active tray of this lot.",
+            }
+
+        # REJECT slots: fallback to free master tray validation.
         try:
             master = TrayId.objects.get(tray_id=tid)
         except TrayId.DoesNotExist:
@@ -1126,7 +1186,7 @@ def validate_scanned_tray(
             }
         return {
             "valid": True,
-            "source": "new" if slot_type == "reject" else "free",
+            "source": "new",
             "tray_qty": 0,
             "top_tray": False,
             "tray_id": tid,
@@ -1188,10 +1248,29 @@ def finalize_submission_v2(
     active_trays: List[Dict] = ctx["active_trays"]
     batch_id_val: str = ctx.get("batch_id", "")
 
-    total_reject = sum(int(e.get("qty") or 0) for e in rejection_entries)
-    total_accept = lot_qty - total_reject
+    # ── Shortage split ──────────────────────────────────────────────────────
+    # Shortage reduces effective lot qty; it does NOT create reject trays.
+    shortage_entries, reject_entries = _split_shortage_entries(rejection_entries)
+    shortage_qty: int = sum(int(e.get("qty") or 0) for e in shortage_entries)
+    total_non_shortage_reject: int = sum(int(e.get("qty") or 0) for e in reject_entries)
 
-    _validate_reject_qty(total_reject, lot_qty)
+    effective_lot_qty: int = lot_qty - shortage_qty
+    total_reject: int = total_non_shortage_reject        # only drives reject trays
+    total_accept: int = effective_lot_qty - total_reject # = lot_qty - shortage - reject
+
+    # Validate quantities
+    if shortage_qty > 0 and effective_lot_qty <= 0:
+        raise ValueError(
+            f"Shortage qty ({shortage_qty}) equals or exceeds lot qty ({lot_qty})."
+        )
+    if total_non_shortage_reject > 0:
+        _validate_reject_qty(total_non_shortage_reject, effective_lot_qty)
+    elif shortage_qty <= 0:
+        raise ValueError("No rejection or shortage qty provided.")
+    if total_accept < 0:
+        raise ValueError(
+            "Accept qty cannot be negative – reject + shortage exceeds lot qty."
+        )
 
     # Any prior draft for this lot is superseded by the final submit.
     # lot_id is UNIQUE on InputScreening_Submitted, so the draft row must
@@ -1200,8 +1279,9 @@ def finalize_submission_v2(
         lot_id=lot_id, Draft_Saved=True, is_submitted=False
     ).delete()
 
-    # Re-derive the slot plan and validate user assignments against it.
-    reject_slots = _build_reject_slots(rejection_entries, capacity)
+    # Re-derive the slot plan: only reject_entries generate reject slots.
+    # Shortage has no reject slots — those items are simply absent.
+    reject_slots = _build_reject_slots(reject_entries, capacity)
     accept_slots = _build_accept_slots(max(0, total_accept), capacity)
 
     _validate_assignments_against_plan(reject_slots, reject_assignments, "Reject")
@@ -1275,8 +1355,14 @@ def finalize_submission_v2(
             "source": "reused",
         })
 
+    # Store all entries (both shortage and reject) in the JSON snapshot.
+    # Shortage entries are tagged with is_shortage=True for audit clarity.
     rejection_reasons_json = {
-        e["reason_id"]: {"reason": e.get("reason_text", ""), "qty": e["qty"]}
+        e["reason_id"]: {
+            "reason": e.get("reason_text", ""),
+            "qty": int(e.get("qty") or 0),
+            "is_shortage": _is_shortage_entry(e),
+        }
         for e in rejection_entries
         if int(e.get("qty") or 0) > 0
     }
@@ -1328,13 +1414,13 @@ def finalize_submission_v2(
             is_delinked=False,
         )
 
-    # ── Reject child lot ────────────────────────────────────────────────
+    # ── Reject child lot (only created when there are non-shortage rejections) ──
     reject_lot = IS_PartialRejectLot.objects.create(
         new_lot_id=generate_lot_id(),
         parent_lot_id=lot_id,
         parent_batch_id=batch_id_val,
         parent_submission=submission,
-        rejected_qty=total_reject,
+        rejected_qty=total_non_shortage_reject,  # shortage not counted as reject
         reject_trays_count=len(reject_alloc),
         rejection_reasons=rejection_reasons_json,
         trays_snapshot=reject_alloc,
@@ -1385,9 +1471,9 @@ def finalize_submission_v2(
 
     logger.info(
         "[IS][PARTIAL_SUBMIT_V2] lot=%s sub=%s accept_lot=%s reject_lot=%s "
-        "reject=%d accept=%d delink=%d user=%s",
+        "shortage=%d reject=%d accept=%d delink=%d user=%s",
         lot_id, submission.id, accept_lot.new_lot_id, reject_lot.new_lot_id,
-        total_reject, total_accept, len(delinked_ids),
+        shortage_qty, total_non_shortage_reject, total_accept, len(delinked_ids),
         getattr(user, "username", "anonymous"),
     )
 
@@ -1397,8 +1483,10 @@ def finalize_submission_v2(
         "submission_id": submission.id,
         "accept_lot_id": accept_lot.new_lot_id,
         "reject_lot_id": reject_lot.new_lot_id,
-        "total_reject_qty": total_reject,
+        "total_reject_qty": total_non_shortage_reject,
+        "total_shortage_qty": shortage_qty,
         "total_accept_qty": total_accept,
+        "effective_lot_qty": effective_lot_qty,
         "reject_trays": len(reject_alloc),
         "accept_trays": len(accept_alloc),
         "delink_trays": len(delinked_ids),
@@ -1450,8 +1538,13 @@ def save_draft_partial_reject(
     if existing and existing.is_submitted:
         raise ValueError(f"Lot {lot_id} is already submitted – cannot save draft.")
 
-    total_reject = sum(int(e.get("qty") or 0) for e in rejection_entries)
-    total_accept = max(0, lot_qty - total_reject)
+    # ── Shortage split: accept qty uses effective lot qty (lot_qty - shortage_qty) ──
+    shortage_entries_d, reject_entries_d = _split_shortage_entries(rejection_entries)
+    shortage_qty_d: int = sum(int(e.get("qty") or 0) for e in shortage_entries_d)
+    total_non_shortage_reject_d: int = sum(int(e.get("qty") or 0) for e in reject_entries_d)
+    effective_lot_qty_d: int = lot_qty - shortage_qty_d
+    total_reject = total_non_shortage_reject_d
+    total_accept = max(0, effective_lot_qty_d - total_reject)
 
     # Build snapshots "as is" – no re-validation, no ID generation.
     reject_trays_json = [
@@ -1473,6 +1566,7 @@ def save_draft_partial_reject(
         e["reason_id"]: {
             "reason": e.get("reason_text", ""),
             "qty": int(e.get("qty") or 0),
+            "is_shortage": _is_shortage_entry(e),
         }
         for e in rejection_entries
         if e.get("reason_id")

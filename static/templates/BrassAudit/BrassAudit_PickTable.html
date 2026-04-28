@@ -852,10 +852,6 @@ tr.row-inactive td.action-td {
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Physical Qty
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                      </th>
-                    <th>
                       Accept Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
                       </th>
@@ -872,6 +868,10 @@ tr.row-inactive td.action-td {
                     </th>
                     <th>
                       Current Stage
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Tray Cate- <br> Capacity
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -1005,113 +1005,113 @@ tr.row-inactive td.action-td {
                       {% endif %}
                       {% if data.action_state == 'IQF_RETURN' %}
                         <!-- IQF Acceptance - Show buttons as ACTIVE/CLICKABLE -->
-                        <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                style="background-color: #66bb6a;"
+                        <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                           {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-check-circle"></i>Accept
+                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                style="background-color: #e57373;"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-times-circle"></i>Reject
+                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                         </button>
 
                       {% elif data.action_state == 'ONHOLD_DELINK' %}
                           <!-- On-hold delink only -->
-                          <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                  style="background-color: #66bb6a; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
+                          <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                  style="background-color: #66bb6a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                   data-lot-id="{{ data.stock_lot_id }}"
                                   disabled>
-                            <i class="fa fa-check-circle"></i>Accept
+                            Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                           </button>
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                  style="background-color: #e57373;"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                  style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false">
-                            <i class="fa fa-times-circle"></i>Set Delink
+                            Set Delink <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                           </button>
 
                       {% elif data.action_state == 'ONHOLD_TOPTRAY' %}
                           <!-- On-hold set top tray -->
-                          <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                  style="background-color: #66bb6a; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
+                          <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                  style="background-color: #66bb6a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                   data-lot-id="{{ data.stock_lot_id }}"
                                   disabled>
-                            <i class="fa fa-check-circle"></i>Accept
+                            Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                           </button>
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                  style="background-color: #e57373;"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                  style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false"
                                   data-tray-capacity="{{ data.tray_capacity|default:'0' }}">
-                            <i class="fa fa-times-circle"></i>Set Top Tray
+                            Set Top Tray <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                           </button>
 
                       {% elif data.action_state == 'SEND_BRASS_QC' %}
                         <!-- Brass QC from IQF -->
-                        <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                style="background-color: #66bb6a;"
+                        <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                           {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-check-circle"></i>Accept
+                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                style="background-color: #e57373;"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-times-circle"></i>Reject
+                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                         </button>
 
                       {% elif data.action_state == 'AUDIT_RETURN' %}
                         <!-- Lot returned from Brass Audit -->
-                        <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                style="background-color: #66bb6a"
+                        <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-check-circle"></i>Accept
+                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                style="background-color: #e57373;"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-times-circle"></i>Reject
+                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                         </button>
 
                       {% elif data.action_state == 'REJECTED' %}
                         <!-- Brass QC Rejection or Few Cases Acceptance (disabled) -->
-                        <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                style="background-color: #66bb6a; pointer-events: none; opacity: 0.6; cursor: not-allowed;"
+                        <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                style="background-color: #66bb6a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; pointer-events: none; opacity: 0.6; cursor: not-allowed;"
                                 disabled>
-                          <i class="fa fa-check-circle"></i>Accept
+                          Accept
                         </button>
-                        <span class="btn btn-social-icon-text btn-youtube"
-                              style="background-color: #e57373; pointer-events: none; opacity: 0.8; cursor: not-allowed;">
-                          <i class="fa fa-times-circle"></i>Rejected
+                        <span class="btn btn-social-icon-text btn-youtube btn-reject-is"
+                              style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; pointer-events: none; opacity: 0.8; cursor: not-allowed;">
+                          Rejected
                         </span>
 
                       {% else %}
                         <!-- Default state - Both buttons enabled -->
-                        <button type="button" class="btn btn-social-icon-text btn-twitter"
-                                style="background-color: #66bb6a"
+                        <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
+                                style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-check-circle"></i>Accept
+                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
-                                style="background-color: #e57373;"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                                style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          <i class="fa fa-times-circle"></i>Reject
+                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
                         </button>
                       {% endif %}
                       </span>
@@ -1175,16 +1175,11 @@ tr.row-inactive td.action-td {
                       </span>
                     </td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {{ data.brass_audit_physical_qty|default:0 }}
-                    </td>
-
-                    <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {{ data.brass_audit_accepted_qty|default:0 }}    
                     </td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {{ data.brass_rejection_total_qty|default:0 }}
                     </td>
-                    <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.tray_type|tray_full_name}}-{{data.tray_capacity}}</td>
                     <!-- Process Status Column -->
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>
                       <div class="d-flex">
@@ -1269,6 +1264,7 @@ tr.row-inactive td.action-td {
                         {{ data.last_process_module|default:"N/A" }}
                       </div>
                     </td>
+                    <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.tray_type|tray_full_name}}-{{data.tray_capacity}}</td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.plating_color }}</td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.category }}</td>

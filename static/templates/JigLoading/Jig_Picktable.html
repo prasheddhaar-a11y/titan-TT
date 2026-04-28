@@ -37,6 +37,23 @@
                 Plating<br />
                 Stk No <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
+              <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
+              <th>LOT Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
+              <th>
+                No of <br />
+                Trays <i class="fa fa-filter" aria-hidden="true"></i>
+              </th>
+              <th>
+                Process Status <i class="fa fa-filter" aria-hidden="true"></i>
+              </th>
+              <th>
+                Lot <br />
+                Status <i class="fa fa-filter" aria-hidden="true"></i>
+              </th>
+              <th>
+                Current <br />
+                Stage <i class="fa fa-filter" aria-hidden="true"></i>
+              </th>
               <th>
                 Polishing<br />Stk No
                 <i class="fa fa-filter" aria-hidden="true"></i>
@@ -47,27 +64,10 @@
               <th>
                 Polish Finish <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
-              <th style="display: none">
-                Version <i class="fa fa-filter" aria-hidden="true"></i>
-              </th>
-              <th>
-                No of <br />
-                Trays <i class="fa fa-filter" aria-hidden="true"></i>
-              </th>
-              <th>LOT Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>In.p Info<i class="fa fa-filter" aria-hidden="true"></i></th>
-              <th>
-                Process Status <i class="fa fa-filter" aria-hidden="true"></i>
-              </th>
-              <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
-              <th>
-                Lot <br />
-                Status <i class="fa fa-filter" aria-hidden="true"></i>
-              </th>
-              <th>
-                Current <br />
-                Stage <i class="fa fa-filter" aria-hidden="true"></i>
+              <th style="display: none">
+                Version <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
               <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
             </tr>
@@ -150,88 +150,6 @@
                   <span style="color: #dc3545; font-weight: 600">Empty</span>
                 {% endif %}
               </td>
-              
-              <!-- Polishing Stk No -->
-              <td>
-                {% if data.polishing_stk_no %}
-                  {{ data.polishing_stk_no }}
-                {% elif data.model_stock_no.polishing_stk_no %}
-                  {{ data.model_stock_no.polishing_stk_no }}
-                {% else %}
-                  <span style="color: #dc3545; font-weight: 600">Empty</span>
-                {% endif %}
-              </td>
-              <!-- Plating Color -->
-              <td>{{ data.plating_color }}</td>
-              <!-- Polish Finish -->
-              <td>{{ data.polish_finish }}</td>
-              <!-- Version (hidden) -->
-              <td style="display: none">
-                {{ data.version__version_internal }}
-              </td>
-              <!-- No of Trays -->
-              <td>{{ data.no_of_trays }}</td>
-              <!-- LOT Qty -->
-              <td>
-                <input
-                  type="number"
-                  class="edit-qty-input"
-                  value="{{ data.display_qty|default:0 }}"
-                  data-batch-id="{{ data.batch_id }}"
-                  style="
-                    width: 60px;
-                    padding: 6px 6px;
-                    font-size: 13px;
-                    border: 1px solid #ccc;
-                    border-radius: 14px;
-                    background: linear-gradient(90deg, #e2fbff75 -1%, #b2ebf2 33%, #ffe0b2 93%, #f8bbd0 100%)
-                  "
-                  readonly
-                />
-              </td>
-              <!-- Jig Type -->
-              <td>{{ data.jig_capacity }} Jig</td>
-              <!-- In.p Info -->
-              <td>
-                <span
-                  class="mobile-cross-icon"
-                  style="
-                    cursor: pointer;
-                    display: inline-flex;
-                    align-items: center;
-                  "
-                >
-                  <img
-                    src="{% static 'assets/icons/viewRemarks.png' %}"
-                    alt="View Remarks"
-                    style="width:22px; height:22px; object-fit:contain; {% if data.inprocess_remarks %}filter:none; opacity:1;{% else %}filter:grayscale(1); opacity:0.6;{% endif %}"
-                    title="{% if data.inprocess_remarks %}View Remarks{% else %}No remarks{% endif %}"
-                  />
-                </span>
-              </td>
-              <!-- Process Status -->
-              <td>
-                <div class="d-flex">
-                  <div
-                    title="Loading"
-                    class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                    style="
-                      width: 20px;
-                      height: 20px;
-                      color: white;
-                      font-weight: bold;
-                      line-height: 20px;
-                      text-align: center;
-                      padding-top: 1px;
-                      padding-right: 1px;
-                      background: #bdbdbd;
-                      cursor: pointer;
-                    "
-                  >
-                    L
-                  </div>
-                </div>
-              </td>
               <!-- Action -->
               <td>
                 <a
@@ -246,17 +164,19 @@
                     style="width: 20px; margin-right: 8px; height: auto"
                   />
                 </a>
-                <!-- Add Jig Button -->
+                <!-- Add Jig Button - Teal Linear Gradient -->
                 <button
                   type="button"
                   class="btn btn-social-icon-text btn-twitter open-jig-modal-btn"
-                  style="background-color: #028084a8"
+                  style="background:linear-gradient(135deg, #26a69a, #00897b); border:none; box-shadow:0 1px 3px rgba(0,0,0,0.12); transition:all 0.2s ease; font-weight:500; font-size:13px; padding:6px 16px;"
                   data-batch-id="{{ data.batch_id }}"
                   data-stock-lot-id="{{ data.stock_lot_id }}"
                   data-jig-qr-id="{{ data.jig_id|default:'' }}"
                   {% if data.is_excess_lot %}data-is-excess-lot="true"{% endif %}
+                  onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.16)'"
+                  onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.12)'"
                 >
-                  <i class="fa fa-plus"></i>Add Jig
+                  <i class="fa fa-plus" style="font-size:11px; margin-right:6px;"></i>Add Jig
                 </button>
 
                   <!-- View Tray Info Button (like Brass Audit) -->
@@ -286,6 +206,49 @@
                       />
                     </a>
               </td>
+              <!-- LOT Qty -->
+              <td>
+                <input
+                  type="number"
+                  class="edit-qty-input"
+                  value="{{ data.display_qty|default:0 }}"
+                  data-batch-id="{{ data.batch_id }}"
+                  style="
+                    width: 60px;
+                    padding: 6px 6px;
+                    font-size: 13px;
+                    border: 1px solid #ccc;
+                    border-radius: 14px;
+                    background: linear-gradient(90deg, #e2fbff75 -1%, #b2ebf2 33%, #ffe0b2 93%, #f8bbd0 100%)
+                  "
+                  readonly
+                />
+              </td>
+              <!-- No of Trays -->
+              <td>{{ data.no_of_trays }}</td>
+              <!-- Process Status -->
+              <td>
+                <div class="d-flex">
+                  <div
+                    title="Loading"
+                    class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                    style="
+                      width: 20px;
+                      height: 20px;
+                      color: white;
+                      font-weight: bold;
+                      line-height: 20px;
+                      text-align: center;
+                      padding-top: 1px;
+                      padding-right: 1px;
+                      background: #bdbdbd;
+                      cursor: pointer;
+                    "
+                  >
+                    L
+                  </div>
+                </div>
+              </td>
               <!-- Lot Status -->
               <td>
                 <div
@@ -313,6 +276,44 @@
                     Brass Audit
                   {% endif %}
                 </div>
+              </td>
+              <!-- Polishing Stk No -->
+              <td>
+                {% if data.polishing_stk_no %}
+                  {{ data.polishing_stk_no }}
+                {% elif data.model_stock_no.polishing_stk_no %}
+                  {{ data.model_stock_no.polishing_stk_no }}
+                {% else %}
+                  <span style="color: #dc3545; font-weight: 600">Empty</span>
+                {% endif %}
+              </td>
+              <!-- Plating Color -->
+              <td>{{ data.plating_color }}</td>
+              <!-- Polish Finish -->
+              <td>{{ data.polish_finish }}</td>
+              <!-- Jig Type -->
+              <td>{{ data.jig_capacity }} Jig</td>
+              <!-- In.p Info -->
+              <td>
+                <span
+                  class="mobile-cross-icon"
+                  style="
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                  "
+                >
+                  <img
+                    src="{% static 'assets/icons/viewRemarks.png' %}"
+                    alt="View Remarks"
+                    style="width:22px; height:22px; object-fit:contain; {% if data.inprocess_remarks %}filter:none; opacity:1;{% else %}filter:grayscale(1); opacity:0.6;{% endif %}"
+                    title="{% if data.inprocess_remarks %}View Remarks{% else %}No remarks{% endif %}"
+                  />
+                </span>
+              </td>
+              <!-- Version (hidden) -->
+              <td style="display: none">
+                {{ data.version__version_internal }}
               </td>
               <!-- Remarks -->
               <td>
@@ -729,23 +730,32 @@
 <!-- Add Jig Button - Window (functional) -->
 <div id="jigAddModal" class="right-slide-modal" tabindex="-1">
   <div class="add-jig-window">
+    <!-- Running Info Banner (Compact) -->
+    <div id="jigInfoBanner" style="background:rgba(227,242,253,0.4); border-left:3px solid #26a69a; border-radius:4px; padding:6px 12px; margin:8px auto; max-width:92%; font-size:11px; color:#01579b; font-weight:500; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:14px; opacity:0.7;">ℹ️</span>
+      <div style="flex:1;">
+        <span id="jigCurrentAction" style="font-weight:600;">Ready to load jig</span>
+        <span style="color:#546e7a; margin-left:8px; font-size:10px;" id="jigNextStep">Enter Jig ID and scan trays to begin</span>
+      </div>
+    </div>
+    
     <!-- Inline error banner for Add Model validation errors -->
     <div id="addModelErrorBanner" style="display:none; background:#fce4ec; border:1.5px solid #dc3545; border-radius:8px; padding:10px 16px; margin:10px 16px 0 16px; font-size:13px; color:#c62828; font-weight:600;">
       <span id="addModelErrorText"></span>
       <button type="button" onclick="document.getElementById('addModelErrorBanner').style.display='none'" style="float:right; background:none; border:none; color:#c62828; cursor:pointer; font-weight:700; font-size:16px; line-height:1;">&times;</button>
     </div>
-    <!-- Header -->
-    <div class="jig-modal-header">
-      <h3 id="jigAddModalTitle">
-        Jig Loading
-        <span id="modalPlatingStockNo" style="display: none"></span>
-      </h3>
-      <div style="display: flex; gap: 8px; align-items: center">
-<!--         <button type="button" class="btn-action" id="jigCompositionBtn" style="background:rgba(230,230,230,0.85);border:1px solid rgba(200,200,200,0.4);color:#403f3f;">
-          <i class="fa fa-cogs"></i> Jig Composition
-        </button> -->
-        <span class="cycle-status">No of Cycle: <span id="modalNoOfCycle"></span></span>
-        <span class="close-btn">&times;</span>
+    
+    <!-- Header - Clean Minimal Layout -->
+    <div class="jig-modal-header" style="background:#fafbfc; padding:10px 16px; border-bottom:1px solid #e0e0e0; position:relative;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h3 id="jigAddModalTitle" style="margin:0; color:#37474f; font-size:15px; font-weight:600; letter-spacing:0.3px;">
+          Jig Loading
+          <span id="modalPlatingStockNo" style="display: none"></span>
+        </h3>
+        <!-- Cycle Badge (Absolute Top Right End) -->
+        <div style="position:absolute; top:10px; right:16px; background:#fff; border:1px solid #e0e0e0; border-radius:4px; padding:4px 10px; font-size:11px; color:#546e7a; font-weight:500;">
+          Cycle: <span id="modalNoOfCycle" style="color:#26a69a; font-weight:700; margin-left:4px;">-</span>
+        </div>
       </div>
     </div>
 
@@ -804,17 +814,24 @@
          SPLIT LAYOUT: Delink (LEFT) + Excess/Partial (RIGHT)
          ============================================================ -->
 <div class="delink-section">
-  <!-- HEADER -->
-  <div class="delink-header" style="display:flex; align-items:center; justify-content:space-between;">
-    <span>
-      Delink &amp; Excess Lot Information
-      <span style="font-size:12px; color:#028084; font-weight:700; margin-left:12px; background:rgba(2,128,132,0.08); padding:3px 10px; border-radius:20px;">
-        <span id="delinkTrayCount">0</span> Trays
-<span id="unifiedJigCapBadge" style="margin-left:8px; color:#e67e22; font-weight:700;"></span>
-        <span id="delinkStatsBadge" style="margin-left:8px; font-size:11px; color:#155724; font-weight:600; background:#d4edda; padding:2px 8px; border-radius:12px; display:none;"></span>
-      </span>
-    </span>
-
+  <!-- HEADER - Subtle Inline Stats -->
+  <div class="delink-header" style="background:rgba(250,250,252,0.6); padding:8px 14px; border-radius:4px; margin-bottom:8px; border:1px solid #eceff1;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <!-- Section Title -->
+      <div style="font-size:12px; color:#546e7a; font-weight:600; letter-spacing:0.3px;">
+        Tray Allocation
+      </div>
+      
+      <!-- Inline Stats -->
+      <div style="display:flex; gap:12px; align-items:center; font-size:11px; color:#78909c;">
+        <span style="font-weight:500;">Trays: <b style="color:#26a69a; font-size:12px;" id="delinkTrayCount">0</b></span>
+        
+       
+        <span style="color:#e0e0e0;">|</span>
+        <span style="font-weight:500;">Jig Cap: <b style="color:#26a69a; font-size:12px;" id="unifiedJigCapBadge">0</b></span>
+        <span id="delinkStatsBadge" style="display:none; color:#43a047; font-weight:600; margin-left:8px; padding:2px 8px; background:rgba(200,230,201,0.3); border-radius:3px;"></span>
+      </div>
+    </div>
   </div>
 
   <!-- 2-COLUMN SPLIT CONTENT -->
@@ -861,31 +878,38 @@
       </div>
 
       <!-- Top Tray Scan (MANDATORY when partial exists) — supports scan/type/checkbox -->
-      <div id="excessTopTraySection" style="display:none; margin-bottom:10px; padding:10px; background:linear-gradient(135deg,#e6f7f8,#d0f0f2); border-radius:10px;">
-        <div style="font-size:11px; font-weight:500; color:#028084; margin-bottom:6px;">
-          <i class="fa fa-star" style="margin-right:4px;"></i> TOP TRAY (Scan / Type / Select)
-          <span id="excessTopTrayOriginal" style="float:right; font-size:10px; color:#64748b;"></span>
+      <!-- TOP TRAY - Clean Separated Card -->
+      <div id="excessTopTraySection" style="display:none; margin-bottom:8px; padding:10px; background:#fffef7; border:1px solid #fdd835; border-left:3px solid #fbc02d; border-radius:4px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:10px; color:#f57f17; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">⭐ Top Tray</span>
+          <span id="excessTopTrayOriginal" style="font-size:10px; color:#f9a825; font-weight:500;"></span>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <!-- <input type="checkbox" id="excessTopTrayCheckbox" class="excess-row-checkbox" style="width:16px;height:16px;accent-color:#028084;cursor:pointer;" title="Select top tray" /> -->
-          <input type="text" id="excessTopTrayScanInput" class="excess-scan-input" maxlength="9" placeholder="Scan Top Tray ID" style="flex:1; padding:7px 10px; border:1.5px solid #fff; border-radius:8px; font-size:13px; font-weight:500; background:#fff;" />
-          <span id="excessTopTrayQty" style="font-size:13px; font-weight:500; color:#028084; white-space:nowrap;"></span>
+          <input type="text" id="excessTopTrayScanInput" class="excess-scan-input" maxlength="9" placeholder="Scan Tray ID" style="flex:1; padding:6px 10px; border:1px solid #fdd835; border-radius:3px; font-size:12px; font-weight:500; background:#fff;" />
+          <div style="min-width:50px; text-align:right;">
+            <div style="font-size:10px; color:#9e9e9e; font-weight:500;">Qty</div>
+            <div id="excessTopTrayQty" style="font-size:13px; font-weight:700; color:#f57f17;"></div>
+          </div>
         </div>
-        <div id="excessTopTrayStatus" style="font-size:11px; margin-top:4px; margin-left: 90px;font-weight:500; color:#028084;"></div>
+        <div id="excessTopTrayStatus" style="font-size:10px; margin-top:4px; font-weight:500; color:#43a047;"></div>
       </div>
 
-      <!-- Excess Tray List — S.No, Model, Qty, Scan Tray ID -->
-      <div class="table-responsive" style="max-height:260px; overflow-y:auto;">
-        <table class="table table-bordered table-sm" id="excessPanelTable" style="margin-bottom:0; font-size:13px;">
-          <thead style="position:sticky; top:0; z-index:2;">
-            <tr style="background:linear-gradient(135deg, #e6f7f8, #d0f0f2); color:#1e293b;">
-              <th style="width:36px; text-align:center;">S.No</th>
-              <th style="min-width:70px;">Model</th>
-              <th style="width:45px; text-align:center;">Qty</th>
-              <th style="min-width:120px;">Scan Tray ID</th>
-            </tr>
-          </thead>
-          <tbody id="excessPanelTableBody">
+      <!-- EXCESS TRAYS - Clean Table Card -->
+      <div style="background:#fafafa; border:1px solid #e0e0e0; border-radius:4px; padding:8px;">
+        <div style="font-size:10px; color:#78909c; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; padding-left:2px;">
+          📋 Excess Trays
+        </div>
+        <div class="table-responsive" style="max-height:240px; overflow-y:auto; border-radius:3px; border:1px solid #e0e0e0;">
+          <table class="table table-bordered table-sm" id="excessPanelTable" style="margin-bottom:0; font-size:12px; background:#fff;">
+            <thead style="position:sticky; top:0; z-index:2; background:#f5f5f5; color:#546e7a; border-bottom:2px solid #e0e0e0;">
+              <tr>
+                <th style="width:32px; text-align:center; padding:6px 4px; font-size:10px; font-weight:600;">No</th>
+                <th style="min-width:70px; padding:6px 8px; font-size:10px; font-weight:600;">Model</th>
+                <th style="width:40px; text-align:center; padding:6px 4px; font-size:10px; font-weight:600;">Qty</th>
+                <th style="min-width:110px; padding:6px 8px; font-size:10px; font-weight:600;">Scan Tray ID</th>
+              </tr>
+            </thead>
+            <tbody id="excessPanelTableBody">
             <!-- Rendered by JS from split_panel.excess_panel -->
           </tbody>
         </table>
@@ -2308,7 +2332,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Delink panel inputs
     document.querySelectorAll('#delinkPanelTableBody .split-scan-input').forEach(function(inp) {
       inp.addEventListener('input', function() {
-        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '');
+        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
         if (raw.length === 9) {
@@ -2320,7 +2344,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Excess panel inputs
     document.querySelectorAll('#excessPanelTableBody .split-scan-input').forEach(function(inp) {
       inp.addEventListener('input', function() {
-        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '');
+        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
         if (raw.length === 9) {
@@ -2333,7 +2357,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var topInp = document.getElementById('excessTopTrayScanInput');
     if (topInp) {
       topInp.addEventListener('input', function() {
-        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '');
+        var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
         if (raw.length === 9) {
@@ -2728,6 +2752,16 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
       badge.style.display = 'none';
     }
+
+    // Update lot qty badge
+    var lotQtyBadge = document.getElementById('delinkLotQtyBadge');
+    if (lotQtyBadge) {
+      var lotQty = parseInt((document.getElementById('lotQtyHidden') || {}).value || 0);
+      lotQtyBadge.textContent = lotQty;
+    }
+
+    // Update info banner
+    if (typeof window._updateInfoBanner === 'function') window._updateInfoBanner();
   }
 
   // ===== UPDATE DELINK TOTAL QTY BAR (live sum of validated + allocated delink rows) =====
@@ -6984,40 +7018,74 @@ if (window.jQuery) {
               window.applyResponseToUI(initData);
               console.log('[DRAFT_RESTORE] Multi-model tray table re-rendered');
             }
+            // ✅ CRITICAL FIX: Restore scanned trays AFTER table re-render completes
+            setTimeout(function() {
+              _restoreScannedTraysFromDraft(data.scanned_trays);
+            }, 100);
           });
         }
+        // Exit early - scanned trays will be restored in callback above
+        return;
       }
 
-      // ===== Restore scanned tray values into split panel inputs =====
-      if (data.scanned_trays && data.scanned_trays.length > 0) {
-        console.log('[DRAFT_RESTORE] Restoring', data.scanned_trays.length, 'scanned trays');
-        if (!window._trayAllocations) window._trayAllocations = {};
+      // ===== Restore scanned tray values into split panel inputs (single-model path) (single-model path) =====
+      _restoreScannedTraysFromDraft(data.scanned_trays);
 
-        // Restore delink panel scans (match by row order)
-        var delinkInputs = document.querySelectorAll('#delinkPanelTableBody .split-scan-input');
-        var delinkScans = data.scanned_trays.filter(function(s) { return s.panel === 'delink'; });
-        delinkScans.forEach(function(scan, i) {
-          if (delinkInputs[i] && !delinkInputs[i].value) {
-            delinkInputs[i].value = scan.tray_id;
-            delinkInputs[i].classList.add('validated');
-            delinkInputs[i].readOnly = true;
-            delinkInputs[i].style.background = '#d4edda';
-            delinkInputs[i].style.borderColor = '#28a745';
-            window._trayAllocations[scan.tray_id.toUpperCase()] = { type: 'delink' };
-            // Lock checkbox + set status on delink row
-            var tr = delinkInputs[i].closest('tr');
-            if (tr) {
-              tr.classList.add('delink-row-scanned');
-              var cb = tr.querySelector('.delink-row-checkbox');
-              if (cb) { cb.checked = true; cb.disabled = true; cb.classList.add('locked'); }
-              var lastCell = tr.cells[tr.cells.length - 1];
-              if (lastCell) lastCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#d4edda;color:#155724;border:1px solid #28a745;">Delinked</span>';
+      console.log('[DRAFT_RESTORE] Complete — form fields, BACKEND vars, and scanned trays restored');
+      // Re-check submit readiness after draft restore
+      if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
+    })
+    .catch(function(err) {
+      console.warn('[DRAFT_RESTORE] Failed:', err);
+    });
+  };
+
+  // ===== EXTRACTED FUNCTION: Restore scanned trays (used by both single + multi-model paths) =====
+  function _restoreScannedTraysFromDraft(scannedTrays) {
+    if (!scannedTrays || scannedTrays.length === 0) return;
+    
+    console.log('[DRAFT_RESTORE] Restoring', scannedTrays.length, 'scanned trays');
+    if (!window._trayAllocations) window._trayAllocations = {};
+
+    // Restore delink panel scans (match by tray_id, NOT by array index)
+    var delinkScans = scannedTrays.filter(function(s) { return s.panel === 'delink'; });
+    delinkScans.forEach(function(scan) {
+          // Find the row with matching tray_id in the delink panel
+          var matchingRow = document.querySelector('#delinkPanelTableBody tr[data-tray-id="' + scan.tray_id + '"]');
+          if (!matchingRow) {
+            // Fallback: try case-insensitive match
+            var allRows = document.querySelectorAll('#delinkPanelTableBody tr[data-tray-id]');
+            for (var j = 0; j < allRows.length; j++) {
+              if ((allRows[j].dataset.trayId || '').toUpperCase() === scan.tray_id.toUpperCase()) {
+                matchingRow = allRows[j];
+                break;
+              }
             }
+          }
+          if (matchingRow) {
+            var inp = matchingRow.querySelector('.split-scan-input');
+            if (inp && !inp.value) {
+              inp.value = scan.tray_id;
+              inp.classList.add('validated');
+              inp.readOnly = true;
+              inp.style.background = '#d4edda';
+              inp.style.borderColor = '#28a745';
+              window._trayAllocations[scan.tray_id.toUpperCase()] = { type: 'delink' };
+              // Lock checkbox + set status on delink row
+              matchingRow.classList.add('delink-row-scanned');
+              var cb = matchingRow.querySelector('.delink-row-checkbox');
+              if (cb) { cb.checked = true; cb.disabled = true; cb.classList.add('locked'); }
+              var lastCell = matchingRow.cells[matchingRow.cells.length - 1];
+              if (lastCell) lastCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#d4edda;color:#155724;border:1px solid#28a745;">Delinked</span>';
+              console.log('[DRAFT_RESTORE] Restored delink tray:', scan.tray_id);
+            }
+          } else {
+            console.warn('[DRAFT_RESTORE] Could not find matching row for delink tray:', scan.tray_id);
           }
         });
 
-        // Restore top tray
-        var topScans = data.scanned_trays.filter(function(s) { return s.panel === 'excess_top'; });
+    // Restore top tray
+    var topScans = scannedTrays.filter(function(s) { return s.panel === 'excess_top'; });
         if (topScans.length > 0) {
           var topInp = document.getElementById('excessTopTrayScanInput');
           if (topInp && !topInp.value) {
@@ -7037,11 +7105,11 @@ if (window.jQuery) {
               window._autoLockDelinkForTopTray(topScans[0].tray_id);
             }
           }
-        }
+      }
 
-        // Restore excess panel scans
-        var excessInputs = document.querySelectorAll('#excessPanelTableBody .split-scan-input');
-        var excessScans = data.scanned_trays.filter(function(s) { return s.panel === 'excess'; });
+    // Restore excess panel scans
+    var excessInputs = document.querySelectorAll('#excessPanelTableBody .split-scan-input');
+    var excessScans = scannedTrays.filter(function(s) { return s.panel === 'excess'; });
         excessScans.forEach(function(scan, i) {
           if (excessInputs[i] && !excessInputs[i].value) {
             excessInputs[i].value = scan.tray_id;
@@ -7061,23 +7129,16 @@ if (window.jQuery) {
               window._lockDelinkRowForExcess(scan.tray_id);
             }
           }
-        });
+      });
 
-        // Update UI elements after full restore
-        if (typeof window._updatePhaseMessage === 'function') window._updatePhaseMessage();
-        if (typeof window._updateDelinkTotalBar === 'function') window._updateDelinkTotalBar();
-        if (typeof window._updateDelinkStatsBadge === 'function') window._updateDelinkStatsBadge();
-        if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
-      }
-
-      console.log('[DRAFT_RESTORE] Complete — form fields, BACKEND vars, and scanned trays restored');
-      // Re-check submit readiness after draft restore
-      if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
-    })
-    .catch(function(err) {
-      console.warn('[DRAFT_RESTORE] Failed:', err);
-    });
-  };
+    // Update UI elements after full restore
+    if (typeof window._updatePhaseMessage === 'function') window._updatePhaseMessage();
+    if (typeof window._updateDelinkTotalBar === 'function') window._updateDelinkTotalBar();
+    if (typeof window._updateDelinkStatsBadge === 'function') window._updateDelinkStatsBadge();
+    if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
+    // Re-check submit readiness
+    if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
+  }
 
   // Expose buildFullPayload for debugging
   window._buildJigPayload = buildFullPayload;
@@ -7169,6 +7230,51 @@ if (window.jQuery) {
     }
   }
   window._checkSubmitReadiness = _checkSubmitReadiness;
+
+  // ============================================================
+  // INFO BANNER UPDATE — Real-time user action tracking
+  // ============================================================
+  function _updateInfoBanner() {
+    var actionEl = document.getElementById('jigCurrentAction');
+    var nextEl = document.getElementById('jigNextStep');
+    if (!actionEl || !nextEl) return;
+
+    var jigId = (document.getElementById('jigIdInput') || {}).value || '';
+    var scannedTrays = document.querySelectorAll('.split-scan-input.validated').length;
+    var totalTrays = document.querySelectorAll('.split-scan-input:not([disabled])').length;
+    var loaded = parseInt(window.BACKEND_LOADED_CASES || 0);
+    var effective = parseInt(window.BACKEND_EFFECTIVE_CAPACITY || 0);
+    
+    if (!jigId) {
+      actionEl.textContent = '🆔 Enter Jig ID';
+      nextEl.textContent = '→ Type or scan your Jig ID to begin';
+    } else if (scannedTrays === 0) {
+      actionEl.textContent = '📦 Jig ID entered';
+      nextEl.textContent = '→ Start scanning trays from delink panel';
+    } else if (scannedTrays < totalTrays) {
+      actionEl.textContent = '🔄 Scanning (' + scannedTrays + '/' + totalTrays + ' trays)';
+      nextEl.textContent = '→ Continue scanning remaining trays';
+    } else if (loaded < effective) {
+      actionEl.textContent = '⚠️ Incomplete (' + loaded + '/' + effective + ' cases)';
+      nextEl.textContent = '→ Scan more trays or adjust broken hooks';
+    } else {
+      actionEl.textContent = '✅ Jig fully loaded';
+      nextEl.textContent = '→ Ready to submit or draft';
+    }
+  }
+  window._updateInfoBanner = _updateInfoBanner;
+
+  // Attach event listeners via delegation to update banner
+  document.addEventListener('input', function(e) {
+    if (e.target.id === 'jigIdInput' || e.target.classList.contains('split-scan-input')) {
+      setTimeout(_updateInfoBanner, 50);
+    }
+  });
+  document.addEventListener('change', function(e) {
+    if (e.target.id === 'jigIdInput' || e.target.classList.contains('split-scan-input')) {
+      setTimeout(_updateInfoBanner, 50);
+    }
+  });
 
   // Attach event listeners via delegation — covers dynamically added inputs
   document.addEventListener('input', function(e) {

@@ -367,6 +367,7 @@ class IS_ValidateScanAPI(APIView):
             tray_id=parsed["tray_id"],
             used_tray_ids=parsed["used_tray_ids"],
             reject_qty=parsed.get("reject_qty", 0),
+            shortage_qty=parsed.get("shortage_qty", 0),
         )
         return Response(result)
 

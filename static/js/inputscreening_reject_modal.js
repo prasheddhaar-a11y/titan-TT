@@ -42,6 +42,7 @@
     isPlanStale: false,
     scanEpoch: 0,
     fullLotReject: false,
+    focusedInput: null,  // Track which input has focus for targeted pill taps
   };
 
   // ── DOM helpers ───────────────────────────────────────────────────────────
@@ -198,6 +199,9 @@
   }
 
   // ── Render active tray pills (Fix 1: tap-to-pick, Fix 5: gray when used) ─
+  // Pills are disabled during reject step if backend doesn't allow reuse (case 1: reject qty too low).
+  // Also disabled if slot plan hasn't been fetched yet (rejectSlots empty).
+  // Once reject step completes, pills become available for accept/delink steps.
   function renderActivePills() {
     var c = $("isrm-active-pills");
     if (!c) return;
@@ -205,19 +209,38 @@
       c.innerHTML = '<span class="isrm-help-line">No active trays found</span>';
       return;
     }
+    
     var used = usedActiveIds();
+    var inRejectStep = !rejectStepDone();
+    var reuseAllowed = state.counters.reusable > 0;
+    var slotPlanReady = state.rejectSlots.length > 0;
+    // Disable pills if: in reject step AND (no reuse allowed OR slot plan not ready yet)
+    var pillsDisabled = inRejectStep && (!reuseAllowed || !slotPlanReady);
+    
     c.innerHTML = state.activeTrays.map(function (t) {
       var isUsed = used.has((t.tray_id || "").toUpperCase());
-      return '<span class="isrm-pill ' + (isUsed ? "used" : "") + '" ' +
-        'data-tray-id="' + escHtml(t.tray_id) + '" ' +
-        'title="' + (isUsed ? "Already used" : "Tap to pick") + '">' +
+      var classes = "isrm-pill " + (isUsed ? "used" : "");
+      var style = "";
+      var dataAttr = 'data-tray-id="' + escHtml(t.tray_id) + '"';
+      var title = isUsed ? "Already used" : "Tap to pick";
+      
+      if (pillsDisabled && !isUsed) {
+        // Disable unused pills during reject step when no reuse allowed or plan not ready
+        classes += " disabled";
+        style = ' style="opacity:0.4;cursor:not-allowed;pointer-events:none;"';
+        dataAttr = ""; // Remove data attribute so click handler won't attach
+        title = slotPlanReady ? "Scan new tray for reject" : "Enter reject qty first";
+      }
+      
+      return '<span class="' + classes + '"' + style + ' ' + dataAttr + ' title="' + title + '">' +
         escHtml(t.tray_id) +
         (t.top_tray ? '<span class="isrm-pill-top">TOP</span>' : '') +
         '<span class="isrm-pill-qty">' + (t.qty != null ? t.qty : "?") + '</span>' +
         '</span>';
     }).join("");
 
-    c.querySelectorAll(".isrm-pill").forEach(function (pill) {
+    // Only attach click handlers to enabled pills (those with data-tray-id)
+    c.querySelectorAll(".isrm-pill[data-tray-id]").forEach(function (pill) {
       pill.addEventListener("click", function () {
         if (this.classList.contains("used")) return;
         var trayId = (this.getAttribute("data-tray-id") || "").toUpperCase();
@@ -281,6 +304,20 @@
       }
     });
     return out;
+  }
+
+  // Returns total shortage qty (SHORTAGE reason entries only).
+  function totalShortage() {
+    var grid = $("isrm-reason-grid");
+    if (!grid) return 0;
+    var total = 0;
+    grid.querySelectorAll(".isrm-qty-input").forEach(function (inp) {
+      var rt = (inp.getAttribute("data-reason-text") || "").toUpperCase();
+      if (rt.indexOf("SHORTAGE") !== -1) {
+        total += parseInt(inp.value, 10) || 0;
+      }
+    });
+    return total;
   }
 
   function totalReject() {
@@ -395,6 +432,7 @@
     $("isrm-sec-delink").style.display = state.counters.delinkAvailable > 0 ? "" : "none";
 
     renderRejectRows();
+    // Do NOT auto-fill - let user choose which tray to reuse for which reject slot
     renderAcceptRows();
     renderDelinkSection();
     renderActivePills();
@@ -436,18 +474,30 @@
     c.querySelectorAll(".isrm-reject-scan").forEach(function (inp) {
       if (!inp.readOnly) {
         attachScanHandlers(inp, "reject");
+        // Track focus for targeted pill taps
+        inp.addEventListener("focus", function () { state.focusedInput = this; });
+        inp.addEventListener("blur", function () {
+          // Clear focus after a short delay (allow pill tap to register first)
+          setTimeout(function () { if (state.focusedInput === inp) state.focusedInput = null; }, 200);
+        });
       }
     });
-    // Err2 fix: tap a filled (readonly) reject input to clear & re-scan
+    // Err2 fix: tap a filled (readonly) reject input to enable editing
     c.querySelectorAll(".isrm-reject-scan[readonly]").forEach(function (inp) {
       inp.addEventListener("click", function () {
-        var idx = parseInt(this.getAttribute("data-slot-idx"), 10);
-        state.rejectScans[idx] = null;
-        renderRejectRows();
-        renderActivePills();
-        renderDelinkSection();
-        updateSubmitState();
-        setInsight("info", "Cleared reject slot " + (idx + 1) + ". Re-scan.");
+        // Enable in-place editing: remove readonly and show edit cursor
+        this.removeAttribute("readonly");
+        this.style.cursor = "text";
+        this.focus();
+        setInsight("info", "Editing reject slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Press Enter or clear to continue.");
+      });
+      // Re-attach scan handlers when readonly is removed via editing
+      inp.addEventListener("blur", function () {
+        // When user finishes editing, validate and apply changes
+        var v = (this.value || "").trim().toUpperCase();
+        if (v.length === TRAY_ID_LEN) {
+          attemptScan(this, "reject", v);
+        }
       });
     });
     c.querySelectorAll(".isrm-reject-clear").forEach(function (btn) {
@@ -476,7 +526,7 @@
       var sourceBadge = "";
       var topBadge = "";
       if (filled) {
-        sourceBadge = scan.source === "free"
+        sourceBadge = scan.source === "free" || scan.source === "new_free"
           ? '<span class="isrm-badge new">FREE</span>'
           : '<span class="isrm-badge existing">EXISTING</span>';
         if (scan.top) topBadge = '<span class="isrm-badge top">TOP</span>';
@@ -499,17 +549,29 @@
     c.querySelectorAll(".isrm-accept-scan").forEach(function (inp) {
       if (!inp.readOnly) {
         attachScanHandlers(inp, "accept");
+        // Track focus for targeted pill taps
+        inp.addEventListener("focus", function () { state.focusedInput = this; });
+        inp.addEventListener("blur", function () {
+          setTimeout(function () { if (state.focusedInput === inp) state.focusedInput = null; }, 200);
+        });
       }
     });
-    // Err2 fix: tap a filled (readonly) accept input to clear & re-scan
+    // Allow editing filled (readonly) accept inputs instead of just clearing
     c.querySelectorAll(".isrm-accept-scan[readonly]").forEach(function (inp) {
       inp.addEventListener("click", function () {
-        var idx = parseInt(this.getAttribute("data-slot-idx"), 10);
-        state.acceptScans[idx] = null;
-        renderAcceptRows();
-        renderActivePills();
-        updateSubmitState();
-        setInsight("info", "Cleared accept slot " + (idx + 1) + ". Re-scan.");
+        // Enable in-place editing: remove readonly and show edit cursor
+        this.removeAttribute("readonly");
+        this.style.cursor = "text";
+        this.focus();
+        setInsight("info", "Editing accept slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Press Enter or clear to continue.");
+      });
+      // Re-attach scan handlers when readonly is removed via editing
+      inp.addEventListener("blur", function () {
+        // When user finishes editing, validate and apply changes
+        var v = (this.value || "").trim().toUpperCase();
+        if (v.length === TRAY_ID_LEN) {
+          attemptScan(this, "accept", v);
+        }
       });
     });
     c.querySelectorAll(".isrm-accept-clear").forEach(function (btn) {
@@ -579,7 +641,14 @@
     rows.innerHTML = html;
 
     var newInput = rows.querySelector(".isrm-delink-scan");
-    if (newInput) attachScanHandlers(newInput, "delink");
+    if (newInput) {
+      attachScanHandlers(newInput, "delink");
+      // Track focus for targeted pill taps
+      newInput.addEventListener("focus", function () { state.focusedInput = this; });
+      newInput.addEventListener("blur", function () {
+        setTimeout(function () { if (state.focusedInput === newInput) state.focusedInput = null; }, 200);
+      });
+    }
 
     rows.querySelectorAll(".isrm-delink-clear").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -589,6 +658,23 @@
         renderActivePills();
         updateSubmitState();
         setInsight("info", "Removed delink entry.");
+      });
+    });
+    // Allow editing filled (readonly) delink inputs
+    rows.querySelectorAll(".isrm-delink-row .isrm-scan-input[readonly]").forEach(function (inp) {
+      inp.addEventListener("click", function () {
+        // Enable in-place editing: remove readonly and show edit cursor
+        this.removeAttribute("readonly");
+        this.style.cursor = "text";
+        this.focus();
+        setInsight("info", "Editing delink tray. Press Enter to confirm.");
+      });
+      // Re-validate when user finishes editing
+      inp.addEventListener("blur", function () {
+        var v = (this.value || "").trim().toUpperCase();
+        if (v.length === TRAY_ID_LEN) {
+          attemptScan(this, "delink", v);
+        }
       });
     });
   }
@@ -621,6 +707,8 @@
   }
 
   function attemptScan(input, slotType, trayId) {
+    // Let backend handle all validation - removed frontend accept-slot restriction
+    // to give users flexibility in tray selection
     if (slotType === "accept" && !rejectStepDone()) {
       setStatus("error", "Please complete reject scans first.");
       setInsight("error", "Reject scans incomplete.");
@@ -662,10 +750,18 @@
       renderRejectRows();
       renderActivePills();
       renderDelinkSection();
-      // Re-render accept rows so inputs become enabled once reject step is complete.
-      // Do NOT auto-fill here — user must manually scan the top tray (slot 1) first.
       renderAcceptRows();
       setInsight("success", res.tray_id + " accepted as REJECT (" + res.source + ").");
+      
+      // If user scanned an existing (reused) tray, auto-focus first accept slot (top tray)
+      // to guide the workflow: reject done → now fill accept top tray
+      if (res.source !== "new" && rejectStepDone()) {
+        var firstAcceptInput = document.querySelector(".isrm-accept-scan:not([readonly])");
+        if (firstAcceptInput && !firstAcceptInput.value) {
+          setTimeout(function() { firstAcceptInput.focus(); }, 100);
+          setInsight("info", "Reject done. Now scan/tap accept top tray.");
+        }
+      }
     } else if (slotType === "accept") {
       var aidx = parseInt(input.getAttribute("data-slot-idx"), 10);
       state.acceptScans[aidx] = {
@@ -720,12 +816,23 @@
     }
   }
 
-  // ── Fix 1: Tap an active-tray pill → fill next empty slot ────────────────
+  // ── Fix 1: Tap an active-tray pill → fill focused input or next empty slot ───
   function pickIntoNextEmptySlot(trayId) {
+    // If user has focused a specific input, fill that one (gives control over which slot gets reused tray)
+    if (state.focusedInput && !state.focusedInput.readOnly && !state.focusedInput.disabled) {
+      var focusedSlotType = state.focusedInput.classList.contains("isrm-reject-scan") ? "reject"
+                          : state.focusedInput.classList.contains("isrm-accept-scan") ? "accept"
+                          : state.focusedInput.classList.contains("isrm-delink-scan") ? "delink"
+                          : null;
+      if (focusedSlotType) {
+        state.focusedInput.value = trayId;
+        attemptScan(state.focusedInput, focusedSlotType, trayId);
+        return;
+      }
+    }
+
+    // Otherwise, auto-fill next empty slot (original behavior)
     // Order: reject → delink (if available) → accept
-    // Err3 fix: use the same remainingDelink formula as renderDelinkSection so
-    // that active trays already reused in reject scans reduce the delink pool,
-    // preventing an infinite loop where delinkNeeded stays true after scanning.
     var _activeIds = new Set((state.activeTrays || []).map(function (t) {
       return (t.tray_id || "").toUpperCase();
     }));
@@ -800,6 +907,7 @@
         tray_id: trayId,
         used_tray_ids: used,
         reject_qty: totalReject(),
+        shortage_qty: totalShortage(),
       }),
     })
       .then(function (r) { return r.json(); })
@@ -817,7 +925,9 @@
 
   // ── Step gating helpers ──────────────────────────────────────────────────
   function rejectStepDone() {
-    if (!state.rejectSlots.length) return false;
+    // When there are no reject slots (shortage-only flow), reject scan is not
+    // needed — return true so accept step and submit are not blocked.
+    if (!state.rejectSlots.length) return true;
     return state.rejectScans.length === state.rejectSlots.length &&
            state.rejectScans.every(Boolean);
   }
@@ -828,13 +938,24 @@
   }
 
   function updateSubmitState() {
+    var shortage = totalShortage();
+    var effectiveLotQty = state.lotQty - shortage;
+    // Allow submit when: (there is reject qty OR shortage qty) AND the total
+    // does not exceed lot qty AND all required scans are done.
     var ok = totalReject() > 0 &&
              totalReject() < state.lotQty &&
              !state.isPlanStale &&
              rejectStepDone() &&
              acceptStepDone() &&
              !state.isSubmitting;
-    $("isrm-submit-btn").disabled = !ok;
+    // Shortage-only path: no reject scans needed, accept scans must be done.
+    var shortageOnlyOk = shortage > 0 &&
+             totalReject() === shortage &&   // all entered qty is shortage
+             !state.isPlanStale &&
+             rejectStepDone() &&             // returns true (no reject slots)
+             acceptStepDone() &&
+             !state.isSubmitting;
+    $("isrm-submit-btn").disabled = !(ok || shortageOnlyOk);
 
     if (state.acceptSlots.length) {
       var anyDisabled = !rejectStepDone();
@@ -1103,10 +1224,19 @@
       return;
     }
 
-    // Derive rejection_entries from the PLANNED slot state so the backend
-    // always receives data that is consistent with the scanned assignments.
-    // This prevents a stale-plan mismatch when the user edits qty after scanning.
+    // Derive rejection_entries from the PLANNED slot state (non-shortage) plus
+    // shortage entries from the reason grid directly. Shortage entries have no
+    // reject slots, so they are not present in rejectSlots but must be sent so
+    // the backend can compute effective_lot_qty and accept allocation correctly.
     var planEntries = {};
+    // 1. Shortage entries from the reason grid (no reject slots for shortage).
+    collectRejectionEntries().forEach(function (e) {
+      var rt = (e.reason_text || "").toUpperCase();
+      if (rt.indexOf("SHORTAGE") !== -1) {
+        planEntries[e.reason_id] = { reason_id: e.reason_id, reason_text: e.reason_text, qty: e.qty };
+      }
+    });
+    // 2. Non-shortage entries from planned slots (ensures qty consistency with scans).
     state.rejectSlots.forEach(function (slot) {
       var rid = slot.reason_id;
       if (!planEntries[rid]) {

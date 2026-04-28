@@ -980,10 +980,10 @@
                   <div id="scanInfoBox" 
                        style="background:rgba(2,128,132,0.06);
                               border-radius:8px;padding:5px 14px;font-size:11px;color:#025254;
-                              min-width:160px;max-width:250px;text-align:center;
+                              min-width:125px;max-width:250px;text-align:center;
                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                               transition:all 0.3s ease;">
-                     <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/scanner.png' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/></span>
+                     <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/hr.jpg' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/></span>
                      <span id="scanInfoText" style="margin-left:4px;font-weight:600;">Press F2 to scan</span>
                   </div>
                </li>
@@ -993,14 +993,15 @@
                   <button id="globalScanBtn" class="nav-link btn d-flex flex-row align-items-center" 
                           title="Global Tray Scan (F2)"
                           style="gap:10px;padding:8px 16px;
-                                 background:linear-gradient(135deg,#00a8ad,#028084);
-                                 border:none;border-radius:10px;
-                                 box-shadow:0 3px 10px rgba(2,128,132,0.25);
-                                 transition:all 0.3s ease;">
-                     <img src="{% static 'assets/icons/barcode.png' %}" alt="Scan" 
-                          style="width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);"
+                                 background: rgb(255 255 255 / 6%);
+                                 border:none;
+                                 border-radius:10px;
+                                 box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;
+                                 transition:all 0.3s ease;color:#025254;">
+                     <img src="{% static 'assets/icons/scanner.png' %}" alt="Scan" 
+                          style="width:20px;height:20px;object-fit:contain;vertical-align:middle;"
                           onerror="this.onerror=null; this.outerHTML='';" />
-                     <small style="font-size:13px;color:#fff !important;font-weight:700;margin:0;text-shadow:0 1px 2px rgba(0,0,0,0.1);">Scan (F2)</small>
+                     <small style="font-size:13px;color:#025254 !important;font-weight:700;margin:0;">Scan (F2)</small>
                   </button>
                   <!-- Inline scan status box -->
                   <div id="globalScanStatus" 
@@ -1043,6 +1044,14 @@
                       background: linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;
                       box-shadow: 0 4px 12px rgba(255,182,193,0.4) !important;
                     }
+                    #globalScanBtn:hover {
+                      background: transparent !important;
+                    }
+                    #barcodeStatus:hover,
+                    #settingsDropdown:hover,
+                    #profileDropdown:hover {
+                      background: rgba(2,128,132,0.06) !important;
+                    }
                     #shortcutsBtn:active {
                       transform: scale(0.98);
                     }
@@ -1051,17 +1060,17 @@
                
                <!-- ✅ TRAY SCAN BUTTON -->
                <li class="nav-item">
-                  <a class="nav-link btn btn-outline d-flex flex-row align-items-center" id="barcodeStatus" href="#" style="gap:8px;padding:6px 10px;margin-right: 0px;transition:all 0.3s;">
-                     <img src="{% static 'assets/gif/barcode.gif' %}" alt="Barcode" class="barcode-icon" style="height:1.4rem;width:auto;" />
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Tray Scan</small>
+                  <a class="nav-link btn d-flex flex-row align-items-center" id="barcodeStatus" href="#" style="gap:8px;padding:6px 10px;margin-right: 0px;transition:all 0.3s;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;color:#025254;">
+                     <img src="{% static 'assets/gif/barcode.gif' %}" alt="Barcode" class="barcode-icon" style="height:25px !important;width:auto;" />
+                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">Tray Scan</small>
                   </a>
                </li>
                
                <!-- ✅ SETTINGS DROPDOWN -->
                <li class="nav-item dropdown">
-                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" id="settingsDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;transition:all 0.3s;">
-                     <i class="ti-settings" style="font-size:1.25rem;color:#028084;"></i>
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">Settings</small>
+                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" id="settingsDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;transition:all 0.3s;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;color:#025254;">
+                     <img src="{% static 'assets/icons/3.png' %}" alt="Settings" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;" />
+                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">Settings</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -1087,9 +1096,9 @@
 
                <!-- ✅ PROFILE DROPDOWN -->
                <li class="nav-item nav-profile dropdown">
-                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" href="#" data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;">
-                     <i class="ti-user" style="font-size:1.25rem;color:#028084;"></i>
-                     <small style="font-size:12px;color:#333;font-weight:600;margin:0;">{{ request.user.username }}</small>
+                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" href="#" data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;transition:all 0.3s;color:#025254;">
+                     <img src="{% static 'assets/icons/5.png' %}" alt="Profile" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;" />
+                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">{{ request.user.username }}</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -3109,12 +3118,10 @@ function activateScan() {
   const scanBtn = document.getElementById('globalScanBtn');
   if (scanBtn) {
     scanBtn.addEventListener('mouseover', function() {
-      this.style.background = 'linear-gradient(135deg,#00c4c9,#02999e)';
       this.style.transform = 'translateY(-2px)';
       this.style.boxShadow = '0 5px 15px rgba(2,128,132,0.35)';
     });
     scanBtn.addEventListener('mouseout', function() {
-      this.style.background = 'linear-gradient(135deg,#00a8ad,#028084)';
       this.style.transform = 'translateY(0)';
       this.style.boxShadow = '0 3px 10px rgba(2,128,132,0.25)';
     });

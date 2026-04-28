@@ -120,6 +120,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adminportal.middleware.CSPMiddleware',
+    'adminportal.middleware.LoginLatencyMiddleware',
     'middleware.forbidden_redirect.ForbiddenToLoginMiddleware',
     'watchcase_tracker.middleware.latency_middleware.LatencyMiddleware',
 
@@ -245,6 +246,11 @@ LOGGING = {
         },
     },
     'handlers': {
+        'console': {
+            'level': 'WARNING',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
         'jig_pick_table_file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
@@ -259,7 +265,7 @@ LOGGING = {
             'formatter': 'broken_hooks',
         },
         'latency_file': {
-            'level': 'INFO',
+            'level': 'WARNING',
             'class': 'logging.FileHandler',
             'filename': 'latency.log',
             'formatter': 'simple',
@@ -285,6 +291,16 @@ LOGGING = {
         'watchcase_tracker.middleware.latency_middleware': {
             'handlers': ['latency_file'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'adminportal': {
+            'handlers': ['latency_file', 'console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'modelmasterapp': {
+            'handlers': ['latency_file', 'console'],
+            'level': 'WARNING',
             'propagate': False,
         },
         'input_screening': {

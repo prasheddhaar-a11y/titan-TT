@@ -1,5 +1,9 @@
 import base64
 from django.utils.crypto import get_random_string
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CSPMiddleware:
     def __init__(self, get_response):
@@ -20,4 +24,40 @@ class CSPMiddleware:
             "object-src 'none'; "
             "base-uri 'self';"
         )
+        return response
+
+
+class LoginLatencyMiddleware:
+    """
+    Middleware to measure login flow latency.
+    Logs timing for authentication, dashboard stats, and response rendering.
+    Only active for login-related paths.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Only profile login-related endpoints
+        if 'login' not in request.path and 'index' not in request.path:
+            return self.get_response(request)
+
+        request.start_time = time.time()
+        request.timers = {}
+        
+        response = self.get_response(request)
+        
+        # Log total time
+        total_time = (time.time() - request.start_time) * 1000  # Convert to ms
+        
+        timer_log = ' | '.join([f'{k}={v}' for k, v in request.timers.items()])
+        logger.warning(
+            f'LOGIN_LATENCY: {request.path} | '
+            f'Total={total_time:.2f}ms | {timer_log}'
+        )
+        
+        # Add header with timing for debugging
+        response['X-Login-Total-Time'] = f'{total_time:.2f}ms'
+        for k, v in request.timers.items():
+            response[f'X-Login-{k.upper()}'] = v
+        
         return response

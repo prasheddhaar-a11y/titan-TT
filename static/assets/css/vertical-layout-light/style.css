@@ -27572,8 +27572,8 @@ code {
   height: auto;
   vertical-align: middle;
   line-height: 0.625rem;
-  font-size: 0.875rem;
-  margin-left: 0.3rem;
+  font-size: 10px;
+  margin-left: 0px;
 }
 .dropdown .dropdown-menu {
   margin-top: 2px;

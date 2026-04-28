@@ -1243,19 +1243,18 @@ body.add-model-mode #selectAllCheckbox {
                     </th>
                     <th>JIG ID <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Last<br>Updated <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>No of Trays <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Batch Status <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Current Location <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Plating<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polishing<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Plating <br> Color <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish <br> Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Version <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Source-Location <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Tray Cate - Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>No of Trays <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Batch Status <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Current Location <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Version <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1275,56 +1274,39 @@ body.add-model-mode #selectAllCheckbox {
                         {{ jig_detail.Un_loaded_date_time|date:"d-M-y" }}<br>
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig_detail.Un_loaded_date_time|date:"h:i A" }}</span>
                       </td>
-
-                      <td>{{ jig_detail.all_plating_stk_nos|join:", " }}</td>
-                      <td>{{ jig_detail.all_polishing_stk_nos|join:", " }}</td>
-
-                                            
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}
-                    </td>
                       
-                      <!-- Polish Finish -->
-                      <td>{{ jig_detail.polish_finish|default:"N/A" }}</td>
-
-                      <!-- Version -->
-                      <td>{{ jig_detail.all_versions|join:", "|default:"N/A" }}</td>
-
-                      <!-- Source-Location -->
+                      <!-- Action -->
                       <td>
-                        {% for location in jig_detail.unique_locations %}
-                          {{ location }}{% if not forloop.last %}, {% endif %}
-                        {% empty %}
-                          {{ jig_detail.location|default:"N/A" }}
-                        {% endfor %}
+                        <span class="status-badge accepted" style="
+                          background-color: #66bb6a; 
+                          color: white; 
+                          padding: 6px 12px; 
+                          border-radius: 20px; 
+                          font-size: 12px; 
+                          font-weight: 600;
+                          display: inline-flex;
+                          align-items: center;
+                          gap: 4px;
+                        ">
+                          <i class="fa fa-check-circle"></i>Unloaded
+                        </span>
+                        <a href="#" class="text-primary tray-scan-btn-Jig unload-modal-trigger" style="text-decoration: underline"
+                          data-jig-id="{{ jig_detail.id }}"
+                          data-lot-id="{{ jig_detail.lot_id }}"
+                          data-lot-id-list='{{ jig_detail.lot_id_list|json_encode }}'
+                          data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'
+                          data-model-images='{{ jig_detail.model_images|json_encode }}'
+                          data-lot-id-quantities='{% if jig_detail.lot_id_quantities %}{{ jig_detail.lot_id_quantities|json_encode }}{% else %}{}{% endif %}'
+                          data-no-of-trays="{{ jig_detail.calculated_no_of_trays }}" 
+                          data-tray-capacity="{{ jig_detail.jig_capacity }}"
+                          data-plating-stk-no="{{ jig_detail.plating_stk_no }}"
+                          data-model-no="{{ jig_detail.plating_stk_no }}"
+                             data-total-case-qty="{{ jig_detail.total_case_qty|default:'0' }}">
+                            <img src="{% static 'assets/icons/view.png' %}"
+                                 alt="View"
+                            style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />                        </a>
                       </td>
                       
-                      <!-- Tray Cate - Capacity -->
-                        <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% if jig_detail.tray_type and jig_detail.tray_capacity %}
-                          {% if jig_detail.tray_capacity == 20 %}
-                            <div class="tray-capacity-badge normal-tray"
-                                 style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Normal Tray - 20 Capacity (Custom for Jig Unloading)">
-                              Normal - 20
-                            </div>
-                          {% elif jig_detail.tray_capacity == 12 %}
-                            <div class="tray-capacity-badge jumbo-tray"
-                                 style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
-                              Jumbo - 12
-                            </div>
-                          {% else %}
-                            <div class="tray-capacity-badge other-tray"
-                                 style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
-                                 title="{{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }} Capacity">
-                              {{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }}
-                            </div>
-                          {% endif %}
-                        {% else %}
-                          <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
-                        {% endif %}
-                      </td>
                       <!-- Lot Qty -->
                       <td>
                         {% if jig_detail.lot_id_quantities %}
@@ -1362,38 +1344,6 @@ body.add-model-mode #selectAllCheckbox {
                         {% endif %}
                       </td>
 
-                      <!-- Action -->
-                      <td>
-                        <span class="status-badge accepted" style="
-                          background-color: #66bb6a; 
-                          color: white; 
-                          padding: 6px 12px; 
-                          border-radius: 20px; 
-                          font-size: 12px; 
-                          font-weight: 600;
-                          display: inline-flex;
-                          align-items: center;
-                          gap: 4px;
-                        ">
-                          <i class="fa fa-check-circle"></i>Unloaded
-                        </span>
-                        <a href="#" class="text-primary tray-scan-btn-Jig unload-modal-trigger" style="text-decoration: underline"
-                          data-jig-id="{{ jig_detail.id }}"
-                          data-lot-id="{{ jig_detail.lot_id }}"
-                          data-lot-id-list='{{ jig_detail.lot_id_list|json_encode }}'
-                          data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'
-                          data-model-images='{{ jig_detail.model_images|json_encode }}'
-                          data-lot-id-quantities='{% if jig_detail.lot_id_quantities %}{{ jig_detail.lot_id_quantities|json_encode }}{% else %}{}{% endif %}'
-                          data-no-of-trays="{{ jig_detail.calculated_no_of_trays }}" 
-                          data-tray-capacity="{{ jig_detail.jig_capacity }}"
-                          data-plating-stk-no="{{ jig_detail.plating_stk_no }}"
-                          data-model-no="{{ jig_detail.plating_stk_no }}"
-                             data-total-case-qty="{{ jig_detail.total_case_qty|default:'0' }}">
-                            <img src="{% static 'assets/icons/view.png' %}"
-                                 alt="View"
-                            style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />                        </a>
-                      </td>
-                      
                       <!-- Batch Status -->
                       <td>
                         {% if jig_detail.last_process_module == "Jig Unloading" %}
@@ -1416,6 +1366,50 @@ body.add-model-mode #selectAllCheckbox {
                             {{ jig_detail.last_process_module }}
                         </div>
                       </td>
+                      
+                      <!-- Plating Stk No -->
+                      <td>{{ jig_detail.all_plating_stk_nos|join:", " }}</td>
+                      
+                      <!-- Polishing Stk No -->
+                      <td>{{ jig_detail.all_polishing_stk_nos|join:", " }}</td>
+
+                      <!-- Plating Color -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                      {{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}
+                    </td>
+                      
+                      <!-- Polish Finish -->
+                      <td>{{ jig_detail.polish_finish|default:"N/A" }}</td>
+
+                      <!-- Tray Cate - Capacity -->
+                        <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        {% if jig_detail.tray_type and jig_detail.tray_capacity %}
+                          {% if jig_detail.tray_capacity == 20 %}
+                            <div class="tray-capacity-badge normal-tray"
+                                 style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
+                                 title="Normal Tray - 20 Capacity (Custom for Jig Unloading)">
+                              Normal - 20
+                            </div>
+                          {% elif jig_detail.tray_capacity == 12 %}
+                            <div class="tray-capacity-badge jumbo-tray"
+                                 style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
+                                 title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
+                              Jumbo - 12
+                            </div>
+                          {% else %}
+                            <div class="tray-capacity-badge other-tray"
+                                 style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
+                                 title="{{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }} Capacity">
+                              {{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }}
+                            </div>
+                          {% endif %}
+                        {% else %}
+                          <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
+                        {% endif %}
+                      </td>
+                      
+                      <!-- Version -->
+                      <td>{{ jig_detail.all_versions|join:", "|default:"N/A" }}</td>
                       
                       <td>
 

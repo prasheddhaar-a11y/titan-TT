@@ -179,7 +179,9 @@ def parse_scan_payload(data: dict) -> dict:
             "lot_id": "...",
             "slot_type": "reject" | "delink" | "accept",
             "tray_id": "...",
-            "used_tray_ids": ["...", ...]   # optional
+            "used_tray_ids": ["...", ...],   # optional
+            "reject_qty": 0,                 # non-shortage reject qty
+            "shortage_qty": 0                # missing items qty (optional)
         }
     """
     lot_id = clean_str(data.get("lot_id"), max_len=100)
@@ -204,8 +206,7 @@ def parse_scan_payload(data: dict) -> dict:
     else:
         raise ValidationError("used_tray_ids must be a list.")
 
-    # Optional – frontend forwards the total reject qty so backend can
-    # derive which active trays are physically emptied (drain engine).
+    # Parse non-shortage reject qty (drives reject tray allocation).
     raw_reject_qty = data.get("reject_qty", 0)
     try:
         reject_qty = int(raw_reject_qty or 0)
@@ -214,12 +215,23 @@ def parse_scan_payload(data: dict) -> dict:
     if reject_qty < 0:
         raise ValidationError("reject_qty cannot be negative.")
 
+    # Parse shortage qty (missing items that reduce effective lot qty).
+    # Optional; defaults to 0 for backward compatibility.
+    raw_shortage_qty = data.get("shortage_qty", 0)
+    try:
+        shortage_qty = int(raw_shortage_qty or 0)
+    except (TypeError, ValueError):
+        raise ValidationError("shortage_qty must be an integer.")
+    if shortage_qty < 0:
+        raise ValidationError("shortage_qty cannot be negative.")
+
     return {
         "lot_id": lot_id,
         "slot_type": slot_type,
         "tray_id": tray_id,
         "used_tray_ids": used,
         "reject_qty": reject_qty,
+        "shortage_qty": shortage_qty,
     }
 
 

@@ -1211,6 +1211,28 @@
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Action <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      LOT Qty
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      No of<br>Trays <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Process Status
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Lot <br>Status
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Current  Stage
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Polishing<br>Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -1222,20 +1244,8 @@
                       Polish Finish
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-
-                    <th>
-                      Source - Location
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
                     <th>
                       Tray Type - <br> Capacity
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      No of<br>Trays <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      LOT Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -1246,21 +1256,6 @@
                       Jig ID<i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Process Status
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Action <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Lot <br>Status
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Current  Stage
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
                       Remarks <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                   </tr>
@@ -1268,90 +1263,81 @@
               <tbody>
                   {% for jig in jig_details %}
                   <tr class="highlighted-tray-scan" data-lot-id="{{ jig.lot_id }}" data-batch-id="{{ jig.batch_id }}" data-jig-id="{{ jig.jig_id }}" data-delink-tray-info='{{ jig.delink_tray_info|safe }}' data-half-filled-tray-info='{{ jig.half_filled_tray_info|safe }}'>
+                    <!-- S.No -->
                     <td>
                         {{ page_obj.start_index|add:forloop.counter0 }}
                     </td>
-                  <td>
-                    {{ jig.jig_loaded_date_time|date:"d-M-y" }}<br>
-                    <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig.jig_loaded_date_time|date:"h:i A" }}</span>
-                  </td>
-<!-- Plating Stock No - WITH Multi-Model Circle Indicators -->
-<td>
-  {% if jig.is_multi_model and jig.no_of_model_cases %}
-    <!-- ✅ Multi-Model: Show Colored Circles -->
-    <div class="multi-model-circles-container" data-lot-id="{{ jig.lot_id }}" title="Multi-model: {{ jig.no_of_model_cases }}">
-      {% with models=jig.no_of_model_cases|default:""|split:"," %}
-        {% for model in models %}
-          {% if model|length > 0 %}
-            {% with model_name=model|get_model_name model_qty=model|get_model_qty %}
-            <div class="multi-model-circle" 
-                 data-model="{{ model_name|safe }}" 
-                 data-model-qty="{{ model_qty }}"
-                 data-model-index="{{ forloop.counter }}"
-                 data-lot-id="{{ jig.lot_id }}"
-                 style="display: inline-block; margin-right: 6px; position: relative; cursor: pointer; z-index: auto;">
-              <div class="circle-indicator" 
-                   style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.25); transition: all 0.2s ease;"
-                   data-color-index="{{ forloop.counter0 }}">
-                {{ forloop.counter }}
-              </div>
-              <!-- Tooltip: scoped strictly to THIS circle, shown only on THIS circle's hover via JS -->
-              <div class="multi-model-tooltip" 
-                   style="position: absolute; background: linear-gradient(135deg,#1e293b,#334155); color: white; padding: 8px 14px; border-radius: 6px; font-size: 11px; white-space: nowrap; z-index: 99999; opacity: 0; pointer-events: none; transition: opacity 0.18s ease; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); box-shadow: 0 4px 12px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
-                <div style="font-size:9px; color:#94a3b8; margin-bottom:3px;">Model {{ forloop.counter }}</div>
-                <strong style="font-size:12px;">{{ model_name|safe }}</strong><br>
-                <span style="font-size:10px; color:#7dd3d8;">Qty: {{ model_qty }}</span>
-              </div>
-            </div>
-            {% endwith %}
-          {% endif %}
-        {% endfor %}
-      {% endwith %}
-    </div>
-  {% elif jig.lot_plating_stk_nos %}
-    <!-- Single Model: Show Text -->
-    <span class="model-hover-trigger" data-plating-stk-no="{{ jig.lot_plating_stk_nos }}" style="cursor: pointer; word-break: break-all;">
-      {{ jig.lot_plating_stk_nos|highlight_plating_color|safe_html }}
-    </span>
-  {% else %}
-    <span style="color: #dc3545; font-weight: 600">Empty</span>
-  {% endif %}
-</td>
-
-<!-- Polishing Stock No - NO tooltip, just plain text -->
-<td> 
-  {% if jig.lot_polishing_stk_nos and jig.lot_polishing_stk_nos != 'No Polishing Stock No' %} 
-    {{ jig.lot_polishing_stk_nos }}
-  {% else %} 
-    N/A 
-  {% endif %} 
-</td>
-                    <!-- Plating Color from ModelMasterCreation -->
-                    <td>{{ jig.plating_color|default:"N/A" }}</td>
-                    <!-- Polish Finish from ModelMasterCreation -->
-                    <td>{{ jig.polish_finish|default:"N/A" }}</td>
-
-                    <td> {{ jig.lot_version_names|default:"N/A" }}</td>
-                    <!-- Tray Type and Capacity from ModelMasterCreation -->
+                    <!-- Last Updated -->
                     <td>
-                        {% if jig.tray_type and jig.tray_capacity %}
-                            {{ jig.tray_type }} - {{ jig.tray_capacity }}
-                        {% else %}
-                            No Tray Info
-                        {% endif %}
-                    </td>                    
-                    <td>{{ jig.calculated_no_of_trays|default:"0" }}</td>
+                      {{ jig.jig_loaded_date_time|date:"d-M-y" }}<br>
+                      <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig.jig_loaded_date_time|date:"h:i A" }}</span>
+                    </td>
+                    <!-- Plating Stock No -->
+                    <td>
+                      {% if jig.is_multi_model and jig.no_of_model_cases %}
+                        <div class="multi-model-circles-container" data-lot-id="{{ jig.lot_id }}" title="Multi-model: {{ jig.no_of_model_cases }}">
+                          {% with models=jig.no_of_model_cases|default:""|split:"," %}
+                            {% for model in models %}
+                              {% if model|length > 0 %}
+                                {% with model_name=model|get_model_name model_qty=model|get_model_qty %}
+                                <div class="multi-model-circle" 
+                                     data-model="{{ model_name|safe }}" 
+                                     data-model-qty="{{ model_qty }}"
+                                     data-model-index="{{ forloop.counter }}"
+                                     data-lot-id="{{ jig.lot_id }}"
+                                     style="display: inline-block; margin-right: 6px; position: relative; cursor: pointer; z-index: auto;">
+                                  <div class="circle-indicator" 
+                                       style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.25); transition: all 0.2s ease;"
+                                       data-color-index="{{ forloop.counter0 }}">
+                                    {{ forloop.counter }}
+                                  </div>
+                                  <div class="multi-model-tooltip" 
+                                       style="position: absolute; background: linear-gradient(135deg,#1e293b,#334155); color: white; padding: 8px 14px; border-radius: 6px; font-size: 11px; white-space: nowrap; z-index: 99999; opacity: 0; pointer-events: none; transition: opacity 0.18s ease; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); box-shadow: 0 4px 12px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
+                                    <div style="font-size:9px; color:#94a3b8; margin-bottom:3px;">Model {{ forloop.counter }}</div>
+                                    <strong style="font-size:12px;">{{ model_name|safe }}</strong><br>
+                                    <span style="font-size:10px; color:#7dd3d8;">Qty: {{ model_qty }}</span>
+                                  </div>
+                                </div>
+                                {% endwith %}
+                              {% endif %}
+                            {% endfor %}
+                          {% endwith %}
+                        </div>
+                      {% elif jig.lot_plating_stk_nos %}
+                        <span class="model-hover-trigger" data-plating-stk-no="{{ jig.lot_plating_stk_nos }}" style="cursor: pointer; word-break: break-all;">
+                          {{ jig.lot_plating_stk_nos|highlight_plating_color|safe_html }}
+                        </span>
+                      {% else %}
+                        <span style="color: #dc3545; font-weight: 600">Empty</span>
+                      {% endif %}
+                    </td>
+                    <!-- Action -->
+                    <td>
+                      <span style="opacity:0.5; pointer-events:none; display:inline-block;">
+                        <img src="{% static 'assets/icons/edit1.png' %}" alt="Edit Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" />
+                      </span>
+                      <span style="opacity:0.5; pointer-events:none; display:inline-block;">
+                        <img src="{% static 'assets/icons/bin.png' %}" alt="Delete Disabled" style="width: 20px; height: auto; filter: grayscale(1) opacity(0.5);" />
+                      </span>
+                      <button
+                          type="button"
+                          class="btn btn-social-icon-text btn-twitter"
+                          style="background-color: #028084a8; cursor: not-allowed;"
+                          disabled
+                      >
+                          <i class="fa fa-check"></i>Added
+                      </button>
+                      <a href="#" title="View Details" class="view-details-btn" style="display:inline-block; margin-right:8px;">
+                        <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; height: 20px; margin-top: 4px" />
+                      </a>
+                    </td>
+                    <!-- LOT Qty -->
                     <td>{{ jig.total_cases_loaded }}</td>
-
-                    <td>
-                        {{jig.jig_type}}-{{jig.jig_capacity}}
-                    </td>
-                    <td>
-                        {{jig.jig_qr_id}}
-                    </td>
+                    <!-- No of Trays -->
+                    <td>{{ jig.calculated_no_of_trays|default:"0" }}</td>
+                    <!-- Process Status -->
                     <td>
                       <div class="d-flex">
-
                         <div
                           title="Loading"
                           class="d-flex align-items-center justify-content-center rounded-circle ms-1"
@@ -1369,29 +1355,9 @@
                         >
                           L
                         </div>
-                       
                       </div>
                     </td>
-                    <td>
-                         <span style="opacity:0.5; pointer-events:none; display:inline-block;">
-                        <img src="{% static 'assets/icons/edit1.png' %}" alt="Edit Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" />
-                        </span>
-                        <span style="opacity:0.5; pointer-events:none; display:inline-block;">
-                        <img src="{% static 'assets/icons/bin.png' %}" alt="Delete Disabled" style="width: 20px; height: auto; filter: grayscale(1) opacity(0.5);" />
-                        </span>
-                        <button
-                            type="button"
-                            class="btn btn-social-icon-text btn-twitter"
-                            style="background-color: #028084a8; cursor: not-allowed;"
-                            disabled
-                        >
-                            <i class="fa fa-check"></i>Added
-                        </button>
-                        <a href="#" title="View Details" class="view-details-btn" style="display:inline-block; margin-right:8px;">
-                          <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; height: 20px; margin-top: 4px" />
-                        </a>
- 
-                    </td>
+                    <!-- Lot Status -->
                     <td>
                       <div
                         class="d-inline-block px-3 fw-semibold text-center rounded-pill"
@@ -1407,6 +1373,7 @@
                         Released
                       </div>
                     </td>
+                    <!-- Current Stage -->
                     <td>
                       <div
                         class="d-inline-block px-3 fw-semibold text-center rounded-pill"
@@ -1422,41 +1389,62 @@
                         Jig Loading 
                       </div>
                     </td>
- <!-- Audio Remark Icon -->
-<td>
-
- 
-  {% if jig.audio_remark %}
-    <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: default;">
-      <img src="{% static 'assets/icons/rec.png' %}" alt="Audio Remark" style="width: 20px; height: 20px;" />
-      <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-        <span style="font-size: 12px; color: #333;">Audio remark available</span>
-      </div>
-    </span>
-  {% else %}
-    <span title="No audio remark" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; opacity: 0.5; cursor: not-allowed;">
-      <img src="{% static 'assets/icons/rec.png' %}" alt="Audio Remark Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
-    </span>
-  {% endif %}
-
-  <!-- Text Remark Icon -->
-  {% if jig.IP_jig_pick_remarks %}
-    <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
-      <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
-        style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2) drop-shadow(0 0 6px #28a745); opacity: 1;" />
-      <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(40,167,69,0.18); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-        <div style="font-size: 12px; color: #333;">{{ jig.IP_jig_pick_remarks }}</div>
-      </div>
-    </span>
-  {% else %}
-    <span title="No remarks" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; opacity: 0.5; cursor: not-allowed;">
-      <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
-    </span>
-  {% endif %}
-
-</td>
-
-                   
+                    <!-- Polishing Stock No -->
+                    <td>
+                      {% if jig.lot_polishing_stk_nos and jig.lot_polishing_stk_nos != 'No Polishing Stock No' %} 
+                        {{ jig.lot_polishing_stk_nos }}
+                      {% else %} 
+                        N/A 
+                      {% endif %} 
+                    </td>
+                    <!-- Plating Color -->
+                    <td>{{ jig.plating_color|default:"N/A" }}</td>
+                    <!-- Polish Finish -->
+                    <td>{{ jig.polish_finish|default:"N/A" }}</td>
+                    <!-- Tray Type - Capacity -->
+                    <td>
+                      {% if jig.tray_type and jig.tray_capacity %}
+                        {{ jig.tray_type }} - {{ jig.tray_capacity }}
+                      {% else %}
+                        No Tray Info
+                      {% endif %}
+                    </td>
+                    <!-- Jig Type Capacity -->
+                    <td>
+                      {{jig.jig_type}}-{{jig.jig_capacity}}
+                    </td>
+                    <!-- Jig ID -->
+                    <td>
+                      {{jig.jig_qr_id}}
+                    </td>
+                    <!-- Remarks -->
+                    <td>
+                      {% if jig.audio_remark %}
+                        <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: default;">
+                          <img src="{% static 'assets/icons/rec.png' %}" alt="Audio Remark" style="width: 20px; height: 20px;" />
+                          <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
+                            <span style="font-size: 12px; color: #333;">Audio remark available</span>
+                          </div>
+                        </span>
+                      {% else %}
+                        <span title="No audio remark" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; opacity: 0.5; cursor: not-allowed;">
+                          <img src="{% static 'assets/icons/rec.png' %}" alt="Audio Remark Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
+                        </span>
+                      {% endif %}
+                      {% if jig.IP_jig_pick_remarks %}
+                        <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
+                          <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
+                            style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2) drop-shadow(0 0 6px #28a745); opacity: 1;" />
+                          <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(40,167,69,0.18); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
+                            <div style="font-size: 12px; color: #333;">{{ jig.IP_jig_pick_remarks }}</div>
+                          </div>
+                        </span>
+                      {% else %}
+                        <span title="No remarks" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; opacity: 0.5; cursor: not-allowed;">
+                          <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
+                        </span>
+                      {% endif %}
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>

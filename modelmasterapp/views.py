@@ -259,6 +259,11 @@ class LoginAPIView(APIView):
         return Response({}, template_name=self.template_name)
 
     def post(self, request, *args, **kwargs):
+        import time
+        
+        # Checkpoint 1: Start auth
+        t1 = time.time()
+        
         username = request.data.get('username') or request.POST.get('username')
         password = request.data.get('password') or request.POST.get('password')
 
@@ -275,10 +280,24 @@ class LoginAPIView(APIView):
                 'message': error_msg
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # Checkpoint 2: Authenticate
+        t2 = time.time()
         user = authenticate(request, username=username, password=password)
+        t3 = time.time()
+        auth_ms = (t3 - t2) * 1000
+        if hasattr(request, 'timers'):
+            request.timers['authentication'] = f'{auth_ms:.2f}ms'
+        
         if user is not None:
             if user.is_active:
+                # Checkpoint 3: Login
+                t4 = time.time()
                 login(request, user)
+                t5 = time.time()
+                login_ms = (t5 - t4) * 1000
+                if hasattr(request, 'timers'):
+                    request.timers['session_create'] = f'{login_ms:.2f}ms'
+                
                 if request.accepted_renderer.format == 'html':
                     return redirect('index')
                 return Response({
