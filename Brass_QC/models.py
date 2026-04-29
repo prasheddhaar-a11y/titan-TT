@@ -179,6 +179,7 @@ class Brass_QC_Submission(models.Model):
     partial_accept_data = models.JSONField(null=True, blank=True, help_text="Partial accept: accepted trays only")
     partial_reject_data = models.JSONField(null=True, blank=True, help_text="Partial reject: rejected trays only")
     snapshot_data = models.JSONField(null=True, blank=True, help_text="Legacy combined snapshot")
+    remarks = models.TextField(null=True, blank=True, help_text="Submission remarks")
     is_completed = models.BooleanField(default=True, help_text="Submission completed flag")
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)

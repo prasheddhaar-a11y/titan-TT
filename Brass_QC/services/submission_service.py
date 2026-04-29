@@ -312,6 +312,7 @@ def handle_submission(request, action):
             "rejection_reasons": rejection_reasons if rejection_reasons else [],
             "remarks": remarks,
         },
+        remarks=remarks if remarks else None,
         is_completed=True,
         created_by=request.user,
     )

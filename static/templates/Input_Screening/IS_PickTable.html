@@ -775,6 +775,17 @@
         </div>
         <div style="display:flex; flex-direction:row; align-items:center; gap:12px;">
 
+          <!-- Verify All Checkbox -->
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 12px;
+                        background:#e3f2fd; border:1px solid #90caf9; border-radius:20px;
+                        font-size:13px; font-weight:700; color:#1976d2; transition:all .2s;"
+                 id="tvm-verify-all-label"
+                 onmouseover="this.style.background='#bbdefb'; this.style.borderColor='#64b5f6';"
+                 onmouseout="this.style.background='#e3f2fd'; this.style.borderColor='#90caf9';">
+            <input type="checkbox" id="tvm-verify-all-cb" style="width:16px; height:16px; cursor:pointer; accent-color:#1976d2;" />
+            <span style="white-space:nowrap;">Verify All</span>
+          </label>
+
           <button id="tvm-save-draft-btn"
                   title="Save current verification state as Draft and close"
                   style="background:#e8f5e9; border:1px solid #a5d6a7; color:#2e7d32;
@@ -786,7 +797,7 @@
             💾 Save Draft
           </button>
 
-                    <button id="tvm-undo-all-btn"
+          <button id="tvm-undo-all-btn"
                   title="Undo all verifications - mark all trays as Not Verified"
                   style="background:#fff3e0; border:1px solid #ffcc80; color:#e65100;
                          height:36px; padding:0 16px; border-radius:20px; font-size:12px;

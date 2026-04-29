@@ -1392,11 +1392,14 @@ tr.row-inactive td.action-td {
                                 style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;"
                               >
                                 <textarea
+                                  id="remark-{{ data.stock_lot_id }}"
+                                  class="remark-textarea"
+                                  data-lot-id="{{ data.stock_lot_id }}"
                                   placeholder="Type your remark..."
                                   style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;"
                                   {% if data.Bq_pick_remarks %}readonly{% endif %}
                                   autocomplete="off"
-                                >{{ data.Bq_pick_remarks|default_if_none:"" }}</textarea>
+                                >{% if data.Bq_pick_remarks %}{{ data.Bq_pick_remarks }}{% endif %}</textarea>
                                 <div style="text-align: right; margin-top: -35px">
                                   {% if not data.Bq_pick_remarks %}
                                   <button
@@ -1425,6 +1428,14 @@ tr.row-inactive td.action-td {
                    
                     </tr>
                   {% endfor%}
+                  {% if not master_data %}
+                  <tr>
+                    <td colspan="100" style="text-align: center; padding: 40px; color: #999; font-size: 16px;">
+                      <i class="fa fa-inbox" style="font-size: 48px; margin-bottom: 12px; display: block;"></i>
+                      No lots available for QC. All submitted lots will appear in the Completed table.
+                    </td>
+                  </tr>
+                  {% endif %}
                 </tbody>
               </table>
               <div
@@ -2362,7 +2373,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    // ❌ ERR3 FIX: DO NOT close modal on outside click - only close with explicit button
+    // overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
 
     // ── Open modal from reject button ──
     document.querySelectorAll('.tray-scan-btn').forEach(function(btn) {
@@ -3045,11 +3057,29 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSummary();
           }
 
-          // Focus next available scan input across reject → delink → accept
-          var nextInput = targetContainer.querySelector('.slot-scan-input') ||
-            delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextInput) nextInput.focus();
+          // ✅ ERR1 FIX: After DOM rebuild, find FIRST EMPTY scan input and focus it
+          this.value = '';  // Clear current field
+          console.log('🔍 [ERR1] Tray scanned:', scannedId, '| Type:', slotType, '| Now finding next empty slot...');
+          
+          // Search order: current type → delink → accept → reject
+          var allSlots = document.querySelectorAll('.slot-scan-input');
+          var nextEmptySlot = null;
+          
+          for (var i = 0; i < allSlots.length; i++) {
+            if (!allSlots[i].value || allSlots[i].value.trim() === '') {
+              nextEmptySlot = allSlots[i];
+              console.log('✅ [ERR1] Found empty slot:', allSlots[i]);
+              break;
+            }
+          }
+          
+          if (nextEmptySlot) {
+            console.log('✅ [ERR1] Focusing next empty input field');
+            nextEmptySlot.focus();
+            nextEmptySlot.select();
+          } else {
+            console.log('⚠️ [ERR1] No empty scan slots found - all filled');
+          }
         });
 
         // Auto-trigger at 9 chars — valid moves next, invalid selects for retype

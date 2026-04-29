@@ -4193,6 +4193,13 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  // ═══ ERR3 FIX: Auto-uppercase tray ID inputs in IQF ═══
+  document.addEventListener('input', function(e) {
+    if (e.target && e.target.classList.contains('tray-scan-input')) {
+      e.target.value = e.target.value.toUpperCase();
+    }
+  });
+
   // ═══ TRAY TYPE VALIDATION: Prevent jumbo/normal mismatch ═══
   // Hook into the tray scan input validation - check tray type before accepting
   document.addEventListener('focus', function(e) {

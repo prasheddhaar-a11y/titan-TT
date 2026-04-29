@@ -483,12 +483,28 @@ class BrassAuditCompletedView(APIView):
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             lot_id = data.get('stock_lot_id')
 
-            if brass_qc_accepted_qty and brass_qc_accepted_qty > 0:
-                data['display_accepted_qty'] = brass_qc_accepted_qty
+            # ✅ FIX ERR 2 & ERR 5: Fetch lot qty and quantities dynamically from submission data
+            submission = Brass_Audit_Submission.objects.filter(lot_id=lot_id, is_completed=True).order_by('-created_at').first()
+            if submission:
+                data['display_lot_qty'] = submission.total_lot_qty
+                data['display_accepted_qty'] = submission.accepted_qty
+                data['display_rejected_qty'] = submission.rejected_qty
+                data['submission_type'] = submission.submission_type
+                logger.info(f"[BrassAuditCompleted] Lot {lot_id}: Fetched from submission - lot_qty={submission.total_lot_qty}, accept={submission.accepted_qty}, reject={submission.rejected_qty}")
             else:
-                data['display_accepted_qty'] = 0
+                # Fallback: use brass_qc_accepted_qty
+                if brass_qc_accepted_qty and brass_qc_accepted_qty > 0:
+                    data['display_lot_qty'] = brass_qc_accepted_qty
+                    data['display_accepted_qty'] = data.get('brass_audit_accepted_qty', 0)
+                    data['display_rejected_qty'] = data.get('brass_audit_rejection_qty', 0)
+                else:
+                    data['display_lot_qty'] = 0
+                    data['display_accepted_qty'] = 0
+                    data['display_rejected_qty'] = 0
+                data['submission_type'] = ''
+                logger.warning(f"[BrassAuditCompleted] Lot {lot_id}: No submission found, using fallback values")
 
-            display_qty = data.get('display_accepted_qty', 0)
+            display_qty = data.get('display_lot_qty', 0)
             if tray_capacity > 0 and display_qty > 0:
                 data['no_of_trays'] = math.ceil(display_qty / tray_capacity)
             else:
@@ -507,7 +523,7 @@ class BrassAuditCompletedView(APIView):
             if data.get('brass_audit_physical_qty') and data.get('brass_audit_physical_qty') > 0:
                 data['available_qty'] = data['brass_audit_physical_qty']
             else:
-                data['available_qty'] = data.get('display_accepted_qty', 0)
+                data['available_qty'] = data.get('display_lot_qty', 0)
 
             data['lot_remarks'] = ''
 
@@ -567,8 +583,10 @@ class BrassAuditRejectTableView(APIView):
             'batch_id__location'
         ).filter(
             batch_id__total_batch_quantity__gt=0,
-            brass_audit_rejection=True,
             brass_audit_last_process_date_time__range=(from_datetime, to_datetime)
+        ).filter(
+            # ✅ FIX ERR 2: Include both FULL_REJECT and PARTIAL_REJECT
+            Q(brass_audit_rejection=True) | Q(brass_audit_few_cases_accptance=True)
         ).annotate(
             brass_audit_rejection_qty=brass_audit_rejection_qty_sub,
         )
@@ -633,6 +651,49 @@ class BrassAuditRejectTableView(APIView):
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images
+
+            # ✅ FIX ERR 3: Fetch remarks dynamically from multiple sources
+            lot_id = data.get('stock_lot_id')
+            
+            # Fetch submission data for exact quantities and remarks
+            submission = Brass_Audit_Submission.objects.filter(lot_id=lot_id, is_completed=True).order_by('-created_at').first()
+            if submission:
+                data['display_reject_qty'] = submission.rejected_qty
+                # ✅ Try to get remarks from submission snapshot_data first
+                remarks_from_submission = ''
+                if submission.snapshot_data and submission.snapshot_data.get('remarks'):
+                    remarks_from_submission = submission.snapshot_data.get('remarks', '').strip()
+                logger.info(f"[BrassAuditReject] Lot {lot_id}: Fetched reject qty={submission.rejected_qty}, remarks_from_submission={remarks_from_submission}")
+            else:
+                data['display_reject_qty'] = data.get('brass_audit_rejection_qty', 0)
+                remarks_from_submission = ''
+                logger.warning(f"[BrassAuditReject] Lot {lot_id}: No submission found")
+            
+            # Fetch rejection reasons and remarks
+            reason_store = Brass_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).order_by('-id').first()
+            if reason_store:
+                reasons = reason_store.rejection_reason.all()
+                reason_letters = []
+                for r in reasons:
+                    if r.rejection_reason:
+                        reason_letters.append(r.rejection_reason[0].upper())
+                data['rejection_reason_letters'] = reason_letters
+                data['batch_rejection'] = reason_store.batch_rejection
+                # ✅ Use reason store remarks if submission remarks is empty
+                data['lot_rejected_comment'] = reason_store.lot_rejected_comment or remarks_from_submission or ''
+            else:
+                data['rejection_reason_letters'] = []
+                data['batch_rejection'] = False
+                # ✅ Use submission remarks as fallback
+                data['lot_rejected_comment'] = remarks_from_submission or ''
+            
+            # Calculate no of trays based on reject qty
+            reject_qty = data.get('display_reject_qty', 0)
+            tray_capacity = data.get('tray_capacity', 0)
+            if tray_capacity > 0 and reject_qty > 0:
+                data['no_of_trays'] = math.ceil(reject_qty / tray_capacity)
+            else:
+                data['no_of_trays'] = 0
 
             master_data.append(data)
 
@@ -2006,56 +2067,62 @@ class RejectTableTrayIdListAPIView(APIView):
             return Response({"success": False, "error": "Lot ID is required"}, status=400)
 
         try:
-            main_trays = TrayId.objects.filter(lot_id=lot_id, brass_rejected_tray=True)
-            brass_audit_trays = BrassAuditTrayId.objects.filter(lot_id=lot_id, rejected_tray=True)
-
             all_trays = []
-
-            for tray in main_trays:
-                tray_data = {
-                    "tray_id": tray.tray_id,
-                    "tray_quantity": tray.tray_quantity,
-                    "rejected_tray": True,
-                    "delink_tray": getattr(tray, 'delink_tray', False),
-                    "source": "main_table",
-                }
-                all_trays.append(tray_data)
-
-            for tray in brass_audit_trays:
-                exists_in_main = any(t['tray_id'] == tray.tray_id for t in all_trays)
-                if not exists_in_main:
-                    tray_data = {
-                        "tray_id": tray.tray_id,
-                        "tray_quantity": tray.tray_quantity,
-                        "rejected_tray": tray.rejected_tray,
-                        "delink_tray": getattr(tray, 'delink_tray', False),
-                        "source": "brass_audit_table",
-                    }
-                    all_trays.append(tray_data)
-
             is_lot_rejection = False
             lot_rejection_comment = ''
 
-            if not all_trays:
-                batch_rejection_store = Brass_Audit_Rejection_ReasonStore.objects.filter(
-                    lot_id=lot_id, batch_rejection=True
-                ).first()
-                if batch_rejection_store:
-                    is_lot_rejection = True
-                    lot_rejection_comment = batch_rejection_store.lot_rejected_comment or ''
+            # ✅ FIX ERR 2: Use submission data as authoritative source for rejected trays
+            submission = Brass_Audit_Submission.objects.filter(
+                lot_id=lot_id, is_completed=True
+            ).order_by('-created_at').first()
 
-                if not all_trays:
-                    trays_qs = TrayId.objects.filter(lot_id=lot_id).exclude(delink_tray=True).order_by('id')
-                    for index, tray in enumerate(trays_qs, start=1):
-                        qty_val = getattr(tray, 'tray_quantity', None) or getattr(tray, 'tray_capacity', None) or 0
-                        all_trays.append({
-                            "s_no": index,
+            if submission and submission.rejected_qty > 0:
+                # Extract rejected trays from submission data
+                rejected_data = submission.partial_reject_data or submission.full_reject_data or {}
+                rejected_trays_list = rejected_data.get('trays', [])
+
+                for tray in rejected_trays_list:
+                    tray_data = {
+                        "tray_id": tray.get('tray_id'),
+                        "tray_quantity": tray.get('qty', 0),
+                        "rejected_tray": True,
+                        "delink_tray": tray.get('is_delinked', False),
+                        "source": "submission_data",
+                    }
+                    all_trays.append(tray_data)
+                logger.info(f"[RejectTable] Lot {lot_id}: Fetched {len(all_trays)} rejected trays from submission")
+            else:
+                # Fallback to database queries if submission not found
+                main_trays = TrayId.objects.filter(lot_id=lot_id, brass_rejected_tray=True)
+                brass_audit_trays = BrassAuditTrayId.objects.filter(lot_id=lot_id, rejected_tray=True)
+
+                for tray in main_trays:
+                    tray_data = {
+                        "tray_id": tray.tray_id,
+                        "tray_quantity": tray.tray_quantity,
+                        "rejected_tray": True,
+                        "delink_tray": getattr(tray, 'delink_tray', False),
+                        "source": "main_table",
+                    }
+                    all_trays.append(tray_data)
+
+                for tray in brass_audit_trays:
+                    exists_in_main = any(t['tray_id'] == tray.tray_id for t in all_trays)
+                    if not exists_in_main:
+                        tray_data = {
                             "tray_id": tray.tray_id,
-                            "tray_quantity": qty_val,
-                            "rejected_tray": True,
-                            "delink_tray": False,
-                            "source": "TrayId_fallback",
-                        })
+                            "tray_quantity": tray.tray_quantity,
+                            "rejected_tray": tray.rejected_tray,
+                            "delink_tray": getattr(tray, 'delink_tray', False),
+                            "source": "brass_audit_table",
+                        }
+                        all_trays.append(tray_data)
+
+            # Fetch rejection reasons and remarks
+            reason_store = Brass_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).order_by('-id').first()
+            if reason_store:
+                is_lot_rejection = reason_store.batch_rejection
+                lot_rejection_comment = reason_store.lot_rejected_comment or ''
 
             return Response({
                 "success": True,
@@ -2065,6 +2132,7 @@ class RejectTableTrayIdListAPIView(APIView):
                 "lot_rejection_comment": lot_rejection_comment,
             })
         except Exception as e:
+            logger.error(f"[RejectTable] Error fetching trays for lot {lot_id}: {e}")
             traceback.print_exc()
             return Response({"success": False, "error": str(e)}, status=500)
 

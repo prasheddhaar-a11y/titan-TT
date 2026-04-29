@@ -649,6 +649,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               <table id="order-listing" class="table">
                 <thead>
                   <tr>
+                    <!-- ERR3 FIX: Rearranged columns as per required order -->
                     <th class="sortable" data-column-index="1">
                       S.No <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
@@ -660,55 +661,22 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Plating <br> Stk No
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
-                    <th class="sortable" data-column-index="4">
-                      Polishing Stk No
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    <th>
+                      Action <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th class="sortable" data-column-index="5">
-                      Plating Color
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="6">
-                      Category
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="7">
-                      Polish Finish
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-
-                     <th class="sortable" data-column-index="8">
-                      Tray Cate- <br> Capacity
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="9">
-                      Input Source
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="10">
                       No of Trays <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
-                    <th class="sortable" data-column-index="11">
+                    <th class="sortable" data-column-index="6">
                       Lot Qty
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
-                    <th class="sortable" data-column-index="12">
-                      Physical Qty
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="13">
+                    <th class="sortable" data-column-index="7">
                       Accept Qty
                       <i class="fa fa-sort" aria-hidden="true"></i>
-                      </th>
-                    <th class="sortable" data-column-index="14">
+                    </th>
+                    <th class="sortable" data-column-index="8">
                       Reject Qty<i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Process Status
-                      <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Action <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th>
                       Lot <br> Status
@@ -719,16 +687,20 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Remarks <i class="fa fa-sort" aria-hidden="true"></i>
+                      Process Status
+                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    </th>
+                    <th class="sortable" data-column-index="4">
+                      Tray Cate- <br> Capacity
+                      <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
                    
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- Row 1 - Highlighted -->
+                  <!-- ERR3 FIX: Reordered tbody cells to match new header order -->
                    {% for data in master_data %}
 
-                  <!-- Update the table row to include brass QC status data attributes -->
                   <tr class="highlighted-tray-scan" 
                       data-batch-id="{{data.batch_id}}" 
                       data-stock-lot-id="{{ data.stock_lot_id }}"
@@ -737,40 +709,33 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       data-brass-qc-accptance="{{ data.brass_audit_accptance|yesno:'true,false' }}"
                       data-brass-qc-rejection="{{ data.brass_audit_rejection|yesno:'true,false' }}"
                       data-brass-qc-few-cases-accptance="{{ data.brass_audit_few_cases_accptance|yesno:'true,false' }}">
-                      <td {% if data.brass_hold_lot %} class="row-inactive-blur"{% endif %}>
-                    <span style="display:flex; align-items:center; gap:3px;">
-                     
-                    
-                      <span class="sno-value">{{ page_obj.start_index|add:forloop.counter0 }}</span>
-                    </span>
-                    {% if data.iqf_acceptance or data.send_brass_qc %}
-                      <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
+                      
+                    <!-- 1. S.No -->
+                    <td {% if data.brass_hold_lot %} class="row-inactive-blur"{% endif %}>
+                      <span style="display:flex; align-items:center; gap:3px;">
+                        <span class="sno-value">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+                      </span>
+                      {% if data.iqf_acceptance or data.send_brass_qc %}
+                        <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
                       {% endif %}
-                  </td>  
+                    </td>  
                     
-                    
+                    <!-- 2. Last Updated -->
                     <td style="white-space:normal;word-break:break-all;">
-                              {{ data.brass_audit_last_process_date_time|date:"d-M-y"  }}<br>
-                        <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.brass_audit_last_process_date_time|date:"h:i A" }}</span>
-                        </td>
-                                        <td >
+                      {{ data.brass_audit_last_process_date_time|date:"d-M-y" }}<br>
+                      <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.brass_audit_last_process_date_time|date:"h:i A" }}</span>
+                    </td>
+                    
+                    <!-- 3. Plating Stk No -->
+                    <td>
                       <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
-                          
-                          <!-- Header with Info and Close buttons - Initially hidden -->
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <button class="info-btn" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
-                              Info
-                            </button>
-                            <button class="close-btn" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
-                               Close
-                            </button>
+                            <button class="info-btn" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">Info</button>
+                            <button class="close-btn" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">Close</button>
                           </div>
-
-                          <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
-                            <!-- Hide scroll buttons since only one image is shown -->
                             <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
                               <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
                             </div>
@@ -778,263 +743,93 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         </div>
                       </span>
                     </td>
-                    <td >{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
-
-                    <td >{{ data.plating_color }}</td>
-                    <td >{{ data.category }}</td>
-                    <td >{{data.polish_finish}}</td>
-                    <td >{{data.tray_type}}-{{data.tray_capacity}}</td>
-                    <td >{{data.location__location_name}}</td>
                     
-                    <td >{{data.no_of_trays}}</td>
+                    <!-- 4. Action (Eye icon + status badges) -->
+                    <td>
+                      {% if data.brass_audit_accptance %}
+                        <span class="status-badge accepted" style="background-color: #66bb6a; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                          <i class="fa fa-check-circle"></i>Accepted
+                        </span>
+                      {% elif data.brass_audit_rejection %}
+                        <span class="status-badge rejected" style="background-color: #e57373; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                          <i class="fa fa-times-circle"></i>Rejected
+                        </span>
+                      {% elif data.brass_audit_few_cases_accptance %}
+                        <span class="status-badge partial-rejected" style="background-color: #fb9393; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                          <i class="fa fa-adjust"></i>Partial Rejected
+                        </span>
+                      {% endif %}
+                      <a href="#" title="View" class="text-primary tray-scan-btn-BQ-view tray-scan-btn-Jig" style="text-decoration: underline"
+                         data-stock-lot-id="{{ data.stock_lot_id }}" data-batch-id="{{ data.batch_id }}" data-model-no="{{ data.plating_stk_no }}"
+                         data-no-of-trays="{{ data.no_of_trays }}" data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
+                         data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}" data-model-image="{{ data.model_images.0|default:'' }}"
+                         data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
+                         data-brass-qc-accptance="{{ data.brass_audit_accptance|yesno:'true,false' }}"
+                         data-brass-qc-rejection="{{ data.brass_audit_rejection|yesno:'true,false' }}"
+                         data-brass-qc-few-cases-accptance="{{ data.brass_audit_few_cases_accptance|yesno:'true,false' }}"
+                         data-total-batch-quantity="{{ data.brass_audit_physical_qty }}"
+                         data-missing-qty="{{ data.brass_audit_missing_qty|default:'' }}"
+                         data-physical-qty="{{ data.brass_audit_physical_qty|default:'' }}">
+                        <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
+                      </a>
+                    </td>
+                    
+                    <!-- 5. No of Trays -->
+                    <td>{{data.no_of_trays}}</td>
+                    
+                    <!-- 6. Lot Qty -->
                     <td>
                       <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_lot_qty }}</span>
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        <input type="checkbox"
-                                class="brass-checkbox"
-                                data-lot-id="{{ data.stock_lot_id }}"
-                                style="width: 15px; height: 15px"
-                                {% if data.brass_audit_accepted_qty_verified %}checked disabled{% endif %} />
-                        <input type="text"
-                                class="missing-qty-input"
-                                value="{{ data.brass_audit_missing_qty|default_if_none:'' }}"
-                                style="width: 36px; padding: 1px 3px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;"
-                                {% if data.brass_audit_accepted_qty_verified %}disabled{% endif %} />
-                      </span>
                     </td>
-                    <td>{{data.brass_audit_physical_qty}}</td>
 
-                    <td >
-                        {{ data.brass_audit_accepted_qty|default:0 }}    
+                    <!-- 7. Accept Qty -->
+                    <td>{{ data.display_accepted_qty|default:0 }}</td>
+                    
+                    <!-- 8. Reject Qty -->
+                    <td>{{ data.display_rejected_qty|default:0 }}</td>
+                    
+                    <!-- 9. Lot Status (Released/Yet to release) -->
+                    <td>
+                      {% if data.iqf_accepted_qty_verified or data.brass_qc_accepted_qty_verified %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                             style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
+                          Released
+                        </div>
+                      {% else %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                             style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">
+                          Yet to release
+                        </div>
+                      {% endif %}
                     </td>
-                    <td >
-                        {{ data.brass_rejection_qty|default:0 }}
+                    
+                    <!-- 10. Current Stage -->
+                    <td>
+                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                           style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
+                        <!-- ERR2 FIX: Set Current Stage to 'Brass Audit' -->
+                        Brass Audit
+                      </div>
                     </td>
-                    <!-- Process Status Column -->
-                    <td >
+                    
+                    <!-- 11. Process Status (Q and QC circles) -->
+                    <td>
                       <div class="d-flex">
-                        <!-- Q: Green if brass_audit_accepted_qty_verified, else gray -->
-                        <div
-                          data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quantity"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            background-color: {% if data.brass_audit_accepted_qty_verified %}#0c8249{% else %}#bdbdbd{% endif %};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding-top: 1px;
-                            padding-right: 1px;
-                          "
-                        >
+                        <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quantity"
+                             class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                             style="width: 25px; height: 25px; background-color: {% if data.brass_audit_accepted_qty_verified %}#0c8249{% else %}#bdbdbd{% endif %}; color: white; font-weight: bold; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
                           Q
                         </div>
-                        <!-- QC: Green if brass_audit_rejection or brass_audit_accptance, else gray -->
-                        <div
-                          data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quality Check"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            background-color: {% if data.brass_audit_rejection or data.brass_audit_accptance or data.brass_audit_few_cases_accptance %}#0c8249{% else %}#bdbdbd{% endif %};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding-top: 1px;
-                            padding-right: 1px;
-                          "
-                        >
+                        <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quality Check"
+                             class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                             style="width: 25px; height: 25px; background-color: {% if data.brass_audit_rejection or data.brass_audit_accptance or data.brass_audit_few_cases_accptance %}#0c8249{% else %}#bdbdbd{% endif %}; color: white; font-weight: bold; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
                           QC
                         </div>
                       </div>
                     </td>
-                    <td >
-                      <!-- Acceptance/Rejection Status -->
-                      
-
-                      <!-- Status Display (Simplified) -->
-                      {% if data.brass_audit_accptance %}
-                        <!-- Show "Accepted" status -->
-                        <span class="status-badge accepted" style="
-                          background-color: #66bb6a; 
-                          color: white; 
-                          padding: 6px 12px; 
-                          border-radius: 20px; 
-                          font-size: 12px; 
-                          font-weight: 600;
-                          display: inline-flex;
-                          align-items: center;
-                          gap: 4px;
-                        ">
-                          <i class="fa fa-check-circle"></i>Accepted
-                        </span>
-
-                      {% elif data.brass_audit_rejection %}
-                        <!-- Show "Rejected" status -->
-                        <span class="status-badge rejected" style="
-                          background-color: #e57373; 
-                          color: white; 
-                          padding: 6px 12px; 
-                          border-radius: 20px; 
-                          font-size: 12px; 
-                          font-weight: 600;
-                          display: inline-flex;
-                          align-items: center;
-                          gap: 4px;
-                        ">
-                          <i class="fa fa-times-circle"></i>Rejected
-                        </span>
-
-                      {% elif data.brass_audit_few_cases_accptance %}
-                        <!-- Show "Partial Reject" status -->
-                        <span class="status-badge partial-rejected" style="
-                          background-color: #fb9393; 
-                          color: white; 
-                          padding: 6px 12px; 
-                          border-radius: 20px; 
-                          font-size: 12px; 
-                          font-weight: 600;
-                          display: inline-flex;
-                          align-items: center;
-                          gap: 4px;
-                        ">
-                          <i class="fa fa-adjust"></i>Partial Rejected
-                        </span>
-
-                      {% endif %}
-                      <!-- Eye icon to view submitted "Tray Scan Table" -->
-                          <a href="#"
-                             title="View"
-                             class="text-primary tray-scan-btn-BQ-view tray-scan-btn-Jig"
-                             style="text-decoration: underline"
-                             data-stock-lot-id="{{ data.stock_lot_id }}"
-                             data-batch-id="{{ data.batch_id }}"
-                             data-model-no="{{ data.plating_stk_no }}"
-                             data-no-of-trays="{{ data.no_of_trays }}"
-                             data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
-                             data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
-                             data-model-image="{{ data.model_images.0|default:'' }}"
-                             data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
-                             data-brass-qc-accptance="{{ data.brass_audit_accptance|yesno:'true,false' }}"
-                             data-brass-qc-rejection="{{ data.brass_audit_rejection|yesno:'true,false' }}"
-                             data-brass-qc-few-cases-accptance="{{ data.brass_audit_few_cases_accptance|yesno:'true,false' }}"
-                                data-total-batch-quantity="{{ data.brass_audit_physical_qty }}"
-                                data-missing-qty="{{ data.brass_audit_missing_qty|default:'' }}"
-                                data-physical-qty="{{ data.brass_audit_physical_qty|default:'' }}">
-
-                            <img src="{% static 'assets/icons/view.png' %}"
-                                 alt="View"
-                                 style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
-                          </a>
-                    </td>
-                    <td>
-                      {% if data.iqf_accepted_qty_verified or data.brass_qc_accepted_qty_verified %}
-                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                            style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Released
-                        </div>
-
-                      {% else %}
-                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                            style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Yet to release
-                      </div>
-                      {% endif %}
-                    </td>
-                    <td >
-                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
-                        {{ data.last_process_module|default:"N/A" }}
-                      </div>
-                    </td>
-                    <td >
-                      {% if not data.brass_audit_accptance and not data.brass_audit_rejection and not data.brass_accepted_tray_scan_status and not data.brass_audit_few_cases_accptance %}
-
-                      <!-- VoiceRec with tooltip (audio remark) -->
-                        <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
-                          <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec" style="width: 20px; height: 20px"/>
-                          <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-                            
-                            <!-- Audio recording UI placeholder -->
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                              <button type="button" style="background: #28a745; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa fa-microphone"></i>
-                              </button>
-                              <span style="font-size: 14px; color: #333;">Hold to record audio</span>
-                            </div>
-                            <div style="text-align: right; margin-top: 10px;">
-                              <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                <i class="fa fa-send"></i>
-                              </button>
-                            </div>
-                          </div>
-                        </a>
-
-                                            <a
-                        href="#"
-                        title="Add Remark"
-                        class="remark-tooltip-trigger"
-                        style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
-                      >
-                        <img
-                          src="{% static 'assets/icons/chat_icon.png' %}"
-                          alt="Chat"
-                          style="width: 20px; height: 20px"
-                        />
-                        <div
-                          class="remark-tooltip"
-                          style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;"
-                        >
-                          <div
-                            style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 10px solid #fff;"
-                          ></div>
-                          <textarea
-                            placeholder="Type your remark..."
-                            style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;"
-                            {% if data.BA_pick_remarks %}readonly{% endif %}
-                          >{{ data.BA_pick_remarks|default_if_none:"" }}</textarea>
-                          <div style="text-align: right; margin-top: -35px">
-                            {% if not data.BA_pick_remarks %}
-                            <button
-                              type="button"
-                              style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;"
-                            >
-                              <i class="fa fa-send"></i>
-                            </button>
-                            {% else %}
-                            <div style="margin-top: 40px; color: #31708f; background: #d9edf7; border: 1px solid #bce8f1; border-radius: 4px; padding: 8px 12px; font-size: 10px; text-align: left;">
-                              <i class="fa fa-info-circle" style="margin-right: 6px;"></i>
-                              Remark already saved and cannot be edited.
-                            </div>
-                            {% endif %}
-                          </div>
-                        </div>
-                      </a>
-                       {% else %}
-                      {% if data.lot_rejected_comment %}
-                      <!-- Lot rejection remark info icon with tooltip -->
-                      <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
-                        <i class="fa fa-info-circle" style="color: #e53935; font-size: 18px;"></i>
-                        <div class="remark-tooltip" style="position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); min-width: 220px; max-width: 300px; background: #fff; border: 1px solid #e53935; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 10px; z-index: 1000; white-space: normal;">
-                          <div style="font-size: 12px; color: #c62828; font-weight: 600; margin-bottom: 4px;"><i class="fa fa-exclamation-circle"></i> Lot Rejection Remark</div>
-                          <div style="font-size: 13px; color: #333;">{{ data.lot_rejected_comment }}</div>
-                        </div>
-                      </span>
-                      {% else %}
-                      <!-- Audio Remark Icon (disabled) -->
-                      <span title="Disabled after moved" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; opacity: 0.5; pointer-events: none;">
-                        <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
-                      </span>
-                      <!-- Chat Remark Icon (disabled) -->
-                      <span title="Disabled after moved" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; opacity: 0.5; pointer-events: none;">
-                        <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
-                      </span>
-                      {% endif %}
-                    {% endif %}
-                    </td>
+                    
+                    <!-- 12. Tray Cate-Capacity -->
+                    <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
                    
                   </tr>
                   {% endfor%}
@@ -1855,30 +1650,35 @@ document.addEventListener("DOMContentLoaded", function () {
           let traysData = [];
           let rejectionSummary = {};
           try {
-            // ✅ FIX: Use RejectTable endpoint for rejected lots
+            // ✅ FIX ERR 4: Use correct endpoint for tray details
             let endpoint;
             if (brassQcRejection && !brassQcFewCasesAccptance) {
               // Pure rejection - use RejectTable endpoint
               endpoint = `/brass_audit/RejectTable_tray_id_list/?lot_id=${stockLotId}`;
               console.log('🔴 Fetching REJECTED trays for lot:', stockLotId);
             } else {
-              // Accepted or partial rejection - use AfterCheck endpoint
-              const params = new URLSearchParams({
-                batch_id: batchId,
-                stock_lot_id: stockLotId,
-                lot_id: stockLotId,
-                brass_audit_accptance: brassQcAccptance,
-                brass_audit_rejection: brassQcRejection,
-                brass_audit_few_cases_accptance: brassQcFewCasesAccptance
-              });
-              endpoint = `/brass_audit/AfterCheck_pick_CompleteTable_tray_id_list/?${params}`;
+              // Accepted or partial rejection - use correct tray details endpoint
+              endpoint = `/brass_audit/get_tray_details_for_modal/?lot_id=${stockLotId}`;
               console.log('🟢 Fetching ACCEPTED/PARTIAL trays for lot:', stockLotId);
             }
             
             const resp = await fetch(endpoint);
             const result = await resp.json();
             if (result.success) {
-              traysData = result.trays || [];
+              // ✅ FIX ERR 1: Handle both response formats and mark rejected trays properly
+              if (result.accepted_trays) {
+                // New format from get_tray_details_for_modal
+                traysData = [...(result.accepted_trays || [])];
+                // ✅ CRITICAL: Mark rejected trays with rejected_tray: true so JS knows they're rejected
+                if (result.rejected_trays && result.rejected_trays.length > 0) {
+                  const rejectedWithFlag = result.rejected_trays.map(t => ({...t, rejected_tray: true}));
+                  traysData.push(...rejectedWithFlag);
+                  console.log('✅ Marked rejected trays with rejected_tray flag:', rejectedWithFlag);
+                }
+              } else if (result.trays) {
+                // Old format from RejectTable endpoint
+                traysData = result.trays || [];
+              }
               rejectionSummary = result.rejection_summary || {};
               console.log('✅ Fetched trays with rejection data:', traysData);
               console.log('📊 Rejection summary:', rejectionSummary);
@@ -1944,7 +1744,7 @@ document.addEventListener("DOMContentLoaded", function () {
                       <td>${displaySNo}</td>
                       <td>
                         <input type="text" class="form-control" value="${tray.tray_id || ''}" readonly style="width: 100%;" />
-                        <span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">ACCEPTED</span>
+                        <span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">✅ ACCEPTED</span>
                       </td>
                       <td>
                         <input type="number" class="form-control" value="${displayQuantity || ''}" readonly style="width: 100%;" />

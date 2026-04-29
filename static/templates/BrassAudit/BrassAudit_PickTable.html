@@ -1571,6 +1571,8 @@ tr.row-inactive td.action-td {
           <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:13px;">
             <span>Plating Stk No: <strong id="rejectModalPlatingStk" style="color:#028084;"></strong></span>
             <span>Total Lot Qty: <strong id="rejectModalTotalQty" style="color:#e67e22;"></strong></span>
+            <!-- ERR2 FIX: AQL Limit Info Display -->
+            <span style="color:#666;">AQL Limit: <strong id="rejectModalAQLLimit" style="color:#e67e22;">0</strong></span>
             <label style="margin-left:auto; display:flex; align-items:center; gap:6px; cursor:pointer;">
               <input type="checkbox" id="fullLotRejectionCb" />
               <span style="font-weight:600; color:#c62828;">Full Lot Rejection</span>
@@ -2187,16 +2189,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Close on backdrop click
-  const modal = document.getElementById('trayScanModal_DayPlanning');
-  if (modal) {
-    modal.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        modal.style.display = 'none';
-        modal.classList.remove('open');
-      }
-    });
-  }
+  // ERR1 FIX: Prevent modal close on backdrop click
+  // const modal = document.getElementById('trayScanModal_DayPlanning');
+  // if (modal) {
+  //   modal.addEventListener('click', function(event) {
+  //     if (event.target === modal) {
+  //       modal.style.display = 'none';
+  //       modal.classList.remove('open');
+  //     }
+  //   });
+  // }
 
   // ══════════ BRASS QC REJECT FLOW (Slot-Based Allocation UI) ══════════
   (function initRejectFlow() {
@@ -2275,6 +2277,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Populate header
         document.getElementById('rejectModalPlatingStk').textContent = modelNo;
         document.getElementById('rejectModalTotalQty').textContent = _totalQty;
+        // ERR2 FIX: Display AQL Limit in modal header
+        document.getElementById('rejectModalAQLLimit').textContent = _aqlLimit;
 
         // Reset state
         fullLotCb.checked = false;
@@ -2866,6 +2870,13 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       // Attach scan input handlers (ERR2 validation, ERR3 auto-focus)
+      // ── ERR1 FIX: Auto-uppercase all tray ID inputs ──
+      container.querySelectorAll('.slot-scan-input, .slot-edit-input, .delink-scan-input').forEach(function(inp) {
+        inp.addEventListener('input', function() {
+          this.value = this.value.toUpperCase();
+        });
+      });
+
       // ── Helper: build original tray ID map ──
       function getOriginalIds() {
         var m = {};

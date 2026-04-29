@@ -790,7 +790,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                   <!-- Action (with View icon) -->
                   <td>
                     <span style="opacity:0.5; pointer-events:none; display:inline-block;">
-                      <img src="{% static 'assets/icons/edit1.png' %}" alt="Edit Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" />
+                      <!-- <img src="{% static 'assets/icons/edit1.png' %}" alt="Edit Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" /> -->
                     </span>
                     <span style="opacity:0.5; pointer-events:none; display:inline-block;">
                       <img src="{% static 'assets/icons/bin.png' %}" alt="Delete Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" />
@@ -1834,10 +1834,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const trayCapacity = link.getAttribute('data-tray-capacity') || "";
       const lotStatus = link.getAttribute('data-lot-status'); // NEW: Get lot status
       
-      // Get total batch quantity from the row
-      const row = link.closest('tr');
-      const inputQtyCell = row ? row.cells[11] : null;
-      const totalBatchQuantity = inputQtyCell ? inputQtyCell.textContent.trim() : "0";
+      // ✅ FIX: Get total batch quantity from data attribute (not cell index which is unreliable)
+      const totalBatchQuantity = link.getAttribute('data-total-batch-quantity') || "0";
       
       let trayQtyList = [];
       try {

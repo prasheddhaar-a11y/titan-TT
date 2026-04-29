@@ -1372,6 +1372,139 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   };
+  // ─── Verify All trays ──────────────────────────────────────────────────────
+  function tvmVerifyAll() {
+    var lotId = window._tvmCurrentLotId;
+    if (!lotId) return;
+    
+    // Get all trays
+    var trays = window._tvmTrays || [];
+    var unverifiedTrays = trays.filter(function(t) { return !t.is_verified; });
+    
+    if (unverifiedTrays.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "All Verified",
+        text: "All trays are already verified.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      return;
+    }
+    
+    // Confirm before verifying all
+    if (window.Swal) {
+      Swal.fire({
+        title: 'Verify All Trays?',
+        text: 'This will verify all ' + unverifiedTrays.length + ' unverified trays at once.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Verify All',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#1976d2',
+        cancelButtonColor: '#6c757d',
+        focusCancel: false,
+      }).then(function(result) {
+        if (result.isConfirmed) {
+          _performVerifyAll(lotId, unverifiedTrays);
+        }
+      });
+    } else {
+      if (confirm('Verify all ' + unverifiedTrays.length + ' trays?')) {
+        _performVerifyAll(lotId, unverifiedTrays);
+      }
+    }
+  }
+  
+  function _performVerifyAll(lotId, unverifiedTrays) {
+    var cb = document.getElementById("tvm-verify-all-cb");
+    if (cb) cb.disabled = true;
+    
+    tvmSetActivity("info", "Verifying all trays... (0/" + unverifiedTrays.length + ")");
+    tvmSetRunningInfo("Verifying: 0/" + unverifiedTrays.length);
+    
+    var verified = 0;
+    var failed = [];
+    
+    // Verify trays sequentially
+    function verifyNextTray(index) {
+      if (index >= unverifiedTrays.length) {
+        // All done
+        if (failed.length > 0) {
+          Swal.fire({
+            icon: "warning",
+            title: "Partial Success",
+            text: "Verified " + verified + " tray(s), but " + failed.length + " failed:\n" + failed.join(", "),
+            timer: 3000,
+            timerProgressBar: true,
+          });
+        } else {
+          Swal.fire({
+            icon: "success",
+            title: "All Verified!",
+            text: "All " + unverifiedTrays.length + " trays have been verified.",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        }
+        tvmSetActivity("success", "Verify All completed ✓");
+        tvmLoadTrays(lotId); // Reload to refresh status
+        var cb = document.getElementById("tvm-verify-all-cb");
+        if (cb) { cb.checked = false; cb.disabled = false; }
+        return;
+      }
+      
+      var tray = unverifiedTrays[index];
+      
+      fetch("/inputscreening/verify_tray/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": tvmGetCookie("csrftoken"),
+        },
+        body: JSON.stringify({ lot_id: lotId, tray_id: tray.tray_id }),
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            verified++;
+            // Update badge and stats
+            var sid = tvmSafeId(tray.tray_id);
+            var badge = document.getElementById("tvm-badge-" + sid);
+            if (badge) {
+              badge.style.cssText = VERIFIED_BADGE_STYLE;
+              badge.textContent = "Verified ✅";
+            }
+            tvmUpdateStats(
+              data.verified,
+              data.total,
+              data.pending,
+              data.verified_qty,
+              data.total_qty,
+            );
+            tvmSetActivity("info", "Verifying... (" + verified + "/" + unverifiedTrays.length + ")");
+            tvmSetRunningInfo("Verified: " + verified + "/" + unverifiedTrays.length);
+            
+            // Update local tray store
+            if (window._tvmTrays) {
+              var tr = window._tvmTrays.find(function(t) { return t.tray_id === tray.tray_id; });
+              if (tr) tr.is_verified = true;
+            }
+          } else {
+            failed.push(tray.tray_id);
+          }
+          
+          // Continue with next tray
+          setTimeout(function() { verifyNextTray(index + 1); }, 300);
+        })
+        .catch(function() {
+          failed.push(tray.tray_id);
+          setTimeout(function() { verifyNextTray(index + 1); }, 300);
+        });
+    }
+    
+    verifyNextTray(0);
+  }
   // ─── Load trays from backend ───────────────────────────────────────────────
   function tvmLoadTrays(lotId) {
     const tbody = document.getElementById("tvm-tray-tbody");
@@ -1675,6 +1808,16 @@ document.addEventListener("DOMContentLoaded", function () {
       if (modal && modal.style.display !== "none") tvmClose();
     }
   });
+  // ─── Event: Verify All checkbox ────────────────────────────────────────────
+  const tvmVerifyAllCb = document.getElementById("tvm-verify-all-cb");
+  if (tvmVerifyAllCb) {
+    tvmVerifyAllCb.addEventListener("change", function(e) {
+      if (this.checked) {
+        this.checked = false; // Uncheck immediately
+        tvmVerifyAll(); // Show confirmation and proceed
+      }
+    });
+  }
   // ─── Event: Undo All button ────────────────────────────────────────────────
   var tvmUndoAllBtn = document.getElementById("tvm-undo-all-btn");
   if (tvmUndoAllBtn) tvmUndoAllBtn.addEventListener("click", tvmUndoAll);

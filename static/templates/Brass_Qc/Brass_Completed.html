@@ -1359,7 +1359,7 @@
                                   {% endif %}
                                 </div>
                                 {% else %}
-                                <span style="color: #7f8c8d; font-size: 12px; font-weight: 500;">No Rejections Remarks</span>
+                                <span style="color: #7f8c8d; font-size: 12px; font-weight: 500; word-wrap: break-word; word-break: break-word; white-space: normal; max-width: 150px;">No Rejections Remarks</span>
                                 {% endif %}
                                 <!-- Lot Rejection Remark - shown as info icon with hover tooltip -->
                                 {% if data.lot_remarks %}
@@ -3695,10 +3695,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.tray-scan-btn-BQ-view').forEach(function(viewBtn) {
         viewBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('🔍 Tray view button clicked');
 
             // Extract data from the clicked element
             const lotId = this.getAttribute('data-stock-lot-id');
+            console.log('🔍 [BRASS_QC_VIEW] Tray view button clicked - lot_id:', lotId);
             const batchId = this.getAttribute('data-batch-id');
             const modelNo = this.getAttribute('data-model-no');
             const trayCapacity = this.getAttribute('data-tray-capacity') || '0';

@@ -3162,6 +3162,10 @@ class CompletedTrayIdListAPIView(APIView):
         if not batch_id:
             return JsonResponse({'success': False, 'error': 'Missing batch_id'}, status=400)
         
+        # ✅ FIX: Fetch lot quantity from ModelMasterCreation
+        batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
+        lot_quantity = batch_obj.total_batch_quantity if batch_obj else 0
+        
         top_tray = DPTrayId_History.objects.filter(
             batch_id__batch_id=batch_id,
             top_tray=True,
@@ -3195,7 +3199,9 @@ class CompletedTrayIdListAPIView(APIView):
                 'is_top_tray': False,
                 'delink_tray': tray.delink_tray,  # <-- ADD THIS
             })
-        return JsonResponse({'success': True, 'trays': data})
+        
+        # ✅ FIX: Include lot quantity in response
+        return JsonResponse({'success': True, 'trays': data, 'lot_quantity': lot_quantity})
    
 @method_decorator(csrf_exempt, name='dispatch')
 class TrayAutoSaveAPIView(APIView):

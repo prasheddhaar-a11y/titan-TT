@@ -306,9 +306,23 @@ class BrassPickTableView(APIView):
             'brass_rejection_reasons': brass_rejection_reasons,
             'pick_table_count': len(master_data),
         }
+        
+        # ✅ ERR4 FIX: Display FULL lot IDs in backend console
+        if master_data:
+            lot_ids = [data.get('stock_lot_id', 'UNKNOWN') for data in master_data]
+            logger.info(f"\n{'='*80}")
+            logger.info(f"[BrassPickTable] PICK TABLE RENDER - Page {page_number}/{paginator.num_pages}")
+            logger.info(f"[BrassPickTable] Total Lots: {len(master_data)}")
+            logger.info(f"[BrassPickTable] Lot IDs:")
+            for i, lot_id in enumerate(lot_ids, 1):
+                logger.info(f"  {i}. {lot_id}")
+            logger.info(f"{'='*80}\n")
+        else:
+            logger.info(f"[BrassPickTable] No lots in pick table")
+        
         return Response(context, template_name=self.template_name)
 
-# Brass 
+# Brass QC Complete Table View
 @method_decorator(login_required, name='dispatch')
 class BrassCompletedView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
@@ -445,6 +459,31 @@ class BrassCompletedView(APIView):
                 data['available_qty'] = data.get('display_accepted_qty', 0)
 
             data['lot_remarks'] = ''
+            
+            # ── Fetch rejection remarks and lot remarks from Brass_QC_Submission ──
+            submission = get_completed_submission(lot_id)
+            if submission:
+                # Fetch rejection remarks from snapshot_data
+                rejection_reasons_list = []
+                if submission.snapshot_data and submission.snapshot_data.get('rejection_reasons'):
+                    for reason_dict in submission.snapshot_data['rejection_reasons']:
+                        reason_id = reason_dict.get('reason_id', '')
+                        qty = reason_dict.get('qty', 0)
+                        # Look up the reason text from Brass_QC_Rejection_Table
+                        reason_obj = Brass_QC_Rejection_Table.objects.filter(rejection_reason_id=reason_id).first()
+                        if reason_obj:
+                            rejection_reasons_list.append({
+                                'reason': reason_obj.rejection_reason,
+                                'qty': qty,
+                                'reason_id': reason_id
+                            })
+                data['rejection_remarks_list'] = rejection_reasons_list
+                
+                # Fetch lot remarks (general submission remarks)
+                data['lot_remarks'] = submission.remarks or ''
+                logger.info(f"[BrassCompleted] lot_id={lot_id}, remarks='{submission.remarks}'")
+            else:
+                data['rejection_remarks_list'] = []
             
         context = {
             'master_data': master_data,
@@ -1518,8 +1557,8 @@ def brass_qc_raw_submission(request):
         
         if accepted + rejected != total_lot_qty:
             msg = f"Sum check failed: {accepted} + {rejected} != {total_lot_qty}"
-            logger.error(f"[RAW SUBMISSION] {msg}")
-            return JsonResponse({"status": "error", "message": msg}, status=400)
+            logger.error(f"[RAW SUBMISSION] lot_id={lot_id} - {msg}")
+            return JsonResponse({"status": "error", "message": msg, "lot_id": lot_id}, status=400)
         
         accept_trays = data.get("accept_trays", [])
         accept_top_count = sum(1 for t in accept_trays if t.get("is_top", False))
@@ -1538,8 +1577,8 @@ def brass_qc_raw_submission(request):
             
             if rejected == total_lot_qty and not remarks:
                 msg = "Remarks are mandatory for full rejection"
-                logger.error(f"[RAW SUBMISSION] {msg}")
-                return JsonResponse({"status": "error", "message": msg}, status=400)
+                logger.error(f"[RAW SUBMISSION] lot_id={lot_id} - {msg}")
+                return JsonResponse({"status": "error", "message": msg, "lot_id": lot_id}, status=400)
         
         logger.info(f"[RAW SUBMISSION] SUBMIT validation passed: accepted={accepted}, rejected={rejected}")
     
