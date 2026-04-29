@@ -2032,6 +2032,22 @@ function reattachAllEventListenersAfterRebuild() {
                   input.style.backgroundColor = '#ffebee';
                   input.focus();
                   input.select();
+              } else if (result.already_drafted) {
+                  const errorDiv = document.createElement('div');
+                  errorDiv.className = 'tray-id-error';
+                  errorDiv.style.color = '#d32f2f';
+                  errorDiv.style.fontSize = '11px';
+                  errorDiv.style.fontWeight = 'bold';
+                  errorDiv.style.backgroundColor = '#ffebee';
+                  errorDiv.style.padding = '4px 6px';
+                  errorDiv.style.borderRadius = '4px';
+                  errorDiv.style.marginTop = '4px';
+                  errorDiv.innerHTML = `<div style="color: #d32f2f;">❌ Already Drafted in Another Batch</div>`;
+                  input.parentNode.appendChild(errorDiv);
+                  input.style.borderColor = '#d32f2f';
+                  input.style.backgroundColor = '#ffebee';
+                  input.focus();
+                  input.select();
               } else if (result.tray_type_error) {
                   const errorDiv = document.createElement('div');
                   errorDiv.className = 'tray-id-error';
@@ -4539,6 +4555,25 @@ trayScanLinks.forEach((link) => {
                             input.select();
                             updateUIElements();
                             
+                        } else if (result.already_drafted) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'tray-id-error';
+                            errorDiv.style.color = '#d32f2f';
+                            errorDiv.style.fontSize = '11px';
+                            errorDiv.style.fontWeight = 'bold';
+                            errorDiv.style.backgroundColor = '#ffebee';
+                            errorDiv.style.padding = '4px 6px';
+                            errorDiv.style.borderRadius = '4px';
+                            errorDiv.style.marginTop = '4px';
+                            
+                            errorDiv.innerHTML = `<div style="color: #d32f2f;">❌ Already Drafted in Another Batch</div>`;
+                            input.parentNode.appendChild(errorDiv);
+                            input.style.borderColor = '#d32f2f';
+                            input.style.backgroundColor = '#ffebee';
+                            input.focus();
+                            input.select();
+                            updateUIElements();
+                            
                         } else if (result.tray_type_error) {
                             const errorDiv = document.createElement('div');
                             errorDiv.className = 'tray-id-error';
@@ -6160,6 +6195,8 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
             showTrayIdError(e.target, 'Not exists');
           } else if (result.already_scanned) {
             showTrayIdError(e.target, '❌ Already Scanned');
+          } else if (result.already_drafted) {
+            showTrayIdError(e.target, '❌ Already Drafted in Another Batch');
           } else if (result.tray_type_error) {
             showTrayIdError(e.target, '❌ Tray Type Mismatch');
           } else if (!result.available) {

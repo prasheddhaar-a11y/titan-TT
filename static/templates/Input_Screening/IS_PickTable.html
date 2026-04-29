@@ -1057,9 +1057,16 @@
               <div class="isrm-calc-sub">of <span id="isrm-calc-lot-qty">—</span> lot qty</div>
             </div>
             <div class="isrm-calc-col reuse-col">
-              <div class="isrm-calc-label">Reusable Trays</div>
-              <div class="isrm-calc-value" id="isrm-c-reusable">0</div>
-              <div class="isrm-calc-sub">Existing active → Reject</div>
+              <div class="isrm-calc-label">Total Eligible Delink</div>
+              <div class="isrm-calc-value" id="isrm-c-delink-eligible">0</div>
+            </div>
+            <div class="isrm-calc-col reuse-col">
+              <div class="isrm-calc-label">Total Reused</div>
+              <div class="isrm-calc-value" id="isrm-c-reused">0</div>
+            </div>
+            <div class="isrm-calc-col reuse-col">
+              <div class="isrm-calc-label">Total Delinked</div>
+              <div class="isrm-calc-value" id="isrm-c-delinked">0</div>
             </div>
             <div class="isrm-calc-col new-col">
               <div class="isrm-calc-label">New Trays Needed</div>
@@ -1091,14 +1098,25 @@
             <div class="isrm-alloc-col reject">
               <div class="isrm-alloc-col-head">
                 Reject Trays · <span id="isrm-reject-count">0</span>
+                <button type="button" class="isrm-clear-all-btn" id="isrm-reject-clear-all" title="Clear all reject trays">Clear All</button>
               </div>
               <div class="isrm-alloc-col-body" id="isrm-reject-rows">
                 <div style="color:#bbb;font-size:11px;text-align:center;padding:10px;">Enter rejection quantities to begin</div>
               </div>
             </div>
+            <div class="isrm-alloc-col delink">
+              <div class="isrm-alloc-col-head">
+                Delink Trays · <span id="isrm-delink-count">0</span>
+                <button type="button" class="isrm-clear-all-btn" id="isrm-delink-clear-all" title="Clear all delink trays">Clear All</button>
+              </div>
+              <div class="isrm-alloc-col-body" id="isrm-delink-rows">
+                <div style="color:#bbb;font-size:11px;text-align:center;padding:10px;">Enable reject step to delink</div>
+              </div>
+            </div>
             <div class="isrm-alloc-col accept">
               <div class="isrm-alloc-col-head">
                 Accept Trays · <span id="isrm-accept-count">0</span>
+                <button type="button" class="isrm-clear-all-btn" id="isrm-accept-clear-all" title="Clear all accept trays">Clear All</button>
               </div>
               <div class="isrm-alloc-col-body" id="isrm-accept-rows">
                 <div style="color:#bbb;font-size:11px;text-align:center;padding:10px;">Enter rejection quantities to begin</div>
@@ -1110,14 +1128,7 @@
 
       <!-- Section 3: Delink Trays (optional) -->
       <div class="isrm-section isrm-locked" id="isrm-sec-delink" style="display:none;">
-        <div class="isrm-section-title">
-          <span class="isrm-step">Step 3</span>
-          <span>Delink Trays (Optional)</span>
-        </div>
-        <div class="isrm-section-body">
-          <div class="isrm-help-line">Scan or tap an eligible tray to remove it from the lot.</div>
-          <div id="isrm-delink-rows"></div>
-        </div>
+
       </div>
 
       <!-- Section 4: Remarks -->

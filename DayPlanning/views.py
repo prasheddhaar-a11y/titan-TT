@@ -23,7 +23,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
-from modelmasterapp.models import RowAccessLock
+from modelmasterapp.models import RowAccessLock, DraftTrayId
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
 _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
@@ -2645,6 +2645,22 @@ class TrayIdUniqueCheckAPIView(APIView):
                 'message': 'This tray is rejected and cannot be used for scanning.'
             })
         
+        # ✅ NEW: Check if tray is already drafted in another batch (REAL-TIME BLOCKING)
+        # This catches the tray immediately while typing, before Submit is clicked
+        if batch_id:
+            drafted_in_other_batch = DraftTrayId.objects.filter(
+                tray_id=tray_id,
+                delink_tray=False  # Only block non-delinked drafts
+            ).exclude(batch_id__batch_id=batch_id).first()  # Exclude current batch
+            
+            if drafted_in_other_batch:
+                return JsonResponse({
+                    'exists': True,
+                    'available': False,
+                    'already_drafted': True,
+                    'error': f'Tray ID "{tray_id}" is already drafted in another batch.',
+                    'message': 'This tray has already been reserved in another batch. Cannot reuse until that batch is submitted.'
+                })
 
         # Check if tray is delinked (can be reused regardless of scanned status)
         if existing_tray.delink_tray:

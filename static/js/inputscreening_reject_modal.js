@@ -157,6 +157,7 @@
     $("isrm-submit-btn").disabled = true;
     $("isrm-reject-count").textContent = "0";
     $("isrm-accept-count").textContent = "0";
+    $("isrm-delink-count").textContent = "0";
     var lotRej = $("isrm-lot-reject-toggle"); if (lotRej) lotRej.checked = false;
     state.fullLotReject = false;
     var _bodyReset = document.querySelector("#isRejectModal .isrm-body");
@@ -410,9 +411,10 @@
       return activeIds.has((d.tray_id || "").toUpperCase());
     });
 
-    $("isrm-c-reusable").textContent = state.counters.reusable;
+    $("isrm-c-delink-eligible").textContent = state.counters.delinkAvailable || 0;
+    $("isrm-c-reused").textContent = 0;
+    $("isrm-c-delinked").textContent = 0;
     $("isrm-c-required").textContent = state.counters.required;
-    $("isrm-c-delink").textContent = state.counters.delinkAvailable;
     // Update calc card inside Step 1
     var calcCard = $('isrm-calc-card');
     var calcRule = $('isrm-calc-rule');
@@ -427,6 +429,7 @@
 
     $("isrm-reject-count").textContent = state.rejectSlots.length;
     $("isrm-accept-count").textContent = state.acceptSlots.length;
+    $("isrm-delink-count").textContent = state.counters.delinkAvailable || 0;
 
     $("isrm-sec-alloc").classList.remove("isrm-locked");
     $("isrm-sec-delink").style.display = state.counters.delinkAvailable > 0 ? "" : "none";
@@ -463,8 +466,6 @@
           'placeholder="SCAN / TAP REJECT TRAY" ' +
           'value="' + escHtml(filled ? scan.tray_id : "") + '" ' +
           (filled ? "readonly" : "") + ' />' +
-        '<button type="button" class="isrm-row-clear isrm-reject-clear" data-slot-idx="' + i + '" ' +
-          (filled ? "" : "disabled") + ' title="Clear">&times;</button>' +
         '<span class="isrm-badge reason">' + escHtml(slot.reason_id) + '</span>' +
         '<span class="isrm-alloc-qty">' + slot.qty + '</span>' +
         sourceBadge +
@@ -500,17 +501,6 @@
         }
       });
     });
-    c.querySelectorAll(".isrm-reject-clear").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var idx = parseInt(this.getAttribute("data-slot-idx"), 10);
-        state.rejectScans[idx] = null;
-        renderRejectRows();
-        renderActivePills();
-        renderDelinkSection();
-        updateSubmitState();
-        setInsight("info", "Cleared reject slot " + (idx + 1) + ".");
-      });
-    });
   }
 
   // ── Render accept rows (Section 2 right) ──────────────────────────────────
@@ -538,8 +528,6 @@
           'placeholder="SCAN / TAP ACCEPT TRAY" ' +
           'value="' + escHtml(filled ? scan.tray_id : "") + '" ' +
           (filled ? "readonly" : (rejectStepDone() ? "" : "disabled")) + ' />' +
-        '<button type="button" class="isrm-row-clear isrm-accept-clear" data-slot-idx="' + i + '" ' +
-          (filled ? "" : "disabled") + ' title="Clear">&times;</button>' +
         topBadge +
         '<span class="isrm-alloc-qty">' + slot.qty + '</span>' +
         sourceBadge +
@@ -572,16 +560,6 @@
         if (v.length === TRAY_ID_LEN) {
           attemptScan(this, "accept", v);
         }
-      });
-    });
-    c.querySelectorAll(".isrm-accept-clear").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var idx = parseInt(this.getAttribute("data-slot-idx"), 10);
-        state.acceptScans[idx] = null;
-        renderAcceptRows();
-        renderActivePills();
-        updateSubmitState();
-        setInsight("info", "Cleared accept slot " + (idx + 1) + ".");
       });
     });
   }
@@ -623,7 +601,6 @@
       return '<div class="isrm-delink-row" style="margin-bottom:6px;">' +
         '<span class="isrm-alloc-num">' + (i + 1) + '</span>' +
         '<input type="text" class="isrm-scan-input" value="' + escHtml(d.tray_id) + '" readonly />' +
-        '<button type="button" class="isrm-row-clear isrm-delink-clear" data-idx="' + i + '" title="Remove">&times;</button>' +
         '</div>';
     }).join("");
 
@@ -635,7 +612,6 @@
         '<input type="text" class="isrm-scan-input isrm-delink-scan" ' +
           'maxlength="' + TRAY_ID_LEN + '" autocomplete="off" ' +
           'placeholder="SCAN / TAP DELINK TRAY" ' + (disabled ? "disabled" : "") + ' />' +
-        '<button type="button" class="isrm-row-clear" disabled>&times;</button>' +
         '</div>';
     }
     rows.innerHTML = html;
@@ -650,16 +626,6 @@
       });
     }
 
-    rows.querySelectorAll(".isrm-delink-clear").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var i = parseInt(this.getAttribute("data-idx"), 10);
-        state.delinkScans.splice(i, 1);
-        renderDelinkSection();
-        renderActivePills();
-        updateSubmitState();
-        setInsight("info", "Removed delink entry.");
-      });
-    });
     // Allow editing filled (readonly) delink inputs
     rows.querySelectorAll(".isrm-delink-row .isrm-scan-input[readonly]").forEach(function (inp) {
       inp.addEventListener("click", function () {
@@ -751,16 +717,46 @@
       renderActivePills();
       renderDelinkSection();
       renderAcceptRows();
+      updateReuseCounter();  // ✅ FIX: Dynamic reuse counter update
       setInsight("success", res.tray_id + " accepted as REJECT (" + res.source + ").");
       
-      // If user scanned an existing (reused) tray, auto-focus first accept slot (top tray)
-      // to guide the workflow: reject done → now fill accept top tray
-      if (res.source !== "new" && rejectStepDone()) {
-        var firstAcceptInput = document.querySelector(".isrm-accept-scan:not([readonly])");
-        if (firstAcceptInput && !firstAcceptInput.value) {
-          setTimeout(function() { firstAcceptInput.focus(); }, 100);
-          setInsight("info", "Reject done. Now scan/tap accept top tray.");
-        }
+      // When reject step completes: auto-navigate to delink (if exists) or accept
+      // with smooth scroll to keep cursor visible
+      if (rejectStepDone()) {
+        setTimeout(function() {
+          // Priority 1: Check if delink section has empty input
+          var delinkInput = document.querySelector(".isrm-delink-scan:not([readonly]):not([disabled])");
+          var targetInput = null;
+          var targetMsg = "";
+          
+          if (delinkInput && !delinkInput.value) {
+            // Delink section exists and has empty slot
+            targetInput = delinkInput;
+            targetMsg = "Reject done. Scan/tap delink trays.";
+          } else {
+            // No delink or all delink slots filled → move to accept
+            targetInput = document.querySelector(".isrm-accept-scan:not([readonly]):not([disabled])");
+            targetMsg = "Reject done. Now scan/tap accept top tray.";
+          }
+          
+          // Focus and scroll the target input into view
+          if (targetInput && !targetInput.value) {
+            targetInput.focus();
+            // Smooth scroll to element with padding
+            var scrollContainer = document.getElementById("isrm-body");
+            if (scrollContainer) {
+              var rect = targetInput.getBoundingClientRect();
+              var containerRect = scrollContainer.getBoundingClientRect();
+              var scrollTop = scrollContainer.scrollTop;
+              var offset = rect.top - containerRect.top + scrollTop;
+              scrollContainer.scrollTo({
+                top: Math.max(0, offset - 100),
+                behavior: "smooth"
+              });
+            }
+            setInsight("info", targetMsg);
+          }
+        }, 100);
       }
     } else if (slotType === "accept") {
       var aidx = parseInt(input.getAttribute("data-slot-idx"), 10);
@@ -771,6 +767,7 @@
       renderAcceptRows();
       renderActivePills();
       autoFillRemainingAcceptSlots();
+      updateReuseCounter();  // ✅ FIX: Dynamic reuse counter update
       setInsight("success", res.tray_id + " accepted as ACCEPT (" + res.source + ").");
     } else if (slotType === "delink") {
       // ✅ ERR1 FIX: Prevent duplicate tray IDs in delink scans
@@ -790,6 +787,7 @@
       });
       renderDelinkSection();
       renderActivePills();
+      updateReuseCounter();  // ✅ FIX: Dynamic reuse counter update
       setInsight("success", res.tray_id + " queued for DELINK.");
     }
     clearStatus();
@@ -921,6 +919,55 @@
     state.acceptScans.forEach(function (s) { if (s) ids.push(s.tray_id); });
     state.delinkScans.forEach(function (s) { if (s) ids.push(s.tray_id); });
     return ids;
+  }
+
+  // ── ✅ FIX: Dynamic reuse counter (updates as user scans) ──────────────
+  function updateReuseCounter() {
+    var activeIds = new Set((state.activeTrays || []).map(function (t) {
+      return (t.tray_id || "").toUpperCase();
+    }));
+    // Count DISTINCT active tray IDs that have been reused (scanned in reject slots)
+    var reusedIds = new Set();
+    state.rejectScans.forEach(function (s) {
+      if (s && s.tray_id && activeIds.has((s.tray_id || "").toUpperCase())) {
+        reusedIds.add((s.tray_id || "").toUpperCase());
+      }
+    });
+    var reusedCount = reusedIds.size;
+
+    // Count distinct active tray IDs delinked
+    var delinkedIds = new Set();
+    state.delinkScans.forEach(function (s) {
+      if (s && s.tray_id && activeIds.has((s.tray_id || "").toUpperCase())) {
+        delinkedIds.add((s.tray_id || "").toUpperCase());
+      }
+    });
+    var delinkedCount = delinkedIds.size;
+
+    // Update the three metrics in the calc card
+    var delinkEligibleEl = $("isrm-c-delink-eligible");
+    if (delinkEligibleEl) {
+      delinkEligibleEl.textContent = state.counters.delinkAvailable || 0;
+    }
+    var reusedEl = $("isrm-c-reused");
+    if (reusedEl) {
+      reusedEl.textContent = reusedCount;
+    }
+    var delinkedEl = $("isrm-c-delinked");
+    if (delinkedEl) {
+      delinkedEl.textContent = delinkedCount;
+    }
+    // Show delink availability
+    var delinkEl = $("isrm-c-delink");
+    if (delinkEl) {
+      var remainingDelink = Math.max(0, (state.counters.delinkAvailable || 0) - (state.delinkScans.length || 0));
+      delinkEl.textContent = remainingDelink + " for delink";
+    }
+    // Update delink count in allocation grid header
+    var delinkCountEl = $("isrm-delink-count");
+    if (delinkCountEl) {
+      delinkCountEl.textContent = state.delinkScans.length;
+    }
   }
 
   // ── Step gating helpers ──────────────────────────────────────────────────
@@ -1333,6 +1380,41 @@
     if (clearBtn) clearBtn.addEventListener("click", clearAllInputs);
     var draftBtn = $("isrm-draft-btn");
     if (draftBtn) draftBtn.addEventListener("click", saveDraft);
+
+    // ── Clear All buttons for each section ────────────────────────────────
+    var rejectClearAllBtn = $("isrm-reject-clear-all");
+    if (rejectClearAllBtn) {
+      rejectClearAllBtn.addEventListener("click", function () {
+        state.rejectScans = state.rejectScans.map(function () { return null; });
+        renderRejectRows();
+        renderActivePills();
+        renderDelinkSection();
+        updateSubmitState();
+        setInsight("info", "Cleared all reject trays.");
+      });
+    }
+
+    var acceptClearAllBtn = $("isrm-accept-clear-all");
+    if (acceptClearAllBtn) {
+      acceptClearAllBtn.addEventListener("click", function () {
+        state.acceptScans = state.acceptScans.map(function () { return null; });
+        renderAcceptRows();
+        renderActivePills();
+        updateSubmitState();
+        setInsight("info", "Cleared all accept trays.");
+      });
+    }
+
+    var delinkClearAllBtn = $("isrm-delink-clear-all");
+    if (delinkClearAllBtn) {
+      delinkClearAllBtn.addEventListener("click", function () {
+        state.delinkScans = [];
+        renderDelinkSection();
+        renderActivePills();
+        updateSubmitState();
+        setInsight("info", "Cleared all delink trays.");
+      });
+    }
 
     // ── Lot Rejection toggle ─────────────────────────────────────────
     // When checked: switch the modal to "full lot reject" mode, focus the
