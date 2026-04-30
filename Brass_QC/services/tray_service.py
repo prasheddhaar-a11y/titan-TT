@@ -36,7 +36,7 @@ def resolve_lot_trays(lot_id):
     from ..models import BrassTrayId, Brass_Qc_Accepted_TrayID_Store
     from BrassAudit.models import BrassAuditTrayId
     from InputScreening.models import IS_PartialAcceptLot
-    from BrassAudit.models import BrassAudit_PartialAcceptLot
+    from BrassAudit.models import BrassAudit_PartialAcceptLot, BrassAudit_PartialRejectLot
 
     tray_data = []
     source = "BrassTrayId"
@@ -114,6 +114,37 @@ def resolve_lot_trays(lot_id):
             logger.info(
                 f"[resolve_lot_trays] BA partial accept snapshot for {lot_id}: "
                 f"trays={len(tray_data)}"
+            )
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Step 0.5 — BrassAudit_PartialRejectLot (HIGHEST PRIORITY for reject child)
+    # ─────────────────────────────────────────────────────────────────────
+    # When Brass Audit does PARTIAL split, the reject child lot returns to
+    # Brass QC for re-inspection. The frozen tray snapshot in
+    # BrassAudit_PartialRejectLot is the IMMUTABLE truth for this child lot.
+    # Must take priority over BrassTrayId/BrassAuditTrayId which may carry
+    # stale or duplicate data.
+    if not tray_data and not is_iqf:
+        try:
+            ba_pr = BrassAudit_PartialRejectLot.objects.filter(new_lot_id=lot_id).first()
+        except Exception:
+            ba_pr = None
+        if ba_pr and getattr(ba_pr, 'trays_snapshot', None):
+            source = "BrassAudit_PartialRejectLot"
+            tray_data = [
+                {
+                    "tray_id": t.get("tray_id"),
+                    "qty": int(t.get("qty", 0) or 0),
+                    "is_rejected": False,
+                    "is_top": bool(t.get("is_top", False) or t.get("top_tray", False)),
+                    "is_delinked": False,
+                }
+                for t in (ba_pr.trays_snapshot or [])
+                if t.get("tray_id")
+            ]
+            logger.info(
+                f"[resolve_lot_trays] BA partial reject snapshot for {lot_id}: "
+                f"trays={len(tray_data)}, qty={ba_pr.rejected_qty}"
             )
 
     # Step 0: IQFTrayId (for IQF-returned lots) — highest priority
@@ -254,7 +285,12 @@ def adjust_total_qty_for_is_partial(lot_id, source, stock, total_qty):
     """
     from InputScreening.models import IP_Rejection_ReasonStore
     # Snapshots are already authoritative — do not re-adjust.
-    if source in ("IPTrayId", "IS_PartialAcceptLot", "BrassAudit_PartialAcceptLot"):
+    if source in (
+        "IPTrayId",
+        "IS_PartialAcceptLot",
+        "BrassAudit_PartialAcceptLot",
+        "BrassAudit_PartialRejectLot",
+    ):
         return total_qty
     if not getattr(stock, 'few_cases_accepted_Ip_stock', False):
         return total_qty

@@ -102,8 +102,9 @@ def handle_submission(request, action):
 
     # ── Duplicate submission check ──
     is_iqf_reentry = bool(stock.send_brass_qc)
+    is_brass_audit_return = bool(stock.send_brass_audit_to_qc)
 
-    existing, dup_error = validate_not_duplicate_submit(lot_id, is_iqf_reentry)
+    existing, dup_error = validate_not_duplicate_submit(lot_id, is_iqf_reentry or is_brass_audit_return)
 
     if dup_error:
         logger.warning(f"[submission_service] Duplicate blocked: lot_id={lot_id}")
@@ -114,11 +115,11 @@ def handle_submission(request, action):
             "existing_type": existing.submission_type,
         }, status=409)
 
-    # IQF reentry: clear old submission to allow fresh submit
-    if existing and is_iqf_reentry:
+    # IQF reentry OR Brass Audit return: clear old submission to allow fresh submit
+    if existing and (is_iqf_reentry or is_brass_audit_return):
         logger.info(
-            f"[submission_service] IQF reentry for lot_id={lot_id}, "
-            f"clearing old submission id={existing.id}"
+            f"[submission_service] {'IQF reentry' if is_iqf_reentry else 'Brass Audit return'} "
+            f"for lot_id={lot_id}, clearing old submission id={existing.id}"
         )
         existing.delete()
         existing = None

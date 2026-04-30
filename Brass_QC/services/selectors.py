@@ -93,6 +93,10 @@ def get_picktable_base_queryset():
         Q(next_process_module='Input Screening') |
         (Q(last_process_module='Input Screening') & ~Q(next_process_module='Brass QC'))
     ).exclude(
+        # ✅ FIX: Brass Audit accept child has next_process_module='Jig Loading'
+        # but inherits accepted_Ip_stock=True from parent. Exclude it from Brass QC pick table.
+        Q(next_process_module='Jig Loading')
+    ).exclude(
         Q(total_IP_accpeted_quantity__lte=0) & Q(brass_physical_qty__lte=0) &
         ~Q(accepted_tray_scan_status=True)
     ).exclude(

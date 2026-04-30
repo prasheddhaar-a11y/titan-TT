@@ -28,24 +28,33 @@ def generate_lot_id(submission_type=""):
     """
     Generate unique lot ID in enterprise LID format.
 
-    Format: LID + YYYYMMDDHHMMSS + NNNNNN (microseconds, zero-padded)
-    Example: LID20260423203057000001
+    Format: LID + YYYYMMDDHHMMSS + NNNNNN (microseconds, zero-padded) + XXXX (random hex)
+    Example: LID202604232030570000015a3c
 
-    DB-safe: retries up to 10 times if collision detected.
-    All submission types use the same format — no BQA/BQR/BQP prefixes.
+    DB-safe: retries up to 20 times with exponential backoff and random suffix.
+    Uses UUID-based random component to guarantee uniqueness even during rapid
+    concurrent calls within same microsecond (e.g., PARTIAL generating 2 lot IDs).
     """
     from modelmasterapp.models import TotalStockModel
 
-    for _ in range(10):
+    for attempt in range(20):
         now = datetime.now()
-        lot_id = f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}"
+        # Get random 4-char hex suffix to guarantee uniqueness
+        random_suffix = uuid.uuid4().hex[:4]
+        lot_id = f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}{random_suffix}"
+        
         if not TotalStockModel.objects.filter(lot_id=lot_id).exists():
+            logger.debug(f"[generate_lot_id] Generated: {lot_id} (attempt {attempt + 1})")
             return lot_id
-        time.sleep(0.001)
+        
+        # Exponential backoff: 1ms, 2ms, 4ms, etc.
+        time.sleep(0.001 * (2 ** min(attempt, 3)))
 
-    # Final fallback — append 4 random hex chars to break collision
+    # Final fallback — should almost never reach here
+    logger.error(f"[generate_lot_id] Failed to generate unique lot_id after 20 attempts, using UUID")
+    random_suffix = uuid.uuid4().hex[:8]
     now = datetime.now()
-    return f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}"
+    return f"LID{now.strftime('%Y%m%d%H%M%S')}{random_suffix}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -70,9 +79,12 @@ def create_partial_accept_child(
       - Brass_Qc_Accepted_TrayID_Store (upsert per tray)
       - Brass_Qc_Accepted_TrayScan
       - BrassQC_PartialAcceptLot
+    
+    Idempotent: If child lot already exists (e.g., from retry), returns existing record.
     """
     from modelmasterapp.models import TotalStockModel
     from BrassAudit.models import BrassAuditTrayId
+    from django.db import IntegrityError
     from ..models import (
         BrassTrayId,
         Brass_Qc_Accepted_TrayID_Store,
@@ -80,25 +92,41 @@ def create_partial_accept_child(
         BrassQC_PartialAcceptLot,
     )
 
-    child_accept = TotalStockModel.objects.create(
-        lot_id=t_accept_lot_id,
-        batch_id=stock.batch_id,
-        model_stock_no=stock.model_stock_no,
-        version=stock.version,
-        polish_finish=stock.polish_finish,
-        plating_color=stock.plating_color,
-        total_stock=accepted_qty,
-        total_IP_accpeted_quantity=accepted_qty,
-        brass_physical_qty=accepted_qty,
-        accepted_Ip_stock=True,
-        brass_qc_accepted_qty_verified=True,
-        last_process_module="Brass QC",
-        next_process_module="Brass Audit",
-        last_process_date_time=timezone.now(),
-        bq_last_process_date_time=timezone.now(),
-        brass_qc_accepted_qty=accepted_qty,
-        brass_qc_accptance=True,
-    )
+    # Check if child already exists (e.g., from previous failed attempt)
+    existing = TotalStockModel.objects.filter(lot_id=t_accept_lot_id).first()
+    if existing:
+        logger.warning(
+            f"[lot_service] Accept child already exists: lot={t_accept_lot_id}, "
+            f"returning existing record (idempotent)"
+        )
+        return existing
+
+    try:
+        child_accept = TotalStockModel.objects.create(
+            lot_id=t_accept_lot_id,
+            batch_id=stock.batch_id,
+            model_stock_no=stock.model_stock_no,
+            version=stock.version,
+            polish_finish=stock.polish_finish,
+            plating_color=stock.plating_color,
+            total_stock=accepted_qty,
+            total_IP_accpeted_quantity=accepted_qty,
+            brass_physical_qty=accepted_qty,
+            accepted_Ip_stock=True,
+            brass_qc_accepted_qty_verified=True,
+            last_process_module="Brass QC",
+            next_process_module="Brass Audit",
+            last_process_date_time=timezone.now(),
+            bq_last_process_date_time=timezone.now(),
+            brass_qc_accepted_qty=accepted_qty,
+            brass_qc_accptance=True,
+        )
+    except IntegrityError as e:
+        logger.error(f"[lot_service] IntegrityError creating accept child: {e}")
+        # Fallback: fetch existing if race condition occurred
+        child_accept = TotalStockModel.objects.get(lot_id=t_accept_lot_id)
+        logger.warning(f"[lot_service] Fallback: using existing child lot {t_accept_lot_id}")
+        return child_accept
 
     for tray in accepted_trays:
         BrassAuditTrayId.objects.create(
@@ -169,9 +197,12 @@ def create_partial_reject_child(
       - BrassTrayId (one per rejected tray)
       - Brass_QC_Rejection_ReasonStore
       - BrassQC_PartialRejectLot
+    
+    Idempotent: If child lot already exists (e.g., from retry), returns existing record.
     """
     from modelmasterapp.models import TotalStockModel
     from IQF.models import IQFTrayId
+    from django.db import IntegrityError
     from ..models import (
         BrassTrayId,
         Brass_QC_Rejection_ReasonStore,
@@ -179,26 +210,42 @@ def create_partial_reject_child(
         BrassQC_PartialRejectLot,
     )
 
-    child_reject = TotalStockModel.objects.create(
-        lot_id=t_reject_lot_id,
-        batch_id=stock.batch_id,
-        model_stock_no=stock.model_stock_no,
-        version=stock.version,
-        polish_finish=stock.polish_finish,
-        plating_color=stock.plating_color,
-        total_stock=rejected_qty,
-        total_IP_accpeted_quantity=rejected_qty,
-        brass_physical_qty=rejected_qty,
-        accepted_Ip_stock=True,
-        brass_qc_accepted_qty_verified=True,
-        last_process_module="Brass QC",
-        next_process_module="IQF",
-        last_process_date_time=timezone.now(),
-        bq_last_process_date_time=timezone.now(),
-        brass_qc_after_rejection_qty=rejected_qty,
-        brass_qc_rejection=True,
-        send_brass_audit_to_iqf=True,
-    )
+    # Check if child already exists (e.g., from previous failed attempt)
+    existing = TotalStockModel.objects.filter(lot_id=t_reject_lot_id).first()
+    if existing:
+        logger.warning(
+            f"[lot_service] Reject child already exists: lot={t_reject_lot_id}, "
+            f"returning existing record (idempotent)"
+        )
+        return existing
+
+    try:
+        child_reject = TotalStockModel.objects.create(
+            lot_id=t_reject_lot_id,
+            batch_id=stock.batch_id,
+            model_stock_no=stock.model_stock_no,
+            version=stock.version,
+            polish_finish=stock.polish_finish,
+            plating_color=stock.plating_color,
+            total_stock=rejected_qty,
+            total_IP_accpeted_quantity=rejected_qty,
+            brass_physical_qty=rejected_qty,
+            accepted_Ip_stock=True,
+            brass_qc_accepted_qty_verified=True,
+            last_process_module="Brass QC",
+            next_process_module="IQF",
+            last_process_date_time=timezone.now(),
+            bq_last_process_date_time=timezone.now(),
+            brass_qc_after_rejection_qty=rejected_qty,
+            brass_qc_rejection=True,
+            send_brass_audit_to_iqf=True,
+        )
+    except IntegrityError as e:
+        logger.error(f"[lot_service] IntegrityError creating reject child: {e}")
+        # Fallback: fetch existing if race condition occurred
+        child_reject = TotalStockModel.objects.get(lot_id=t_reject_lot_id)
+        logger.warning(f"[lot_service] Fallback: using existing child lot {t_reject_lot_id}")
+        return child_reject
 
     for tray in rejected_trays:
         IQFTrayId.objects.create(
@@ -283,9 +330,12 @@ def create_full_reject_child(
     The original parent stock is closed by the caller via
     get_stock_flag_updates(FULL_REJECT) which sets
     is_split=True, remove_lot=True so the parent does NOT appear in IQF.
+    
+    Idempotent: If child lot already exists (e.g., from retry), returns existing record.
     """
     from modelmasterapp.models import TotalStockModel
     from IQF.models import IQFTrayId
+    from django.db import IntegrityError
     from ..models import (
         BrassTrayId,
         Brass_QC_Rejection_ReasonStore,
@@ -293,32 +343,48 @@ def create_full_reject_child(
         BrassQC_PartialRejectLot,
     )
 
-    child_reject = TotalStockModel.objects.create(
-        lot_id=t_lot_id,
-        batch_id=stock.batch_id,
-        model_stock_no=stock.model_stock_no,
-        version=stock.version,
-        polish_finish=stock.polish_finish,
-        plating_color=stock.plating_color,
-        total_stock=rejected_qty,
-        total_IP_accpeted_quantity=rejected_qty,
-        brass_physical_qty=rejected_qty,
-        accepted_Ip_stock=True,
-        brass_qc_accepted_qty_verified=True,
-        last_process_module="Brass QC",
-        next_process_module="IQF",
-        last_process_date_time=timezone.now(),
-        bq_last_process_date_time=timezone.now(),
-        brass_qc_after_rejection_qty=rejected_qty,
-        # ✅ CRITICAL: Do NOT set brass_qc_rejection=True on the transition lot.
-        # That flag causes this lot to appear in the Brass QC Completed table
-        # (duplicate row). The transition lot belongs to IQF only.
-        # send_brass_audit_to_iqf=True is sufficient for IQF pick table visibility.
-        # The PARENT lot (closed with is_split+remove_lot) correctly carries
-        # brass_qc_rejection=True for the Brass QC Completed view.
-        brass_qc_rejection=False,
-        send_brass_audit_to_iqf=True,
-    )
+    # Check if child already exists (e.g., from previous failed attempt)
+    existing = TotalStockModel.objects.filter(lot_id=t_lot_id).first()
+    if existing:
+        logger.warning(
+            f"[lot_service] Full reject child already exists: lot={t_lot_id}, "
+            f"returning existing record (idempotent)"
+        )
+        return existing
+
+    try:
+        child_reject = TotalStockModel.objects.create(
+            lot_id=t_lot_id,
+            batch_id=stock.batch_id,
+            model_stock_no=stock.model_stock_no,
+            version=stock.version,
+            polish_finish=stock.polish_finish,
+            plating_color=stock.plating_color,
+            total_stock=rejected_qty,
+            total_IP_accpeted_quantity=rejected_qty,
+            brass_physical_qty=rejected_qty,
+            accepted_Ip_stock=True,
+            brass_qc_accepted_qty_verified=True,
+            last_process_module="Brass QC",
+            next_process_module="IQF",
+            last_process_date_time=timezone.now(),
+            bq_last_process_date_time=timezone.now(),
+            brass_qc_after_rejection_qty=rejected_qty,
+            # ✅ CRITICAL: Do NOT set brass_qc_rejection=True on the transition lot.
+            # That flag causes this lot to appear in the Brass QC Completed table
+            # (duplicate row). The transition lot belongs to IQF only.
+            # send_brass_audit_to_iqf=True is sufficient for IQF pick table visibility.
+            # The PARENT lot (closed with is_split+remove_lot) correctly carries
+            # brass_qc_rejection=True for the Brass QC Completed view.
+            brass_qc_rejection=False,
+            send_brass_audit_to_iqf=True,
+        )
+    except IntegrityError as e:
+        logger.error(f"[lot_service] IntegrityError creating full reject child: {e}")
+        # Fallback: fetch existing if race condition occurred
+        child_reject = TotalStockModel.objects.get(lot_id=t_lot_id)
+        logger.warning(f"[lot_service] Fallback: using existing child lot {t_lot_id}")
+        return child_reject
 
     for tray in rejected_trays:
         IQFTrayId.objects.update_or_create(

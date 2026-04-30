@@ -1442,11 +1442,15 @@ def _handle_audit_submission(request, action):
         stock.brass_audit_transition_label = t_label
         logger.info(f"[AUDIT TRANSITION] FULL_REJECT lot_id={lot_id} → transition_lot_id={t_lot_id}")
     elif submission_type == "PARTIAL":
-        now_key = timezone.now().strftime("%d%m%Y%H%M%S%f")
-        accept_lot_id = f"LID{now_key[:17]}A"
-        reject_lot_id = f"LID{now_key[:17]}R"
+        # ✅ FIX: Use UUID-based lot_id generation to prevent race conditions
+        # Old format: LID30042026055925829A/R (vulnerable to collision)
+        # New format: LID202604301129450123455a3c / LID202604301129450123457b9d
+        import uuid
+        now = timezone.now()
+        accept_lot_id = f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}{uuid.uuid4().hex[:4]}"
+        reject_lot_id = f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}{uuid.uuid4().hex[:4]}"
 
-        t_label = "partial: accept child -> Jig Loading | reject child -> IQF"
+        t_label = "partial: accept child -> Jig Loading | reject child -> Brass QC"
         submission.transition_accept_lot_id = accept_lot_id
         submission.transition_reject_lot_id = reject_lot_id
         submission.transition_label = t_label
@@ -1460,11 +1464,20 @@ def _handle_audit_submission(request, action):
             accepted_child.id = None
             accepted_child.lot_id = accept_lot_id
             accepted_child.total_stock = accepted_qty
+            # ✅ FIX: Set total_IP_accpeted_quantity to accepted_qty so downstream modules
+            # (Jig Loading) display correct qty instead of inherited parent qty.
+            accepted_child.total_IP_accpeted_quantity = accepted_qty
             accepted_child.brass_audit_physical_qty = accepted_qty
             accepted_child.brass_audit_accepted_qty = accepted_qty
-            accepted_child.brass_qc_accepted_qty = accepted_qty
-            accepted_child.brass_physical_qty = accepted_qty
-            accepted_child.brass_qc_accptance = True
+            # ✅ FIX: Do NOT set brass_qc_* flags on child lots
+            # This child belongs to Jig Loading stage, not Brass QC.
+            # Setting brass_qc_accptance=True causes it to appear in Brass QC Completed table (wrong stage).
+            accepted_child.brass_qc_accepted_qty = 0
+            accepted_child.brass_physical_qty = 0
+            accepted_child.brass_qc_accptance = False
+            accepted_child.brass_qc_accepted_qty_verified = False
+            accepted_child.brass_qc_rejection = False
+            accepted_child.brass_qc_few_cases_accptance = False
             accepted_child.brass_audit_accptance = True
             accepted_child.brass_audit_few_cases_accptance = False
             accepted_child.brass_audit_rejection = False
@@ -1500,22 +1513,33 @@ def _handle_audit_submission(request, action):
             rejected_child.id = None
             rejected_child.lot_id = reject_lot_id
             rejected_child.total_stock = rejected_qty
+            # ✅ FIX: Set total_IP_accpeted_quantity to rejected_qty so Brass QC pick table
+            # displays correct qty (17) instead of inherited parent qty (43).
+            rejected_child.total_IP_accpeted_quantity = rejected_qty
             rejected_child.brass_audit_physical_qty = 0
             rejected_child.brass_audit_accepted_qty = 0
-            rejected_child.brass_qc_accepted_qty = rejected_qty
-            rejected_child.brass_physical_qty = rejected_qty
+            # ✅ FIX: Do NOT set brass_qc_* flags on child lots
+            # This child belongs to IQF stage, not Brass QC.
+            # Setting brass_qc_accptance=True causes it to appear in Brass QC Completed table (wrong stage).
+            rejected_child.brass_qc_accepted_qty = 0
+            rejected_child.brass_physical_qty = 0
+            rejected_child.brass_qc_accptance = False
+            rejected_child.brass_qc_accepted_qty_verified = False
+            rejected_child.brass_qc_rejection = False
+            rejected_child.brass_qc_few_cases_accptance = False
             rejected_child.iqf_accepted_qty = rejected_qty
-            rejected_child.brass_qc_accptance = True
+            # ✅ FIX: Route reject child to BRASS QC (not IQF)
+            # User requirement: Brass Audit partial reject → re-inspection in Brass QC
+            # The child lot is independent and travels back to Brass QC for reprocessing.
             rejected_child.brass_audit_rejection = True
             rejected_child.brass_audit_accptance = False
             rejected_child.brass_audit_few_cases_accptance = False
             rejected_child.last_process_module = 'Brass Audit'
-            rejected_child.next_process_module = 'IQF'
-            rejected_child.send_brass_audit_to_iqf = True
-            rejected_child.send_brass_audit_to_qc = False
-            rejected_child.brass_qc_rejection = False
-            rejected_child.brass_qc_few_cases_accptance = False
-            rejected_child.brass_qc_accepted_qty_verified = False
+            rejected_child.next_process_module = 'Brass QC'
+            rejected_child.send_brass_audit_to_iqf = False
+            rejected_child.send_brass_audit_to_qc = True
+            # Reset IQF flags (child does NOT go to IQF)
+            rejected_child.iqf_accepted_qty = 0
             rejected_child.iqf_rejection = False
             rejected_child.iqf_acceptance = False
             rejected_child.iqf_few_cases_acceptance = False
@@ -1544,22 +1568,25 @@ def _handle_audit_submission(request, action):
                 for t in rejected_trays if int(t.get("qty", 0)) > 0
             ])
 
-            # ── IQF tray rows for rejected child (IQF needs its own tray table) ──
-            IQFTrayId.objects.bulk_create([
-                IQFTrayId(
+            # ✅ FIX: Reject child goes to Brass QC (not IQF), so create BrassAuditTrayId
+            # records (Brass QC reads tray data from BrassAuditTrayId via tray resolver).
+            # Do NOT create IQFTrayId records — child does not belong to IQF stage.
+            BrassAuditTrayId.objects.bulk_create([
+                BrassAuditTrayId(
                     lot_id=reject_lot_id,
                     tray_id=t["tray_id"],
                     tray_quantity=int(t["qty"]),
                     batch_id=stock.batch_id,
                     user=request.user,
                     top_tray=bool(t.get("is_top", False)),
-                    rejected_tray=False,
+                    rejected_tray=True,
                     delink_tray=False,
+                    new_tray=False,
                 )
                 for t in rejected_trays if int(t.get("qty", 0)) > 0
             ])
 
-            # Rejection reason store for rejected child (IQF reads rw_qty from this)
+            # Rejection reason store for rejected child (Brass QC reads rw_qty from this)
             _rej_store = Brass_Audit_Rejection_ReasonStore.objects.create(
                 lot_id=reject_lot_id,
                 user=request.user,
@@ -1586,7 +1613,61 @@ def _handle_audit_submission(request, action):
             if _child_reason_ids:
                 _rej_store.rejection_reason.set(_child_reason_ids)
 
+            # ✅ FIX: Create snapshot records in BrassAudit_PartialAcceptLot and BrassAudit_PartialRejectLot
+            # These tables store the frozen tray snapshots for accept/reject child lots.
+            # View icons and downstream modules read from these tables to get correct lot qty.
+            
+            # Build rejection reasons dict for BrassAudit_PartialRejectLot
+            reasons_dict = {}
+            for r in rejection_reasons:
+                _rid = r.get("reason_id")
+                _rqty = int(r.get("qty", 0))
+                if _rqty > 0 and _rid:
+                    try:
+                        _reason_obj = Brass_Audit_Rejection_Table.objects.get(id=_rid)
+                        _rid_code = _reason_obj.rejection_reason_id or f"R{_rid}"
+                        reasons_dict[_rid_code] = {
+                            "reason": _reason_obj.rejection_reason,
+                            "qty": _rqty
+                        }
+                    except Brass_Audit_Rejection_Table.DoesNotExist:
+                        pass
+            
+            # Create BrassAudit_PartialAcceptLot snapshot
+            BrassAudit_PartialAcceptLot.objects.create(
+                new_lot_id=accept_lot_id,
+                parent_lot_id=stock.lot_id,
+                parent_batch_id=stock.batch_id.batch_id if stock.batch_id else '',
+                parent_submission=submission,
+                accepted_qty=accepted_qty,
+                accept_trays_count=len(accepted_trays),
+                trays_snapshot=accepted_trays,
+                created_by=request.user,
+            )
+            
+            # Create BrassAudit_PartialRejectLot snapshot
+            BrassAudit_PartialRejectLot.objects.create(
+                new_lot_id=reject_lot_id,
+                parent_lot_id=stock.lot_id,
+                parent_batch_id=stock.batch_id.batch_id if stock.batch_id else '',
+                parent_submission=submission,
+                rejected_qty=rejected_qty,
+                reject_trays_count=len(rejected_trays),
+                rejection_reasons=reasons_dict,
+                trays_snapshot=rejected_trays,
+                remarks=remarks,
+                created_by=request.user,
+            )
+
+            logger.info(
+                f"[BRASS AUDIT PARTIAL SNAPSHOT] Created snapshot records: "
+                f"Accept={accept_lot_id} (qty={accepted_qty}), "
+                f"Reject={reject_lot_id} (qty={rejected_qty})"
+            )
+
             # ── Close parent lot fully ──
+            # ✅ FIX: Parent must be EXCLUDED from ALL pick tables (Brass QC, IQF, Jig Loading)
+            # Only the child lots (accept→Jig Loading, reject→Brass QC) should appear downstream.
             stock.brass_audit_few_cases_accptance = True
             stock.brass_audit_onhold_picking = False
             stock.brass_audit_accptance = False
@@ -1601,15 +1682,19 @@ def _handle_audit_submission(request, action):
             stock.last_process_date_time = timezone.now()
             stock.brass_audit_last_process_date_time = timezone.now()
             stock.brass_audit_draft = False
-            # ==========================================
-            # EXCLUDE PARENT LOT FROM IQF AFTER
-            # BRASS AUDIT PARTIAL SPLIT
-            # ==========================================
+            # Clear ALL routing flags so parent doesn't appear in any downstream pick table
             stock.send_brass_audit_to_iqf = False
+            stock.send_brass_audit_to_qc = False  # ✅ Critical: Parent must NOT appear in Brass QC
+            stock.send_brass_qc = False           # ✅ Critical: Parent must NOT appear via IQF reentry
             stock.iqf_onhold_picking = False
             stock.iqf_acceptance = False
             stock.iqf_rejection = False
             stock.iqf_few_cases_acceptance = False
+            # Clear Brass QC flags so parent never re-enters Brass QC pick table
+            stock.brass_qc_accptance = False
+            stock.brass_qc_rejection = False
+            stock.brass_qc_few_cases_accptance = False
+            stock.brass_qc_accepted_qty_verified = False
             stock.remove_lot = True
             stock.save(update_fields=[
                 "brass_audit_few_cases_accptance",
@@ -1627,10 +1712,16 @@ def _handle_audit_submission(request, action):
                 "brass_audit_transition_label",
                 "brass_audit_draft",
                 "send_brass_audit_to_iqf",
+                "send_brass_audit_to_qc",
+                "send_brass_qc",
                 "iqf_onhold_picking",
                 "iqf_acceptance",
                 "iqf_rejection",
                 "iqf_few_cases_acceptance",
+                "brass_qc_accptance",
+                "brass_qc_rejection",
+                "brass_qc_few_cases_accptance",
+                "brass_qc_accepted_qty_verified",
                 "remove_lot",
             ])
 
@@ -1639,7 +1730,7 @@ def _handle_audit_submission(request, action):
         print(f"\n{'='*60}")
         print(f"[BRASS AUDIT PARTIAL SPLIT] Parent Lot: {lot_id}")
         print(f"  Accept Lot ID: {accept_lot_id} → Jig Loading (qty={accepted_qty})")
-        print(f"  Reject Lot ID: {reject_lot_id} → IQF (qty={rejected_qty})")
+        print(f"  Reject Lot ID: {reject_lot_id} → Brass QC (qty={rejected_qty})")
         print(f"  Accept Trays: {_accept_tray_str}")
         print(f"  Reject Trays: {_reject_tray_str}")
         print(f"{'='*60}\n")
