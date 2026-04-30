@@ -322,6 +322,63 @@ class BrassPickTableView(APIView):
         
         return Response(context, template_name=self.template_name)
 
+
+# ───────────────────────────────────────────────────────────────
+# Stage display helper — Brass QC Completed table
+# ───────────────────────────────────────────────────────────────
+_BQ_VALID_STAGE_NAMES = {
+    'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',
+    'Jig Loading', 'Jig Unloading', 'Nickel Inspection',
+    'Spider Spindle', 'Day Planning', 'Inprocess Inspection',
+    'Nickel Audit',
+}
+
+def _compute_brass_qc_display_stage(stock_obj):
+    """
+    Computes the Current Stage pill value for the Brass QC Completed table.
+
+    Rule: only advance the display to the next stage once the lot has actually
+    been worked on there.  While the lot is just sitting in the next stage's
+    pick table it still shows 'Brass QC'.
+
+    Supports FULL_ACCEPT (own lot → Brass Audit),
+              FULL_REJECT (own lot → IQF),
+              PARTIAL     (child accept lot → Brass Audit).
+    """
+    _npm = stock_obj.child_accept_stage or stock_obj.next_process_module
+    _fallback = stock_obj.last_process_module or 'Brass QC'
+
+    if not _npm or _npm not in _BQ_VALID_STAGE_NAMES:
+        return _fallback
+
+    if _npm == 'Brass Audit':
+        # Has Brass Audit actually been started?
+        # Own-lot flags cover FULL_ACCEPT; child_brass_audit_active covers PARTIAL child.
+        _own_ba = bool(
+            stock_obj.brass_audit_draft or
+            stock_obj.brass_audit_accptance or
+            stock_obj.brass_audit_rejection or
+            stock_obj.brass_audit_few_cases_accptance
+        )
+        _child_ba = bool(getattr(stock_obj, 'child_brass_audit_active', False))
+        if not (_own_ba or _child_ba):
+            return _fallback
+
+    elif _npm == 'IQF':
+        # FULL_REJECT: lot sent to IQF — has it been touched?
+        _iqf_active = bool(
+            stock_obj.iqf_acceptance or
+            stock_obj.iqf_rejection or
+            stock_obj.iqf_few_cases_acceptance or
+            stock_obj.iqf_onhold_picking
+        )
+        if not _iqf_active:
+            return _fallback
+
+    # Any other valid module (Jig Loading, Jig Unloading, …): already past Brass Audit → show as-is.
+    return _npm
+
+
 # Brass QC Complete Table View
 @method_decorator(login_required, name='dispatch')
 class BrassCompletedView(APIView):
@@ -409,7 +466,9 @@ class BrassCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
-                'next_process_module': stock_obj.next_process_module,
+                # Dynamic stage — guarded: only advance to next stage if lot has been
+                # actually worked on there, not just sitting in the pick table.
+                'next_process_module': _compute_brass_qc_display_stage(stock_obj),
                 'brass_qc_accepted_qty_verified': stock_obj.brass_qc_accepted_qty_verified,
                 'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
                 'brass_rejection_qty': stock_obj.brass_rejection_qty,
@@ -998,6 +1057,30 @@ def brass_qc_action(request):
         if is_partial_rejected:
             return JsonResponse({"valid": False, "error": "Tray was rejected in Input Screening - permanently ineligible for reuse", "selected_tray_id": tray_id, "auto_selected": True})
         
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        # Get lot's model tray_type requirement
+        def get_tray_category(tray_type_code):
+            """Extract category (Jumbo/Normal) from tray type code: J*->Jumbo, N*->Normal"""
+            if not tray_type_code:
+                return None
+            code = str(tray_type_code).upper().strip()
+            if code.startswith('J'):
+                return 'Jumbo'
+            elif code.startswith('N'):
+                return 'Normal'
+            return None
+
+        try:
+            stock = TotalStockModel.objects.select_related('batch_id__model_stock_no').get(lot_id=lot_id)
+            # Get model's required tray type from ModelMaster
+            model_tray_type = stock.batch_id.model_stock_no.tray_type if stock.batch_id and stock.batch_id.model_stock_no else None
+            if model_tray_type:
+                model_category = get_tray_category(model_tray_type.tray_type)
+            else:
+                model_category = None
+        except TotalStockModel.DoesNotExist:
+            return JsonResponse({"valid": False, "error": "Lot not found", "selected_tray_id": tray_id}, status=404)
+        
         # Check TrayId master table
         tray = TrayId.objects.filter(tray_id=tray_id).first()
         if not tray:
@@ -1014,6 +1097,13 @@ def brass_qc_action(request):
                         return JsonResponse({"valid": False, "error": "Tray is permanently rejected in master table", "selected_tray_id": cand.tray_id, "auto_selected": True})
                     if cand.scanned:
                         return JsonResponse({"valid": False, "error": "Tray is currently scanned/in-use", "selected_tray_id": cand.tray_id, "auto_selected": True})
+                    
+                    # ═══ TRAY TYPE COMPATIBILITY CHECK for auto-selected candidate ═══
+                    if model_category:
+                        cand_category = get_tray_category(cand.tray_type)
+                        if cand_category and cand_category != model_category:
+                            return JsonResponse({"valid": False, "error": f"Tray type mismatch: model requires {model_category} tray, but selected tray is {cand_category}", "selected_tray_id": cand.tray_id, "auto_selected": True})
+                    
                     # Check cross-module occupancy
                     occ_found = False
                     for qs, module_name in [
@@ -1038,6 +1128,18 @@ def brass_qc_action(request):
             return JsonResponse({"valid": False, "error": "Tray is permanently rejected in master table", "selected_tray_id": tray.tray_id, "auto_selected": True})
         if tray.scanned:
             return JsonResponse({"valid": False, "error": "Tray is currently scanned/in-use", "selected_tray_id": tray.tray_id, "auto_selected": True})
+        
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        # Verify scanned tray's type matches model's required type (Jumbo/Normal)
+        if model_category:
+            tray_category = get_tray_category(tray.tray_type)
+            if tray_category and tray_category != model_category:
+                return JsonResponse({
+                    "valid": False,
+                    "error": f"Tray type mismatch: model requires {model_category} tray, but scanned tray is {tray_category}",
+                    "selected_tray_id": tray_id,
+                    "auto_selected": True,
+                })
         
         # ── Dynamic cross-module occupancy check ──
         # Each check returns the module name so the error is always accurate.

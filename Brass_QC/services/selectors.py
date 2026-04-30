@@ -126,6 +126,23 @@ def get_completed_base_queryset(from_datetime, to_datetime):
     )
     child_exists = Exists(child_split_subquery)
 
+    # Dynamic stage: for PARTIAL split parents, follow the accepted child lot's live stage
+    child_accept_stage_subquery = TotalStockModel.objects.filter(
+        lot_id=OuterRef('brass_qc_transition_accept_lot_id')
+    ).values('next_process_module')[:1]
+
+    # Has the child accept lot (PARTIAL) actually been worked on in Brass Audit?
+    child_brass_audit_active_subquery = Exists(
+        TotalStockModel.objects.filter(
+            lot_id=OuterRef('brass_qc_transition_accept_lot_id')
+        ).filter(
+            Q(brass_audit_draft=True) |
+            Q(brass_audit_accptance=True) |
+            Q(brass_audit_rejection=True) |
+            Q(brass_audit_few_cases_accptance=True)
+        )
+    )
+
     queryset = TotalStockModel.objects.select_related(
         'batch_id',
         'batch_id__model_stock_no',
@@ -137,6 +154,8 @@ def get_completed_base_queryset(from_datetime, to_datetime):
     ).annotate(
         brass_rejection_qty=brass_rejection_qty_subquery,
         child_split=child_exists,
+        child_accept_stage=child_accept_stage_subquery,
+        child_brass_audit_active=child_brass_audit_active_subquery,
     ).filter(
         Q(brass_qc_accptance=True) |
         Q(brass_qc_rejection=True) |

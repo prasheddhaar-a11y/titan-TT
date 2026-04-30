@@ -767,9 +767,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                          data-brass-qc-accptance="{{ data.brass_audit_accptance|yesno:'true,false' }}"
                          data-brass-qc-rejection="{{ data.brass_audit_rejection|yesno:'true,false' }}"
                          data-brass-qc-few-cases-accptance="{{ data.brass_audit_few_cases_accptance|yesno:'true,false' }}"
-                         data-total-batch-quantity="{{ data.brass_audit_physical_qty }}"
-                         data-missing-qty="{{ data.brass_audit_missing_qty|default:'' }}"
-                         data-physical-qty="{{ data.brass_audit_physical_qty|default:'' }}">
+                         data-lot-qty="{{ data.display_lot_qty }}"
+                         data-accepted-qty="{{ data.display_accepted_qty|default:0 }}"
+                         data-rejected-qty="{{ data.display_rejected_qty|default:0 }}">
                         <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
                       </a>
                     </td>
@@ -807,8 +807,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>
                       <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
-                        <!-- ERR2 FIX: Set Current Stage to 'Brass Audit' -->
-                        Brass Audit
+                        {{ data.next_process_module|clean_next_stage:"Brass Audit" }}
                       </div>
                     </td>
                     
@@ -855,8 +854,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           </div>
                             <p style="margin: 0 0 0 2px;">
                               Lot Qty: <span id="modalLotQty_DayPlanning" style="font-weight:bold; color:#e67e22;"></span> /
-                              Missing Qty: <span id="modalMissingQty_DayPlanning" style="font-weight:bold; color:#d32f2f;"></span> /
-                              Physical Qty: <span id="modalPhysicalQty_DayPlanning" style="font-weight:bold; color:#388e3c;"></span>
+                              Accept Qty: <span id="modalAcceptedQty_DayPlanning" style="font-weight:bold; color:#388e3c;"></span> /
+                              Reject Qty: <span id="modalRejectedQty_DayPlanning" style="font-weight:bold; color:#d32f2f;"></span>
                             </p>
                         </div>
                       </div>
@@ -1600,43 +1599,43 @@ document.addEventListener("DOMContentLoaded", function () {
           const modal = document.getElementById("trayScanModal_DayPlanning");
           const detailsDiv = document.getElementById("trayScanDetails_DayPlanning");
           const modalModelNo = document.getElementById("modalModelNo_DayPlanning");
-          const modalLotQty = document.getElementById("modalLotQty_DayPlanning"); // ✅ NEW
-          const modalMissingQty = document.getElementById("modalMissingQty_DayPlanning"); // ✅ NEW
-          const modalPhysicalQty = document.getElementById("modalPhysicalQty_DayPlanning"); // ✅ NEW
+          const modalLotQty = document.getElementById("modalLotQty_DayPlanning");
+          const modalAcceptedQty = document.getElementById("modalAcceptedQty_DayPlanning");
+          const modalRejectedQty = document.getElementById("modalRejectedQty_DayPlanning");
 
           modal.dataset.batchId = link.getAttribute('data-batch-id');
     
-          // Get data attributes
+          // Get data attributes from complete table
           const batchId = link.getAttribute('data-batch-id');
           const modelNo = link.getAttribute('data-model-no');
           const stockLotId = link.getAttribute('data-stock-lot-id');
           const noOfTrays = parseInt(link.getAttribute('data-no-of-trays')) || 0;
           const trayCapacity = link.getAttribute('data-tray-capacity') || "";
-          const totalBatchQuantity = link.getAttribute('data-total-batch-quantity') || "0";
-          const physicalQty = link.getAttribute('data-physical-qty') || "0";
-          const missingQty = link.getAttribute('data-missing-qty') || "0";
+          const lotQty = link.getAttribute('data-lot-qty') || "0";
+          const acceptedQty = link.getAttribute('data-accepted-qty') || "0";
+          const rejectedQty = link.getAttribute('data-rejected-qty') || "0";
 
           // ✅ UPDATED: Get brass QC specific stock status data
           const brassQcAccptance = link.getAttribute('data-brass-qc-accptance') === 'true';
           const brassQcRejection = link.getAttribute('data-brass-qc-rejection') === 'true';
           const brassQcFewCasesAccptance = link.getAttribute('data-brass-qc-few-cases-accptance') === 'true';
     
-          // Set model number in modal
+          // Set model number and quantities in modal
           if (modalModelNo && modelNo) {
             modalModelNo.textContent = modelNo;
           }
 
           if (modalLotQty) {
-            modalLotQty.textContent = totalBatchQuantity;
-            console.log("✅ Set Lot Qty to:", totalBatchQuantity);
+            modalLotQty.textContent = lotQty;
+            console.log("✅ Set Lot Qty to:", lotQty);
           }
-          if (modalMissingQty) {
-            modalMissingQty.textContent = missingQty;
-            console.log("✅ Set Missing Qty to:", missingQty);
+          if (modalAcceptedQty) {
+            modalAcceptedQty.textContent = acceptedQty;
+            console.log("✅ Set Accepted Qty to:", acceptedQty);
           }
-          if (modalPhysicalQty) {
-            modalPhysicalQty.textContent = physicalQty;
-            console.log("✅ Set Physical Qty to:", physicalQty);
+          if (modalRejectedQty) {
+            modalRejectedQty.textContent = rejectedQty;
+            console.log("✅ Set Rejected Qty to:", rejectedQty);
           }
     
           // Set model image

@@ -1839,12 +1839,58 @@ class IQFCompletedPageView(APIView):
                 'batch_id__location', 'created_by'
             ).filter(is_completed=True).order_by('-created_at')
 
-            # Pre-fetch pick table remarks from TotalStockModel (SINGLE SOURCE OF TRUTH)
+            # Pre-fetch pick table remarks AND next_process_module from TotalStockModel (SINGLE SOURCE OF TRUTH)
             all_lot_ids = list(submitted_qs.values_list('lot_id', flat=True))
             pick_remarks_map = dict(
                 TotalStockModel.objects.filter(lot_id__in=all_lot_ids)
                 .values_list('lot_id', 'IQF_pick_remarks')
             )
+
+            # Also fetch next_process_module + brass_qc activity flags for all lot_ids
+            _own_stock_qs = TotalStockModel.objects.filter(lot_id__in=all_lot_ids).values(
+                'lot_id', 'next_process_module',
+                'brass_draft', 'brass_qc_accptance', 'brass_qc_rejection', 'brass_qc_few_cases_accptance',
+                'iqf_acceptance', 'iqf_rejection', 'iqf_few_cases_acceptance',
+            )
+            own_stage_map = {}           # lot_id → next_process_module
+            own_bq_active_map = {}       # lot_id → bool (brass qc started?)
+            for row in _own_stock_qs:
+                own_stage_map[row['lot_id']] = row['next_process_module']
+                own_bq_active_map[row['lot_id']] = bool(
+                    row['brass_draft'] or row['brass_qc_accptance'] or
+                    row['brass_qc_rejection'] or row['brass_qc_few_cases_accptance']
+                )
+
+            # For PARTIAL lots: look up child accept lot's live stage via IQF_PartialAcceptLot
+            partial_lot_ids = list(
+                submitted_qs.filter(submission_type='PARTIAL').values_list('lot_id', flat=True)
+            )
+            parent_to_child_map = {}  # parent_lot_id → child_accept_lot_id
+            if partial_lot_ids:
+                for pal in IQF_PartialAcceptLot.objects.filter(parent_lot_id__in=partial_lot_ids).values('parent_lot_id', 'new_lot_id'):
+                    parent_to_child_map[pal['parent_lot_id']] = pal['new_lot_id']
+
+            child_lot_ids = list(parent_to_child_map.values())
+            child_stage_map = {}       # child_lot_id → next_process_module
+            child_bq_active_map = {}   # child_lot_id → bool (brass qc started?)
+            if child_lot_ids:
+                _child_stock_qs = TotalStockModel.objects.filter(lot_id__in=child_lot_ids).values(
+                    'lot_id', 'next_process_module',
+                    'brass_draft', 'brass_qc_accptance', 'brass_qc_rejection', 'brass_qc_few_cases_accptance',
+                )
+                for row in _child_stock_qs:
+                    child_stage_map[row['lot_id']] = row['next_process_module']
+                    child_bq_active_map[row['lot_id']] = bool(
+                        row['brass_draft'] or row['brass_qc_accptance'] or
+                        row['brass_qc_rejection'] or row['brass_qc_few_cases_accptance']
+                    )
+
+            _IQF_VALID_STAGES = {
+                'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',
+                'Jig Loading', 'Jig Unloading', 'Nickel Inspection',
+                'Spider Spindle', 'Day Planning', 'Inprocess Inspection',
+                'Nickel Audit',
+            }
 
             master_data = []
             for sub in submitted_qs:
@@ -1878,6 +1924,30 @@ class IQFCompletedPageView(APIView):
                 reject_trays = (reject_data or {}).get('trays', [])
                 total_trays = len([t for t in accept_trays if int(t.get('qty', 0)) > 0]) + len([t for t in reject_trays if int(t.get('qty', 0)) > 0])
 
+                # Determine live Current Stage dynamically with activity guard:
+                # Only advance to next stage if the lot has actually been worked on there.
+                # While sitting in the pick table → show 'IQF'.
+                _own_stage = own_stage_map.get(sub.lot_id)
+                if sub.submission_type == 'PARTIAL':
+                    _child_lot_id = parent_to_child_map.get(sub.lot_id)
+                    _child_stage = child_stage_map.get(_child_lot_id) if _child_lot_id else None
+                    _resolved = _child_stage or _own_stage
+                    _bq_active = child_bq_active_map.get(_child_lot_id, False) if _child_lot_id else False
+                else:
+                    _resolved = _own_stage
+                    _bq_active = own_bq_active_map.get(sub.lot_id, False)
+
+                _fallback = 'IQF'
+                if _resolved and _resolved in _IQF_VALID_STAGES:
+                    if _resolved == 'Brass QC' and not _bq_active:
+                        # Lot in Brass QC pick table but untouched → keep showing IQF
+                        _next_stage = _fallback
+                    else:
+                        # Any other valid stage (Brass Audit, Jig Loading, …) → already past Brass QC
+                        _next_stage = _resolved
+                else:
+                    _next_stage = _fallback
+
                 master_data.append({
                     'batch_id': batch.batch_id,
                     'stock_lot_id': sub.lot_id,
@@ -1903,6 +1973,7 @@ class IQFCompletedPageView(APIView):
                     'brass_rejection_total_qty': sub.iqf_incoming_qty,
                     'brass_onhold_picking': False,
                     'last_process_module': 'IQF',
+                    'next_process_module': _next_stage,
                     'iqf_accepted_tray_scan_status': True,
                     'Moved_to_D_Picker': False,
                     'model_images': images,
@@ -2610,6 +2681,29 @@ def iqf_validate_tray_scan(request):
     if not tray_id:
         return Response({'success': False, 'error': 'Missing tray_id'}, status=400)
 
+    # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+    def get_tray_category(tray_type_code):
+        """Extract category (Jumbo/Normal) from tray type code: J*->Jumbo, N*->Normal"""
+        if not tray_type_code:
+            return None
+        code = str(tray_type_code).upper().strip()
+        if code.startswith('J'):
+            return 'Jumbo'
+        elif code.startswith('N'):
+            return 'Normal'
+        return None
+
+    try:
+        stock = TotalStockModel.objects.select_related('batch_id__model_stock_no').get(lot_id=lot_id)
+        # Get model's required tray type from ModelMaster
+        model_tray_type = stock.batch_id.model_stock_no.tray_type if stock.batch_id and stock.batch_id.model_stock_no else None
+        if model_tray_type:
+            model_category = get_tray_category(model_tray_type.tray_type)
+        else:
+            model_category = None
+    except TotalStockModel.DoesNotExist:
+        return Response({'success': False, 'error': 'Lot not found'}, status=404)
+    
     # ── RULE 1: Length check (frontend enforces 9-char trigger, backend double-checks) ──
     if len(tray_id) != 9:
         return Response({
@@ -2661,6 +2755,17 @@ def iqf_validate_tray_scan(request):
     # Check IQFTrayId first (primary), then BrassTrayId (fallback)
     iqf_match = IQFTrayId.objects.filter(lot_id=lot_id, tray_id=tray_id, delink_tray=False).first()
     if iqf_match:
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        if model_category:
+            tray_category = get_tray_category(iqf_match.tray_type)
+            if tray_category and tray_category != model_category:
+                return Response({
+                    'success': True,
+                    'status': 'invalid_format',
+                    'message': f'Tray type mismatch: model requires {model_category} tray, but scanned tray is {tray_category}',
+                    'tray_id': tray_id,
+                })
+        
         if max_reuse_limit > 0 and reuse_count >= max_reuse_limit:
             return Response({
                 'success': True,
@@ -2691,6 +2796,18 @@ def iqf_validate_tray_scan(request):
                 'message': 'Tray already accepted in Brass QC — cannot reuse',
                 'tray_id': tray_id,
             })
+        
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        if model_category:
+            tray_category = get_tray_category(brass_match.tray_type)
+            if tray_category and tray_category != model_category:
+                return Response({
+                    'success': True,
+                    'status': 'invalid_format',
+                    'message': f'Tray type mismatch: model requires {model_category} tray, but scanned tray is {tray_category}',
+                    'tray_id': tray_id,
+                })
+        
         if max_reuse_limit > 0 and reuse_count >= max_reuse_limit:
             return Response({
                 'success': True,
@@ -2698,6 +2815,14 @@ def iqf_validate_tray_scan(request):
                 'message': 'Reuse limit reached. Please scan new trays.',
                 'tray_id': tray_id,
             })
+        return Response({
+            'success': True,
+            'status': 'valid_lot',
+            'message': 'Valid Tray',
+            'tray_id': tray_id,
+            'tray_qty': int(getattr(brass_match, 'tray_quantity', 0) or 0),
+            'top_tray': bool(getattr(brass_match, 'top_tray', False)),
+        })
         return Response({
             'success': True,
             'status': 'valid_lot',

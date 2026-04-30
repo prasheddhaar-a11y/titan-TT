@@ -2915,6 +2915,15 @@ class SubmitAllUnloadZ1View(APIView):
             )
             after_table.save()
 
+        # ✅ ERR2 FIX: Update TotalStockModel records to reflect Jig Unloading completion
+        # This ensures Brass Audit Completed table shows correct "Current Stage" after items are unloaded
+        TotalStockModel.objects.filter(lot_id__in=all_lot_ids).update(
+            last_process_module='Jig Unloading',
+            next_process_module='Nickel Inspection',
+            updated_at=timezone.now()
+        )
+        print(f"✅ Updated {len(all_lot_ids)} TotalStockModel records: last_process_module='Jig Unloading', next_process_module='Nickel Inspection'")
+
         # Build response records
         created_records = []
         for lid in all_lot_ids:

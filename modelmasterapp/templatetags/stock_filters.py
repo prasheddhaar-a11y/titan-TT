@@ -148,3 +148,25 @@ def tray_full_name(tray_type):
     if code.startswith('N'):
         return 'Normal'
     return tray_type
+
+
+# Canonical set of module names shown to users
+_VALID_MODULE_NAMES = {
+    'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',
+    'Jig Loading', 'Jig Unloading', 'Nickel Inspection',
+    'Spider Spindle', 'Day Planning', 'Inprocess Inspection',
+    'Nickel Audit', 'Recovery IQF', 'Recovery Brass QC',
+    'Recovery Brass Audit', 'Recovery Jig Loading',
+    'Recovery Day Planning',
+}
+
+@register.filter
+def clean_next_stage(value, default_stage=''):
+    """
+    Returns the next_process_module if it is a recognised module name.
+    Strips internal values like 'Split Completed', 'IQF Reject', None.
+    Usage: {{ data.next_process_module|clean_next_stage:"Brass Audit" }}
+    """
+    if value and str(value).strip() in _VALID_MODULE_NAMES:
+        return str(value).strip()
+    return default_stage

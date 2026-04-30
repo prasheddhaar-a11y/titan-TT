@@ -1783,10 +1783,22 @@ document.addEventListener("DOMContentLoaded", function() {
     var style = document.createElement('style');
     style.id = 'dp-row-action-highlight-style';
     style.innerHTML = `
+      @keyframes highlightAnimation {
+        0% { background-color: #fff5bd; box-shadow: 0 0 8px rgba(255, 193, 7, 0.5); }
+        50% { background-color: #fff9c4; box-shadow: 0 0 12px rgba(255, 193, 7, 0.8); }
+        100% { background-color: #fff5bd; box-shadow: 0 0 8px rgba(255, 193, 7, 0.5); }
+      }
+      
       .dp-row-action-highlight {
-        transition: box-shadow 1.3s;
+        transition: all 0.3s ease;
         background-color: #fff5bd !important;
-        animation: highlightAnimation 2s ease-in-out;
+        animation: highlightAnimation 1.5s ease-in-out infinite;
+        box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+        border-left: 4px solid #f39c12 !important;
+      }
+      
+      .dp-row-action-highlight td {
+        background-color: #fff5bd !important;
       }
     `;
     document.head.appendChild(style);
@@ -1795,17 +1807,17 @@ document.addEventListener("DOMContentLoaded", function() {
   let originalRowIndex = null;
   let movedRow = null;
   let placeholderRow = null;
+  let isCheckboxMove = false; // Track if row was moved by checkbox (persistent) vs button (temporary)
 
-  // --- Accept Alert Integration: Clear highlight and restore row on Yes/Cancel ---
+  // --- Accept Alert Integration: Restore row position when alert closes ---
   document.querySelectorAll('.btn-twitter').forEach(function(acceptBtn) {
     acceptBtn.addEventListener('click', function() {
       if (typeof Swal !== 'undefined') {
         const origSwalFire = Swal.fire;
         Swal.fire = function(opts) {
-          // Force patch for any Accept button click (don't rely only on opts.title)
           const swalPromise = origSwalFire.call(Swal, opts);
           swalPromise.then(function(result) {
-            // Always restore row on Yes or Cancel
+            // ✅ Restore row on alert close for accept action
             restoreRowPosition();
             // Unpatch
             Swal.fire = origSwalFire;
@@ -1818,6 +1830,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Restore row to original position and remove highlight
   function restoreRowPosition() {
+    // ✅ FIX: Do NOT restore if row was moved by checkbox (persistent behavior)
+    if (isCheckboxMove) {
+      console.log('[BrassQC] Row stays at top (moved by checkbox verification)');
+      return;
+    }
+    
     if (movedRow && placeholderRow && placeholderRow.parentNode) {
       placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
       placeholderRow.parentNode.removeChild(placeholderRow);
@@ -1828,9 +1846,63 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     document.querySelectorAll('tbody tr').forEach(function(row) {
       row.classList.remove('dp-row-action-highlight');
-      row.classList.remove('highlighted-tray-scan');
     });
+    console.log('[BrassQC] Row position restored to original index');
   }
+
+  // ✅ NEW: Expose global function to move any row to top with highlight
+  window.bqMoveRowToTop = function(row, isCheckboxTriggered) {
+    if (!row || !row.parentNode) return;
+    
+    // Clear all previous highlights first
+    document.querySelectorAll('tbody tr').forEach(function(r) {
+      r.classList.remove('dp-row-action-highlight');
+    });
+    
+    const tbody = row.parentNode;
+    const currentFirstChild = tbody.firstElementChild;
+    
+    // Only move if row is not already at top
+    if (currentFirstChild !== row) {
+      // If there's a previously moved row, restore it first (unless it was a checkbox move)
+      if (movedRow && movedRow !== row && placeholderRow && placeholderRow.parentNode) {
+        if (!isCheckboxMove) {
+          // Previous move was temporary (button), safe to restore
+          placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
+          placeholderRow.parentNode.removeChild(placeholderRow);
+          movedRow.classList.remove('dp-row-action-highlight');
+        } else {
+          // Previous move was by checkbox, force restore when accessing different row
+          placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
+          placeholderRow.parentNode.removeChild(placeholderRow);
+          movedRow.classList.remove('dp-row-action-highlight');
+          isCheckboxMove = false; // Reset flag
+        }
+      }
+      
+      // Store the original index and create placeholder
+      originalRowIndex = Array.from(tbody.children).indexOf(row);
+      movedRow = row;
+      placeholderRow = document.createElement('tr');
+      placeholderRow.style.display = 'none';
+      for (let i = 0; i < row.children.length; i++) {
+        placeholderRow.appendChild(document.createElement('td'));
+      }
+      
+      // Insert placeholder at original position and move row to top
+      tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
+      tbody.insertBefore(row, tbody.firstElementChild);
+      
+      // Set the move type flag
+      isCheckboxMove = isCheckboxTriggered || false;
+      
+      console.log('[BrassQC] Row moved to top | Original Index:', originalRowIndex, '| Checkbox move:', isCheckboxMove);
+    }
+    
+    // Apply highlight to moved row
+    row.classList.add('dp-row-action-highlight');
+    console.log('[BrassQC] Row highlighted');
+  };
 
   // Attach highlight/move for Accept, Reject, and View actions
   function attachRowHighlight(selector) {
@@ -1838,31 +1910,10 @@ document.addEventListener("DOMContentLoaded", function() {
       btn.addEventListener('click', function(event) {
         var button = event.currentTarget;
         var row = button.closest('tr');
-        document.querySelectorAll('tbody tr').forEach(function(row) {
-          row.classList.remove('dp-row-action-highlight');
-        });
-        if (row && row.parentNode) {
-          const tbody = row.parentNode;
-          if (tbody.firstElementChild !== row) {
-            if (movedRow && placeholderRow && placeholderRow.parentNode) {
-              placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-              placeholderRow.parentNode.removeChild(placeholderRow);
-              movedRow.classList.remove('dp-row-action-highlight');
-              movedRow = null;
-              placeholderRow = null;
-              originalRowIndex = null;
-            }
-            originalRowIndex = Array.from(tbody.children).indexOf(row);
-            movedRow = row;
-            placeholderRow = document.createElement('tr');
-            placeholderRow.style.display = 'none';
-            for (let i = 0; i < row.children.length; i++) {
-              placeholderRow.appendChild(document.createElement('td'));
-            }
-            tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-            tbody.insertBefore(row, tbody.firstElementChild);
-          }
-          row.classList.add('dp-row-action-highlight');
+        
+        // Use the global function for consistency (temporary move - will restore on modal close)
+        if (row && typeof window.bqMoveRowToTop === 'function') {
+          window.bqMoveRowToTop(row, false); // false = button move (temporary)
         }
       });
     });
@@ -1905,7 +1956,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (event.key === 'Escape') restoreRowPosition();
   });
 
-  // --- Fix: Also restore on SweetAlert Cancel button click (native or custom) ---
+  // Restore on SweetAlert Cancel button click
   document.addEventListener('click', function(event) {
     if (
       event.target &&
@@ -2026,6 +2077,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const parentSpan = this.closest('span');
       const row = this.closest('tr');
 
+      // ✅ FIX: Move row to top and highlight when checking lot qty (PERSISTENT move)
+      if (row && row.parentNode && typeof window.bqMoveRowToTop === 'function') {
+        window.bqMoveRowToTop(row, true); // true = checkbox move (persistent)
+      }
+
       try {
         const resp = await fetch('/brass_qc/api/toggle-verified/', {
           method: 'POST',
@@ -2077,9 +2133,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           }
 
-          console.log(`[BrassQC] Verified lot ${lotId} ✓`);
-          // Reload page so Q circle reflects updated state without manual refresh
-          setTimeout(() => window.location.reload(), 500);
+          console.log(`[BrassQC] Verified lot ${lotId} ✓ - Row stays at top with highlight`);
+          // ✅ FIX: Do NOT reload page - row should stay at top with highlight
+          // All UI updates (green tick, enabled buttons, Q circle) are already done above
         } else {
           cb.checked = !verified; // revert on failure
           alert('Failed to save: ' + (result.error || 'Unknown error'));
@@ -2300,6 +2356,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (modal) {
         modal.style.display = 'none';
         modal.classList.remove('open');
+        // ✅ Restore row position when closing view modal
+        if (typeof window.bqRestoreRowPosition === 'function') {
+          window.bqRestoreRowPosition();
+        }
       }
     });
   }
@@ -2311,6 +2371,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (event.target === modal) {
         modal.style.display = 'none';
         modal.classList.remove('open');
+        // ✅ Restore row position when closing via backdrop
+        if (typeof window.bqRestoreRowPosition === 'function') {
+          window.bqRestoreRowPosition();
+        }
       }
     });
   }
@@ -2369,12 +2433,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function closeModal() {
       overlay.style.display = 'none';
       _lotId = null;
-      if (typeof window.bqRestoreRowPosition === 'function') window.bqRestoreRowPosition();
+      // ✅ Restore row position when closing reject modal
+      if (typeof window.bqRestoreRowPosition === 'function') {
+        window.bqRestoreRowPosition();
+      }
     }
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    // ❌ ERR3 FIX: DO NOT close modal on outside click - only close with explicit button
-    // overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+    // ✅ FIX: Prevent close on outside click BUT ensure ESC key works
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        // User clicked outside modal - do NOT close
+        // This prevents accidental closes while the user is working
+        return;
+      }
+    });
 
     // ── Open modal from reject button ──
     document.querySelectorAll('.tray-scan-btn').forEach(function(btn) {

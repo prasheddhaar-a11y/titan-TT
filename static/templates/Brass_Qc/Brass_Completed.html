@@ -1263,7 +1263,7 @@
                             <td >
                               <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                                  style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
-                                 {{ data.last_process_module|default:"N/A" }}
+                                 {{ data.next_process_module|clean_next_stage:"Brass Audit" }}
                               </div>
                             </td>
                             <td >{{ data.tray_type }}-{{ data.tray_capacity }}</td>

@@ -334,6 +334,60 @@ class BrassAuditPickTableView(APIView):
 
 
 # ═══════════════════════════════════════════════════════════════
+# Stage display helper — Brass Audit Completed table
+# ═══════════════════════════════════════════════════════════════
+_VALID_STAGE_NAMES = {
+    'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',
+    'Jig Loading', 'Jig Unloading', 'Nickel Inspection',
+    'Spider Spindle', 'Day Planning', 'Inprocess Inspection',
+    'Nickel Audit',
+}
+
+def _compute_brass_audit_display_stage(stock_obj):
+    """
+    Computes the Current Stage pill value for the Brass Audit Completed table.
+
+    Rule: only advance the display to the next stage once the lot has actually
+    been worked on there (draft saved or submitted).  While the lot is just
+    sitting in the next stage's pick table it still shows 'Brass Audit'.
+
+    Supports FULL_ACCEPT (own lot → Jig Loading),
+              FULL_REJECT (own lot → Brass QC),
+              PARTIAL     (child accept lot → Jig Loading,
+                           parent row stays in Completed table).
+    """
+    # Resolved next module: follow child accept lot for PARTIAL, own for the rest
+    _npm = stock_obj.child_accept_stage or stock_obj.next_process_module
+    _fallback = stock_obj.last_process_module or 'Brass Audit'
+
+    if not _npm or _npm not in _VALID_STAGE_NAMES:
+        return _fallback
+
+    if _npm == 'Jig Loading':
+        # Has Jig Loading actually been started?
+        # Own-lot flags cover FULL_ACCEPT; child_jig_active covers PARTIAL child.
+        _own_jig = bool(stock_obj.jig_draft or stock_obj.Jig_Load_completed)
+        _child_jig = bool(getattr(stock_obj, 'child_jig_active', False))
+        if not (_own_jig or _child_jig):
+            return _fallback
+
+    elif _npm == 'Brass QC':
+        # FULL_REJECT: lot sent back to Brass QC — has it been touched?
+        _bq_active = bool(
+            stock_obj.brass_draft or
+            stock_obj.brass_qc_accptance or
+            stock_obj.brass_qc_rejection or
+            stock_obj.brass_qc_few_cases_accptance
+        )
+        if not _bq_active:
+            return _fallback
+
+    # Any other valid module (Jig Unloading, Nickel Inspection, …):
+    # The lot has clearly progressed past Jig Loading → show as-is.
+    return _npm
+
+
+# ═══════════════════════════════════════════════════════════════
 # Brass Audit Completed Table View
 # ═══════════════════════════════════════════════════════════════
 @method_decorator(login_required, name='dispatch')
@@ -392,6 +446,20 @@ class BrassAuditCompletedView(APIView):
             lot_id=OuterRef('lot_id')
         ).values('total_rejection_quantity')[:1]
 
+        # Subquery: live next_process_module of the accepted child lot (PARTIAL splits)
+        # For FULL_ACCEPT/FULL_REJECT: brass_audit_transition_accept_lot_id is NULL → returns None → falls back to own next_process_module
+        child_accept_stage_subquery = TotalStockModel.objects.filter(
+            lot_id=OuterRef('brass_audit_transition_accept_lot_id')
+        ).values('next_process_module')[:1]
+
+        # Subquery: has the child accept lot (PARTIAL) actually been worked on in Jig Loading?
+        # Combined with own-lot check covers FULL_ACCEPT case too.
+        child_jig_active_subquery = Exists(
+            TotalStockModel.objects.filter(
+                lot_id=OuterRef('brass_audit_transition_accept_lot_id')
+            ).filter(Q(jig_draft=True) | Q(Jig_Load_completed=True))
+        )
+
         queryset = TotalStockModel.objects.select_related(
             'batch_id',
             'batch_id__model_stock_no',
@@ -402,6 +470,8 @@ class BrassAuditCompletedView(APIView):
             brass_audit_last_process_date_time__range=(from_datetime, to_datetime)
         ).annotate(
             brass_audit_rejection_qty=brass_audit_rejection_qty_subquery,
+            child_accept_stage=child_accept_stage_subquery,
+            child_jig_active=child_jig_active_subquery,
         ).filter(
             Q(brass_audit_accptance=True) |
             Q(brass_audit_rejection=True) |
@@ -451,7 +521,9 @@ class BrassAuditCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
-                'next_process_module': stock_obj.next_process_module,
+                # Dynamic stage — guarded: only advance to next stage if lot has been
+                # actually worked on there, not just sitting in the pick table.
+                'next_process_module': _compute_brass_audit_display_stage(stock_obj),
                 'brass_audit_accepted_qty_verified': stock_obj.brass_audit_accepted_qty_verified,
                 'brass_audit_accepted_qty': stock_obj.brass_audit_accepted_qty,
                 'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
@@ -1060,15 +1132,50 @@ def brass_audit_action(request):
         })
 
     elif action == 'VALIDATE_TRAY':
-        tray_id = request.data.get('tray_id', '').strip()
+        tray_id = request.data.get('tray_id', '').strip().upper()
         lot_id = request.data.get('lot_id', '').strip()
         if not tray_id:
             return JsonResponse({"valid": False, "error": "tray_id is required"}, status=400)
+        
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        def get_tray_category(tray_type_code):
+            """Extract category (Jumbo/Normal) from tray type code: J*->Jumbo, N*->Normal"""
+            if not tray_type_code:
+                return None
+            code = str(tray_type_code).upper().strip()
+            if code.startswith('J'):
+                return 'Jumbo'
+            elif code.startswith('N'):
+                return 'Normal'
+            return None
+
+        try:
+            stock = TotalStockModel.objects.select_related('batch_id__model_stock_no').get(lot_id=lot_id)
+            # Get model's required tray type from ModelMaster
+            model_tray_type = stock.batch_id.model_stock_no.tray_type if stock.batch_id and stock.batch_id.model_stock_no else None
+            if model_tray_type:
+                model_category = get_tray_category(model_tray_type.tray_type)
+            else:
+                model_category = None
+        except TotalStockModel.DoesNotExist:
+            return JsonResponse({"valid": False, "error": "Lot not found"}, status=404)
+        
         tray = TrayId.objects.filter(tray_id=tray_id).first()
         if not tray:
             return JsonResponse({"valid": False, "error": "Tray ID not found in system"})
         if tray.lot_id and tray.lot_id != lot_id:
             return JsonResponse({"valid": False, "error": f"Tray belongs to lot {tray.lot_id}"})
+        
+        # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
+        # Verify scanned tray's type matches model's required type (Jumbo/Normal)
+        if model_category:
+            tray_category = get_tray_category(tray.tray_type)
+            if tray_category and tray_category != model_category:
+                return JsonResponse({
+                    "valid": False,
+                    "error": f"Tray type mismatch: model requires {model_category} tray, but scanned tray is {tray_category}",
+                })
+        
         return JsonResponse({"valid": True})
 
     elif action == 'GET_REASONS':

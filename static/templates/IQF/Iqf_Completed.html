@@ -1038,42 +1038,33 @@
                         class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                         style="
                           border: 2px solid
-                            {% if data.last_process_module == 'Input screening' %}
-                              #0d5d17
-                            {% elif data.last_process_module == 'Brass QC' %}
+                            {% if data.next_process_module == 'Brass QC' %}
+                              #028084
+                            {% elif data.next_process_module == 'Brass Audit' %}
                               #f9a825
-                            {% elif data.last_process_module == 'DayPlanning' %}
+                            {% elif data.next_process_module == 'Jig Loading' %}
                               #1976d2
                             {% else %}
                               #9adeed
                             {% endif %};
                           background-color:
-                            {% if data.last_process_module == 'Input screening' %}
-                              #c5f9c2
-                            {% elif data.last_process_module == 'Brass QC' %}
+                            {% if data.next_process_module == 'Brass QC' %}
+                              #d1edf3
+                            {% elif data.next_process_module == 'Brass Audit' %}
                               #fff8e1
-                            {% elif data.last_process_module == 'DayPlanning' %}
+                            {% elif data.next_process_module == 'Jig Loading' %}
                               #d1eaff
                             {% else %}
                               #d1edf3
                             {% endif %};
-                          color:
-                            {% if data.last_process_module == 'Input screening' %}
-                              #2f801b
-                            {% elif data.last_process_module == 'Brass QC' %}
-                              #b26a00
-                            {% elif data.last_process_module == 'DayPlanning' %}
-                              #033b5d
-                            {% else %}
-                              #033b5d
-                            {% endif %};
+                          color: #033b5d;
                           font-size: clamp(0.75rem, 2vw, 0.875rem);
                           white-space: nowrap;
                           padding-top: 0.5rem;
                           padding-bottom: 0.5rem;
                         "
                       >
-                        {{ data.last_process_module|default:"N/A" }}
+                        {{ data.next_process_module|clean_next_stage:"IQF" }}
                       </div>
                     </td>
                     <td>{{ data.tray_type }} {{ data.tray_capacity }}</td>
