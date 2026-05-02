@@ -1554,6 +1554,18 @@
   #iqfDelinkModalOverlay .delink-tray-table { font-size:14px; }
   #iqfDelinkModalOverlay .delink-tray-table th, #iqfDelinkModalOverlay .delink-tray-table td { padding:8px 10px; }
 }
+
+/* ═══ INLINE DELINK SECTION STYLES (inside main IQF modal) ═══ */
+#iqf-delink-section { border:1px solid #e0e0e0; border-radius:8px; padding:12px; background:#fafafa; }
+#iqfDelinkTrayTableBodyInline tr { border-bottom:1px solid #f0f0f0; }
+#iqfDelinkTrayTableBodyInline tr.row-accepted { background:#f0fff4; }
+#iqfDelinkTrayTableBodyInline tr.row-delinked { background:#fff3e0; }
+#iqfDelinkTrayTableBodyInline tr.row-reject { background:#ffebee; }
+#iqfDelinkTrayTableBodyInline tr.row-pending { background:#e3f2fd; }
+#iqfDelinkTrayTableBodyInline .iqf-delink-checkbox { width:16px; height:16px; cursor:pointer; accent-color:#e65100; }
+#iqfDelinkTrayTableBodyInline .iqf-delink-checkbox:disabled { opacity:0.5; cursor:not-allowed; accent-color:#2e7d32; }
+#iqfDelinkTrayTableBodyInline .delink-status-badge { padding:2px 10px; border-radius:8px; font-size:11px; font-weight:600; display:inline-block; }
+
 .content-wrapper {/* Lines 8-12 omitted */}
 
 /* Make table containers flex so inner .table-responsive can scroll without being hidden behind footer */
@@ -1949,7 +1961,7 @@
                           padding-bottom: 0.5rem;
                         "
                       >
-                        {{ data.last_process_module|default:"N/A" }}
+                        {{ data.ui.stage_label }}
                       </div>
                     </td>
                     <td class="{{ data.ui.row_blur }}">
@@ -2432,41 +2444,94 @@
       </div>
     </div>
     <div class="iqf-rejection-modal-body">
-      <!-- qty info moved to header (right side) -->
+      <!-- ✅ SECTION 1: Rejection Reasons (2-Column Layout) -->
       <div id="rejection-reasons-section" style="margin-top:12px;">
-        <table class="table table-bordered" style="width:100%;">
-          <thead>
-            <tr>
-              <th>S.No</th>
-              <th>Rejection Reason</th>
-              <th style="text-align:right">Brass QC Qty</th>
-              <th style="text-align:right">IQF Qty</th>
-            </tr>
-          </thead>
-          <tbody id="rejection-table-body"></tbody>
-        </table>
+        <h6 style="margin:0 0 8px; font-weight:700; color:#c62828; font-size:14px;"><i class="fa fa-exclamation-triangle" style="margin-right:6px;"></i>Rejection Reasons</h6>
+        <div id="rejection-grid-2col" style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px;">
+          <!-- Dynamically populated by JS -->
+        </div>
       </div>
 
-      <!-- ── Accepted Tray Scan Slots — Backend computes, frontend renders ── -->
-      <div id="iqf-accepted-tray-section" style="display:none; margin-top:16px; border-top:2px solid #e0e0e0; padding-top:14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-          <h6 style="margin:0; font-weight:700; color:#1a237e; font-size:15px;">
-            <i class="fa fa-check-circle" style="color:#28a745; margin-right:6px;"></i>Accepted Tray Scan
-          </h6>
-          <span id="iqfAcceptedQtyBadge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:16px; padding:3px 12px; font-size:13px; font-weight:600;">Accepted: 0</span>
+      <!-- ✅ SECTION 2: Summary Badges (Minimal Light Theme) -->
+      <div id="iqf-summary-badges" style="display:none; margin-top:16px; padding:10px; background:#f9f9f9; border:1px solid #e0e0e0; border-radius:8px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;">
+          <span style="background:#fff; border:1px solid #e3f2fd; padding:5px 14px; border-radius:6px; font-size:13px; font-weight:600; color:#1565c0;">Total Lot: <b id="iqfSummaryTotalQty">0</b></span>
+          <span style="background:#fff; border:1px solid #c8e6c9; padding:5px 14px; border-radius:6px; font-size:13px; font-weight:600; color:#2e7d32;">Accept: <b id="iqfSummaryAcceptQty">0</b> (<b id="iqfSummaryAcceptCount">0</b> trays)</span>
+          <span style="background:#fff; border:1px solid #ffcdd2; padding:5px 14px; border-radius:6px; font-size:13px; font-weight:600; color:#c62828;">Reject: <b id="iqfSummaryRejectQty">0</b> (<b id="iqfSummaryRejectCount">0</b> trays)</span>
+          <span style="background:#fff; border:1px solid #ffe0b2; padding:5px 14px; border-radius:6px; font-size:13px; font-weight:600; color:#e65100;">Delink: <b id="iqfSummaryDelinkCount">0</b></span>
         </div>
-        <table class="table table-bordered" style="width:100%; margin-bottom:0;">
-          <thead>
-            <tr>
-              <th style="width:50px; text-align:center;">S.No</th>
-              <th>Scan Tray ID</th>
-              <th style="width:100px; text-align:right;">Expected Qty</th>
-              <th style="width:90px; text-align:center;">Type</th>
-              <th style="width:120px; text-align:center;">Status</th>
-            </tr>
-          </thead>
-          <tbody id="iqf-accepted-tray-slots-body"></tbody>
-        </table>
+      </div>
+
+      <!-- ✅ SECTION 3: Existing Trays - Tap to Use (Horizontal Cards like Brass QC) -->
+      <div id="iqf-existing-trays-section" style="display:none; margin-top:16px; border-top:2px solid #e0e0e0; padding-top:14px;">
+        <h6 style="margin:0 0 8px; font-weight:700; color:#1565c0; font-size:14px;"><i class="fa fa-inbox" style="margin-right:6px;"></i>Existing Trays - Tap to Use</h6>
+        <div id="iqf-existing-trays-cards" style="display:flex; gap:6px; flex-wrap:wrap; max-height:80px; overflow-y:auto; padding:4px 2px;">
+          <!-- Cards rendered by JS -->
+        </div>
+        <div style="font-size:11px; color:#666; margin-top:6px; padding:6px 8px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:6px;">
+          <i class="fa fa-info-circle"></i> <b id="iqfExistingTrayHint">Tap any tray card to auto-fill the next empty Accept scan slot</b>
+        </div>
+      </div>
+
+      <!-- ✅ SECTION 4+5: Accept + Reject in 2-column flex layout -->
+      <div id="iqf-tray-columns-wrapper" style="display:none; margin-top:14px;">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+
+          <!-- SECTION 4: Accept Tray Scan (left column) -->
+          <div id="iqf-accepted-tray-section" style="flex:1; min-width:0; border:1px solid #b2dfdb; border-radius:8px; padding:10px; background:#fafffe;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <h6 style="margin:0; font-weight:600; color:#00695c; font-size:13px;">
+                <i class="fa fa-check-circle" style="margin-right:5px;"></i>Accept Tray Scan
+              </h6>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
+                <span id="iqfReusableBadge" style="display:none; background:#fff3e0; color:#e65100; border:1px solid #ffcc80; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:600;">Reusable: 0/0</span>
+                <span id="iqfAcceptedQtyBadge" style="background:#e0f2f1; color:#00695c; border:1px solid #80cbc4; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600;">Accepted: 0</span>
+              </div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+              <thead>
+                <tr style="background:#e8f5e9;">
+                  <th style="width:32px; text-align:center; padding:5px 4px; border-bottom:1px solid #a5d6a7; font-weight:600; color:#555;">#</th>
+                  <th style="padding:5px 4px; border-bottom:1px solid #a5d6a7; font-weight:600; color:#555;">Scan Tray ID</th>
+                  <th style="width:40px; text-align:right; padding:5px 4px; border-bottom:1px solid #a5d6a7; font-weight:600; color:#555;">Qty</th>
+                  <th style="width:110px; text-align:center; padding:5px 4px; border-bottom:1px solid #a5d6a7; font-weight:600; color:#555;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="iqf-accepted-tray-slots-body"></tbody>
+            </table>
+            <div id="iqf-reuse-error" style="display:none; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:11px; font-weight:600;"></div>
+          </div>
+
+          <!-- SECTION 5: Reject Tray Scan (right column — scan inputs, shown after accept completes) -->
+          <div id="iqf-reject-section" style="flex:1; min-width:0; border:1px solid #ffcdd2; border-radius:8px; padding:10px; background:#fffafa;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <h6 style="margin:0; font-weight:600; color:#c62828; font-size:13px;"><i class="fa fa-times-circle" style="margin-right:5px;"></i>Reject Tray Scan</h6>
+              <span id="iqfRejScannedBadge" style="display:none; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600;">Scanned: 0/0</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+              <thead>
+                <tr style="background:#ffebee;">
+                  <th style="width:32px; padding:5px 4px; border-bottom:1px solid #ef9a9a; font-weight:600; color:#555;">#</th>
+                  <th style="padding:5px 4px; border-bottom:1px solid #ef9a9a; font-weight:600; color:#555;">Scan Tray ID</th>
+                  <th style="width:40px; text-align:right; padding:5px 4px; border-bottom:1px solid #ef9a9a; font-weight:600; color:#555;">Qty</th>
+                  <th style="width:110px; text-align:center; padding:5px 4px; border-bottom:1px solid #ef9a9a; font-weight:600; color:#555;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="iqf-reject-tbody">
+                <tr><td colspan="4" style="text-align:center; color:#bbb; font-size:11px; padding:10px;">Complete accept scanning first</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ✅ SECTION 6: Delink — only visible after accept + reject are both complete -->
+      <div id="iqf-delink-section" style="display:none; margin-top:10px; border:1px solid #ffe0b2; border-radius:8px; padding:10px; background:#fffdf5;">
+        <h6 style="margin:0 0 6px; font-weight:600; color:#e65100; font-size:13px;"><i class="fa fa-unlink" style="margin-right:5px;"></i>Delinked Trays</h6>
+        <div id="iqf-delink-list" style="font-size:11px; color:#666; display:flex; flex-wrap:wrap; gap:4px;">
+          <!-- Dynamically populated -->
+        </div>
       </div>
 
     </div>
@@ -2649,46 +2714,130 @@
   }
 
   // Open modal and populate data dynamically based on lotId
-  function openAuditModal(lotId){
+  function openAuditModal(lotId, modelNo){
     if(!lotId) return;
     _currentAuditLotId = lotId;  // 🔒 Lock lot_id at modal open — single source for Draft/Proceed
     console.log('[IQF MODAL] Opened for lot_id=' + lotId);
+    // ✅ ERR5: Set plating stock number from button's data-model-no attribute
+    document.getElementById('modalModelNo') && (document.getElementById('modalModelNo').textContent = modelNo || '');
     fetch('/iqf/iqf_rejection_audit_iqf_reject/?lot_id='+encodeURIComponent(lotId))
       .then(function(res){ return res.json(); })
       .then(function(json){
         if(!json || !json.success) return;
         var rw = json.rw_qty || 0;
-        var tbody = document.getElementById('rejection-table-body');
-        if(!tbody) return;
+        var totalIqfQty = json.total_iqf_qty || 0;
+        var acceptedQty = Math.max(0, rw - totalIqfQty);
+        
+        // ✅ Update header badges
         document.getElementById('modalRwQty') && (document.getElementById('modalRwQty').textContent = rw);
         document.getElementById('modalMissingQty') && (document.getElementById('modalMissingQty').textContent = json.missing_qty || '');
         document.getElementById('modalPhysicalQty') && (document.getElementById('modalPhysicalQty').textContent = json.physical_qty || '');
-        document.getElementById('modalIqfTotal') && (document.getElementById('modalIqfTotal').textContent = json.total_iqf_qty || 0);
-        var _accEl = document.getElementById('modalAcceptedQty'); if(_accEl) _accEl.textContent = Math.max(0, rw - (json.total_iqf_qty || 0));
-        tbody.innerHTML = '';
+        document.getElementById('modalIqfTotal') && (document.getElementById('modalIqfTotal').textContent = totalIqfQty);
+        document.getElementById('modalAcceptedQty') && (document.getElementById('modalAcceptedQty').textContent = acceptedQty);
+
+        // ✅ NEW: Update summary badges
+        document.getElementById('iqfSummaryTotalQty') && (document.getElementById('iqfSummaryTotalQty').textContent = rw);
+        document.getElementById('iqfSummaryAcceptQty') && (document.getElementById('iqfSummaryAcceptQty').textContent = acceptedQty);
+        document.getElementById('iqfSummaryRejectQty') && (document.getElementById('iqfSummaryRejectQty').textContent = totalIqfQty);
+        // Show summary section when there's rejection data
+        if(totalIqfQty > 0){
+          document.getElementById('iqf-summary-badges') && (document.getElementById('iqf-summary-badges').style.display = 'block');
+        } else {
+          document.getElementById('iqf-summary-badges') && (document.getElementById('iqf-summary-badges').style.display = 'none');
+        }
+
+        // ✅ NEW: Render existing trays as horizontal tap-to-use cards
+        var existingSection = document.getElementById('iqf-existing-trays-section');
+        var existingCards = document.getElementById('iqf-existing-trays-cards');
+        if(existingSection && existingCards && json.current_lot_trays && json.current_lot_trays.length > 0){
+          existingSection.style.display = 'block';
+          existingCards.innerHTML = '';
+          window._iqfCurrentLotTrays = json.current_lot_trays || [];
+          
+          // ✅ ERR1: Compact inline chip cards (not large 140px blocks)
+          json.current_lot_trays.forEach(function(t){
+            var card = document.createElement('span');
+            card.className = 'iqf-existing-tray-card';
+            card.setAttribute('data-tray-id', t.tray_id);
+            card.setAttribute('data-qty', t.qty);
+            card.setAttribute('data-is-top-tray', t.is_top_tray ? 'true' : 'false');
+            card.setAttribute('data-tray-capacity', t.tray_capacity || 0);
+            
+            var typeIcon = t.is_top_tray ? '\u2B50' : '\uD83D\uDCE6';
+            var chipBorder = t.is_top_tray ? '#ffb74d' : '#90caf9';
+            var chipBg = t.is_top_tray ? '#fff8f0' : '#f3f8ff';
+            // Store original colors for card reset after user edits tap-filled input
+            card.setAttribute('data-original-border', chipBorder);
+            card.setAttribute('data-original-bg', chipBg);
+            
+            card.innerHTML = '<span style="font-size:10px;">' + typeIcon + '</span><b style="font-size:11px;">' + t.tray_id + '</b><span style="font-size:10px; color:#888; background:#f0f0f0; padding:1px 5px; border-radius:10px; margin-left:2px;">' + t.qty + '</span>';
+            
+            card.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border:1.5px solid ' + chipBorder + '; border-radius:20px; background:' + chipBg + '; cursor:pointer !important; font-size:11px; white-space:nowrap; transition:all 0.15s; user-select:none; color:#333;';
+            
+            // Tap-to-fill handler
+            card.addEventListener('click', function(){
+              window._iqfTapToFillTray(this);
+            });
+            
+            card.addEventListener('mouseenter', function(){
+              if(!this.classList.contains('iqf-tray-used')){
+                this.style.borderColor = '#2e7d32';
+                this.style.background = '#e8f5e9';
+                this.style.boxShadow = '0 1px 4px rgba(46,125,50,0.25)';
+              }
+            });
+            
+            card.addEventListener('mouseleave', function(){
+              if(!this.classList.contains('iqf-tray-used')){
+                this.style.borderColor = this.getAttribute('data-original-border') || chipBorder;
+                this.style.background = this.getAttribute('data-original-bg') || chipBg;
+                this.style.boxShadow = 'none';
+              }
+            });
+            
+            existingCards.appendChild(card);
+          });
+          
+          // Update hint with reuse count
+          var maxReuse = json.current_lot_trays.length;
+          document.getElementById('iqfExistingTrayHint') && (document.getElementById('iqfExistingTrayHint').innerHTML = '<b>' + maxReuse + '</b> existing tray(s) available — Tap any card to auto-fill next empty Accept slot');
+        } else {
+          if(existingSection) existingSection.style.display = 'none';
+          window._iqfCurrentLotTrays = [];
+        }
 
         // ── Lot Rejection state from backend ──
         var batchRejCb = document.getElementById('batchRejection');
         var isLotRejection = !!(json.is_lot_rejection);
         if(batchRejCb) batchRejCb.checked = isLotRejection;
 
+        // ✅ Render rejection reasons in 2-column grid
+        var grid = document.getElementById('rejection-grid-2col');
+        if(!grid) return;
+        grid.innerHTML = '';
+
+        // ERR6: Compute total BQC qty to detect if lot has BQC data
+        var _totalBqcQty = (json.rejection_data || []).reduce(function(s, r){ return s + Number(r.brass_qc_qty || 0); }, 0);
+        var _hasBqcData = _totalBqcQty > 0;
+
         (json.rejection_data || []).forEach(function(row, idx){
-          var tr = document.createElement('tr');
           var brassQty = Number(row.brass_qc_qty || 0);
           var iqfVal = (row.iqf_qty !== undefined && row.iqf_qty !== null && row.iqf_qty !== '') ? row.iqf_qty : 0;
           var disabledAttr = row.is_editable ? '' : 'disabled';
-          tr.innerHTML = '<td>'+(idx+1)+'</td>'+
-                         '<td>'+ (row.reason || '') +'</td>'+
-                         '<td style="text-align:right">'+ (brassQty) +'</td>'+
-                         '<td style="text-align:right">'
-                           + '<input type="number" min="0" class="rejection-qty-input" data-reason-id="'+(row.reason_id||'')+'" value="'+iqfVal+'" '+disabledAttr+' style="width:84px; text-align:right;" />'
-                           + '</td>';
-          tbody.appendChild(tr);
+          // ERR6 FIX: If lot has BQC data and this reason has 0 BQC qty — block IQF entry
+          if(!disabledAttr && _hasBqcData && brassQty === 0){ disabledAttr = 'disabled'; }
+          
+          var rowDiv = document.createElement('div');
+          rowDiv.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid #f0f0f0; background:#fafafa; border-radius:4px;';
+          rowDiv.innerHTML = '<div style="flex:1; font-size:12px; color:#333; font-weight:500;">' + (row.reason || '') + '</div>' +
+            '<div style="font-size:11px; color:#666; margin-right:4px;">BQC: <b>' + brassQty + '</b></div>' +
+            '<input type="number" min="0" class="rejection-qty-input" data-reason-id="' + (row.reason_id || '') + '" value="' + iqfVal + '" ' + disabledAttr + ' style="width:64px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:4px; font-size:12px;" placeholder="0" />';
+          grid.appendChild(rowDiv);
         });
 
         // After rendering rows: attach input listeners that call server to compute total (backend-only calc)
         var attachComputeListeners = function(){
-          var inputs = tbody.querySelectorAll('.rejection-qty-input');
+          var inputs = grid.querySelectorAll('.rejection-qty-input');
           inputs.forEach(function(inp){
             // avoid duplicate handlers
             inp.removeEventListener('input', inputChangedHandler);
@@ -2700,7 +2849,7 @@
         function inputChangedHandler(e){
           try{
             var csrftoken = getCookie('csrftoken');
-            var inputs = tbody.querySelectorAll('.rejection-qty-input');
+            var inputs = grid.querySelectorAll('.rejection-qty-input');
             var items = [];
             inputs.forEach(function(i){
               var rid = i.getAttribute('data-reason-id') || null;
@@ -2724,18 +2873,35 @@
                 var _accEl2 = document.getElementById('modalAcceptedQty'); if(_accEl2) _accEl2.textContent = Math.max(0, (body.rw_qty || 0) - (body.total_iqf_qty || 0));
                 // Keep RW qty in sync with server authoritative value
                 document.getElementById('modalRwQty') && (document.getElementById('modalRwQty').textContent = body.rw_qty || 0);
+                
+                // ✅ Update summary badges
+                document.getElementById('iqfSummaryTotalQty') && (document.getElementById('iqfSummaryTotalQty').textContent = body.rw_qty || 0);
+                document.getElementById('iqfSummaryAcceptQty') && (document.getElementById('iqfSummaryAcceptQty').textContent = Math.max(0, (body.rw_qty || 0) - (body.total_iqf_qty || 0)));
+                document.getElementById('iqfSummaryRejectQty') && (document.getElementById('iqfSummaryRejectQty').textContent = body.total_iqf_qty || 0);
+                
                 // Clear any previous error message on success
                 try{ var errEl = document.getElementById('modalErrorMsg'); if(errEl) errEl.remove(); }catch(e){}
+
+                // ✅ INSTANT: Show 2-col wrapper + compute reject distribution immediately
+                var _totRej = parseInt(body.total_iqf_qty || 0, 10);
+                var _wrapper = document.getElementById('iqf-tray-columns-wrapper');
+                if(_totRej > 0){
+                  if(_wrapper) _wrapper.style.display = 'block';
+                  if(typeof window._iqfComputeRejectAllocation === 'function') window._iqfComputeRejectAllocation();
+                } else {
+                  if(_wrapper) _wrapper.style.display = 'none';
+                  document.getElementById('iqf-delink-section') && (document.getElementById('iqf-delink-section').style.display = 'none');
+                }
                 // ── Trigger accepted tray slots update (backend decides, frontend renders) ──
                 if(typeof window._iqfFetchTraySlots === 'function'){
-                  window._iqfFetchTraySlots(lotId, parseInt(body.total_iqf_qty || 0, 10));
+                  window._iqfFetchTraySlots(lotId, _totRej);
                 }
               } else {
                 // on validation error, show server message and highlight offending input if provided
                 try{
                   // remove any previous input error highlights
                   try{
-                    tbody.querySelectorAll('.rejection-qty-input.input-error').forEach(function(i){ i.classList.remove('input-error'); });
+                    grid.querySelectorAll('.rejection-qty-input.input-error').forEach(function(i){ i.classList.remove('input-error'); });
                   }catch(e){/* ignore */}
 
                   if(body && body.error){
@@ -2750,7 +2916,7 @@
                     // If server provided which reason_id caused error, highlight that input and focus it
                     if(body.reason_id !== undefined && body.reason_id !== null){
                       var reasonId = String(body.reason_id);
-                      var badInput = tbody.querySelector('input[data-reason-id="'+reasonId+'"]');
+                      var badInput = grid.querySelector('input[data-reason-id="'+reasonId+'"]');
                       if(badInput){
                         badInput.classList.add('input-error');
                         try{ badInput.focus(); badInput.select(); }catch(e){}
@@ -2777,6 +2943,10 @@
         // ── Auto-trigger tray slots if draft has pre-filled IQF total ──
         var prefilledTotal = parseInt(json.total_iqf_qty || 0, 10);
         if(prefilledTotal > 0 && typeof window._iqfFetchTraySlots === 'function'){
+          // Show wrapper immediately, compute reject preview, then fetch accept slots
+          var _wrapperOnOpen = document.getElementById('iqf-tray-columns-wrapper');
+          if(_wrapperOnOpen) _wrapperOnOpen.style.display = 'block';
+          if(typeof window._iqfComputeRejectAllocation === 'function') window._iqfComputeRejectAllocation();
           window._iqfFetchTraySlots(lotId, prefilledTotal);
         } else {
           // Reset accepted tray section when no draft values
@@ -2784,6 +2954,7 @@
           if(section) section.style.display = 'none';
           var stbody = document.getElementById('iqf-accepted-tray-slots-body');
           if(stbody) stbody.innerHTML = '';
+          document.getElementById('iqf-tray-columns-wrapper') && (document.getElementById('iqf-tray-columns-wrapper').style.display = 'none');
         }
 
         // ── LOT REJECTION: apply backend state to UI ──
@@ -2888,9 +3059,8 @@
 
   // Collect and post to server; do NOT enforce business rules client-side
   function submitAudit(lotId, action){
-    var tbody = document.getElementById('rejection-table-body');
-    if(!tbody) return;
-    var inputs = tbody.querySelectorAll('.rejection-qty-input');
+    var tbody = document.getElementById('rejection-grid-2col');
+    var inputs = tbody ? tbody.querySelectorAll('.rejection-qty-input') : [];
     var items = [];
     inputs.forEach(function(inp){
       var rid = inp.getAttribute('data-reason-id') || null;
@@ -2973,11 +3143,8 @@
             } else {
               console.log(title+" - "+msg); location.reload();
             }
-          } else if(json.submission_type === 'PARTIAL' && json.open_delink_modal){
-            // ── PARTIAL ACCEPT: Open Delink & Reject Allocation modal ──
-            console.log('[IQF PARTIAL] open_delink_modal=true, rejected_qty=' + json.rejected_qty);
-            window._iqfOpenDelinkModalFromProceed(json);
           } else {
+            // ✅ All flows (FULL ACCEPT, FULL REJECT, PARTIAL) handled via new inline approach
             var title = (action === 'draft') ? 'Draft saved' : 'Submitted successfully';
             if(typeof Swal !== 'undefined'){
               Swal.fire({ icon: 'success', title: title, toast: false, timer: 1600, showConfirmButton: false }).then(function(){ document.getElementById('iqfRejectionModalOverlay') && document.getElementById('iqfRejectionModalOverlay').classList.remove('active'); location.reload(); });
@@ -3003,7 +3170,8 @@
       var label = (btn.textContent||'').toLowerCase();
       if(label.indexOf('audit') !== -1){
         var lotId = btn.getAttribute('data-stock-lot-id') || btn.getAttribute('data-stock_lot_id') || btn.dataset.stockLotId;
-        openAuditModal(lotId);
+        var modelNo = btn.getAttribute('data-model-no') || '';
+        openAuditModal(lotId, modelNo);
       }
     }
 
@@ -3073,34 +3241,119 @@
         return;
       }
 
-      // ── PARTIAL FLOW GUARD: open delink+reject modal for confirmation before submitting ──
+      // ── PARTIAL FLOW: validate all tray scans done, then submit directly ──
       var _rwQtyEl = document.getElementById('modalRwQty');
       var _totalIqfEl = document.getElementById('modalIqfTotal');
       var _rwQty = _rwQtyEl ? parseInt(_rwQtyEl.textContent || '0', 10) : 0;
       var _totalIqf = _totalIqfEl ? parseInt(_totalIqfEl.textContent || '0', 10) : 0;
+      
       if(_totalIqf > 0 && _totalIqf < _rwQty){
-        // PARTIAL: collect accepted tray IDs from scan slots
-        var _partialAccIds = [];
+        // PARTIAL: validate all tray scans complete
         var _pSlotInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+        var _allScanned = true;
         _pSlotInputs.forEach(function(inp){
-          var tid = (inp.value || '').trim().toUpperCase();
-          if(tid && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))){
-            _partialAccIds.push(tid);
+          if(!inp.classList.contains('scan-valid') && !inp.classList.contains('scan-delink')){
+            _allScanned = false;
           }
         });
-        if(_partialAccIds.length === 0){
+        
+        if(!_allScanned){
           if(typeof Swal !== 'undefined'){
             Swal.fire({ icon: 'warning', title: 'Scan Required', text: 'Please scan all accepted trays before proceeding.' });
           }
           return;
         }
-        // Set flag so delink modal confirm calls submitAudit instead of iqf_accept_delink_modal
-        window._iqfPartialProceedMode = true;
-        console.log('[IQF PARTIAL] Opening delink/reject modal: lot=' + _currentAuditLotId + ', rej=' + _totalIqf + ', accepted=' + _partialAccIds.length);
-        window._iqfOpenDelinkModal(_currentAuditLotId, _totalIqf, _partialAccIds);
+
+        // ✅ ERR3: Validate no duplicate trays
+        if(!window._iqfValidateDuplicateTrays()){
+          if(typeof Swal !== 'undefined'){
+            Swal.fire({ icon: 'error', title: 'Duplicate Trays', text: 'Duplicate tray IDs detected. Please ensure all trays are unique.' });
+          }
+          return;
+        }
+
+        console.log('[IQF PARTIAL PROCEED] lot=' + _currentAuditLotId);
+
+        // ✅ NEW: Simplified submission - delinked trays are auto-computed from current lot trays not used in accept
+        var proceedBtn = document.getElementById('iqfProceedBtn');
+        var draftBtn = document.getElementById('iqfDraftBtn');
+        if(proceedBtn) proceedBtn.disabled = true;
+        if(draftBtn) draftBtn.disabled = true;
+
+        var csrftoken = getCookie('csrftoken');
+        
+        var acceptedTrayIds = [];
+        _pSlotInputs.forEach(function(inp){
+          var tid = (inp.value || '').trim().toUpperCase();
+          if(tid && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))){
+            acceptedTrayIds.push(tid);
+          }
+        });
+
+        // Collect reject tray IDs (user-scanned in reject section)
+        var rejectedTrayIds = [];
+        document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(inp){
+          var v = (inp.value || '').trim().toUpperCase();
+          if(v && inp.classList.contains('rej-scan-valid')) rejectedTrayIds.push(v);
+        });
+
+        // Compute delinked trays (original lot trays not used in accept OR reject)
+        var currentLotTrays = window._iqfCurrentLotTrays || [];
+        var delinkedTrayIds = [];
+        currentLotTrays.forEach(function(t){
+          var _tid = (t.tray_id || '').toUpperCase();
+          var usedInAccept = acceptedTrayIds.indexOf(_tid) > -1;
+          var usedInReject = rejectedTrayIds.indexOf(_tid) > -1;
+          if(!usedInAccept && !usedInReject){
+            delinkedTrayIds.push(t.tray_id);
+          }
+        });
+
+        console.log('[IQF PARTIAL PROCEED] accepted=' + acceptedTrayIds.length + ', rejected=' + rejectedTrayIds.length + ', delinked=' + delinkedTrayIds.length);
+
+        // Call delink modal API with confirm=true to finalize
+        fetch('/iqf/iqf_accept_delink_modal/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken || '' },
+          body: JSON.stringify({
+            lot_id: _currentAuditLotId,
+            iqf_rejection_total: _totalIqf,
+            accepted_tray_ids: acceptedTrayIds,
+            rejected_tray_ids: rejectedTrayIds,
+            delinked_tray_ids: delinkedTrayIds,
+            confirm: true
+          })
+        })
+        .then(function(res){ return res.json().catch(function(){ return { success: false, error: 'Invalid server response' }; }); })
+        .then(function(json){
+          if(!json || !json.success){
+            if(proceedBtn) proceedBtn.disabled = false;
+            if(draftBtn) draftBtn.disabled = false;
+            var errMsg = (json && json.error) || 'Server validation failed';
+            if(typeof Swal !== 'undefined'){ Swal.fire({ icon: 'error', title: 'Error', text: errMsg }); }
+            return;
+          }
+          
+          // Success — close modal and reload
+          document.getElementById('iqfRejectionModalOverlay') && document.getElementById('iqfRejectionModalOverlay').classList.remove('active');
+          _currentAuditLotId = null;
+          if(typeof window._iqfResetTraySlots === 'function') window._iqfResetTraySlots();
+          if(typeof Swal !== 'undefined'){
+            Swal.fire({ icon: 'success', title: 'Submitted successfully', toast: false, timer: 1600, showConfirmButton: false }).then(function(){ location.reload(); });
+          } else {
+            location.reload();
+          }
+        }).catch(function(err){
+          if(proceedBtn) proceedBtn.disabled = false;
+          if(draftBtn) draftBtn.disabled = false;
+          console.error('[IQF PARTIAL PROCEED] fetch error', err);
+          if(typeof Swal !== 'undefined'){ Swal.fire({ icon: 'error', title: 'Error', text: 'Network error' }); }
+        });
         return;
       }
 
+      // Non-PARTIAL flow — submit normally
       console.log('[IQF PROCEED] Submitting for lot_id=' + _currentAuditLotId);
       submitAudit(_currentAuditLotId, 'proceed');
     }
@@ -3423,11 +3676,17 @@ document.addEventListener('click', function(evt){
     var badge = document.getElementById('iqfAcceptedQtyBadge');
     if(!section || !tbody) return;
 
+    var wrapper = document.getElementById('iqf-tray-columns-wrapper');
     if(!lotId || rejTotal <= 0){
       section.style.display = 'none';
       tbody.innerHTML = '';
+      // Hide wrapper and delink when no rejection
+      if(wrapper) wrapper.style.display = 'none';
+      document.getElementById('iqf-delink-section') && (document.getElementById('iqf-delink-section').style.display = 'none');
       return;
     }
+    // Show 2-col wrapper whenever reject qty > 0
+    if(wrapper) wrapper.style.display = 'block';
 
     console.log('[IQF TRAY SLOTS] Fetching for lot=' + lotId + ', rejTotal=' + rejTotal);
 
@@ -3441,30 +3700,52 @@ document.addEventListener('click', function(evt){
         }
         var slots = data.slots || [];
         var acceptedQty = data.accepted_qty || 0;
+        var maxReuse = data.max_reuse_limit || 0;
+        window._iqfTrayCapacity = data.tray_capacity || 12;
 
         if(badge) badge.textContent = 'Accepted: ' + acceptedQty;
+
+        // ✅ Update reusable badge (show limit from backend)
+        var _reuseBadgeFS = document.getElementById('iqfReusableBadge');
+        if(_reuseBadgeFS){
+          if(maxReuse > 0){
+            var _curReuseFS = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input.scan-valid').length;
+            _reuseBadgeFS.textContent = 'Reusable: ' + _curReuseFS + '/' + maxReuse;
+            _reuseBadgeFS.style.display = '';
+          } else {
+            _reuseBadgeFS.style.display = 'none';
+          }
+        }
+
+        // ✅ Update summary badge for accept tray count
+        document.getElementById('iqfSummaryAcceptCount') && (document.getElementById('iqfSummaryAcceptCount').textContent = slots.length);
 
         if(slots.length === 0){
           section.style.display = 'none';
           tbody.innerHTML = '';
+          // Still show reject column even when no accept slots
           return;
         }
 
         section.style.display = 'block';
         tbody.innerHTML = '';
 
+        // Store max_reuse_limit globally for validation
+        window._maxReuseLimit = maxReuse;
+        window._iqfUsedExistingCount = 0;
+
         slots.forEach(function(slot){
           var tr = document.createElement('tr');
-          var typeBadge = slot.is_top_tray
-            ? '<span class="top-tray-badge">\u2B50 Top Tray</span>'
-            : '<span class="full-tray-badge">Full Tray</span>';
-          var statusText = 'Scan Required';
+          // Type is shown in status column (no separate Type column)
+          var typePrefix = slot.is_top_tray ? '\u2B50 Top \u00B7 ' : '\uD83D\uDCE6 Full \u00B7 ';
+          var statusText = typePrefix + 'Scan Required';
+          var statusColor = slot.is_top_tray ? '#b26a00' : '#546e7a';
+
           tr.innerHTML =
-            '<td style="text-align:center;">' + slot.slot_no + '</td>' +
-            '<td><input type="text" class="tray-scan-input" data-slot-no="' + slot.slot_no + '" data-expected-qty="' + slot.qty + '" data-is-top-tray="' + (slot.is_top_tray ? 'true' : 'false') + '" value="" placeholder="Scan tray barcode..." autocomplete="off" maxlength="9" /></td>' +
-            '<td style="text-align:right; font-weight:600;">' + slot.qty + '</td>' +
-            '<td style="text-align:center;">' + typeBadge + '</td>' +
-            '<td style="text-align:center;"><span class="tray-scan-status" data-slot-no="' + slot.slot_no + '">' + statusText + '</span></td>';
+            '<td style="text-align:center; padding:5px 4px; font-size:11px;">' + slot.slot_no + '</td>' +
+            '<td style="padding:5px 4px;"><input type="text" class="tray-scan-input" data-slot-no="' + slot.slot_no + '" data-expected-qty="' + slot.qty + '" data-is-top-tray="' + (slot.is_top_tray ? 'true' : 'false') + '" value="" placeholder="Scan tray..." autocomplete="off" maxlength="9" style="font-size:11px; width:100%; padding:4px 6px; border:1px solid #ccc; border-radius:4px;" /></td>' +
+            '<td style="text-align:right; font-weight:600; padding:5px 4px; font-size:11px;">' + slot.qty + '</td>' +
+            '<td style="text-align:center; padding:5px 4px;"><span class="tray-scan-status" data-slot-no="' + slot.slot_no + '" style="font-size:10px; color:' + statusColor + ';">' + statusText + '</span></td>';
           tbody.appendChild(tr);
 
           // Attach validation listener + paste handler on the input just created
@@ -3481,32 +3762,34 @@ document.addEventListener('click', function(evt){
                 this.dispatchEvent(new Event('input', {bubbles: true}));
               }
             });
+            // ✅ Clear input when it loses focus and is invalid
+            newInput.addEventListener('blur', function(){
+              if(!this.classList.contains('scan-valid') && !this.classList.contains('scan-delink')){
+                var statusEl = document.querySelector('.tray-scan-status[data-slot-no="' + this.getAttribute('data-slot-no') + '"]');
+                if(statusEl && statusEl.className.indexOf('status-invalid') > -1){
+                  this.value = '';
+                  statusEl.textContent = 'Scan Required';
+                  statusEl.className = 'tray-scan-status';
+                }
+              }
+            });
           }
         });
 
-        // Show reuse hint based on backend-computed max_reuse_limit
+        // Remove any old reuse hint (no longer needed — tap cards for auto-fill)
         var reusableHint = document.getElementById('iqf-reuse-hint');
-        if(!reusableHint){
-          reusableHint = document.createElement('div');
-          reusableHint.id = 'iqf-reuse-hint';
-          reusableHint.style.cssText = 'font-size:11px;padding:4px 8px;margin-top:4px;border-radius:4px;';
-          section.appendChild(reusableHint);
-        }
-        var maxReuse = data.max_reuse_limit || 0;
-        window._maxReuseLimit = maxReuse;
-        if(maxReuse > 0){
-          reusableHint.style.display = 'block';
-          reusableHint.style.background = '#e8f5e9';
-          reusableHint.style.color = '#2e7d32';
-          reusableHint.innerHTML = '<i class="fa fa-info-circle"></i> <b>' + maxReuse + '</b> tray(s) can be reused for Accept';
-        } else {
-          reusableHint.style.display = 'block';
-          reusableHint.style.background = '#fff3e0';
-          reusableHint.style.color = '#e65100';
-          reusableHint.innerHTML = '<i class="fa fa-exclamation-circle"></i> All slots require new tray scan';
+        if(reusableHint) reusableHint.style.display = 'none';
+
+        // ✅ After all accept slots rendered: auto-focus first empty slot
+        var _allRendered = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+        for(var _ai = 0; _ai < _allRendered.length; _ai++){
+          if(!_allRendered[_ai].value.trim()){ try{ _allRendered[_ai].focus(); }catch(e){} break; }
         }
 
-        console.log('[IQF TRAY SLOTS] Rendered ' + slots.length + ' slots, accepted=' + acceptedQty + ', max_reuse_limit=' + maxReuse);
+        console.log('[IQF TRAY SLOTS] Rendered ' + slots.length + ' slots, accepted=' + acceptedQty + ', max_reuse=' + maxReuse);
+
+        // ✅ Auto-compute reject allocation immediately
+        window._iqfComputeRejectAllocation();
       })
       .catch(function(err){
         console.error('[IQF TRAY SLOTS] fetch failed', err);
@@ -3520,9 +3803,701 @@ document.addEventListener('click', function(evt){
     if(section) section.style.display = 'none';
     var tbody = document.getElementById('iqf-accepted-tray-slots-body');
     if(tbody) tbody.innerHTML = '';
-    // Reset delink modal state
-    if(typeof window._iqfResetDelinkModal === 'function') window._iqfResetDelinkModal();
+    // Hide 2-col wrapper and delink
+    document.getElementById('iqf-tray-columns-wrapper') && (document.getElementById('iqf-tray-columns-wrapper').style.display = 'none');
+    document.getElementById('iqf-delink-section') && (document.getElementById('iqf-delink-section').style.display = 'none');
+    // Reset reject tbody placeholder
+    var rejTbody = document.getElementById('iqf-reject-tbody');
+    if(rejTbody) rejTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#bbb; font-size:11px; padding:10px;">Enter rejection quantities above to see distribution</td></tr>';
+    // Reset global counters
+    window._iqfUsedExistingCount = 0;
+    window._iqfCurrentLotTrays = [];
+    window._iqfRejectSlotsRendered = false;
+    window._iqfLastRenderedRejTotal = 0;
+    // Reset reject scanned badge
+    var _rejBadgeRst = document.getElementById('iqfRejScannedBadge');
+    if(_rejBadgeRst){ _rejBadgeRst.style.display = 'none'; _rejBadgeRst.textContent = 'Scanned: 0/0'; }
+    // Clear reuse inline error
+    var _reuseErrRst = document.getElementById('iqf-reuse-error');
+    if(_reuseErrRst){ _reuseErrRst.style.display = 'none'; }
   };
+
+  // ✅ ERR1 FIX: Handle "Use Existing" checkbox
+  // ✅ NEW: Tap-to-fill handler for existing tray cards
+  window._iqfTapToFillTray = function(card){
+    var trayId = card.getAttribute('data-tray-id');
+    var qty = parseInt(card.getAttribute('data-qty')) || 0;
+    var isTopTray = card.getAttribute('data-is-top-tray') === 'true';
+    var trayCapacity = parseInt(card.getAttribute('data-tray-capacity')) || 0;
+    
+    // ✅ ERR1 FIX: Enforce reuse limit BEFORE allowing any tap-to-fill
+    var _tapMaxReuse = window._maxReuseLimit || 0;
+    if(_tapMaxReuse > 0){
+      var _tapUsedCount = document.querySelectorAll('.iqf-existing-tray-card.iqf-tray-used').length;
+      if(_tapUsedCount >= _tapMaxReuse){
+        // ✅ ERR2: Show inline error inside modal panel (not Swal toast)
+        var _reuseErrEl = document.getElementById('iqf-reuse-error');
+        if(_reuseErrEl){
+          _reuseErrEl.innerHTML = '<i class="fa fa-exclamation-triangle"></i> Exceeded reusable tray limit (' + _tapMaxReuse + '). Scan a new tray for remaining accept slots.';
+          _reuseErrEl.style.display = 'block';
+          setTimeout(function(){ _reuseErrEl.style.display = 'none'; }, 3000);
+        }
+        return;
+      }
+    }
+
+    // Check if already used
+    if(card.classList.contains('iqf-tray-used')){
+      if(typeof Swal !== 'undefined'){
+        Swal.fire({ icon: 'info', title: 'Already Used', text: 'This tray is already assigned to an Accept slot', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+      }
+      return;
+    }
+    
+    // ✅ ERR2+ERR6: Fill NEXT EMPTY slot in DOM order (backend sorts top tray first), any tray to any slot
+    var allInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+    var targetInput = null;
+    
+    for(var i = 0; i < allInputs.length; i++){
+      if(!allInputs[i].value.trim()){
+        targetInput = allInputs[i];
+        break;
+      }
+    }
+    
+    if(!targetInput){
+      // ERR1+ERR4 FIX: Accept full — redirect tap to next empty reject slot
+      var _rejInputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
+      var _targetRejInput = null;
+      for(var _ri = 0; _ri < _rejInputs.length; _ri++){
+        if(!_rejInputs[_ri].value.trim() && !_rejInputs[_ri].classList.contains('rej-scan-valid')){
+          _targetRejInput = _rejInputs[_ri]; break;
+        }
+      }
+      if(_targetRejInput){
+        _targetRejInput.value = trayId.toUpperCase();
+        _targetRejInput.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+      // All reject slots also full
+      if(typeof Swal !== 'undefined'){
+        Swal.fire({ icon: 'info', title: 'All Slots Filled', text: 'All accept and reject tray slots are already filled.', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+      }
+      return;
+    }
+    
+    // Auto-fill the slot
+    targetInput.value = trayId.toUpperCase();
+    // ✅ ERR3: Do NOT disable — user can still edit/clear the input after tap-fill
+    targetInput.style.background = '#f0f8ff';
+    targetInput.style.border = '2px solid #4caf50';
+    targetInput.classList.add('scan-valid');
+    // Store tray ID so card can be reset if user edits the input
+    targetInput.setAttribute('data-prev-tray-id', trayId);
+    
+    var slotNo = targetInput.getAttribute('data-slot-no');
+    var statusEl = document.querySelector('.tray-scan-status[data-slot-no="' + slotNo + '"]');
+    if(statusEl){
+      statusEl.textContent = '\u2713 Existing Tray';
+      statusEl.className = 'tray-scan-status status-valid';
+      statusEl.style.color = '#2e7d32';
+      statusEl.style.fontWeight = '600';
+    }
+    
+    // Mark card as used
+    card.classList.add('iqf-tray-used');
+    card.style.borderColor = '#2e7d32';
+    card.style.background = '#e8f5e9';
+    card.style.cursor = 'not-allowed';
+    card.style.opacity = '0.7';
+    card.style.boxShadow = 'none';
+    
+    // ✅ Validate duplicates + recompute allocation
+    window._iqfValidateDuplicateTrays();
+    window._iqfComputeRejectAllocation();
+    
+    // Auto-focus next empty slot; if none, show "accept complete" toast and scroll to reject
+    var _tapFoundNext = false;
+    for(var k = 0; k < allInputs.length; k++){
+      if(!allInputs[k].value.trim()){
+        try{ allInputs[k].focus(); }catch(e){}
+        _tapFoundNext = true;
+        break;
+      }
+    }
+    if(!_tapFoundNext){
+      // All accept slots filled via tap — auto-focus first empty reject input
+      var _firstEmptyRejTap = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
+      if(_firstEmptyRejTap){ try{ _firstEmptyRejTap.focus(); }catch(e){} }
+      if(typeof Swal !== 'undefined'){
+        Swal.fire({ icon: 'success', title: 'Accept Complete', text: 'Now scan Reject trays', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+      }
+      var _rejSecTap = document.getElementById('iqf-reject-section');
+      if(_rejSecTap){ try{ _rejSecTap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); _rejSecTap.style.transition = 'box-shadow 0.3s'; _rejSecTap.style.boxShadow = '0 0 0 2px #ef9a9a'; setTimeout(function(){ _rejSecTap.style.boxShadow = ''; }, 1500); }catch(e){} }
+    }
+  };
+
+  // ✅ ERR3 FIX: Validate duplicate trays between accept and reject
+  window._iqfValidateDuplicateTrays = function(){
+    var acceptTrayIds = [];
+    document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input').forEach(function(inp){
+      var val = (inp.value || '').trim().toUpperCase();
+      if(val && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))){
+        acceptTrayIds.push(val);
+      }
+    });
+    
+    // Check for duplicates within accept section
+    var seen = {};
+    var hasDuplicate = false;
+    for(var i = 0; i < acceptTrayIds.length; i++){
+      if(seen[acceptTrayIds[i]]){
+        hasDuplicate = true;
+        break;
+      }
+      seen[acceptTrayIds[i]] = true;
+    }
+    
+    if(hasDuplicate){
+      var errorMsg = document.getElementById('iqf-duplicate-error');
+      if(!errorMsg){
+        errorMsg = document.createElement('div');
+        errorMsg.id = 'iqf-duplicate-error';
+        errorMsg.style.cssText = 'background:#ffebee; color:#c62828; border:1px solid #f5c6cb; padding:8px 12px; border-radius:6px; margin-top:8px; font-size:12px; font-weight:600;';
+        var acceptSection = document.getElementById('iqf-accepted-tray-section');
+        if(acceptSection) acceptSection.appendChild(errorMsg);
+      }
+      errorMsg.innerHTML = '<i class="fa fa-exclamation-triangle"></i> Duplicate tray IDs detected in Accept section! Each tray must be unique.';
+      errorMsg.style.display = 'block';
+      return false;
+    } else {
+      var errorMsg = document.getElementById('iqf-duplicate-error');
+      if(errorMsg) errorMsg.style.display = 'none';
+    }
+    
+    return true;
+  };
+
+  // ── ERR1 FIX: Reject tray scan handler (client-side: format + dup check only) ──
+  function _iqfRejTrayScanHandler(e){
+    var inp = e.target;
+    // ERR3 FIX: Always uppercase on every keystroke
+    inp.value = inp.value.toUpperCase();
+    var val = (inp.value || '').trim();
+    var slotNo = inp.getAttribute('data-rej-slot');
+    var statusEl = document.querySelector('.rej-scan-status[data-rej-slot="' + slotNo + '"]');
+
+    inp.classList.remove('rej-scan-valid', 'rej-scan-invalid');
+    inp.style.background = ''; inp.style.borderColor = '';
+    if(statusEl){ statusEl.textContent = ''; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#888'; statusEl.style.fontWeight = ''; }
+
+    if(val.length < 9) return;
+    if(val.length > 9){ inp.value = val.substring(0, 9); val = inp.value; }
+    inp.value = val;
+
+    // Check not duplicate with accept
+    var acceptedIds = [];
+    document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input').forEach(function(a){
+      var v = (a.value || '').trim().toUpperCase();
+      if(v && (a.classList.contains('scan-valid') || a.classList.contains('scan-delink'))) acceptedIds.push(v);
+    });
+    if(acceptedIds.indexOf(val) > -1){
+      inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
+      if(statusEl){ statusEl.textContent = 'In Accept'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; }
+      setTimeout(function(){ inp.value = ''; inp.classList.remove('rej-scan-invalid'); inp.style.borderColor = ''; inp.style.background = ''; if(statusEl){ statusEl.textContent = 'Scan Required'; statusEl.style.color = '#888'; } try{ inp.focus(); }catch(ee){} }, 1500);
+      return;
+    }
+
+    // Check not duplicate within reject
+    var otherRejIds = [];
+    document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(r){
+      if(r !== inp){ var v = (r.value || '').trim().toUpperCase(); if(v) otherRejIds.push(v); }
+    });
+    if(otherRejIds.indexOf(val) > -1){
+      inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
+      if(statusEl){ statusEl.textContent = 'Duplicate'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; }
+      setTimeout(function(){ inp.value = ''; inp.classList.remove('rej-scan-invalid'); inp.style.borderColor = ''; inp.style.background = ''; if(statusEl){ statusEl.textContent = 'Scan Required'; statusEl.style.color = '#888'; } try{ inp.focus(); }catch(ee){} }, 1500);
+      return;
+    }
+
+    // Valid
+    inp.classList.add('rej-scan-valid'); inp.style.borderColor = '#b71c1c'; inp.style.background = '#ffebee';
+    if(statusEl){ statusEl.textContent = '\u2713 Scanned'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600'; }
+
+    // Update badge
+    var _rDone = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input.rej-scan-valid').length;
+    var _rTotal = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').length;
+    var _rb = document.getElementById('iqfRejScannedBadge');
+    if(_rb) _rb.textContent = 'Scanned: ' + _rDone + '/' + _rTotal;
+
+    // Auto-focus next empty reject slot
+    var _allRejInputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
+    var _foundNextRej = false;
+    for(var _rk = 0; _rk < _allRejInputs.length; _rk++){
+      if(!_allRejInputs[_rk].value.trim()){ try{ _allRejInputs[_rk].focus(); }catch(ee){} _foundNextRej = true; break; }
+    }
+
+    // Update delink section
+    _iqfUpdateDelinkFromReject();
+
+    if(!_foundNextRej && typeof Swal !== 'undefined'){
+      Swal.fire({ icon:'success', title:'Reject Scan Complete', text:'Delink trays auto-allocated below', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+    }
+  }
+
+  // ── Auto-compute delink once ALL reject slots are scanned ──
+  function _iqfUpdateDelinkFromReject(){
+    var delinkSection = document.getElementById('iqf-delink-section');
+    var delinkList = document.getElementById('iqf-delink-list');
+    if(!delinkSection || !delinkList) return;
+
+    var acceptedIds = [];
+    document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input').forEach(function(inp){
+      var v = (inp.value || '').trim().toUpperCase();
+      if(v && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))) acceptedIds.push(v);
+    });
+
+    var rejectedIds = [];
+    document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(inp){
+      var v = (inp.value || '').trim().toUpperCase();
+      if(v && inp.classList.contains('rej-scan-valid')) rejectedIds.push(v);
+    });
+
+    var allRejInputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
+    var allRejComplete = allRejInputs.length > 0;
+    allRejInputs.forEach(function(inp){ if(!inp.classList.contains('rej-scan-valid')) allRejComplete = false; });
+
+    if(!allRejComplete){
+      delinkSection.style.display = 'none';
+      document.getElementById('iqfSummaryDelinkCount') && (document.getElementById('iqfSummaryDelinkCount').textContent = 0);
+      return;
+    }
+
+    // All reject done — compute delink: original lot trays not used in accept OR reject
+    var currentLotTrays = window._iqfCurrentLotTrays || [];
+    var delinkedTrays = currentLotTrays.filter(function(t){
+      var tid = (t.tray_id || '').toUpperCase();
+      return acceptedIds.indexOf(tid) === -1 && rejectedIds.indexOf(tid) === -1;
+    });
+
+    if(delinkedTrays.length > 0){
+      delinkSection.style.display = 'block';
+      delinkList.innerHTML = '';
+      delinkedTrays.forEach(function(t){
+        var chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-block; background:#fff; border:1px solid #ffcc80; padding:3px 8px; border-radius:12px; font-size:10px; font-weight:600; color:#e65100; margin:2px;';
+        chip.textContent = t.tray_id + (t.qty ? ' (' + t.qty + ')' : '');
+        delinkList.appendChild(chip);
+      });
+      document.getElementById('iqfSummaryDelinkCount') && (document.getElementById('iqfSummaryDelinkCount').textContent = delinkedTrays.length);
+    } else {
+      delinkSection.style.display = 'none';
+      document.getElementById('iqfSummaryDelinkCount') && (document.getElementById('iqfSummaryDelinkCount').textContent = 0);
+    }
+  }
+
+
+  // ✅ Compute Reject Tray Scan Slots — scan inputs, capacity-based qty, gated on accept complete
+  // ERR1 FIX: Reject tray IDs are NOT auto-fetched. User must scan each slot manually.
+  // ERR3 FIX: Qty distribution — top tray = totalIqfQty % capacity (remainder), rest = capacity (full).
+  // Delink: auto-computed ONLY after ALL reject slots are scanned.
+  window._iqfComputeRejectAllocation = function(){
+    var rejectSection = document.getElementById('iqf-reject-section');
+    var rejectTbody = document.getElementById('iqf-reject-tbody');
+    var delinkSection = document.getElementById('iqf-delink-section');
+    var delinkList = document.getElementById('iqf-delink-list');
+    var wrapper = document.getElementById('iqf-tray-columns-wrapper');
+
+    if(!rejectSection || !rejectTbody || !delinkSection || !delinkList) return;
+
+    // Always keep reusable badge current
+    var _reuseUsed = 0;
+    document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input').forEach(function(inp){
+      if(inp.classList.contains('scan-valid') && (inp.value || '').trim()) _reuseUsed++;
+    });
+    var _maxRL = window._maxReuseLimit || 0;
+    var _reuseBadgeEl = document.getElementById('iqfReusableBadge');
+    if(_reuseBadgeEl){
+      if(_maxRL > 0){
+        _reuseBadgeEl.textContent = 'Reusable: ' + _reuseUsed + '/' + _maxRL;
+        _reuseBadgeEl.style.display = '';
+        var _limitHit = _reuseUsed >= _maxRL;
+        _reuseBadgeEl.style.color = _limitHit ? '#c62828' : '#e65100';
+        _reuseBadgeEl.style.borderColor = _limitHit ? '#f5c6cb' : '#ffcc80';
+        _reuseBadgeEl.style.background = _limitHit ? '#ffebee' : '#fff3e0';
+      } else { _reuseBadgeEl.style.display = 'none'; }
+    }
+
+    var totalIqfQty = parseInt((document.getElementById('modalIqfTotal') || {}).textContent || '0', 10);
+    if(totalIqfQty <= 0){
+      if(wrapper) wrapper.style.display = 'none';
+      delinkSection.style.display = 'none';
+      return;
+    }
+    if(wrapper) wrapper.style.display = 'block';
+
+    // Render reject slots ONCE per unique totalIqfQty value (re-render on qty change)
+    if(window._iqfRejectSlotsRendered && window._iqfLastRenderedRejTotal === totalIqfQty){
+      _iqfUpdateDelinkFromReject();
+      return;
+    }
+    window._iqfRejectSlotsRendered = true;
+    window._iqfLastRenderedRejTotal = totalIqfQty;
+
+    // ERR3 FIX: Correct qty distribution
+    //   top tray = totalIqfQty % capacity  (the partial / remainder tray)
+    //   all others = capacity              (strictly fully filled)
+    var _cap = window._iqfTrayCapacity || 12;
+    var _rem = totalIqfQty % _cap;
+    var _fullCount = Math.floor(totalIqfQty / _cap);
+
+    var _rejSlots = [];
+    if(_rem > 0){ _rejSlots.push({ slot_no: 1, qty: _rem, is_top: true }); }
+    for(var _rs = 0; _rs < _fullCount; _rs++){
+      _rejSlots.push({ slot_no: _rejSlots.length + 1, qty: _cap, is_top: false });
+    }
+
+    // Render scan input rows (ERR1 FIX: empty inputs, user scans reject tray IDs)
+    rejectTbody.innerHTML = '';
+    _rejSlots.forEach(function(s){
+      var tr = document.createElement('tr');
+      var _typePrefix = s.is_top ? '\u2B50 Top \u00B7 ' : '\uD83D\uDCE6 Full \u00B7 ';
+      tr.innerHTML =
+        '<td style="text-align:center; padding:5px 4px; font-size:11px;">' + s.slot_no + '</td>' +
+        '<td style="padding:5px 4px;"><input type="text" class="rej-scan-input" data-rej-slot="' + s.slot_no + '" data-rej-qty="' + s.qty + '" data-is-top="' + (s.is_top ? 'true' : 'false') + '" placeholder="Scan Tray ID..." autocomplete="off" maxlength="9" style="font-size:11px; width:100%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;" /></td>' +
+        '<td style="text-align:right; font-weight:600; padding:5px 4px; font-size:11px; color:#c62828;">' + s.qty + '</td>' +
+        '<td style="text-align:center; padding:5px 4px;"><span class="rej-scan-status" data-rej-slot="' + s.slot_no + '" style="font-size:10px; color:#888;">' + _typePrefix + 'Scan Required</span></td>';
+      rejectTbody.appendChild(tr);
+
+      var _ni = tr.querySelector('.rej-scan-input');
+      if(_ni){
+        _ni.addEventListener('input', _iqfRejTrayScanHandler);
+        _ni.addEventListener('paste', function(pe){
+          pe.preventDefault();
+          var _p = (pe.clipboardData || window.clipboardData).getData('text') || '';
+          _p = _p.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').substring(0, 9);
+          this.value = _p;
+          if(_p.length === 9){ this.dispatchEvent(new Event('input', { bubbles: true })); }
+        });
+        _ni.addEventListener('blur', function(){
+          if(!this.classList.contains('rej-scan-valid')){
+            var _st = document.querySelector('.rej-scan-status[data-rej-slot="' + this.getAttribute('data-rej-slot') + '"]');
+            var _tp2 = this.getAttribute('data-is-top') === 'true' ? '\u2B50 Top \u00B7 ' : '\uD83D\uDCE6 Full \u00B7 ';
+            if(_st){ _st.textContent = _tp2 + 'Scan Required'; _st.className = 'rej-scan-status'; _st.style.color = '#888'; _st.style.fontWeight = ''; }
+            this.value = ''; this.style.borderColor = ''; this.style.background = '';
+            this.classList.remove('rej-scan-invalid');
+          }
+        });
+      }
+    });
+
+    // Show scanned badge
+    var _rejBadge = document.getElementById('iqfRejScannedBadge');
+    if(_rejBadge){ _rejBadge.textContent = 'Scanned: 0/' + _rejSlots.length; _rejBadge.style.display = ''; }
+    document.getElementById('iqfSummaryRejectCount') && (document.getElementById('iqfSummaryRejectCount').textContent = _rejSlots.length);
+
+    // Auto-focus first reject input only if accept is already fully scanned
+    var _allAccScanned = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+    var _accFullDone = _allAccScanned.length > 0;
+    _allAccScanned.forEach(function(i){ if(!i.classList.contains('scan-valid') && !i.classList.contains('scan-delink')) _accFullDone = false; });
+    if(_accFullDone){
+      var _firstRejIn = rejectTbody.querySelector('.rej-scan-input');
+      if(_firstRejIn){ try{ _firstRejIn.focus(); }catch(ee){} }
+    }
+
+    // Delink hidden until reject complete
+    delinkSection.style.display = 'none';
+    document.getElementById('iqfSummaryDelinkCount') && (document.getElementById('iqfSummaryDelinkCount').textContent = 0);
+  };
+
+  // ── NEW: Load inline delink section (replaces secondary modal) ──
+  var _inlineDelinkData = null;
+  var _inlineDelinkLotId = null;
+  var _inlineDelinkRejTotal = 0;
+
+  function getCookieForDelink(name){
+    var cookieValue = null;
+    if(document.cookie && document.cookie !== ''){
+      var cookies = document.cookie.split(';');
+      for(var i = 0; i < cookies.length; i++){
+        var cookie = cookies[i].trim();
+        if(cookie.substring(0, name.length + 1) === (name + '=')){
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function escapeHtmlInline(s){
+    if(s===null||s===undefined) return '';
+    return String(s).replace(/[&<>"']/g, function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+
+  function renderInlineDelinkSection(data){
+    _inlineDelinkData = data;
+
+    // Update badges
+    document.getElementById('iqfDelinkRwQtyInline').textContent = data.rw_qty || 0;
+    document.getElementById('iqfDelinkAccQtyInline').textContent = data.accepted_qty || 0;
+    document.getElementById('iqfDelinkRejQtyInline').textContent = data.rejected_qty || 0;
+    document.getElementById('iqfDelinkMaxCountInline').textContent = data.max_delink_count || 0;
+
+    // Render tray table
+    var tbody = document.getElementById('iqfDelinkTrayTableBodyInline');
+    tbody.innerHTML = '';
+
+    (data.original_trays || []).forEach(function(tray, idx){
+      var tr = document.createElement('tr');
+      var isAccepted = tray.status === 'ACCEPTED';
+      var isDelinked = tray.status === 'DELINKED';
+      var isReject   = tray.status === 'REJECT';
+      var isPending  = tray.status === 'PENDING';
+
+      if(isAccepted) tr.className = 'row-accepted';
+      else if(isDelinked) tr.className = 'row-delinked';
+      else if(isReject) tr.className = 'row-reject';
+      else if(isPending) tr.className = 'row-pending';
+
+      // Checkbox cell
+      var tdCb = document.createElement('td');
+      tdCb.style.textAlign = 'center';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'delink-cb';
+      cb.setAttribute('data-tray-id', tray.tray_id);
+
+      if(isAccepted){
+        cb.checked = true;
+        cb.disabled = true;
+        cb.title = 'Accepted — locked';
+      } else if(isDelinked){
+        cb.checked = true;
+        cb.disabled = false;
+        cb.classList.add('iqf-delink-checkbox');
+        cb.title = 'Selected for delink — click to unselect';
+      } else if(isReject){
+        cb.checked = false;
+        cb.disabled = true;
+        cb.title = 'Assigned for reject allocation';
+      } else {
+        cb.checked = false;
+        cb.disabled = false;
+        cb.classList.add('iqf-delink-checkbox');
+        cb.title = 'Select to delink this tray';
+      }
+      tdCb.appendChild(cb);
+      tr.appendChild(tdCb);
+
+      // S.No
+      var tdNo = document.createElement('td');
+      tdNo.textContent = idx + 1;
+      tr.appendChild(tdNo);
+
+      // Tray ID
+      var tdId = document.createElement('td');
+      tdId.innerHTML = escapeHtmlInline(tray.tray_id) + (tray.top_tray ? ' <span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;">Top</span>' : '');
+      tr.appendChild(tdId);
+
+      // Qty
+      var tdQty = document.createElement('td');
+      tdQty.style.textAlign = 'right';
+      tdQty.style.fontWeight = '600';
+      tdQty.textContent = tray.original_qty || tray.capacity || 0;
+      tr.appendChild(tdQty);
+
+      // Status badge
+      var tdStatus = document.createElement('td');
+      tdStatus.style.textAlign = 'center';
+      var badgeHtml = '';
+      if(isAccepted){
+        badgeHtml = '<span class="delink-status-badge" style="background:#e8f5e9;color:#2e7d32;">ACCEPTED</span>';
+      } else if(isDelinked){
+        badgeHtml = '<span class="delink-status-badge" style="background:#fff3e0;color:#e65100;">Moved to Delink</span>';
+      } else if(isReject){
+        badgeHtml = '<span class="delink-status-badge" style="background:#ffebee;color:#c62828;">REJECT (' + (tray.reject_qty || 0) + ')</span>';
+      } else {
+        badgeHtml = '<span class="delink-status-badge" style="background:#e3f2fd;color:#1565c0;">Delink or Reject</span>';
+      }
+      tdStatus.innerHTML = badgeHtml;
+      tr.appendChild(tdStatus);
+
+      tbody.appendChild(tr);
+    });
+
+    // Render reject allocation
+    var rejectSection = document.getElementById('iqfDelinkRejectSectionInline');
+    var rejectTbody = document.getElementById('iqfDelinkRejectTableBodyInline');
+    var rejectAlloc = data.reject_allocation || [];
+
+    if(rejectAlloc.length > 0){
+      rejectSection.style.display = 'block';
+      rejectTbody.innerHTML = '';
+      rejectAlloc.forEach(function(r, i){
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>'+(i+1)+'</td><td>'+escapeHtmlInline(r.tray_id)+'</td><td style="text-align:right;font-weight:600;">'+r.qty+'</td>';
+        rejectTbody.appendChild(tr);
+      });
+    } else {
+      rejectSection.style.display = 'none';
+      rejectTbody.innerHTML = '';
+    }
+
+    // Capacity validation message
+    var limitMsg = document.getElementById('iqfDelinkLimitMsgInline');
+    var currentDelinks = (data.delinked_tray_ids || []).length;
+    var poolCap = data.reject_pool_capacity || 0;
+    var rejNeeded = data.rejected_qty || 0;
+    var capacitySufficient = poolCap >= rejNeeded;
+
+    if(rejNeeded > 0){
+      limitMsg.style.display = 'block';
+      var capHtml = '<div style="margin-bottom:4px;"><b>Reject Pool Capacity:</b> ' + poolCap + ' / ' + rejNeeded + ' required';
+      if(capacitySufficient){
+        capHtml += ' <span style="color:#2e7d32;">✓</span>';
+      } else {
+        capHtml += ' <span style="color:#c62828;">✗ Insufficient</span>';
+      }
+      capHtml += '</div>';
+
+      if(!capacitySufficient){
+        limitMsg.style.background = '#ffebee';
+        limitMsg.style.color = '#c62828';
+        limitMsg.innerHTML = capHtml + '<i class="fa fa-exclamation-triangle"></i> <b>Selected trays cannot fulfill reject quantity.</b> Please select fewer trays for delink.';
+      } else if(data.max_delink_count > 0 && !data.delink_complete){
+        limitMsg.style.background = '#e3f2fd';
+        limitMsg.style.color = '#1565c0';
+        limitMsg.innerHTML = capHtml + '<i class="fa fa-info-circle"></i> Select trays for delink. Selected: <b>' + currentDelinks + '</b> / <b>' + data.max_delink_count + '</b> max';
+      } else if(data.delink_complete){
+        limitMsg.style.background = '#e8f5e9';
+        limitMsg.style.color = '#2e7d32';
+        limitMsg.innerHTML = capHtml + '<i class="fa fa-check-circle"></i> Delink selection complete. Reject allocation shown below.';
+      } else {
+        limitMsg.style.background = '#fff3e0';
+        limitMsg.style.color = '#e65100';
+        limitMsg.innerHTML = capHtml + '<i class="fa fa-info-circle"></i> All remaining trays reserved for reject allocation. No delink available.';
+      }
+    } else {
+      limitMsg.style.display = 'none';
+    }
+
+    console.log('[INLINE DELINK] Rendered: trays=' + (data.original_trays||[]).length + ', delinked=' + currentDelinks + '/' + data.max_delink_count);
+  }
+
+  function fetchAndRenderInlineDelink(delinkedIds){
+    var csrftoken = getCookieForDelink('csrftoken');
+    var acceptedTrayIds = [];
+    var slotInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+    slotInputs.forEach(function(inp){
+      var tid = (inp.value || '').trim().toUpperCase();
+      if(tid && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))){
+        acceptedTrayIds.push(tid);
+      }
+    });
+
+    fetch('/iqf/iqf_accept_delink_modal/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken || '' },
+      body: JSON.stringify({
+        lot_id: _inlineDelinkLotId,
+        iqf_rejection_total: _inlineDelinkRejTotal,
+        accepted_tray_ids: acceptedTrayIds,
+        delinked_tray_ids: delinkedIds
+      })
+    })
+    .then(function(res){ return res.json().catch(function(){ return { success: false }; }); })
+    .then(function(data){
+      if(data && data.success){
+        renderInlineDelinkSection(data);
+      } else {
+        console.error('[INLINE DELINK] Recompute failed', data);
+      }
+    })
+    .catch(function(err){
+      console.error('[INLINE DELINK] POST failed', err);
+    });
+  }
+
+  window._iqfLoadInlineDelinkSection = function(lotId, rejTotal){
+    _inlineDelinkLotId = lotId;
+    _inlineDelinkRejTotal = rejTotal;
+
+    var section = document.getElementById('iqf-delink-section');
+    if(!section) return;
+
+    section.style.display = 'block';
+    document.getElementById('iqfDelinkTrayTableBodyInline').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">Loading tray data...</td></tr>';
+
+    // Collect accepted tray IDs from scan inputs
+    var acceptedTrayIds = [];
+    var slotInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+    slotInputs.forEach(function(inp){
+      var tid = (inp.value || '').trim().toUpperCase();
+      if(tid && (inp.classList.contains('scan-valid') || inp.classList.contains('scan-delink'))){
+        acceptedTrayIds.push(tid);
+      }
+    });
+
+    var params = 'lot_id=' + encodeURIComponent(lotId) +
+      '&iqf_rejection_total=' + rejTotal +
+      '&accepted_tray_ids=' + encodeURIComponent(acceptedTrayIds.join(','));
+
+    fetch('/iqf/iqf_accept_delink_modal/?' + params, { credentials: 'same-origin' })
+      .then(function(res){ return res.json().catch(function(){ return { success: false }; }); })
+      .then(function(data){
+        if(data && data.success){
+          renderInlineDelinkSection(data);
+        } else {
+          console.error('[INLINE DELINK] Load failed', data);
+          section.style.display = 'none';
+        }
+      })
+      .catch(function(err){
+        console.error('[INLINE DELINK] Fetch failed', err);
+        section.style.display = 'none';
+      });
+  };
+
+  // ── Inline delink checkbox handler ──
+  document.addEventListener('change', function(e){
+    if(!e.target || !e.target.classList.contains('iqf-delink-checkbox')) return;
+
+    var checked = e.target.checked;
+    var checkboxes = document.querySelectorAll('#iqfDelinkTrayTableBodyInline .iqf-delink-checkbox');
+    var delinkedIds = [];
+    checkboxes.forEach(function(cb){
+      if(cb.checked) delinkedIds.push(cb.getAttribute('data-tray-id'));
+    });
+
+    // Client-side limit guard
+    var max = (_inlineDelinkData && _inlineDelinkData.max_delink_count) || 0;
+    if(checked && delinkedIds.length > max){
+      e.target.checked = false;
+      var limitMsg = document.getElementById('iqfDelinkLimitMsgInline');
+      if(limitMsg){
+        limitMsg.style.display = 'block';
+        limitMsg.style.background = '#ffebee';
+        limitMsg.style.color = '#c62828';
+        limitMsg.innerHTML = '<i class="fa fa-exclamation-circle"></i> <b>Delink limit reached!</b> Maximum <b>' + max + '</b> tray(s) allowed.';
+        setTimeout(function(){
+          if(_inlineDelinkData && _inlineDelinkData.max_delink_count > 0){
+            var cur = ((_inlineDelinkData.delinked_tray_ids)||[]).length;
+            limitMsg.style.background = '#fff3e0';
+            limitMsg.style.color = '#e65100';
+            limitMsg.innerHTML = '<i class="fa fa-info-circle"></i> You can delink up to <b>' + max + '</b> tray(s). Selected: <b>' + cur + '</b>';
+          }
+        }, 2000);
+      }
+      return;
+    }
+
+    // Re-fetch with new delink selection
+    fetchAndRenderInlineDelink(delinkedIds);
+  });
 
   // ── Store current lot_id and rejection total for validation calls ──
   var _validationLotId = null;
@@ -3548,6 +4523,25 @@ document.addEventListener('click', function(evt){
     var slotNo = inp.getAttribute('data-slot-no');
     var statusEl = document.querySelector('.tray-scan-status[data-slot-no="' + slotNo + '"]');
 
+    // ✅ ERR3: Reset card when user changes/clears a tap-filled input (no disabled check needed)
+    var prevTrayId = inp.getAttribute('data-prev-tray-id');
+    if(prevTrayId && val !== prevTrayId.toUpperCase()){
+      var prevCard = document.querySelector('.iqf-existing-tray-card[data-tray-id="' + prevTrayId + '"]');
+      if(prevCard){
+        var origBorder = prevCard.getAttribute('data-original-border') || '#e0e0e0';
+        var origBg = prevCard.getAttribute('data-original-bg') || '#fff';
+        prevCard.classList.remove('iqf-tray-used');
+        prevCard.style.borderColor = origBorder;
+        prevCard.style.background = origBg;
+        prevCard.style.cursor = 'pointer';
+        prevCard.style.opacity = '1';
+        prevCard.style.boxShadow = 'none';
+      }
+      inp.removeAttribute('data-prev-tray-id');
+      inp.style.background = '';
+      inp.style.border = '';
+    }
+    
     // Reset visual state
     inp.classList.remove('scan-valid', 'scan-invalid', 'scan-delink');
     if(statusEl){ statusEl.textContent = ''; statusEl.className = 'tray-scan-status'; }
@@ -3590,10 +4584,25 @@ document.addEventListener('click', function(evt){
         if(st === 'valid_lot'){
           inp.classList.add('scan-valid');
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-valid'; }
-          // Auto-move cursor to next empty scan input
+          // ✅ Validate duplicate trays
+          window._iqfValidateDuplicateTrays();
+          // ✅ Recompute reject allocation
+          window._iqfComputeRejectAllocation();
+          // Auto-move cursor to next empty scan input; if all filled, scroll to reject
           var _allScanInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+          var _foundNext = false;
           for(var _k = 0; _k < _allScanInputs.length; _k++){
-            if(!_allScanInputs[_k].value.trim()){ try{ _allScanInputs[_k].focus(); }catch(e){} break; }
+            if(!_allScanInputs[_k].value.trim()){ try{ _allScanInputs[_k].focus(); }catch(e){} _foundNext = true; break; }
+          }
+          if(!_foundNext){
+            // All accept slots filled — auto-focus first empty reject input
+            var _firstEmptyRej1 = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
+            if(_firstEmptyRej1){ try{ _firstEmptyRej1.focus(); }catch(e){} }
+            if(typeof Swal !== 'undefined'){
+              Swal.fire({ icon:'success', title:'Accept Complete', text:'Now scan Reject trays', toast:true, position:'top-end', timer:2500, showConfirmButton:false });
+            }
+            var _rejSec = document.getElementById('iqf-reject-section');
+            if(_rejSec){ try{ _rejSec.scrollIntoView({ behavior:'smooth', block:'nearest' }); _rejSec.style.transition='box-shadow 0.3s'; _rejSec.style.boxShadow='0 0 0 2px #ef9a9a'; setTimeout(function(){ _rejSec.style.boxShadow=''; }, 1500); }catch(e){} }
           }
         } else if(st === 'no_reuse'){
           inp.classList.add('scan-invalid');
@@ -3602,10 +4611,25 @@ document.addEventListener('click', function(evt){
         } else if(st === 'delink'){
           inp.classList.add('scan-delink');
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-delink'; }
-          // Auto-move cursor to next empty scan input (new tray is valid)
+          // ✅ Validate duplicate trays
+          window._iqfValidateDuplicateTrays();
+          // ✅ Recompute reject allocation
+          window._iqfComputeRejectAllocation();
+          // Auto-move cursor to next empty scan input; if all filled, scroll to reject
           var _allScanInputs2 = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+          var _foundNext2 = false;
           for(var _k2 = 0; _k2 < _allScanInputs2.length; _k2++){
-            if(!_allScanInputs2[_k2].value.trim()){ try{ _allScanInputs2[_k2].focus(); }catch(e){} break; }
+            if(!_allScanInputs2[_k2].value.trim()){ try{ _allScanInputs2[_k2].focus(); }catch(e){} _foundNext2 = true; break; }
+          }
+          if(!_foundNext2){
+            // All accept slots filled — auto-focus first empty reject input
+            var _firstEmptyRej2 = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
+            if(_firstEmptyRej2){ try{ _firstEmptyRej2.focus(); }catch(e){} }
+            if(typeof Swal !== 'undefined'){
+              Swal.fire({ icon:'success', title:'Accept Complete', text:'Now scan Reject trays', toast:true, position:'top-end', timer:2500, showConfirmButton:false });
+            }
+            var _rejSec2 = document.getElementById('iqf-reject-section');
+            if(_rejSec2){ try{ _rejSec2.scrollIntoView({ behavior:'smooth', block:'nearest' }); _rejSec2.style.transition='box-shadow 0.3s'; _rejSec2.style.boxShadow='0 0 0 2px #ef9a9a'; setTimeout(function(){ _rejSec2.style.boxShadow=''; }, 1500); }catch(e){} }
           }
         } else {
           // invalid_format or any other — clear input and stay for re-entry
@@ -3613,8 +4637,6 @@ document.addEventListener('click', function(evt){
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-invalid'; }
           try{ inp.value = ''; inp.focus(); }catch(e){}
         }
-
-        // (Delink modal now opens from PARTIAL response after Proceed click — no auto-open)
       })
       .catch(function(err){
         console.error('[TRAY VALIDATE] fetch failed', err);

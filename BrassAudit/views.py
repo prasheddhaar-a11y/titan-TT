@@ -1791,8 +1791,8 @@ def _handle_audit_submission(request, action):
             stock.brass_audit_draft = False
             # Clear ALL routing flags so parent doesn't appear in any downstream pick table
             stock.send_brass_audit_to_iqf = False
-            stock.send_brass_audit_to_qc = False  # ✅ Critical: Parent must NOT appear in Brass QC
-            stock.send_brass_qc = False           # ✅ Critical: Parent must NOT appear via IQF reentry
+            stock.send_brass_audit_to_qc = False  # ✅ Parent must NOT appear in Brass QC
+            stock.send_brass_qc = False           # ✅ Parent must NOT appear via IQF reentry
             stock.iqf_onhold_picking = False
             stock.iqf_acceptance = False
             stock.iqf_rejection = False
@@ -1877,10 +1877,11 @@ def _handle_audit_submission(request, action):
         stock.next_process_module = 'Brass QC'
         stock.last_process_module = 'Brass Audit'
         stock.send_brass_audit_to_qc = True
-        # ✅ FIX: Reset Brass QC acceptance flags so lot can be reprocessed in Brass QC
-        stock.brass_qc_accptance = False
-        stock.brass_qc_accepted_qty_verified = False
-        stock.brass_qc_rejection = False
+        # ✅ FIX: DO NOT reset Brass QC flags — they are historical records
+        # The lot will appear in BOTH:
+        # - Brass QC Complete table (historical record preserved)
+        # - Brass QC Pick table (via send_brass_audit_to_qc=True)
+        # This allows reprocessing without losing history
 
     # Clear draft state
     Brass_Audit_Draft_Store.objects.filter(lot_id=lot_id, draft_type='rejection_draft').delete()
@@ -1896,7 +1897,6 @@ def _handle_audit_submission(request, action):
         'brass_audit_draft', 'brass_audit_onhold_picking',
         'send_brass_audit_to_qc', 'send_brass_audit_to_iqf',
         'brass_audit_transition_lot_id', 'brass_audit_transition_label',
-        'brass_qc_accptance', 'brass_qc_accepted_qty_verified', 'brass_qc_rejection',
     ])
 
     # Sync accepted trays to BrassAuditTrayId for FULL_ACCEPT only.
