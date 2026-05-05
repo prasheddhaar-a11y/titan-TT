@@ -229,16 +229,16 @@
     max-width: 110px;
   } /* Version */
   #order-listing th:nth-child(9) {
-    min-width: 80px;
-    max-width: 80px;
+    min-width: 95px;
+    max-width: 100px;
   } /* Tray Cate-Capacity */
   #order-listing th:nth-child(10) {
     min-width: 90px;
     max-width: 100px;
   } /* Source */
   #order-listing th:nth-child(11) {
-    min-width: 100px;
-    max-width: 100px;
+    min-width: 110px;
+    max-width: 120px;
   } /* No of Trays */
   #order-listing th:nth-child(12) {
     min-width: 100px;
@@ -747,12 +747,7 @@
                       <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
                       <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th data-column-index="10" class="sortable">
-                      Physical <br> Qty
-                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
-                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
-                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
-                    </th>
+
                     <th data-column-index="11" class="sortable">
                       Accept Qty
                       <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
@@ -956,9 +951,6 @@
                       </span>
                     </td>
                     <td>{{ data.no_of_trays }}</td>
-                    <td>
-                      {{data.iqf_physical_qty}}
-                    </td>
                     <td>
                         {{data.iqf_accepted_qty}}
                     </td>

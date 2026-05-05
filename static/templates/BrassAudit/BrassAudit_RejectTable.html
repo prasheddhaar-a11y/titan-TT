@@ -630,6 +630,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <th class="sortable" data-column-index="1">
                       S.No <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
+                    <th>
+                      Action
+                    </th>
                     <th class="sortable" data-column-index="2">
                       Last<br>Updated
                       <i class="fa fa-sort" aria-hidden="true"></i>
@@ -686,6 +689,24 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
                      <td>{{ page_obj.start_index|add:forloop.counter0 }}
 
+                    </td>
+                    <td>
+                      <a href="#"
+                         title="View"
+                         class="text-primary tray-scan-btn-Jig"
+                         style="text-decoration: none;"
+                         data-stock-lot-id="{{ data.stock_lot_id }}"
+                         data-batch-id="{{ data.batch_id }}"
+                         data-model-no="{{ data.plating_stk_no }}"
+                         data-no-of-trays="{{ data.no_of_trays }}"
+                         data-model-image="{{ data.model_images.0|default:'' }}"
+                         data-total-batch-quantity="{{ data.display_reject_qty }}"
+                         data-missing-qty="0"
+                         data-physical-qty="{{ data.display_reject_qty }}">
+                        <img src="{% static 'assets/icons/view.png' %}"
+                             alt="View"
+                             style="width: 20px; height: auto; cursor:pointer;" />
+                      </a>
                     </td>                 
                     <td style="white-space:normal;word-break:break-all;">
                               {{ data.brass_audit_last_process_date_time|date:"d-M-y"  }}<br>
@@ -725,24 +746,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>{{data.no_of_trays}}</td>
                     <td>
                       {{data.display_reject_qty}}
-                      <a href="#"
-      title="View"
-      class="text-primary tray-scan-btn-Jig"
-      style="text-decoration: underline; margin-left: 8px;"
-      data-stock-lot-id="{{ data.stock_lot_id }}"
-      data-batch-id="{{ data.batch_id }}"
-      data-model-no="{{ data.plating_stk_no }}"
-      data-no-of-trays="{{ data.no_of_trays }}"
-    data-model-image="{{ data.model_images.0|default:'' }}"
-
-        data-total-batch-quantity="{{ data.display_reject_qty }}"
-         data-missing-qty="0"
-    data-physical-qty="{{ data.display_reject_qty }}">
-
-      <img src="{% static 'assets/icons/view.png' %}"
-          alt="View"
-          style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
-    </a>
                     </td>
                     <td>
                       <div class="avatar-group rejection-popup-trigger" style="cursor:pointer; max-width:120px; white-space:normal; word-break:break-word; overflow:hidden; text-overflow:ellipsis;" 

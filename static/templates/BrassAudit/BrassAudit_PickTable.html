@@ -1926,7 +1926,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: 'Lot Accepted',
                 html: `<b>${data.message}</b><br>Qty: ${data.accepted_qty}<br>Status: ${data.status}`,
                 icon: 'success',
-                confirmButtonText: 'OK',
+                showConfirmButton: false,
+                timer: 2000,
               }).then(function() {
                 // Refresh page to reflect new state
                 window.location.reload();
@@ -2015,24 +2016,38 @@ document.addEventListener('DOMContentLoaded', function() {
               window.baMoveRowToTop(row, true); // true = checkbox move (persistent)
             }
 
-            // ── ERR1: Update Lot Status to "Released" + Current Stage to "Brass QC" ──
+            // ── ERR1: Update Lot Status to "Released" + Current Stage to "Brass Audit" ──
             if (result.last_process_module) {
               const stageTds = row.querySelectorAll('td');
-              // Lot Status is 2nd-to-last data td, Current Stage is last data td before Remarks
-              // Find the lot-status-pill or "Yet to Start" pill and update it
-              stageTds.forEach(function(td) {
-                const pill = td.querySelector('.d-inline-block.rounded-pill');
-                if (pill) {
-                  const text = pill.textContent.trim();
+              
+              // Count backwards from end (exclude last td which is Remarks)
+              // Lot Status is at index -11 (11th from end)
+              // Current Stage is at index -10 (10th from end)
+              const lotStatusIndex = stageTds.length - 11;
+              const currentStageIndex = stageTds.length - 10;
+              
+              // Update Lot Status pill
+              if (lotStatusIndex >= 0) {
+                const lotStatusTd = stageTds[lotStatusIndex];
+                const lotStatusPill = lotStatusTd.querySelector('.d-inline-block.rounded-pill');
+                if (lotStatusPill) {
+                  const text = lotStatusPill.textContent.trim();
                   if (text === 'Yet to Start') {
-                    pill.textContent = 'Released';
-                    pill.style.cssText = 'border:1px solid #028084; background-color:#d1f8f0; color:#028084; font-size:13px; white-space:nowrap; padding:5px;';
-                    pill.classList.add('lot-status-pill');
-                  } else if (text === 'Input Screening' || text === 'N/A') {
-                    pill.textContent = result.last_process_module;
+                    lotStatusPill.textContent = 'Released';
+                    lotStatusPill.style.cssText = 'border:1px solid #028084; background-color:#d1f8f0; color:#028084; font-size:13px; white-space:nowrap; padding:5px;';
+                    lotStatusPill.classList.add('lot-status-pill');
                   }
                 }
-              });
+              }
+              
+              // Update Current Stage pill
+              if (currentStageIndex >= 0) {
+                const currentStageTd = stageTds[currentStageIndex];
+                const currentStagePill = currentStageTd.querySelector('.d-inline-block.rounded-pill');
+                if (currentStagePill) {
+                  currentStagePill.textContent = result.last_process_module;
+                }
+              }
             }
           }
 

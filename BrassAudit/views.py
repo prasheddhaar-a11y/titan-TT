@@ -788,7 +788,20 @@ def _resolve_lot_trays_audit(lot_id):
     Shared tray resolver for Brass Audit — single source of truth.
     Returns (tray_data_list, source_name, total_qty).
     STRICTLY uses current lot data only — no cross-stage history.
+
+    Priority order:
+      1. BrassAuditTrayId       — Brass Audit's own table (highest priority)
+      2. Brass_QC_Submission    — BQC accept snapshot (canonical for IS→BQC→BA flow)
+      3. IS_PartialAcceptLot    — IS partial accept snapshot (correct post-IS qty)
+      4. BrassTrayId            — Brass QC tray table (rejected trays excluded)
+      5. IPTrayId               — Input Screening tray table (rejected trays excluded)
+      6. TrayId                 — Global tray table (rejected/delinked excluded)
+      7. AcceptedStore          — Last-resort fallback
+      8. IQFTrayId              — IQF-returned lots
     """
+    from Brass_QC.models import Brass_QC_Submission
+    from InputScreening.models import IS_PartialAcceptLot, IPTrayId
+
     tray_data = []
     source = "BrassAuditTrayId"
 
@@ -801,19 +814,99 @@ def _resolve_lot_trays_audit(lot_id):
             for t in trays
         ]
 
-    # Step 2: Fallback to TrayId (global table)
+    # Step 2: Brass_QC_Submission accept snapshot
+    # This is the canonical source for IS→BQC→BA flow — contains exactly what BQC accepted
+    # with correct post-IS-rejection quantities (no original TrayId pollution).
+    if not tray_data:
+        source = "BQCSubmission"
+        bqc_sub = Brass_QC_Submission.objects.filter(
+            lot_id=lot_id,
+            submission_type__in=['FULL_ACCEPT', 'PARTIAL']
+        ).order_by('-id').first()
+        if bqc_sub:
+            if bqc_sub.submission_type == 'FULL_ACCEPT' and bqc_sub.full_accept_data:
+                trays_raw = bqc_sub.full_accept_data.get('trays', [])
+            elif bqc_sub.submission_type == 'PARTIAL' and bqc_sub.partial_accept_data:
+                trays_raw = bqc_sub.partial_accept_data.get('trays', [])
+            else:
+                trays_raw = []
+            if trays_raw:
+                tray_data = [
+                    {
+                        "tray_id": t["tray_id"],
+                        "qty": int(t.get("qty", 0) or 0),
+                        "is_rejected": False,
+                        "is_top": bool(t.get("is_top", False)),
+                        "is_delinked": False,
+                    }
+                    for t in trays_raw
+                    if t.get("tray_id")
+                ]
+
+    # Step 3: IS_PartialAcceptLot snapshot (correct post-IS-rejection qty)
+    if not tray_data:
+        source = "IS_PartialAcceptLot"
+        is_pa = IS_PartialAcceptLot.objects.filter(new_lot_id=lot_id).first()
+        if is_pa and is_pa.trays_snapshot:
+            tray_data = [
+                {
+                    "tray_id": t.get("tray_id"),
+                    "qty": int(t.get("qty", 0) or 0),
+                    "is_rejected": False,
+                    "is_top": bool(t.get("top_tray", False)),
+                    "is_delinked": False,
+                }
+                for t in (is_pa.trays_snapshot or [])
+                if t.get("tray_id") and int(t.get("qty", 0) or 0) > 0
+            ]
+
+    # Step 4: BrassTrayId (Brass QC tray table) — exclude rejected and delinked
+    if not tray_data:
+        source = "BrassTrayId"
+        brass_trays = BrassTrayId.objects.filter(
+            lot_id=lot_id, delink_tray=False, rejected_tray=False
+        ).order_by('-top_tray', 'tray_id')
+        if brass_trays.exists():
+            tray_data = [
+                {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
+                 "is_rejected": False,
+                 "is_top": bool(t.top_tray),
+                 "is_delinked": False}
+                for t in brass_trays
+            ]
+
+    # Step 5: IPTrayId (Input Screening tray table) — exclude rejected and delinked
+    if not tray_data:
+        source = "IPTrayId"
+        ip_trays = IPTrayId.objects.filter(
+            lot_id=lot_id, tray_quantity__gt=0,
+            rejected_tray=False, delink_tray=False
+        ).order_by('-top_tray', 'tray_id')
+        if ip_trays.exists():
+            tray_data = [
+                {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
+                 "is_rejected": False,
+                 "is_top": bool(t.top_tray),
+                 "is_delinked": False}
+                for t in ip_trays
+            ]
+
+    # Step 6: Fallback to TrayId (global table) — exclude rejected and delinked
     if not tray_data:
         source = "TrayId"
-        trays = TrayId.objects.filter(lot_id=lot_id, tray_quantity__gt=0).order_by('-top_tray', 'tray_id')
+        trays = TrayId.objects.filter(
+            lot_id=lot_id, tray_quantity__gt=0,
+            rejected_tray=False, delink_tray=False
+        ).order_by('-top_tray', 'tray_id')
         tray_data = [
             {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
-             "is_rejected": getattr(t, 'rejected_tray', False),
+             "is_rejected": False,
              "is_top": t.top_tray,
-             "is_delinked": t.delink_tray}
+             "is_delinked": False}
             for t in trays
         ]
 
-    # Step 3: Final fallback to Accepted Store
+    # Step 7: Final fallback to Accepted Store
     if not tray_data:
         source = "AcceptedStore"
         accepted = Brass_Audit_Accepted_TrayID_Store.objects.filter(lot_id=lot_id)
@@ -823,7 +916,7 @@ def _resolve_lot_trays_audit(lot_id):
             for t in accepted
         ]
 
-    # Step 4: IQFTrayId fallback — for IQF-accepted child lots that have no BrassAuditTrayId
+    # Step 8: IQFTrayId fallback — for IQF-accepted child lots that have no BrassAuditTrayId
     if not tray_data:
         source = "IQFTrayId"
         iqf_trays = IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).order_by('-top_tray', 'tray_id')
@@ -1683,6 +1776,10 @@ def _handle_audit_submission(request, action):
 
             # ✅ FIX: Reject child goes to IQF — create IQFTrayId records.
             # IQF reads tray data from IQFTrayId via its tray resolver.
+            # ✅ BUG FIX (Bug 2): Reset IQF verification checkbox to unchecked when lot enters IQF
+            rejected_child.iqf_accepted_qty_verified = False
+            rejected_child.save(update_fields=['iqf_accepted_qty_verified'])
+            
             from IQF.models import IQFTrayId
             IQFTrayId.objects.bulk_create([
                 IQFTrayId(
@@ -1884,7 +1981,11 @@ def _handle_audit_submission(request, action):
         stock.next_process_module = 'Brass QC'
         stock.last_process_module = 'Brass Audit'
         stock.send_brass_audit_to_qc = True
-        # ✅ FIX: DO NOT reset Brass QC flags — they are historical records
+        # ✅ BUG FIX (Bug 1): Reset Brass QC verification checkbox when lot re-enters Brass QC
+        # When lot moves from Brass Audit → Brass QC, user must manually verify qty again
+        # Previous checked state must NOT carry forward on re-entry
+        stock.brass_qc_accepted_qty_verified = False
+        # ✅ FIX: DO NOT reset other Brass QC flags — they are historical records
         # The lot will appear in BOTH:
         # - Brass QC Complete table (historical record preserved)
         # - Brass QC Pick table (via send_brass_audit_to_qc=True)
@@ -1904,6 +2005,7 @@ def _handle_audit_submission(request, action):
         'brass_audit_draft', 'brass_audit_onhold_picking',
         'send_brass_audit_to_qc', 'send_brass_audit_to_iqf',
         'brass_audit_transition_lot_id', 'brass_audit_transition_label',
+        'brass_qc_accepted_qty_verified',
     ])
 
     # Sync accepted trays to BrassAuditTrayId for FULL_ACCEPT only.

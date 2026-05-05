@@ -186,6 +186,10 @@
 
     renderActivePills();
     renderReasonGrid();
+    
+    // BUG FIX 3: Render delink section on modal open so options are visible from start
+    renderDelinkSection();
+    
     clearStatus();
     setInsight("info", "Ready. Enter rejection qty.");
   }
@@ -604,27 +608,32 @@
         '</div>';
     }).join("");
 
-    if (state.delinkScans.length < remainingDelink) {
-      var nextIdx = state.delinkScans.length + 1;
+    // ERR 1 FIX: Render ALL remaining empty slots at once, not progressively
+    var emptySlots = remainingDelink - state.delinkScans.length;
+    if (emptySlots > 0) {
       var disabled = !rejectStepDone();
-      html += '<div class="isrm-delink-row">' +
-        '<span class="isrm-alloc-num">' + nextIdx + '</span>' +
-        '<input type="text" class="isrm-scan-input isrm-delink-scan" ' +
-          'maxlength="' + TRAY_ID_LEN + '" autocomplete="off" ' +
-          'placeholder="SCAN / TAP DELINK TRAY" ' + (disabled ? "disabled" : "") + ' />' +
-        '</div>';
+      for (var i = 0; i < emptySlots; i++) {
+        var slotIdx = state.delinkScans.length + i + 1;
+        html += '<div class="isrm-delink-row">' +
+          '<span class="isrm-alloc-num">' + slotIdx + '</span>' +
+          '<input type="text" class="isrm-scan-input isrm-delink-scan" ' +
+            'maxlength="' + TRAY_ID_LEN + '" autocomplete="off" ' +
+            'placeholder="SCAN / TAP DELINK TRAY" ' + (disabled ? "disabled" : "") + ' />' +
+          '</div>';
+      }
     }
     rows.innerHTML = html;
 
-    var newInput = rows.querySelector(".isrm-delink-scan");
-    if (newInput) {
+    // Attach handlers to all new delink scan inputs
+    var newInputs = rows.querySelectorAll(".isrm-delink-scan");
+    newInputs.forEach(function(newInput) {
       attachScanHandlers(newInput, "delink");
       // Track focus for targeted pill taps
       newInput.addEventListener("focus", function () { state.focusedInput = this; });
       newInput.addEventListener("blur", function () {
         setTimeout(function () { if (state.focusedInput === newInput) state.focusedInput = null; }, 200);
       });
-    }
+    });
 
     // Allow editing filled (readonly) delink inputs
     rows.querySelectorAll(".isrm-delink-row .isrm-scan-input[readonly]").forEach(function (inp) {
@@ -690,7 +699,18 @@
     setInsight("busy", "Validating " + trayId + " (" + slotType + ")…");
     input.disabled = true;
     var capturedEpoch = state.scanEpoch;
-    validateScan(slotType, trayId, function (res) {
+    // ERR 2 FIX: Pass slot index and current tray ID to exclude from duplicate check
+    var slotIdx = input.getAttribute("data-slot-idx");
+    var currentTrayId = null;
+    if (slotIdx !== null && slotIdx !== undefined) {
+      var idx = parseInt(slotIdx, 10);
+      if (slotType === "reject" && state.rejectScans[idx]) {
+        currentTrayId = state.rejectScans[idx].tray_id;
+      } else if (slotType === "accept" && state.acceptScans[idx]) {
+        currentTrayId = state.acceptScans[idx].tray_id;
+      }
+    }
+    validateScan(slotType, trayId, currentTrayId, function (res) {
       input.disabled = false;
       if (state.scanEpoch !== capturedEpoch) return;
       if (!res.valid) {
@@ -893,8 +913,9 @@
   }
 
   // ── Validate scan API ─────────────────────────────────────────────────────
-  function validateScan(slotType, trayId, cb) {
-    var used = collectAllUsedIds();
+  function validateScan(slotType, trayId, excludeTrayId, cb) {
+    // ERR 2 FIX: Exclude current slot's tray ID from duplicate check when editing
+    var used = collectAllUsedIds(excludeTrayId);
     fetch("/inputscreening/validate_scan/", {
       method: "POST",
       credentials: "same-origin",
@@ -913,11 +934,25 @@
       .catch(function () { cb({ valid: false, reason: "Network error during scan." }); });
   }
 
-  function collectAllUsedIds() {
+  function collectAllUsedIds(excludeTrayId) {
+    // ERR 2 FIX: When editing a slot, exclude that slot's current tray ID
     var ids = [];
-    state.rejectScans.forEach(function (s) { if (s) ids.push(s.tray_id); });
-    state.acceptScans.forEach(function (s) { if (s) ids.push(s.tray_id); });
-    state.delinkScans.forEach(function (s) { if (s) ids.push(s.tray_id); });
+    var excludeUpper = excludeTrayId ? excludeTrayId.toUpperCase() : null;
+    state.rejectScans.forEach(function (s) {
+      if (s && s.tray_id && (!excludeUpper || s.tray_id.toUpperCase() !== excludeUpper)) {
+        ids.push(s.tray_id);
+      }
+    });
+    state.acceptScans.forEach(function (s) {
+      if (s && s.tray_id && (!excludeUpper || s.tray_id.toUpperCase() !== excludeUpper)) {
+        ids.push(s.tray_id);
+      }
+    });
+    state.delinkScans.forEach(function (s) {
+      if (s && s.tray_id && (!excludeUpper || s.tray_id.toUpperCase() !== excludeUpper)) {
+        ids.push(s.tray_id);
+      }
+    });
     return ids;
   }
 

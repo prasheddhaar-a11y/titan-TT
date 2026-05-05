@@ -1431,7 +1431,7 @@ tr.row-inactive td.action-td {
                   {% if not master_data %}
                   <tr>
                     <td colspan="100" style="text-align: center; padding: 40px; color: #999; font-size: 16px;">
-                      <i class="fa fa-inbox" style="font-size: 48px; margin-bottom: 12px; display: block;"></i>
+                      
                       No lots available for QC. All submitted lots will appear in the Completed table.
                     </td>
                   </tr>
@@ -2018,7 +2018,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: 'Lot Accepted',
                 html: `<b>${data.message}</b><br>Qty: ${data.accepted_qty}<br>Status: ${data.status}`,
                 icon: 'success',
-                confirmButtonText: 'OK',
+                showConfirmButton: false,
+                timer: 2000,
               }).then(function() {
                 // Refresh page to reflect new state
                 window.location.reload();

@@ -25,9 +25,11 @@ from Jig_Loading.models import *
 from Jig_Unloading.models import *
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-class Jig_Unloading_MainTable(TemplateView):
+class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
     template_name = "Jig_Unloading/Jig_Unloading_Main.html"
+    login_url = '/login/'
 
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
@@ -1588,8 +1590,9 @@ class Jig_Unloading_MainTable(TemplateView):
         return jig_list  # Return the list, not queryset
 
 
-class JigUnloading_Completedtable(TemplateView):
+class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
     template_name = 'Jig_Unloading/JigUnloading_Completedtable.html'
+    login_url = '/login/'
 
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
@@ -2365,17 +2368,18 @@ class GetUnloadModelsZ1View(APIView):
                 images = []
 
             # ---------------------------------------------------------------
-            # STEP 3b: If a final (non-draft) submitted record exists, prefer
-            # its total_qty — this correctly reflects Add-Model merged qty.
-            # Without this, a GET without additional_jig_ids would show the
-            # primary jig's tray_data delink_qty (98) instead of the merged
-            # submitted qty (196).
+            # STEP 3b: If a submitted record exists (draft or final), prefer
+            # its total_qty — this correctly reflects:
+            #   - User-edited LOT Qty (if lot_qty_edited=True)
+            #   - Add-Model merged qty
+            # This ensures edited LOT Qty becomes the single source of truth.
             # ---------------------------------------------------------------
-            _final_sub = JUSubmittedZ1.objects.filter(
-                jig_completed_id=jig_completed_id, lot_id=lot_id, is_draft=False
-            ).first()
-            if _final_sub and _final_sub.total_qty:
-                qty = _final_sub.total_qty
+            _submitted_rec = JUSubmittedZ1.objects.filter(
+                jig_completed_id=jig_completed_id, lot_id=lot_id
+            ).order_by('-submitted_at').first()
+            if _submitted_rec and _submitted_rec.total_qty is not None:
+                # ✅ Use submitted LOT Qty - SSOT (whether draft or final)
+                qty = _submitted_rec.total_qty
 
             # ---------------------------------------------------------------
             # STEP 4: Always recompute tray slots using DB capacity.
@@ -2616,11 +2620,26 @@ class SaveModelUnloadZ1View(APIView):
         tray_capacity = data.get('tray_capacity', 0)
         tray_code = data.get('tray_code', '')
         tray_color = data.get('tray_color', '')
+        lot_qty_edited = data.get('lot_qty_edited', False)
 
         if not jig_completed_id or not lot_id or not model_no:
             return Response({'error': 'jig_completed_id, lot_id, and model_no are required'}, status=400)
 
         is_draft = data.get('is_draft', False)
+
+        # ✅ CRITICAL: Validate LOT Qty matches tray distribution
+        if not is_draft:
+            # Validate total_qty is non-negative
+            if total_qty < 0:
+                return Response({'error': 'LOT Qty cannot be negative'}, status=400)
+            
+            # Validate sum of tray quantities equals total_qty
+            tray_qty_sum = sum(t.get('qty', 0) for t in tray_data)
+            if tray_qty_sum != total_qty:
+                return Response({
+                    'error': f'Total tray quantity ({tray_qty_sum}) does not match LOT Qty ({total_qty}). '
+                            f'Please ensure tray distribution is correct.'
+                }, status=400)
 
         # Validate tray IDs (only for final save, not draft)
         if not is_draft:
@@ -2672,6 +2691,8 @@ class SaveModelUnloadZ1View(APIView):
 
         jig_qr_id = jc.jig_id or jc.lot_id
 
+        # ✅ CRITICAL: Use submitted total_qty as single source of truth
+        # This is the edited LOT Qty from frontend - DO NOT recalculate from other sources
         # Create or update JUSubmittedZ1
         obj, created = JUSubmittedZ1.objects.update_or_create(
             jig_completed_id=jig_completed_id,
@@ -2679,7 +2700,7 @@ class SaveModelUnloadZ1View(APIView):
             defaults={
                 'jig_qr_id': jig_qr_id,
                 'model_no': model_no,
-                'total_qty': total_qty,
+                'total_qty': total_qty,  # ✅ Use edited LOT Qty - SSOT
                 'tray_type': tray_type,
                 'tray_capacity': tray_capacity,
                 'tray_code': tray_code,

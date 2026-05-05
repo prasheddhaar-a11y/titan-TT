@@ -973,23 +973,50 @@ class IS_DeleteBatchAPI(APIView):
                 return Response({"success": False, "error": "Missing batch_id or stock_lot_id."}, status=status.HTTP_400_BAD_REQUEST)
 
             from modelmasterapp.models import ModelMasterCreation, TotalStockModel
+            from DayPlanning.models import DPTrayId_History
+            from .models import IPTrayId, IP_TrayVerificationStatus
 
             if batch_id:
                 batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
                 if not batch_obj:
                     return Response({"success": False, "error": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+                
+                # BUG FIX 1: Get all lot_ids associated with this batch before deleting
+                lot_ids = list(TotalStockModel.objects.filter(batch_id=batch_obj).values_list('lot_id', flat=True))
+                
+                # Delete TotalStockModel records
                 deleted_count, _ = TotalStockModel.objects.filter(batch_id=batch_obj).delete()
                 if deleted_count == 0:
                     return Response({"success": False, "error": "No stock records found for this batch."}, status=status.HTTP_404_NOT_FOUND)
-                logger.info("IS Delete Batch: batch_id=%s deleted %d records by user=%s", batch_id, deleted_count, request.user)
-                return Response({"success": True, "message": f"{deleted_count} stock record(s) deleted."}, status=status.HTTP_200_OK)
+                
+                # BUG FIX 1: Clean up all tray assignments for these lot_ids
+                for lot_id in lot_ids:
+                    if lot_id:
+                        # Delete IPTrayId records (Input Screening tray assignments)
+                        IPTrayId.objects.filter(lot_id=lot_id, batch_id=batch_obj).delete()
+                        # Delete DPTrayId_History records (Day Planning tray assignments)
+                        DPTrayId_History.objects.filter(lot_id=lot_id, batch_id=batch_obj).delete()
+                        # Delete IP_TrayVerificationStatus records (tray verification status)
+                        IP_TrayVerificationStatus.objects.filter(lot_id=lot_id).delete()
+                
+                logger.info("IS Delete Batch: batch_id=%s deleted %d records + tray assignments for %d lots by user=%s", 
+                           batch_id, deleted_count, len(lot_ids), request.user)
+                return Response({"success": True, "message": f"{deleted_count} stock record(s) and tray assignments deleted."}, status=status.HTTP_200_OK)
             else:
                 obj = TotalStockModel.objects.filter(lot_id=stock_lot_id).first()
                 if not obj:
                     return Response({"success": False, "error": "Stock lot not found."}, status=status.HTTP_404_NOT_FOUND)
+                
+                # BUG FIX 1: Clean up tray assignments before deleting stock records
+                IPTrayId.objects.filter(lot_id=stock_lot_id).delete()
+                DPTrayId_History.objects.filter(lot_id=stock_lot_id).delete()
+                IP_TrayVerificationStatus.objects.filter(lot_id=stock_lot_id).delete()
+                
+                # Delete all stock records for the batch
                 TotalStockModel.objects.filter(batch_id=obj.batch_id).delete()
-                logger.info("IS Delete Batch: stock_lot_id=%s deleted by user=%s", stock_lot_id, request.user)
-                return Response({"success": True, "message": "Stock lot deleted."}, status=status.HTTP_200_OK)
+                
+                logger.info("IS Delete Batch: stock_lot_id=%s deleted with tray assignments by user=%s", stock_lot_id, request.user)
+                return Response({"success": True, "message": "Stock lot and tray assignments deleted."}, status=status.HTTP_200_OK)
 
         except Exception as exc:
             logger.exception("IS_DeleteBatchAPI error")

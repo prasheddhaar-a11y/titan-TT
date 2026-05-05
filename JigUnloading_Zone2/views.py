@@ -25,9 +25,11 @@ from Jig_Loading.models import *
 from Jig_Unloading.models import *
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-class JU_Zone_MainTable(TemplateView):
+class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
     template_name = "Jig_Unloading - Zone_two/Jig_Unloading_Main_zone_two.html"
+    login_url = '/login/'
 
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
@@ -806,7 +808,8 @@ class JU_Zone_MainTable(TemplateView):
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
-            plating_color_cast__in=plating_patterns
+            plating_color_cast__in=plating_patterns,
+            last_process_module='Inprocess Inspection'  # ✅ FIX: Only show lots submitted from Inprocess Inspection
         ).exclude(
             last_process_module='Jig Unloading'
         ).order_by('-IP_loaded_date_time')
@@ -817,7 +820,8 @@ class JU_Zone_MainTable(TemplateView):
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
-            plating_color_cast__isnull=True  # draft_data has no plating_color
+            plating_color_cast__isnull=True,  # draft_data has no plating_color
+            last_process_module='Inprocess Inspection'  # ✅ FIX: Only show lots submitted from Inprocess Inspection
         ).order_by('-IP_loaded_date_time')
         
         # Get lot_ids from jigs without plating color in draft_data
@@ -1268,10 +1272,23 @@ class JU_Zone_MainTable(TemplateView):
             # Process model_cases using THE SAME batch_ids from lot_ids (CORRECTED LOGIC)
             model_cases_data = self.process_model_cases_corrected(jig_detail.no_of_model_cases, multiple_lot_ids)
             
-            # Extract lot_id_quantities from draft_data for total_quantity calculation
+            # Extract lot_id_quantities - CORRECTED PRIORITY ORDER
             draft_data = getattr(jig_detail, 'draft_data', {}) or {}
-            jig_detail.lot_id_quantities = draft_data.get('lot_id_quantities', {jig_detail.lot_id: jig_detail.updated_lot_qty or jig_detail.original_lot_qty or 0})
-            print(f"   📦 Extracted lot_id_quantities from draft_data: {jig_detail.lot_id_quantities}")
+            
+            # ✅ FIX err 4: Use JigCompleted fields (Jig Loading's updated qty) as primary source
+            # Priority: JigCompleted.updated_lot_qty (set by Jig Loading) → loaded_cases_qty → draft_data
+            if jig_detail.updated_lot_qty and jig_detail.updated_lot_qty > 0:
+                # Use Jig Loading's updated qty (respects jig capacity constraints)
+                jig_detail.lot_id_quantities = {jig_detail.lot_id: jig_detail.updated_lot_qty}
+                print(f"   📦 Using JigCompleted.updated_lot_qty: {jig_detail.updated_lot_qty} (Jig Loading qty)")
+            elif jig_detail.loaded_cases_qty and jig_detail.loaded_cases_qty > 0:
+                # Fallback to loaded_cases_qty
+                jig_detail.lot_id_quantities = {jig_detail.lot_id: jig_detail.loaded_cases_qty}
+                print(f"   📦 Using JigCompleted.loaded_cases_qty: {jig_detail.loaded_cases_qty}")
+            else:
+                # Final fallback to draft_data or original_lot_qty
+                jig_detail.lot_id_quantities = draft_data.get('lot_id_quantities', {jig_detail.lot_id: jig_detail.original_lot_qty or 0})
+                print(f"   📦 Using draft_data lot_id_quantities: {jig_detail.lot_id_quantities}")
             
             jig_detail.lot_id_list = list(jig_detail.lot_id_quantities.keys())
             
@@ -3689,8 +3706,9 @@ class JU_Zone_ListAPIView(APIView):
         })
 
 
-class JU_Zone_Completedtable(TemplateView):
+class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
     template_name = 'Jig_Unloading - Zone_two/JigUnloading_Completedtable_zone_two.html'
+    login_url = '/login/'
 
     def get_dynamic_tray_capacity(self, tray_type_name):
         """

@@ -1843,19 +1843,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const formatted = tvmFormatTrayId(val);
         this.value = formatted;
         tvmSetActivity("info", "Typing: " + formatted);
-        // Auto-select if tray is already verified OR not in this lot (invalid)
-        // Do NOT auto-select for pending (unverified) trays that belong to this lot
-        if (formatted.length >= 9 && window._tvmTrays) {
-          var match = window._tvmTrays.find(function (t) {
-            return t.tray_id === formatted;
-          });
-          var shouldSelect = !match || match.is_verified === true;
-          if (shouldSelect) {
-            var self = this;
-            setTimeout(function () {
-              self.select();
-            }, 0);
-          }
+        
+        // BUG FIX 2: Auto-validate when 9 characters are entered
+        if (formatted.length === 9) {
+          tvmVerifyScan(formatted);
         }
       } else {
         tvmSetActivity("wait", "Waiting for tray scan…");

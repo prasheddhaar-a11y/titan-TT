@@ -208,8 +208,8 @@ thead th {
 
  /* Plating Color */
 #order-listing th:nth-child(5) {
-  min-width: 110px;
-  max-width: 110px;
+  min-width: 90px;
+  max-width: 100px;
 } /* Polish Finish */
 #order-listing th:nth-child(6) {
   min-width: 100px;
@@ -408,36 +408,55 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   color: #e5fcff !important;
 }
 
-/* Freeze 1st column */
+/* Freeze 1st column - S.No (width 75px, left 0) */
 #order-listing th:nth-child(1),
 #order-listing td:nth-child(1) {
-  position: sticky;
-  left: 0 !important;
-  z-index: 12; /* Above header */
-  background: #f7fafd;
-  min-width: 75px;
-  max-width: 75px;
+  position: sticky !important;
+  left: 0px !important;
+  width: 75px !important;
+  min-width: 75px !important;
+  max-width: 75px !important;
+  background: #f7fafd !important;
+  box-sizing: border-box !important;
 }
 
-/* Freeze 2nd column - JIG ID */
+/* Freeze 2nd column - JIG ID (width 130px, left 75px) */
 #order-listing th:nth-child(2),
 #order-listing td:nth-child(2) {
-  position: sticky;
-  left: 75px; /* Match min-width of 1st col */
-  z-index: 12;
-  background: #f7fafd;
-  min-width: 130px;
-  max-width: 130px;
+  position: sticky !important;
+  left: 75px !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+  background: #f7fafd !important;
+  box-sizing: border-box !important;
 }
 
-/* ...existing code... */
-
-/* Prevent sticky columns from overlapping sticky header */
-#order-listing th:nth-child(-n + 2) {
-  z-index: 12;
+/* Freeze 3rd column - Last Updated (width 100px, left 205px) */
+#order-listing th:nth-child(3),
+#order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 205px !important;
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+  background: #f7fafd !important;
+  box-sizing: border-box !important;
 }
-#order-listing td:nth-child(-n + 2) {
-  z-index: 11;
+
+/* Header sticky cols must be above body sticky cols */
+#order-listing thead th:nth-child(1),
+#order-listing thead th:nth-child(2),
+#order-listing thead th:nth-child(3) {
+  z-index: 30 !important;
+  background: #028084 !important;
+}
+
+/* Body sticky cols above non-sticky body cells */
+#order-listing tbody td:nth-child(1),
+#order-listing tbody td:nth-child(2),
+#order-listing tbody td:nth-child(3) {
+  z-index: 11 !important;
 }
 
 /* Ensure sticky columns and header work together */
@@ -453,11 +472,18 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
 
     .blurred-heading, .blurred-cell {
-    filter: blur(2px) grayscale(0.7) opacity(0.6);
-    pointer-events: none !important;
+    filter: blur(2px) grayscale(0.7);
+    opacity: 0.6;
     user-select: none;
     cursor: not-allowed;
     background: #f5f5f5 !important;
+    /* ❌ REMOVED pointer-events:none — it blocks action buttons */
+  }
+  
+  /* ✅ CRITICAL: Force all links and buttons to be clickable */
+  a, button, .z1-unload-btn, .z1-view-btn {
+    pointer-events: auto !important;
+    position: relative;
   }
     /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
@@ -1603,14 +1629,12 @@ body.add-model-mode #selectAllCheckbox {
                     <th>Last<br>Updated <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Tray Cate - Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Bath No <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Lot Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Stage <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Version <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1681,7 +1705,8 @@ body.add-model-mode #selectAllCheckbox {
                              <span>Unloaded</span>
                           </a>
                         {% else %}
-                          <a href="#" class="text-primary z1-unload-btn" style="text-decoration: underline; font-weight:600;"
+                          <a href="#" class="text-primary z1-unload-btn" 
+                             style="text-decoration: underline; font-weight:600; pointer-events: auto !important; position: relative;"
                              data-jig-completed-id="{{ jig_detail.id }}"
                              title="Unload jig trays">
                              <span>Unload</span>
@@ -1704,100 +1729,8 @@ body.add-model-mode #selectAllCheckbox {
                         {% endif %}
                     </td>
                     
-                    <!-- Tray Cate - Capacity -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% if jig_detail.tray_type and jig_detail.tray_capacity %}
-                          {% if jig_detail.tray_capacity == 20 %}
-                            <div class="tray-capacity-badge normal-tray"
-                                 style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Normal Tray - 20 Capacity (Custom for Jig Unloading)">
-                              Normal - 20
-                            </div>
-                          {% elif jig_detail.tray_capacity == 12 %}
-                            <div class="tray-capacity-badge jumbo-tray"
-                                 style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                                 title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
-                              Jumbo - 12
-                            </div>
-                          {% else %}
-                            <div class="tray-capacity-badge other-tray"
-                                 style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
-                                 title="{{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }} Capacity">
-                              {{ jig_detail.tray_type }} - {{ jig_detail.tray_capacity }}
-                            </div>
-                          {% endif %}
-                        {% else %}
-                          <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
-                        {% endif %}
-                    </td>
-                    
-                    <!-- Bath No -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{% firstof jig_detail.bath_numbers.bath_number jig_detail.bath_number "N/A" %}</td>
-
-                    <!-- Process Status -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if jig_detail.jig_unload_draft %}
-                        <div title="Draft (Halfway Unloaded)" style="
-                          background: linear-gradient(to right, #0c8249 0 50%, #ccc 50% 100%);
-                          color: #fff;
-                          border-radius: 50%;
-                          width: 20px;
-                          height: 20px;
-                          display: flex;
-                          align-items: center;
-                          justify-content: center;
-                          font-weight: 500;
-                          line-height: 20px;
-                          text-align: center;
-                          padding-top: 1px;
-                          padding-right: 1px;
-                          padding: 15px !important;
-                        ">UL</div>
-                      {% else %}
-                        <div style="background:#ccc;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0;">UL</div>
-                      {% endif %}
-                    </td>
-
-                    <!-- Lot Status -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if jig_detail.jig_unload_draft %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 2px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          Draft
-                        </div>
-                      {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 2px solid #b3b3b3; background-color: #f5f5f5; color: #888; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          Pending
-                        </div>
-                      {% elif jig_detail.unload_hold_lot %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 12px; white-space: nowrap; padding: 5px;">
-                          On Hold
-                        </div>
-                      {% elif jig_detail.batch_status == "Completed" %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 2px solid #007bff; background-color: #e3f2fd; color: #0d47a1; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          Released
-                        </div>
-                      {% else %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
-                          Yet To Start
-                        </div>
-                      {% endif %}
-                    </td>
-                    
-                    <!-- Current Stage -->
-                    <td>
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                          style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
-                          {% if jig_detail.electroplating_only %}Electroplating{% else %}Jig Unloading{% endif %}
-                        </div>
-                    </td>
-                    
                     <!-- Model Presents -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %} class="model-stock-no-cell" 
+                    <td class="model-stock-no-cell{% if jig_detail.unload_hold_lot %} row-inactive-blur{% endif %}" 
                           data-images='{{ jig_detail.model_images|json_encode }}'
                           data-model-colors='{{ jig_detail.model_colors|json_encode }}'
                           data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'
@@ -1876,13 +1809,73 @@ body.add-model-mode #selectAllCheckbox {
                           </span>
                     </td>
                     
+                    <!-- Bath No -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>{% firstof jig_detail.bath_numbers.bath_number jig_detail.bath_number "N/A" %}</td>
+
+                    <!-- Process Status -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                      {% if jig_detail.jig_unload_draft %}
+                        <div title="Draft (Halfway Unloaded)" style="
+                          background: linear-gradient(to right, #0c8249 0 50%, #ccc 50% 100%);
+                          color: #fff;
+                          border-radius: 50%;
+                          width: 20px;
+                          height: 20px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          font-weight: 500;
+                          line-height: 20px;
+                          text-align: center;
+                          padding-top: 1px;
+                          padding-right: 1px;
+                          padding: 15px !important;
+                        ">UL</div>
+                      {% else %}
+                        <div style="background:#ccc;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0;">UL</div>
+                      {% endif %}
+                    </td>
+
+                    <!-- Lot Status -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
+                      {% if jig_detail.jig_unload_draft %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Draft
+                        </div>
+                      {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #b3b3b3; background-color: #f5f5f5; color: #888; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Pending
+                        </div>
+                      {% elif jig_detail.unload_hold_lot %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 12px; white-space: nowrap; padding: 5px;">
+                          On Hold
+                        </div>
+                      {% elif jig_detail.batch_status == "Completed" %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 2px solid #007bff; background-color: #e3f2fd; color: #0d47a1; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          Released
+                        </div>
+                      {% else %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
+                          Yet To Start
+                        </div>
+                      {% endif %}
+                    </td>
+                    
+                    <!-- Current Stage -->
+                    <td>
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
+                          {% if jig_detail.electroplating_only %}Electroplating{% else %}Jig Unloading{% endif %}
+                        </div>
+                    </td>
+                    
                     <!-- Polish Finish -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.polish_finish_name|default:"N/A" }}</td>
-
-                    <!-- Version -->
-                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %} style="display: none;">
-                      {{ jig_detail.all_versions|join:", " }}
-                    </td>
                     
                     <!-- Remarks -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
@@ -1944,7 +1937,7 @@ body.add-model-mode #selectAllCheckbox {
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="14" style="text-align: center; padding: 20px; color: #888;">
+                      <td colspan="12" style="text-align: center; padding: 20px; color: #888;">
                         No jig details found for unloading.
                       </td>
                     </tr>
@@ -2019,9 +2012,20 @@ body.add-model-mode #selectAllCheckbox {
                       </button>
                     </div>
                     <!-- Info strip -->
-                    <div style="background:#f1f8f7; border:1px solid #b2dfdb; border-radius:7px; padding:8px 12px; margin:10px 0 12px; display:flex; gap:18px; flex-wrap:wrap;">
+                    <div style="background:#f1f8f7; border:1px solid #b2dfdb; border-radius:7px; padding:8px 12px; margin:10px 0 12px; display:flex; gap:18px; flex-wrap:wrap; align-items:center;">
                       <span style="font-size:11px; color:#546e7a;">JIG: <strong id="z1TrayJigId" style="color:#00695c; font-weight:600;"></strong></span>
-                      <span style="font-size:11px; color:#546e7a;">Qty: <strong id="z1TrayQty" style="color:#e65100; font-weight:600;"></strong></span>
+                      <span style="font-size:11px; color:#546e7a; display:flex; align-items:center; gap:6px;">
+                        LOT Qty: 
+                        <input type="number" id="z1TrayQty" min="0" 
+                          style="width:65px; padding:3px 7px; border:1px solid #ffcc80; border-radius:5px; text-align:center; font-size:12px; font-weight:600; background:#fff; color:#e65100; outline:none;" 
+                          title="Edit LOT Qty to redistribute trays" />
+                        <button id="z1RevertQtyBtn" type="button" 
+                          style="display:none; background:#ff9800; color:#fff; border:none; border-radius:4px; padding:3px 8px; font-size:10px; font-weight:600; cursor:pointer; letter-spacing:0.2px;" 
+                          title="Revert to original LOT Qty">
+                          <i class="fa fa-undo"></i> Revert
+                        </button>
+                        <span id="z1LotQtyError" style="color:#dc3545; font-size:10px; display:none;"></span>
+                      </span>
                       <span style="font-size:11px; color:#546e7a;">Tray: <strong id="z1TrayCode" style="color:#00695c; font-weight:600;"></strong></span>
                       <span style="font-size:11px; color:#546e7a;">No. of Trays: <strong id="z1TrayCount" style="color:#1a2e3b; font-weight:600;"></strong></span>
                     </div>
@@ -2187,6 +2191,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let currentModelsData     = null;
   let currentModelIndex     = null;
   let topTrayQtyEdited      = false;
+  let lotQtyEdited          = false;
+  let originalLotQty        = 0;
 
   function getCsrfToken() {
     const el = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -2290,13 +2296,17 @@ document.addEventListener('DOMContentLoaded', function() {
   function openTrayScan(idx) {
     currentModelIndex = idx;
     topTrayQtyEdited = false;
+    lotQtyEdited = false;
     const m = currentModelsData.models[idx];
+    originalLotQty = m.qty;
     document.getElementById('z1TrayModelNo').textContent = m.model_no;
     document.getElementById('z1TrayJigId').textContent   = m.jig_id || '-';
-    document.getElementById('z1TrayQty').textContent     = m.qty;
+    document.getElementById('z1TrayQty').value           = m.qty;
+    document.getElementById('z1TrayQty').max             = m.qty; // Max = original qty
     document.getElementById('z1TrayCode').textContent    = m.tray_code + ' (' + m.tray_type + '-' + m.tray_capacity + ')';
     document.getElementById('z1TrayCount').textContent   = m.num_trays;
     document.getElementById('z1TrayError').style.display = 'none';
+    document.getElementById('z1LotQtyError').style.display = 'none';
     document.getElementById('z1TopTrayRemark').value     = '';
     document.getElementById('z1TopTrayRemarkRow').style.display = 'none';
 
@@ -2313,10 +2323,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     showLayer(layerTrayScan);
-    renderTraySlots(m);
+    renderTraySlots(m, true);
+    setupLotQtyListener();
   }
 
-  function renderTraySlots(modelData) {
+  function renderTraySlots(modelData, shouldAutoFocus) {
+    if (shouldAutoFocus === undefined) shouldAutoFocus = false;
     const container = document.getElementById('z1TraySlotsContainer');
     let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
     html += '<thead><tr style="background:#f8fafc;border-bottom:2px solid #eceff1;">';
@@ -2338,13 +2350,8 @@ document.addEventListener('DOMContentLoaded', function() {
         '" maxlength="9" autocomplete="off" placeholder="Scan tray ID" ' +
         'style="width:100%;padding:5px 9px;border:1px solid #cfd8dc;border-radius:6px;font-size:12px;outline:none;color:#263238;background:#fff;transition:border-color 0.15s,box-shadow 0.15s;box-sizing:border-box;" /></td>';
       html += '<td style="padding:7px 10px;text-align:center;">';
-      if (isTop) {
-        html += '<input type="number" class="z1-tray-qty" data-slot="' + slot.slot +
-          '" value="' + slot.qty + '" min="1" max="' + modelData.tray_capacity +
-          '" style="width:52px;padding:4px 5px;border:1px solid #ffcc80;border-radius:5px;text-align:center;font-size:12px;font-weight:600;background:#fff8f1;color:#e65100;outline:none;" />';
-      } else {
-        html += '<span style="font-size:12px;color:#37474f;font-weight:500;">' + slot.qty + '</span>';
-      }
+      // Top tray qty is no longer editable - LOT Qty field handles that
+      html += '<span style="font-size:12px;color:' + (isTop ? '#e65100' : '#37474f') + ';font-weight:' + (isTop ? '700' : '500') + ';">' + slot.qty + (isTop ? ' <span style="font-size:10px;color:#e65100;">★ TOP</span>' : '') + '</span>';
       html += '</td></tr>';
     });
     html += '</tbody></table>';
@@ -2455,22 +2462,93 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     });
-    if (inputs.length > 0) inputs[0].focus();
+    if (shouldAutoFocus && inputs.length > 0) inputs[0].focus();
 
-    // Top tray qty edit listener
-    const topQtyInput = container.querySelector('.z1-tray-qty');
-    if (topQtyInput) {
-      const origVal = topQtyInput.value;
-      topQtyInput.addEventListener('change', function() {
-        if (this.value !== origVal) {
-          topTrayQtyEdited = true;
-          document.getElementById('z1TopTrayRemarkRow').style.display = 'block';
-        } else {
-          topTrayQtyEdited = false;
-          document.getElementById('z1TopTrayRemarkRow').style.display = 'none';
-        }
+    // Top tray qty is no longer editable - LOT Qty field handles quantity changes
+  }
+
+  // --- LOT Qty Edit Listener & Redistribution ---
+  function setupLotQtyListener() {
+    const lotQtyInput = document.getElementById('z1TrayQty');
+    const revertBtn = document.getElementById('z1RevertQtyBtn');
+    if (!lotQtyInput) return;
+
+    lotQtyInput.addEventListener('input', function() {
+      const newQty = parseInt(this.value) || 0;
+      const errSpan = document.getElementById('z1LotQtyError');
+      
+      // Validation: cannot exceed original qty
+      if (newQty > originalLotQty) {
+        errSpan.textContent = 'Cannot exceed original qty (' + originalLotQty + ')';
+        errSpan.style.display = 'inline';
+        return;
+      }
+      // Validation: cannot be negative
+      if (newQty < 0) {
+        errSpan.textContent = 'Cannot be negative';
+        errSpan.style.display = 'inline';
+        return;
+      } else {
+        errSpan.style.display = 'none';
+      }
+
+      // Show/hide revert button
+      if (newQty !== originalLotQty) {
+        lotQtyEdited = true;
+        if (revertBtn) revertBtn.style.display = 'inline-block';
+        redistributeTrays(newQty);
+      } else {
+        lotQtyEdited = false;
+        if (revertBtn) revertBtn.style.display = 'none';
+        redistributeTrays(newQty); // ✅ FIX: Redistribute even when reverting to original
+      }
+    });
+
+    // ✅ NEW: Revert button click handler
+    if (revertBtn) {
+      revertBtn.addEventListener('click', function() {
+        lotQtyInput.value = originalLotQty;
+        lotQtyInput.dispatchEvent(new Event('input')); // Trigger redistribution
       });
     }
+  }
+
+  // --- Redistribute Trays Based on New LOT Qty ---
+  function redistributeTrays(newLotQty) {
+    const m = currentModelsData.models[currentModelIndex];
+    const trayCapacity = m.tray_capacity || 20;
+    
+    // Calculate new tray distribution
+    const numFullTrays = Math.floor(newLotQty / trayCapacity);
+    const remainderQty = newLotQty % trayCapacity;
+    const totalTrays = remainderQty > 0 ? numFullTrays + 1 : numFullTrays;
+
+    // Update tray slots data
+    const newTraySlots = [];
+    for (let i = 0; i < totalTrays; i++) {
+      const slotNum = i + 1;
+      const isTop = slotNum === 1; // Top tray is always slot 1 (first position)
+      const qty = isTop && remainderQty > 0 ? remainderQty : trayCapacity;
+      
+      // Preserve existing tray_id if available
+      const existingSlot = m.tray_slots[i];
+      newTraySlots.push({
+        slot: slotNum,
+        qty: qty,
+        is_top_tray: isTop,
+        tray_id: existingSlot ? existingSlot.tray_id : ''
+      });
+    }
+
+    // Update model data
+    m.tray_slots = newTraySlots;
+    m.qty = newLotQty;
+    m.num_trays = totalTrays;
+
+    // Update UI
+    document.getElementById('z1TrayCount').textContent = totalTrays;
+    renderTraySlots(m, false); // Don't auto-focus - keep cursor in LOT Qty field
+    // ✅ DON'T re-attach listener here - causes infinite listener multiplication
   }
 
   // --- Collect tray data from form ---
@@ -2486,13 +2564,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const slotNum = parseInt(inp.dataset.slot);
       const trayId  = inp.value.trim();
       const isTop   = slotNum === 1;
-      let qty = isTop && topQtyInput ? parseInt(topQtyInput.value) : m.tray_slots[slotNum - 1].qty;
+      let qty = m.tray_slots[slotNum - 1].qty; // Use qty from model data
       trayData.push({
         slot: slotNum,
         tray_id: trayId,
         qty: qty,
         is_top_tray: isTop,
-        qty_edited: isTop && topTrayQtyEdited,
+        qty_edited: false, // No longer editable
       });
       if (!trayId) hasError = true;  // will be flagged only for final save
     });
@@ -2504,13 +2582,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const m = currentModelsData.models[currentModelIndex];
     const { trayData } = collectTrayData();
     const topTrayRemark = document.getElementById('z1TopTrayRemark').value.trim();
+    const currentLotQty = parseInt(document.getElementById('z1TrayQty').value) || m.qty;
 
     const payload = {
       jig_completed_id: currentJigCompletedId,
       lot_id: m.lot_id,
       model_no: m.model_no,
       tray_data: trayData,
-      total_qty: m.qty,
+      total_qty: currentLotQty,
       missing_qty: 0,
       top_tray_remark: topTrayRemark,
       tray_type: m.tray_type,
@@ -2519,6 +2598,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tray_color: m.tray_color,
       is_draft: true,
       merged_lots: m.merged_lots || [],
+      lot_qty_edited: lotQtyEdited,
     };
 
     const btn = this;
@@ -2570,10 +2650,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const dupes = ids.filter((v, i) => ids.indexOf(v) !== i);
     if (dupes.length > 0) { showTrayError('Duplicate tray IDs: ' + dupes.join(', ')); return; }
 
-    const topTrayRemark = document.getElementById('z1TopTrayRemark').value.trim();
-    if (topTrayQtyEdited && !topTrayRemark) {
-      showTrayError('Top tray remark is required when quantity is edited');
-      document.getElementById('z1TopTrayRemark').focus();
+    // Top tray remark validation removed - top tray qty is no longer editable
+
+    const currentLotQty = parseInt(document.getElementById('z1TrayQty').value) || m.qty;
+    
+    // Validate LOT Qty
+    if (currentLotQty < 0) {
+      showTrayError('LOT Qty cannot be negative');
+      return;
+    }
+    
+    // Validate total tray qty matches LOT Qty
+    const totalTrayQty = trayData.reduce(function(sum, t) { return sum + t.qty; }, 0);
+    if (totalTrayQty !== currentLotQty) {
+      showTrayError('Total tray quantity (' + totalTrayQty + ') does not match LOT Qty (' + currentLotQty + ')');
       return;
     }
 
@@ -2582,7 +2672,7 @@ document.addEventListener('DOMContentLoaded', function() {
       lot_id: m.lot_id,
       model_no: m.model_no,
       tray_data: trayData,
-      total_qty: m.qty,
+      total_qty: currentLotQty,
       missing_qty: 0,
       top_tray_remark: topTrayRemark,
       tray_type: m.tray_type,
@@ -2591,6 +2681,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tray_color: m.tray_color,
       is_draft: false,
       merged_lots: m.merged_lots || [],
+      lot_qty_edited: lotQtyEdited,
     };
 
     const btn = this;
@@ -2857,18 +2948,26 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  // --- BIND TABLE BUTTONS ---
-  document.querySelectorAll('.z1-unload-btn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
+  // --- BIND TABLE BUTTONS (event delegation - resilient to errors & re-renders) ---
+  document.addEventListener('click', function(e) {
+    const unloadBtn = e.target.closest('.z1-unload-btn');
+    if (unloadBtn) {
       e.preventDefault();
-      openUnloadModal(this.dataset.jigCompletedId);
-    });
-  });
-  document.querySelectorAll('.z1-view-btn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const jigId = unloadBtn.dataset.jigCompletedId;
+      console.log('[Z1] Unload clicked, jigCompletedId =', jigId);
+      if (jigId) openUnloadModal(jigId);
+      return;
+    }
+    const viewBtn = e.target.closest('.z1-view-btn');
+    if (viewBtn) {
       e.preventDefault();
-      openUnloadModal(this.dataset.jigCompletedId);
-    });
+      e.stopPropagation();
+      const jigId = viewBtn.dataset.jigCompletedId;
+      console.log('[Z1] View clicked, jigCompletedId =', jigId);
+      if (jigId) openUnloadModal(jigId);
+      return;
+    }
   });
 
   // --- HELPERS ---
@@ -3102,19 +3201,29 @@ document.addEventListener('DOMContentLoaded', function() {
       const galleryIcon = e.target.closest('.model-gallery-icon');
       if (!galleryIcon) return;
       
+      console.log('[Z1 Gallery] Click detected on gallery icon');
       e.preventDefault();
       e.stopPropagation();
       
       // Get the model cell container
       const modelCell = galleryIcon.closest('.model-stock-no-text');
-      if (!modelCell) return;
+      if (!modelCell) {
+        console.error('[Z1 Gallery] Could not find .model-stock-no-text parent');
+        return;
+      }
       
       // Get data attributes
-      const modelList = JSON.parse(modelCell.closest('td').getAttribute('data-model-list') || '[]');
-      const modelImages = JSON.parse(modelCell.closest('td').getAttribute('data-images') || '{}');
-      const platingStockNo = modelCell.closest('td').getAttribute('data-plating-stock-no') || 'Unknown';
+      const tdElement = modelCell.closest('td');
+      if (!tdElement) {
+        console.error('[Z1 Gallery] Could not find td parent');
+        return;
+      }
       
-      console.log('[Gallery] Models:', modelList, 'Images:', modelImages, 'Plating Stock:', platingStockNo);
+      const modelList = JSON.parse(tdElement.getAttribute('data-model-list') || '[]');
+      const modelImages = JSON.parse(tdElement.getAttribute('data-images') || '{}');
+      const platingStockNo = tdElement.getAttribute('data-plating-stock-no') || 'Unknown';
+      
+      console.log('[Z1 Gallery] Models:', modelList, 'Images:', modelImages, 'Plating Stock:', platingStockNo);
       
       // Build gallery HTML
       let galleryHTML = '<div style="padding:20px; max-height:500px; overflow-y:auto;">';
@@ -3159,8 +3268,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const modal = document.getElementById('modelRemarkModal');
       const content = document.getElementById('modelRemarkModalContent');
       if (modal && content) {
+        console.log('[Z1 Gallery] Opening modal with gallery HTML');
         content.innerHTML = galleryHTML;
         modal.style.display = 'flex';
+      } else {
+        console.error('[Z1 Gallery] Modal elements not found:', { modal: !!modal, content: !!content });
       }
     });
     

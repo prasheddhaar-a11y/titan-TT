@@ -5250,7 +5250,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
   #order-listing th:nth-child(3),
   #order-listing td:nth-child(3) {
     position: sticky;
-    left: 175px; /* 100px (1st) + 90px (2nd) */
+    left: 213px; /* 100px (1st) + 90px (2nd) */
     z-index: 12;
     background: #f7fafd;
     min-width: 130px; /* Increased width 100 - old value*/

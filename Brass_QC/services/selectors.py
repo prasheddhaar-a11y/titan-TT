@@ -97,6 +97,13 @@ def get_picktable_base_queryset():
         # but inherits accepted_Ip_stock=True from parent. Exclude it from Brass QC pick table.
         Q(next_process_module='Jig Loading')
     ).exclude(
+        # ✅ FIX: FULL_REJECT in Brass QC moves the lot to IQF — must not show in Brass QC pick table.
+        # Keep on-hold rejected lots visible (handled by the OR branch above).
+        Q(next_process_module='IQF') & ~Q(brass_onhold_picking=True)
+    ).exclude(
+        # ✅ FIX: Fully rejected lot (not on-hold) must not appear in Brass QC pick table.
+        Q(brass_qc_rejection=True) & ~Q(brass_onhold_picking=True) & ~Q(send_brass_audit_to_qc=True)
+    ).exclude(
         Q(total_IP_accpeted_quantity__lte=0) & Q(brass_physical_qty__lte=0) &
         ~Q(accepted_tray_scan_status=True)
     ).exclude(

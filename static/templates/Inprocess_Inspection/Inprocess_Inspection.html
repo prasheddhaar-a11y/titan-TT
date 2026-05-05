@@ -421,8 +421,8 @@
    max-width: 105px;
    } /* Tray Cate-Capacity */
    #order-listing th:nth-child(10) {
-   min-width: 115px;
-   max-width: 120px;
+   min-width: 90px;
+   max-width: 100px;
    } /* Source */
    #order-listing th:nth-child(11) {
    min-width: 115px;
@@ -1011,13 +1011,13 @@
       .modal-backdrop.show {
       opacity: 0.5;
       }
-      /* Modal base styles */
+      /* Modal base styles - Centered display */
       .modal.fade .modal-dialog {
       transition: transform 0.3s ease-out;
-      transform: translate(0, -50px);
+      transform: scale(0.9);
       }
       .modal.show .modal-dialog {
-      transform: none;
+      transform: scale(1);
       }
       .modal {
       position: fixed;
@@ -1032,27 +1032,33 @@
       outline: 0;
       }
       .modal.show {
-      display: block !important;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
       }
       body.modal-open {
       overflow: hidden;
       }
-      /* Remarks modal specific styles */
+      /* Remarks modal specific styles - Professional & Centered */
       #remarksModal .modal-dialog {
-      max-width: 500px;
-      margin: 1.75rem auto;
+      max-width: 520px;
+      width: 100%;
+      margin: 0;
       }
       #remarksModal .modal-content {
       border: none;
       border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+      background: #ffffff;
       }
       #remarksModal .modal-header {
-      border-bottom: none;
-      padding: 0;
+      padding: 18px 24px 12px;
+      border-bottom: 1px solid #e8edf2;
+      background: #fafbfc;
+      border-radius: 12px 12px 0 0;
       }
       #remarksModal .modal-body {
-      padding: 1rem 2rem 2rem 2rem;
+      padding: 20px 24px 24px 24px;
       }
       #remarksModal .modal-title {
       color: #023E4DCC;
@@ -1282,30 +1288,29 @@
                         <th>JIG ID <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Date &amp; <br> Time <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th style="min-width:130px;max-width:160px;white-space:normal;word-break:break-word;">Plating Stk No <i class="fa fa-filter" aria-hidden="true"></i></th>
-                         <!-- <th>Polishing Stk No <i class="fa fa-filter" aria-hidden="true"></i></th> -->
-                        <th>Plating Color <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th style="display: none;">Version <i class="fa fa-filter" aria-hidden="true" ></i></th>
-                        <!--<th>Source-<br> Location <i class="fa fa-filter" aria-hidden="true"></i></th>-->
-                        <th>Tray Cate -<br> Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>Jig Cate- <br>Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>Jig Lot <br> Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>Bath Type <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Nickel Bath No <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>In.P Info <i class="fa fa-filter" aria-hidden="true"></i></th>
-                        <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Bath Type <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Jig Cate- <br>Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th style = "min-width: 140px; max-width: 140px">Lot Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th style = "min-width: 100px; max-width: 100px">Current Stage<i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th style="min-width:130px;max-width:160px;white-space:normal;word-break:break-word;">Plating Stk No <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Plating Color <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Tray Cate -<br> Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>In.P Info <i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th style="display: none;">Version <i class="fa fa-filter" aria-hidden="true" ></i></th>
                         <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                      </tr>
                   </thead>
                   <tbody>
                      {% for jig_detail in jig_details %}
                      <tr class="highlighted-tray-scan" data-lot-id="{{ jig_detail.lot_id }}">
+                        <!-- S.No -->
                         <td>
-                           <span style="display:flex; align-items:center; gap:3px;">
+                           <span style="display:flex; align-items:center; gap:0px;">
                               {% if is_admin %}
                               <!-- Admin users: Show toggle switch -->
                               <label class="hold-toggle-switch" style="margin-bottom:0;">
@@ -1338,7 +1343,9 @@
                               <span class="sno-value">{{ jig_details.start_index|add:forloop.counter0 }}</span>
                            </span>
                         </td>
+                        <!-- JIG ID -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.jig_qr_id }}</td>
+                        <!-- Date & Time -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {{ jig_detail.jig_loaded_date_time|date:"d-M-y" }}<br>
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig_detail.jig_loaded_date_time|date:"h:i A" }}</span>
@@ -1380,39 +1387,159 @@
                             </div>
                         {% elif jig_detail.no_of_model_cases %}
                             {% with first_model=jig_detail.no_of_model_cases.0 %}
-                            <div style="display:flex;flex-direction:column;gap:2px;max-width:140px;">
-                                <span class="mm-gallery-trigger" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;" title="Click to view model">
-                                    {% if jig_detail.model_colors %}
-                                        <span class="model-circle" style="background:{{ jig_detail.model_colors|get_item:first_model }};width:16px;height:16px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
-                                    {% else %}
-                                        <span class="model-circle" style="background:#ccc;width:16px;height:16px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
-                                    {% endif %}
-                                    <span style="font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ first_model }}</span>
-                                </span>
-                                <span style="font-size:9px;color:#666;font-weight:600;" title="Plating Stock Number">{{ jig_detail.final_plating_stk_nos|default:"N/A" }}</span>
-                            </div>
+                            <span class="mm-gallery-trigger" style="display:inline-flex;align-items:center;gap:15px;cursor:pointer;" title="Click to view model">
+                                {% if jig_detail.model_colors %}
+                                    <span class="model-circle" style="background:{{ jig_detail.model_colors|get_item:first_model }};width:16px;height:16px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                                {% else %}
+                                    <span class="model-circle" style="background:#ccc;width:16px;height:16px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+                                {% endif %}
+                                <span style="font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ first_model }}</span>
+                            </span>
                             {% endwith %}
                         {% else %}
                             <span style="font-size:10px;color:#999;">N/A</span>
                         {% endif %}
                         </td>
-                        <!-- Polishing Stock No from ModelMasterCreation (hidden) -->                     
-                        <!-- Plating Color from ModelMasterCreation -->
-                                                <!-- In your Inprocess_Inspection.html template, find the plating color cell and update it: -->
+                        <!-- Nickel Bath No - Dropdown -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                            {{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}
-                        </td>                        <!-- Polish Finish from ModelMasterCreation -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.polish_finish|default:"N/A" }}</td>
-                        <!-- Version from ModelMasterCreation -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %} style="display: none;">
-                        {% if jig_detail.final_version_names %}
-                        {{ jig_detail.final_version_names }}
-                        {% else %}
-                        N/A
+                        <div style="position:relative; display:flex; align-items:center;">
+                           {% if jig_detail.bath_numbers %}
+                           <!-- Show saved bath number (disabled state) -->
+                           <select style="max-height:110px; overflow-y:auto; width:80px; background-color:#f5f5f5;" 
+                              size="1" disabled>
+                              <option value="{{ jig_detail.bath_numbers.bath_number }}" selected>
+                                 {{ jig_detail.bath_numbers.bath_number }}
+                              </option>
+                           </select>
+                           <img src="{% static 'assets/icons/scan.png' %}" alt="Scan"
+                              style="opacity:0.2; margin-left:4px; height:14px; width:14px; object-fit:contain;" />
+                           {% else %}
+                            <!-- Updated Bath Number Dropdown with Type Filtering -->
+                          <select class="bath-number-select" 
+                                  data-jig-id="{{ jig_detail.id }}" 
+                                  data-bath-type="{{ jig_detail.ep_bath_type|default:'B' }}"
+                                  style="font-size: 12px; padding: 2px 4px;">
+                              <option value="">Select Bath No</option>
+                              {% for bath in all_bath_numbers %}
+                              <option value="{{ bath.bath_number }}" 
+                                      data-bath-type="{{ bath.bath_type }}">
+                                  {{ bath.bath_number }}
+                              </option>
+                              {% endfor %}
+                          </select>
+                           <img src="{% static 'assets/icons/scan.png' %}" alt="Scan"
+                              style="opacity:0.4; margin-left:4px; height:14px; width:14px; object-fit:contain;" />
+                           {% endif %}
+                        </div>
+                        </td>
+                        <!-- Action -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <a href="#" title="Delete"
+                        class="delete-jig-btn"
+                        data-lot-id="{{ jig_detail.lot_id }}"
+                        {% if jig_detail.jig_position and jig_detail.remarks and jig_detail.bath_numbers %} style="pointer-events: none; opacity: 0.5;" tabindex="-1" aria-disabled="true"{% endif %}>
+                        <img src="{% static 'assets/icons/bin.png' %}" alt="Delete" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;"/>
+                        </a>
+                        <!-- FIXED: Properly connected Remarks link -->
+                        {% if not jig_detail.jig_position or not jig_detail.remarks %}
+                          {% if jig_detail.bath_numbers %}
+                            <!-- Enabled Inspection link -->
+                            <a href="#" class="text-primary tray-scan-btn remarks-modal-trigger"
+                              data-jig-id="{{ jig_detail.id }}"
+                              data-lot-id="{{ jig_detail.lot_id }}"
+                              data-no-of-trays="{{ jig_detail.calculated_no_of_trays }}"
+                              data-tray-capacity="{{ jig_detail.primary_tray_capacity }}"
+                              data-current-position="{{ jig_detail.jig_position|default:'Top' }}"
+                              data-current-remarks="{{ jig_detail.remarks|default:'' }}"
+                              data-moved-to-d-picker="False">Inspection</a>
+                          {% else %}
+                            <!-- Disabled Inspection link -->
+                            <a href="javascript:void(0);" class="text-secondary tray-scan-btn remarks-modal-trigger disabled"
+                              style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"
+                              title="Select Bath Number first">Inspection</a>
+                          {% endif %}
                         {% endif %}
                         </td>
-                        <!-- Source-Location from ModelMasterCreation
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}> {{ jig_detail.location_name|default:"N/A" }}</td> -->
+                        <!-- Bath Type -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.ep_bath_type }}</td>
+                        <!-- Process Status column -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <div style="display: flex; gap: 6px; align-items: center; justify-content: center;">
+                           <!-- Tray Scan (B) - Green when bath number is saved, disabled otherwise -->
+                           <div title="Bright"
+                              class="d-flex align-items-center justify-content-center rounded-circle ms-1 tray-scan-status"
+                              data-jig-id="{{ jig_detail.id }}"
+                              style="width: 20px; height: 20px; 
+                              {% if jig_detail.bath_numbers %}
+                              background-color: #0c8249; color: white;
+                              {% else %}
+                              background-color: #ccc; color: #888;
+                              {% endif %}
+                              font-weight: 500; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
+                              B
+                           </div>
+                           <!-- Rework (R) - Always disabled for now -->
+                           <div title="Inspection"
+                              class="d-flex align-items-center justify-content-center rounded-circle ms-1 rework-status"
+                              data-jig-id="{{ jig_detail.id }}"
+                              style="width: 20px; height: 20px;
+                              {% if jig_detail.jig_position and jig_detail.remarks %}
+                              background-color: #0c8249; color: white;
+                              {% else %}
+                              background-color: #ccc; color: #888;
+                              {% endif %}
+                              font-weight: 500; line-height: 20px; text-align: center;">
+                              I
+                           </div>
+                        </div>
+                        </td>
+                        <!-- Jig Cate-Capacity -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.jig_capacity }} - Jig</td>
+                        <!-- Jig Lot Qty -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}><span class="jig-lot-qty-display" data-jig-id="{{ jig_detail.id }}">{{ jig_detail.total_cases_loaded|default:"0" }}</span></td>
+                        <!-- Lot Status -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        {% if jig_detail.inprocess_hold_lot %}
+                        <div
+                           class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                           style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 13px; white-space: nowrap; padding: 5px;">
+                           On Hold
+                        </div>
+                        {% elif jig_detail.remarks and jig_detail.bath_numbers %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                           style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 6px;">
+                           Yet To Release
+                        </div>
+                        {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                           style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
+                           Yet To Start
+                        </div>
+                        {% else %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                           style="border: 1px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 13px; white-space: nowrap; padding: 6px;">
+                           Draft
+                        </div>
+                        {% endif %}
+                        </td>
+                        <!-- Current Stage -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill current-stage-display"
+                           data-jig-id="{{ jig_detail.id }}"
+                           style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
+                           {% if jig_detail.bath_numbers %}Inprocess Inspection{% else %}{{ jig_detail.last_process_module|default:"Jig Loading" }}{% endif %}
+                        </div>
+                        </td>
+                        <!-- Plating Stock No - Separate Column -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                            <span style="font-size:10px;color:#444;font-weight:600;">{{ jig_detail.final_plating_stk_nos|default:"N/A" }}</span>
+                        </td>
+                        <!-- Plating Color from ModelMasterCreation -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                            {{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}
+                        </td>
+                        <!-- Polish Finish from ModelMasterCreation -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.polish_finish|default:"N/A" }}</td>
                         <!-- Enhanced Tray Category - Capacity with Color Coding -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {% if jig_detail.tray_type and jig_detail.tray_capacity %}
@@ -1466,41 +1593,6 @@
                             <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
                         {% endif %}
                         </td>
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.jig_capacity }} - Jig</td>
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}><span class="jig-lot-qty-display" data-jig-id="{{ jig_detail.id }}">{{ jig_detail.total_cases_loaded|default:"0" }}</span></td>
-                      <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>{{ jig_detail.ep_bath_type }}</td>
-                        <!-- Nickel Bath No - Dropdown -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        <div style="position:relative; display:flex; align-items:center;">
-                           {% if jig_detail.bath_numbers %}
-                           <!-- Show saved bath number (disabled state) -->
-                           <select style="max-height:110px; overflow-y:auto; width:80px; background-color:#f5f5f5;" 
-                              size="1" disabled>
-                              <option value="{{ jig_detail.bath_numbers.bath_number }}" selected>
-                                 {{ jig_detail.bath_numbers.bath_number }}
-                              </option>
-                           </select>
-                           <img src="{% static 'assets/icons/scan.png' %}" alt="Scan"
-                              style="opacity:0.2; margin-left:4px; height:14px; width:14px; object-fit:contain;" />
-                           {% else %}
-                            <!-- Updated Bath Number Dropdown with Type Filtering -->
-                          <select class="bath-number-select" 
-                                  data-jig-id="{{ jig_detail.id }}" 
-                                  data-bath-type="{{ jig_detail.ep_bath_type|default:'B' }}"
-                                  style="font-size: 12px; padding: 2px 4px;">
-                              <option value="">Select Bath No</option>
-                              {% for bath in all_bath_numbers %}
-                              <option value="{{ bath.bath_number }}" 
-                                      data-bath-type="{{ bath.bath_type }}">
-                                  {{ bath.bath_number }}
-                              </option>
-                              {% endfor %}
-                          </select>
-                           <img src="{% static 'assets/icons/scan.png' %}" alt="Scan"
-                              style="opacity:0.4; margin-left:4px; height:14px; width:14px; object-fit:contain;" />
-                           {% endif %}
-                        </div>
-                        </td>
                         <!-- In.P Info -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
                         <div style="display: flex; align-items: center; justify-content: center; position: relative;">
@@ -1519,99 +1611,15 @@
                            </div>
                         </div>
                         </td>
-                        <!-- Process Status column -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        <div style="display: flex; gap: 6px; align-items: center; justify-content: center;">
-                           <!-- Tray Scan (B) - Green when bath number is saved, disabled otherwise -->
-                           <div title="Bright"
-                              class="d-flex align-items-center justify-content-center rounded-circle ms-1 tray-scan-status"
-                              data-jig-id="{{ jig_detail.id }}"
-                              style="width: 20px; height: 20px; 
-                              {% if jig_detail.bath_numbers %}
-                              background-color: #0c8249; color: white;
-                              {% else %}
-                              background-color: #ccc; color: #888;
-                              {% endif %}
-                              font-weight: 500; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
-                              B
-                           </div>
-                           <!-- Rework (R) - Always disabled for now -->
-                           <div title="Inspection"
-                              class="d-flex align-items-center justify-content-center rounded-circle ms-1 rework-status"
-                              data-jig-id="{{ jig_detail.id }}"
-                              style="width: 20px; height: 20px;
-                              {% if jig_detail.jig_position and jig_detail.remarks %}
-                              background-color: #0c8249; color: white;
-                              {% else %}
-                              background-color: #ccc; color: #888;
-                              {% endif %}
-                              font-weight: 500; line-height: 20px; text-align: center;">
-                              I
-                           </div>
-                        </div>
-                        </td>
-                        <!-- Action -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        <a href="#" title="Delete"
-                        class="delete-jig-btn"
-                        data-lot-id="{{ jig_detail.lot_id }}"
-                        {% if jig_detail.jig_position and jig_detail.remarks and jig_detail.bath_numbers %} style="pointer-events: none; opacity: 0.5;" tabindex="-1" aria-disabled="true"{% endif %}>
-                        <img src="{% static 'assets/icons/bin.png' %}" alt="Delete" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;"/>
-                        </a>
-                        <!-- FIXED: Properly connected Remarks link -->
-                        {% if not jig_detail.jig_position or not jig_detail.remarks %}
-                          {% if jig_detail.bath_numbers %}
-                            <!-- Enabled Inspection link -->
-                            <a href="#" class="text-primary tray-scan-btn remarks-modal-trigger"
-                              data-jig-id="{{ jig_detail.id }}"
-                              data-lot-id="{{ jig_detail.lot_id }}"
-                              data-no-of-trays="{{ jig_detail.calculated_no_of_trays }}"
-                              data-tray-capacity="{{ jig_detail.primary_tray_capacity }}"
-                              data-current-position="{{ jig_detail.jig_position|default:'Top' }}"
-                              data-current-remarks="{{ jig_detail.remarks|default:'' }}"
-                              data-moved-to-d-picker="False">Inspection</a>
-                          {% else %}
-                            <!-- Disabled Inspection link -->
-                            <a href="javascript:void(0);" class="text-secondary tray-scan-btn remarks-modal-trigger disabled"
-                              style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"
-                              title="Select Bath Number first">Inspection</a>
-                          {% endif %}
-                        {% endif %}
-                        </td>
-                        <!-- Lot Status -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        {% if jig_detail.inprocess_hold_lot %}
-                        <div
-                           class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 13px; white-space: nowrap; padding: 5px;">
-                           On Hold
-                        </div>
-                        {% elif jig_detail.remarks and jig_detail.bath_numbers %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 6px;">
-                           Yet To Release
-                        </div>
-                        {% elif not jig_detail.remarks and not jig_detail.bath_numbers %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: 13px; white-space: nowrap; padding: 6px;">
-                           Yet To Start
-                        </div>
+                        <!-- Version from ModelMasterCreation -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %} style="display: none;">
+                        {% if jig_detail.final_version_names %}
+                        {{ jig_detail.final_version_names }}
                         {% else %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: 13px; white-space: nowrap; padding: 6px;">
-                           Draft
-                        </div>
+                        N/A
                         {% endif %}
                         </td>
-                        <!-- Current Stage -->
-                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill current-stage-display"
-                           data-jig-id="{{ jig_detail.id }}"
-                           style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
-                           {% if jig_detail.bath_numbers %}Inprocess Inspection{% else %}{{ jig_detail.last_process_module|default:"Jig Loading" }}{% endif %}
-                        </div>
-                        </td>
-                        <!-- VoiceRec with tooltip (audio remark) -->
+                        <!-- Remarks -->
                         <td style="z-index: 1050; position: relative;" {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
                         <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger"
                            style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
@@ -1689,19 +1697,21 @@
    </div>
 </div>
 </div>
-<!-- Modal for Remarks - UPDATED WITH AJAX FUNCTIONALITY -->
+<!-- Modal for Remarks - Professional Clean Design -->
 <div class="modal fade" id="remarksModal" tabindex="-1" role="dialog" aria-labelledby="remarksModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <div class="modal-header p-0" style="border-bottom:none;">
-                <img src="{% static 'assets/images/banner.jpg' %}" alt="Banner" style="width:100%;height:90px;object-fit:cover;border-radius:8px 8px 0 0;">
-                <button type="button" class="close position-absolute end-0 top-0 m-2" data-bs-dismiss="modal" aria-label="Close" style="z-index:2;">
+            <!-- Professional Header without Banner -->
+            <div class="modal-header">
+                <h5 class="modal-title" id="remarksModalLabel" style="color:#028084; font-weight:700; margin:0; font-size:16px;">
+                    <i class="fa fa-pencil-square-o" style="margin-right:6px;"></i> Add Jig Remark - Inprocess Inspection
+                </h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close" style="position:absolute; top:14px; right:20px; font-size:22px; font-weight:bold; color:#d9534f; background:none; border:none; cursor:pointer; line-height:1;">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <!-- Add Jig Remark - Modal Popup Window -->
-            <div class="modal-body pt-2">
-                <h5 class="modal-title text-center mb-3" id="remarksModalLabel" style="color:#023E4DCC;font-weight:700;">Add Jig Remark</h5>
+            <!-- Clean Modal Body -->
+            <div class="modal-body">
                 <!-- Loading spinner -->
                 <div id="remarksLoadingSpinner" style="display:none; text-align:center; padding:20px;">
                     <div class="spinner-border text-primary" role="status">
@@ -1711,38 +1721,49 @@
                 </div>
                 <form id="remarksModalForm" autocomplete="off">
                     <input type="hidden" id="remarksJigId" name="jig_id" />
-                    <div class="mb-3 row align-items-center ms-30">
-                        <label class="col-5 col-form-label text-end" style="margin-left:-35px; font-weight:bold;">
-                            Jig Position: <span style="color: red;">*</span>
+                    
+                    <!-- Jig Position Card -->
+                    <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:14px 16px; margin-bottom:14px;">
+                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:13px; color:#495057;">
+                            Jig Position: <span style="color: #dc3545;">*</span>
                         </label>
-                        <div class="col-7 d-flex gap-3">
-                            <label class="form-check-label me-2">
-                                <input type="radio" class="form-check-input" name="jig_position" value="Top" required> Top
+                        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:#495057;">
+                                <input type="radio" name="jig_position" value="Top" required style="cursor:pointer;"> <span style="font-weight:500;">Top</span>
                             </label>
-                            <label class="form-check-label me-2">
-                                <input type="radio" class="form-check-input" name="jig_position" value="Middle"> Middle
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:#495057;">
+                                <input type="radio" name="jig_position" value="Middle" style="cursor:pointer;"> <span style="font-weight:500;">Middle</span>
                             </label>
-                            <label class="form-check-label">
-                                <input type="radio" class="form-check-input" name="jig_position" value="Bottom"> Bottom
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:#495057;">
+                                <input type="radio" name="jig_position" value="Bottom" style="cursor:pointer;"> <span style="font-weight:500;">Bottom</span>
                             </label>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center">
-                        <label class="col-5 col-form-label text-end fw-bold" style="margin-left:-1px;">
-                            Enter Remarks: <span style="color: #6c757d; font-size: 12px;">(Optional)</span>
+                    
+                    <!-- Remarks Card -->
+                    <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:13px; color:#495057;">
+                            Enter Remarks: <span style="color: #6c757d; font-size: 11px; font-weight:400;">(Optional)</span>
                         </label>
-                        <div class="col-7 position-relative">
-                            <input type="text" name="remarks" maxlength="50" class="form-control pe-5" 
-                                placeholder="Enter remarks (optional, max 50 chars)" style="padding-right: 70px;" />
-                            <span id="remarksCharCount" class="position-absolute end-0 top-50 translate-middle-y text-muted small me-2" 
-                                style="pointer-events:none; font-size:12px;">0/50</span>
+                        <div style="position:relative;">
+                            <input type="text" name="remarks" maxlength="50" 
+                                placeholder="Enter remarks (optional, max 50 chars)" 
+                                style="width:100%; border:1px solid #ced4da; border-radius:6px; padding:8px 60px 8px 10px; font-size:13px;" />
+                            <span id="remarksCharCount" 
+                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6c757d; font-size:11px; pointer-events:none;">0/50</span>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-12 d-flex justify-content-center gap-3">
-                            <button type="submit" id="saveRemarksBtn" class="btn btn-primary px-4">Submit</button>
-                            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-                        </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="display:flex; justify-content:center; gap:12px; padding-top:6px;">
+                        <button type="submit" id="saveRemarksBtn" 
+                            style="background:#28a745; color:#fff; border:none; border-radius:6px; padding:9px 28px; font-size:14px; font-weight:600; cursor:pointer; transition:background 0.2s;">
+                            <i class="fa fa-check" style="margin-right:6px;"></i> Submit
+                        </button>
+                        <button type="button" data-bs-dismiss="modal" 
+                            style="background:#6c757d; color:#fff; border:none; border-radius:6px; padding:9px 28px; font-size:14px; font-weight:600; cursor:pointer; transition:background 0.2s;">
+                            <i class="fa fa-times" style="margin-right:6px;"></i> Cancel
+                        </button>
                     </div>
                 </form>
             </div>

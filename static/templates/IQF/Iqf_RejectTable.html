@@ -712,6 +712,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Plating <br> Stk No
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
+                    <th>
+                      Action
+                    </th>
                     <th class="sortable" data-column-index="9"> 
                       Lot Qty
                       <i class="fa fa-sort" aria-hidden="true"></i>
@@ -798,6 +801,24 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       </span>
                     </td>
                     <td>
+                      <a href="#"
+                         title="View"
+                         class="text-primary tray-scan-btn-Jig"
+                         style="text-decoration: none;"
+                         data-stock-lot-id="{{ data.stock_lot_id }}"
+                         data-batch-id="{{ data.batch_id }}"
+                         data-model-no="{{ data.plating_stk_no }}"
+                         data-no-of-trays="{{ data.no_of_trays }}"
+                         data-model-image="{{ data.model_images.0|default:'' }}"
+                         data-total-batch-quantity="{{ data.brass_rejection_total_qty }}"
+                         data-missing-qty="{{ data.iqf_missing_qty }}"
+                         data-physical-qty="{{ data.iqf_rejection_total_qty }}">
+                        <img src="{% static 'assets/icons/view.png' %}"
+                             alt="View"
+                             style="width: 20px; height: auto; cursor:pointer;" />
+                      </a>
+                    </td>
+                    <td>
                       {% if data.original_lot_qty %}
                         {{ data.original_lot_qty }}
                       {% elif data.brass_rejection_total_qty %}
@@ -808,24 +829,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     <td>
                       {{data.iqf_rejection_total_qty}}
-      <a href="#"
-      title="View"
-      class="text-primary tray-scan-btn-Jig"
-      style="text-decoration: underline; margin-left: 8px;"
-      data-stock-lot-id="{{ data.stock_lot_id }}"
-      data-batch-id="{{ data.batch_id }}"
-      data-model-no="{{ data.plating_stk_no }}"
-      data-no-of-trays="{{ data.no_of_trays }}"
-    data-model-image="{{ data.model_images.0|default:'' }}"
-
-        data-total-batch-quantity="{{ data.brass_rejection_total_qty }}"
-    data-missing-qty="{{ data.iqf_missing_qty }}"
-    data-physical-qty="{{ data.iqf_rejection_total_qty }}">
-
-      <img src="{% static 'assets/icons/view.png' %}"
-          alt="View"
-          style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
-    </a>
                     </td>
                     <td>{{data.tray_type}} {{data.tray_capacity}}</td>
                     <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
