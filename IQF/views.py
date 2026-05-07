@@ -771,6 +771,7 @@ def iqf_rejection_audit_iqf_reject(request):
                 # map reason_id -> qty
                 d_map = { (int(it.get('reason_id')) if it.get('reason_id') is not None else None): int(it.get('iqf_qty') or 0) for it in d_items }
                 total_from_draft = int(draft.draft_data.get('total_iqf') or 0)
+                draft_accepted_trays = draft.draft_data.get('accepted_trays') or []
                 # overlay
                 for row in response_data:
                     rid = row.get('reason_id')
@@ -784,6 +785,7 @@ def iqf_rejection_audit_iqf_reject(request):
                     "total_iqf_qty": total_from_draft,
                     "is_lot_rejection": _is_lot_rejection,
                     "current_lot_trays": current_lot_trays,
+                    "draft_accepted_trays": draft_accepted_trays,
                 })
         except Exception:
             pass
@@ -1010,13 +1012,14 @@ def iqf_submit_audit(request):
 
             # ─── 5. DRAFT SAVE ───
             if action == 'draft':
+                accepted_trays_payload = data.get('accepted_trays') or []
                 IQF_Draft_Store.objects.update_or_create(
                     lot_id=lot_id,
                     draft_type='batch_rejection',
                     defaults={
                         'batch_id': batch_id_val,
                         'user': request.user,
-                        'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf},
+                        'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf, 'accepted_trays': accepted_trays_payload},
                     }
                 )
                 return Response({'success': True, 'draft': True, 'rw_qty': iqf_incoming_qty, 'rejection_rows': parsed_items, 'total_iqf_qty': total_iqf})

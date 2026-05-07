@@ -288,6 +288,8 @@
                               background: linear-gradient(to right, #0c8249 50%, #bdbdbd 50%);
                               {% elif data.draft_tray_verify and data.ip_onhold_picking and not data.few_cases_accepted_Ip_stock %}
                               background: linear-gradient(to right, #0c8249 50%, #bdbdbd 50%);
+                              {% elif data.has_draft %}
+                              background: linear-gradient(to right, #0c8249 50%, #bdbdbd 50%);
                               {% else %}
                               background-color: #bdbdbd;
                               {% endif %}
@@ -313,7 +315,7 @@
                            >
                            On Hold
                         </div>
-                        {% elif data.draft_tray_verify %}
+                        {% elif data.draft_tray_verify or data.has_draft %}
                         <div
                            class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="

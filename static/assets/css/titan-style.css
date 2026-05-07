@@ -3988,7 +3988,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
   .btn-action.blue:hover { background: linear-gradient(135deg, #1976d2, #1565c0); }
 
   .btn-action.transparent {
-    background: #f1f5f9;
+    background: #ffd896;
     color: #475569;
     border: 1px solid #e2e8f0;
   }
@@ -5020,8 +5020,8 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
     max-width: 100px;
   } /* Plating Color */
   #order-listing th:nth-child(6) {
-    min-width: 100px;
-    max-width: 110px;
+    min-width: 75px;
+    max-width: 85px;
   } /* Category */
   #order-listing th:nth-child(7) {
     min-width: 90px;
@@ -5036,7 +5036,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
     max-width: 105px;
   } /* Tray Cate-Capacity */
   #order-listing th:nth-child(10) {
-    min-width: px;
+    min-width: 100px;
     max-width: 100px;
   } /* Source */
   #order-listing th:nth-child(11) {
@@ -5520,7 +5520,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
   .btn-action {
     padding: 6px 14px;
     border: none;
-    border-radius: 20px;
+    border-radius: 10px;
     font-size: 13px;
     color: white;
     cursor: pointer;

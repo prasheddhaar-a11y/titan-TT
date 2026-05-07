@@ -1877,6 +1877,7 @@ class TrayIdScanAPIView(APIView):
                     plating_color=batch_instance.plating_color if isinstance(batch_instance.plating_color, Plating_Color) else Plating_Color.objects.filter(plating_color=batch_instance.plating_color).first() if batch_instance.plating_color else None,
                     lot_id=lot_id,
                     tray_scan_status=True,  # ✅ Mark as True to indicate tray scanning started
+                    ip_draft_screening=False,  # ✅ Initialize IS draft flag
                     last_process_module="DayPlanning",
                     next_process_module="IP Screening",
                 )

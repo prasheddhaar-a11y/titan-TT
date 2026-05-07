@@ -1585,7 +1585,7 @@
     <ul class="pagination justify-content-end mb-0">
       {% if page_obj.has_previous %}
         <li>
-          <a href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+          <a href="?page={{ page_obj.previous_page_number }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" aria-label="Previous">
             <span aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
           </a>
         </li>
@@ -1599,13 +1599,13 @@
         {% if num == page_obj.number %}
           <li class="active"><span>{{ num }}</span></li>
         {% else %}
-          <li><a href="?page={{ num }}">{{ num }}</a></li>
+          <li><a href="?page={{ num }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">{{ num }}</a></li>
         {% endif %}
       {% endfor %}
 
       {% if page_obj.has_next %}
         <li>
-          <a href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+          <a href="?page={{ page_obj.next_page_number }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" aria-label="Next">
             <span aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
           </a>
         </li>
@@ -1906,14 +1906,20 @@ document.addEventListener("DOMContentLoaded", function () {
           if (fromInput && fromDateParam) {
             fromInput.value = fromDateParam;
             console.log('📅 Set from date from URL:', fromInput.value);
+          } else if (fromInput) {
+            fromInput.value = formatDate(twoDaysAgo);
+            console.log('📅 Set default from date:', fromInput.value);
           }
           
           if (toInput && toDateParam) {
             toInput.value = toDateParam;
             console.log('📅 Set to date from URL:', toInput.value);
+          } else if (toInput) {
+            toInput.value = formatDate(today);
+            console.log('📅 Set default to date:', toInput.value);
           }
         } else {
-          // Only set defaults if inputs are completely empty and we're not in filter mode
+          // When not in filter mode, still set reasonable defaults for user convenience
           if (fromInput && !fromInput.value) {
             fromInput.value = formatDate(twoDaysAgo);
             console.log('📅 Set default from date:', fromInput.value);
@@ -1970,6 +1976,7 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
               alert('Please select both start and end dates.');
             }
+            console.warn('❌ Missing date values - From:', fromDate, 'To:', toDate);
             return;
           }
           
@@ -1985,15 +1992,17 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
               alert('Start date must be before or equal to end date.');
             }
+            console.warn('❌ Invalid date range');
             return;
           }
           
           // Construct URL for Jig table
           const currentUrl = window.location.href.split('?')[0];
-          const newUrl = `${currentUrl}?from_date=${fromDate}&to_date=${toDate}`;
+          const newUrl = `${currentUrl}?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
           console.log('🔄 Redirecting to:', newUrl);
           window.location.href = newUrl;
         });
+        console.log('✅ Jig Search button listener attached');
       } else {
         console.error('❌ Jig Search button not found with ID: search-date-range-simple');
       }
@@ -2003,12 +2012,27 @@ document.addEventListener("DOMContentLoaded", function () {
         clearBtn.addEventListener('click', function(e) {
           e.preventDefault();
           
+          // Reset inputs to defaults
+          const today = new Date();
+          const twoDaysAgo = new Date();
+          twoDaysAgo.setDate(today.getDate() - 1);
+          
+          const formatDate = (date) => {
+            return date.getFullYear() + '-' + 
+                   String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                   String(date.getDate()).padStart(2, '0');
+          };
+          
+          if (fromInput) fromInput.value = formatDate(twoDaysAgo);
+          if (toInput) toInput.value = formatDate(today);
+          
           // Immediately redirect to clean URL without date parameters
           // This prevents any intermediate state or cache issues
           const currentUrl = window.location.href.split('?')[0];
           console.log('🔄 Redirecting to:', currentUrl);
           window.location.href = currentUrl;
         });
+        console.log('✅ Jig Clear button listener attached');
       } else {
         console.error('❌ Jig Clear button not found with ID: clear-date-filter-simple');
       }

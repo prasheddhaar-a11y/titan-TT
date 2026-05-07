@@ -728,16 +728,16 @@
     max-width: 100px;
   } /* Plating Color */
   #order-listing th:nth-child(6) {
-    min-width: 100px;
-    max-width: 110px;
+    min-width: 80px;
+    max-width: 90px;
   } /* Category */
   #order-listing th:nth-child(7) {
     min-width: 85px;
     max-width: 95px;
   } /* Polish Finish */
   #order-listing th:nth-child(8) {
-    min-width: 110px;
-    max-width: 110px;
+    min-width: 80px;
+    max-width: 90px;
   } /* Version */
   #order-listing th:nth-child(9) {
     min-width: 105px;
@@ -2811,12 +2811,12 @@
         var isLotRejection = !!(json.is_lot_rejection);
         if(batchRejCb) batchRejCb.checked = isLotRejection;
 
-        // ✅ Render rejection reasons in 2-column grid
+        // Render rejection reasons in 2-column grid
         var grid = document.getElementById('rejection-grid-2col');
         if(!grid) return;
         grid.innerHTML = '';
 
-        // ERR6: Compute total BQC qty to detect if lot has BQC data
+        //Compute total BQC qty to detect if lot has BQC data
         var _totalBqcQty = (json.rejection_data || []).reduce(function(s, r){ return s + Number(r.brass_qc_qty || 0); }, 0);
         var _hasBqcData = _totalBqcQty > 0;
 
@@ -2824,13 +2824,16 @@
           var brassQty = Number(row.brass_qc_qty || 0);
           var iqfVal = (row.iqf_qty !== undefined && row.iqf_qty !== null && row.iqf_qty !== '') ? row.iqf_qty : 0;
           var disabledAttr = row.is_editable ? '' : 'disabled';
-          // ERR6 FIX: If lot has BQC data and this reason has 0 BQC qty — block IQF entry
+          // If lot has BQC data and this reason has 0 BQC qty — block IQF entry
           if(!disabledAttr && _hasBqcData && brassQty === 0){ disabledAttr = 'disabled'; }
           
           var rowDiv = document.createElement('div');
           rowDiv.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid #f0f0f0; background:#fafafa; border-radius:4px;';
-          rowDiv.innerHTML = '<div style="flex:1; font-size:12px; color:#333; font-weight:500;">' + (row.reason || '') + '</div>' +
-            '<div style="font-size:11px; color:#666; margin-right:4px;">BQC: <b>' + brassQty + '</b></div>' +
+          var _bqcChipStyle = brassQty > 0
+            ? 'font-size:11px; background:#fff3cd; color:#856404; border:1px solid #ffe69c; border-radius:6px; padding:2px 6px; margin-right:4px; font-weight:600;'
+            : 'font-size:11px; color:#666; margin-right:4px;';
+          rowDiv.innerHTML = '<div style="flex:1; font-size:12px !important; color:#333; font-weight:500;">' + (row.reason || '') + '</div>' +
+            '<div style="' + _bqcChipStyle + '">BQC: ' + brassQty + '</div>' +
             '<input type="number" min="0" class="rejection-qty-input" data-reason-id="' + (row.reason_id || '') + '" value="' + iqfVal + '" ' + disabledAttr + ' style="width:64px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:4px; font-size:12px;" placeholder="0" />';
           grid.appendChild(rowDiv);
         });
@@ -2942,6 +2945,7 @@
 
         // ── Auto-trigger tray slots if draft has pre-filled IQF total ──
         var prefilledTotal = parseInt(json.total_iqf_qty || 0, 10);
+        window._iqfDraftAcceptedTrays = json.draft_accepted_trays || [];
         if(prefilledTotal > 0 && typeof window._iqfFetchTraySlots === 'function'){
           // Show wrapper immediately, compute reject preview, then fetch accept slots
           var _wrapperOnOpen = document.getElementById('iqf-tray-columns-wrapper');
@@ -2959,6 +2963,13 @@
 
         // ── LOT REJECTION: apply backend state to UI ──
         _applyLotRejectionUI(isLotRejection, rw);
+
+        // ── DRAFT RESTORE FIX: _applyLotRejectionUI(false) resets modalIqfTotal to 0.
+        // Re-set to prefilledTotal so the async _iqfFetchTraySlots callback's
+        // _iqfComputeRejectAllocation() reads the correct value and keeps wrapper visible.
+        if(!isLotRejection && prefilledTotal > 0){
+          document.getElementById('modalIqfTotal') && (document.getElementById('modalIqfTotal').textContent = prefilledTotal);
+        }
 
         // reveal modal
         document.getElementById('iqfRejectionModalOverlay') && document.getElementById('iqfRejectionModalOverlay').classList.add('active');
@@ -3787,6 +3798,27 @@ document.addEventListener('click', function(evt){
         }
 
         console.log('[IQF TRAY SLOTS] Rendered ' + slots.length + ' slots, accepted=' + acceptedQty + ', max_reuse=' + maxReuse);
+
+        // ── Restore draft tray IDs if available (prefill slots from saved draft) ──
+        var _draftTrays = window._iqfDraftAcceptedTrays || [];
+        if(_draftTrays.length > 0){
+          var _allSlotInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+          _draftTrays.forEach(function(dt, di){
+            if(di < _allSlotInputs.length){
+              var _inp = _allSlotInputs[di];
+              _inp.value = (dt.tray_id || '').toUpperCase();
+              if(_inp.value){
+                _inp.style.background = '#f0f8ff';
+                _inp.style.border = '2px solid #4caf50';
+                _inp.classList.add('scan-valid');
+                var _sno = _inp.getAttribute('data-slot-no');
+                var _stEl = document.querySelector('.tray-scan-status[data-slot-no="' + _sno + '"]');
+                if(_stEl){ _stEl.textContent = '\u2713 Restored'; _stEl.className = 'tray-scan-status status-valid'; }
+              }
+            }
+          });
+          window._iqfDraftAcceptedTrays = [];
+        }
 
         // ✅ Auto-compute reject allocation immediately
         window._iqfComputeRejectAllocation();

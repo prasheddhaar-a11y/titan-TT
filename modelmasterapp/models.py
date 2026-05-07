@@ -529,6 +529,7 @@ class TotalStockModel(models.Model):
     ip_top_tray_qty_verified = models.BooleanField(default=False, help_text="IP-On Hold Picking")
     ip_verified_tray_qty=models.IntegerField(default=0, help_text="IP-Verified Tray Quantity")
     ip_top_tray_qty_modify=models.IntegerField(default=0, help_text="IP-Top Tray Quantity Modified")
+    ip_draft_screening = models.BooleanField(default=False, help_text="IS Reject modal draft saved — S circle half-green")
 
     is_split = models.BooleanField(default=False, help_text="Flag to mark lot as split into accept/reject portions")
     remove_lot=models.BooleanField(default=False, help_text="Indicates if the lot is to be removed")

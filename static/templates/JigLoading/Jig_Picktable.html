@@ -6,6 +6,213 @@
 
 
 <!-- Jig Loading - Inline Styles -->
+<style nonce="{{ csp_nonce }}">
+/* ===== FIX: Freeze first 3 columns (S.No, Last Updated, Plating Stk No) ===== */
+#order-listing {
+  position: relative;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+#order-listing th,
+#order-listing td {
+  position: relative;
+}
+
+/* Sticky header */
+#order-listing thead th {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 100;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Freeze 1st column - S.No */
+#order-listing th:nth-child(1),
+#order-listing td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 3;
+  border-right: 1px solid #dee2e6;
+}
+
+/* Freeze 2nd column - Last Updated */
+#order-listing th:nth-child(2),
+#order-listing td:nth-child(2) {
+  position: sticky;
+  left: 80px; /* Width of column 1 */
+  background: white;
+  z-index: 3;
+  border-right: 1px solid #dee2e6;
+}
+
+/* Freeze 3rd column - Plating Stk No */
+#order-listing th:nth-child(3),
+#order-listing td:nth-child(3) {
+  position: sticky;
+  left: 170px; /* Width of columns 1+2 */
+  background: white;
+  z-index: 3;
+  border-right: 2px solid #028084;
+  max-width: 200px;
+  min-width: 100px;
+  white-space: nowrap;       /* keep stock number on single line */
+  overflow: hidden;          /* hide overflow if text exceeds cell */
+  text-overflow: ellipsis;   /* show ... if text is truncated */
+}
+
+/* Header cells in frozen columns need higher z-index */
+#order-listing thead th:nth-child(1),
+#order-listing thead th:nth-child(2),
+#order-listing thead th:nth-child(3) {
+  z-index: 101;
+}
+
+/* Prevent frozen columns from showing shadows from scrolled content */
+#order-listing td:nth-child(1),
+#order-listing td:nth-child(2),
+#order-listing td:nth-child(3) {
+  z-index: 3;
+}
+
+/* Fix for sidebar minimized state */
+body.sidebar-icon-only #order-listing th:nth-child(1),
+body.sidebar-icon-only #order-listing td:nth-child(1) {
+  left: 0;
+}
+
+body.sidebar-icon-only #order-listing th:nth-child(2),
+body.sidebar-icon-only #order-listing td:nth-child(2) {
+  left: 80px;
+}
+
+body.sidebar-icon-only #order-listing th:nth-child(3),
+body.sidebar-icon-only #order-listing td:nth-child(3) {
+  left: 170px;
+}
+
+/* Ensure column widths are fixed */
+#order-listing th:nth-child(1),
+#order-listing td:nth-child(1) {
+  min-width: 80px;
+  max-width: 80px;
+  width: 80px;
+}
+
+#order-listing th:nth-child(2),
+#order-listing td:nth-child(2) {
+  min-width: 90px;
+  max-width: 90px;
+  width: 90px;
+}
+
+#order-listing th:nth-child(3),
+#order-listing td:nth-child(3) {
+  min-width: 100px;
+  max-width: 200px;
+}
+
+/* Fix Action column overlap - ensure proper z-index */
+#order-listing th:nth-child(4),
+#order-listing td:nth-child(4) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Plating Stk No span — wrap only when truly overflowing, not blindly */
+#order-listing td:nth-child(3) span {
+  display: inline;
+  white-space: nowrap;       /* keep text on one line */
+  overflow: visible;         /* let overflow show naturally */
+}
+
+/* ===== JIG COMPOSITION MINI WINDOW STYLES ===== */
+@keyframes jcFadeIn {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.jc-stat-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.jc-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.jc-stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.jc-stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.85;
+}
+
+.jc-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.jc-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.jc-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #028084;
+  margin: 16px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #e0f2f1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.jc-tray-chip:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.jc-tid {
+  font-family: 'Courier New', monospace;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.jc-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+</style>
 
 <div class="content-wrapper">
   <div class="col-12 grid-margin stretch-card">
@@ -139,11 +346,11 @@
               <!-- Plating Stk No -->
               <td>
                 {% if data.plating_stk_no %}
-                  <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all">
+                  <span class="model-hover-trigger" style="cursor: pointer;">
                     {{ data.plating_stk_no|highlight_plating_color|safe }}
                   </span>
                 {% elif data.model_stock_no.plating_stk_no %}
-                  <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all">
+                  <span class="model-hover-trigger" style="cursor: pointer;">
                     {{ data.model_stock_no.plating_stk_no|highlight_plating_color|safe }}
                   </span>
                 {% else %}
@@ -158,11 +365,11 @@
                   data-stock-lot-id="{{ data.stock_lot_id }}"
                   title="Delete"
                 >
-                  <img
+                  <!-- <img
                     src="{% static 'assets/icons/bin.png' %}"
                     alt="Delete"
                     style="width: 20px; margin-right: 8px; height: auto"
-                  />
+                  /> -->
                 </a>
                 <!-- Add Jig Button - Teal Linear Gradient -->
                 <button
@@ -230,7 +437,7 @@
               <td>
                 <div class="d-flex">
                   <div
-                    title="Loading"
+                    title="{% if data.lot_status == 'Draft' %}Drafted - Loading{% else %}Loading{% endif %}"
                     class="d-flex align-items-center justify-content-center rounded-circle ms-1"
                     style="
                       width: 20px;
@@ -241,7 +448,11 @@
                       text-align: center;
                       padding-top: 1px;
                       padding-right: 1px;
+                      {% if data.lot_status == 'Draft' %}
+                      background: linear-gradient(90deg, #4caf50 0%, #4caf50 50%, #bdbdbd 50%, #bdbdbd 100%);
+                      {% else %}
                       background: #bdbdbd;
+                      {% endif %}
                       cursor: pointer;
                     "
                   >
@@ -730,14 +941,6 @@
 <!-- Add Jig Button - Window (functional) -->
 <div id="jigAddModal" class="right-slide-modal" tabindex="-1">
   <div class="add-jig-window">
-    <!-- Running Info Banner (Compact) -->
-    <div id="jigInfoBanner" style="background:rgba(227,242,253,0.4); border-left:3px solid #26a69a; border-radius:4px; padding:6px 12px; margin:8px auto; max-width:92%; font-size:11px; color:#01579b; font-weight:500; display:flex; align-items:center; gap:8px;">
-      <span style="font-size:14px; opacity:0.7;">ℹ️</span>
-      <div style="flex:1;">
-        <span id="jigCurrentAction" style="font-weight:600;">Ready to load jig</span>
-        <span style="color:#546e7a; margin-left:8px; font-size:10px;" id="jigNextStep">Enter Jig ID and scan trays to begin</span>
-      </div>
-    </div>
     
     <!-- Inline error banner for Add Model validation errors -->
     <div id="addModelErrorBanner" style="display:none; background:#fce4ec; border:1.5px solid #dc3545; border-radius:8px; padding:10px 16px; margin:10px 16px 0 16px; font-size:13px; color:#c62828; font-weight:600;">
@@ -817,9 +1020,15 @@
   <!-- HEADER - Subtle Inline Stats -->
   <div class="delink-header" style="background:rgba(250,250,252,0.6); padding:8px 14px; border-radius:4px; margin-bottom:8px; border:1px solid #eceff1;">
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-      <!-- Section Title -->
-      <div style="font-size:12px; color:#546e7a; font-weight:600; letter-spacing:0.3px;">
-        Tray Allocation
+      <!-- Section Title + Jig Composition Button -->
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="font-size:12px; color:#546e7a; font-weight:600; letter-spacing:0.3px;">
+          Tray Allocation
+        </div>
+        <!-- JIG COMPOSITION BUTTON -->
+        <button type="button" id="jigCompositionBtn" style="padding:4px 12px; font-size:11px; background:linear-gradient(135deg,#028084,#014d4e); color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600; box-shadow:0 2px 4px rgba(2,128,132,0.2); transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(2,128,132,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 4px rgba(2,128,132,0.2)';">
+          <i class="fa fa-cogs" style="margin-right:5px;"></i> Jig Composition
+        </button>
       </div>
       
       <!-- Inline Stats -->
@@ -831,6 +1040,15 @@
         <span style="font-weight:500;">Jig Cap: <b style="color:#26a69a; font-size:12px;" id="unifiedJigCapBadge">0</b></span>
         <span id="delinkStatsBadge" style="display:none; color:#43a047; font-weight:600; margin-left:8px; padding:2px 8px; background:rgba(200,230,201,0.3); border-radius:3px;"></span>
       </div>
+    </div>
+  </div>
+  
+  <!-- User Insights Banner -->
+  <div id="jigInfoBanner" style="background:rgba(227,242,253,0.4); border-left:3px solid #26a69a; border-radius:4px; padding:6px 12px; margin-bottom:8px; font-size:11px; color:#01579b; font-weight:500; display:flex; align-items:center; gap:8px;">
+    <span style="font-size:14px; opacity:0.7;">ℹ️</span>
+    <div style="flex:1;">
+      <span id="jigCurrentAction" style="font-weight:600;">Ready to load jig</span>
+      <span style="color:#546e7a; margin-left:8px; font-size:10px;" id="jigNextStep">Enter Jig ID and scan trays to begin</span>
     </div>
   </div>
 
@@ -885,7 +1103,7 @@
           <span id="excessTopTrayOriginal" style="font-size:10px; color:#f9a825; font-weight:500;"></span>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <input type="text" id="excessTopTrayScanInput" class="excess-scan-input" maxlength="9" placeholder="Scan Tray ID" style="flex:1; padding:6px 10px; border:1px solid #fdd835; border-radius:3px; font-size:12px; font-weight:500; background:#fff;" />
+          <input type="text" id="excessTopTrayScanInput" class="excess-scan-input" maxlength="9" placeholder="Scan Tray ID" style="flex:1; padding:6px 10px; border:1px solid #fdd835; border-radius:3px; font-size:12px; font-weight:500; background:#fff; cursor:pointer;" />
           <div style="min-width:50px; text-align:right;">
             <div style="font-size:10px; color:#9e9e9e; font-weight:500;">Qty</div>
             <div id="excessTopTrayQty" style="font-size:13px; font-weight:700; color:#f57f17;"></div>
@@ -931,36 +1149,37 @@
 
     <!-- Footer -->
     <div class="jig-modal-footer">
-      <button type="button" class="btn-action teal" id="submitJigBtn" disabled style="padding:9px 28px; font-size:14px;">
-        <i class="fa fa-check" style="font-size:12px;"></i> Submit
+      <button type="button" class="btn-action teal" id="submitJigBtn" disabled style="padding:9px 10px; font-size:14px;">
+        Submit
       </button>
-      <button type="button" class="btn-action blue" id="draftJigBtn" style="padding:9px 24px; font-size:14px;">
-        <i class="fa fa-save" style="font-size:12px;"></i> Draft
+      <button type="button" class="btn-action blue" id="draftJigBtn" style="padding:9px 10px; font-size:14px;">
+         Draft
       </button>
-      <button type="button" class="btn-action transparent" id="clearJigBtn" style="padding:9px 24px; font-size:14px;">
+      <button type="button" class="btn-action transparent" id="clearJigBtn" style="padding:9px 10px; font-size:14px;">
         Clear
       </button>
-      <button type="button" class="btn-action btn-danger" id="cancelJigBtn" style="padding:9px 24px; font-size:14px;">
+      <button type="button" class="btn-action btn-danger" id="cancelJigBtn" style="padding:9px 10px; font-size:14px;">
         Cancel
       </button>
     </div>
 
-    <!-- ===== JIG COMPOSITION GALLERY OVERLAY ===== -->
-    <div id="jigCompositionOverlay" style="display:none; position:absolute; inset:0; background:#f5f9fa; z-index:9000; border-radius:16px; overflow-y:auto; animation:jcFadeIn 0.22s ease;">
-      <div id="jcHeader" style="background:linear-gradient(135deg,#028084,#014d4e); color:#fff; padding:14px 22px; display:flex; align-items:center; justify-content:space-between; border-radius:16px 16px 0 0; position:sticky; top:0; z-index:2; box-shadow:0 2px 8px rgba(1,77,78,0.25);">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <i class="fa fa-cogs" style="font-size:16px;"></i>
-          <span style="font-size:15px; font-weight:700; letter-spacing:0.3px;">Jig Composition</span>
-          <span id="jcJigIdBadge" style="font-size:11px; background:rgba(255,255,255,0.18); border-radius:20px; padding:2px 12px; font-family:monospace;"></span>
-        </div>
-        <button id="closeJigCompositionBtn" type="button" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35); color:#fff; border-radius:8px; padding:5px 16px; cursor:pointer; font-size:13px; font-weight:600;">&#8592; Back</button>
-      </div>
-      <div id="jcBody" style="padding:20px 22px 28px;"></div>
-    </div>
-    <!-- ===== END JIG COMPOSITION OVERLAY ===== -->
-
   </div>
 </div>
+</div>
+
+<!-- ===== JIG COMPOSITION WINDOW — at body level, never inside modal ===== -->
+<div id="jigCompositionOverlay" style="display:none; position:fixed; top:80px; right:40px; width:340px; max-height:82vh; background:#fff; z-index:999999; border-radius:14px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.35); border:1px solid rgba(2,128,132,0.2);">
+  <div id="jcHeader" style="background:linear-gradient(135deg,#f8fbfb,#e8f5f5); color:#014d4e; padding:11px 16px; display:flex; align-items:center; justify-content:space-between; cursor:move; user-select:none; border-bottom:2px solid #d0e8e9;">
+    <div style="display:flex; align-items:center; gap:9px;">
+      <img src="/static/assets/icons/12.png" style="width:20px; height:20px;" />
+      <span style="font-size:13px; font-weight:700; letter-spacing:0.2px;">Jig Composition</span>
+      <span id="jcJigIdBadge" style="font-size:10px; background:rgba(2,128,132,0.1); border:1px solid rgba(2,128,132,0.2); border-radius:10px; padding:2px 8px; font-family:monospace; color:#028084; font-weight:600;"></span>
+    </div>
+    <button id="closeJigCompositionBtn" type="button" style="background:rgba(220,53,69,0.1); border:1px solid rgba(220,53,69,0.25); color:#dc3545; border-radius:6px; padding:3px 10px; cursor:pointer; font-size:14px; font-weight:700; line-height:1; transition:all 0.2s;" onmouseover="this.style.background='rgba(220,53,69,0.15)';" onmouseout="this.style.background='rgba(220,53,69,0.1)';">✕</button>
+  </div>
+  <div id="jcBody" style="padding:14px; max-height:calc(82vh - 50px); overflow-y:auto; background:#fafcfc;"></div>
+</div>
+<!-- ===== END JIG COMPOSITION OVERLAY ===== -->
 
 {% block script %}
 
@@ -1689,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize delink stats badge (will update after re-render)
     setTimeout(function() { _updateDelinkStatsBadge(); }, 50);
 
-    // ===== Preserve validated scans across re-renders =====
+    // ===== Preserve validated scans AND focus state across re-renders =====
     var previousValidated = {};
     document.querySelectorAll('#delinkPanelTableBody .split-scan-input.validated, #excessPanelTableBody .split-scan-input.validated').forEach(function(inp) {
       var k = (inp.dataset.autoTrayId || '') + '|' + (inp.dataset.panel || '');
@@ -1699,6 +1918,26 @@ document.addEventListener('DOMContentLoaded', function () {
     var topTrayInp = document.getElementById('excessTopTrayScanInput');
     if (topTrayInp && topTrayInp.value && topTrayInp.classList.contains('validated')) {
       prevTopTrayVal = topTrayInp.value;
+    }
+
+    // ===== Capture currently focused element to restore after re-render =====
+    var focusedElement = document.activeElement;
+    var restoreFocusId = null;
+    var restoreFocusPanel = null;
+    var restoreFocusTrayId = null;
+    
+    if (focusedElement && (
+        focusedElement.classList.contains('split-scan-input') || 
+        focusedElement.id === 'excessTopTrayScanInput'
+    )) {
+      restoreFocusId = focusedElement.id || null;
+      restoreFocusPanel = focusedElement.dataset.panel || null;
+      restoreFocusTrayId = focusedElement.dataset.autoTrayId || focusedElement.dataset.trayId || null;
+      console.log('[FOCUS_CAPTURE] Before re-render, focus on:', {
+        id: restoreFocusId,
+        panel: restoreFocusPanel,
+        trayId: restoreFocusTrayId
+      });
     }
 
     // ===== LEFT: DELINK PANEL =====
@@ -1797,6 +2036,7 @@ document.addEventListener('DOMContentLoaded', function () {
             inp.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
             inp.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
             inp.placeholder = panelMeta.tray_placeholder || row.scan_tray_id || 'Scan Tray ID';
+            inp.style.cursor = 'pointer';
             var restoreKey = (row.scan_tray_id || '') + '|delink';
             if (previousValidated[restoreKey]) {
               inp.value = previousValidated[restoreKey];
@@ -2150,6 +2390,7 @@ document.addEventListener('DOMContentLoaded', function () {
             inp.dataset.batchId = window.CURRENT_BATCH_ID || '';
             inp.dataset.modelCode = row.model_code || '';
             inp.placeholder = (row.model_code || '').replace(/\s*\[.*\]$/, '') || 'Scan / Type Tray ID';
+            inp.style.cursor = 'pointer';
             // Dotted border removed for auto-allocated rows
             // Restore validated state
             var rk = (row.scan_tray_id || '') + '|excess';
@@ -2207,6 +2448,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Attach scan handlers to both panels
     _attachSplitScanHandlers();
+
+    // ===== RESTORE FOCUS after re-render (find next unvalidated input in sequence) =====
+    setTimeout(function() {
+      // GUARD: Skip auto-focus if draft is being restored — draft restore handles its own focus
+      if (window._isDraftRestoring) {
+        console.log('[FOCUS_RESTORE] Skipped — draft restore in progress');
+        return;
+      }
+      
+      var targetInput = null;
+      
+      // Strategy: Find the NEXT unvalidated input after the one that had focus
+      if (restoreFocusPanel === 'delink' || restoreFocusPanel === 'excess' || restoreFocusTrayId) {
+        var allInputs = [];
+        
+        // Collect all inputs in order: delink → top_tray → excess
+        var delinkInputs = Array.from(document.querySelectorAll('#delinkPanelTableBody .split-scan-input'));
+        var topInput = document.getElementById('excessTopTrayScanInput');
+        var excessInputs = Array.from(document.querySelectorAll('#excessPanelTableBody .split-scan-input'));
+        
+        allInputs = allInputs.concat(delinkInputs);
+        if (topInput) allInputs.push(topInput);
+        allInputs = allInputs.concat(excessInputs);
+        
+        // Find the first unvalidated, enabled input
+        targetInput = allInputs.find(function(inp) {
+          return !inp.classList.contains('validated') && 
+                 !inp.disabled && 
+                 inp.offsetParent !== null;  // visible
+        });
+        
+        console.log('[FOCUS_RESTORE] Found next unvalidated input:', 
+          targetInput ? (targetInput.id || targetInput.dataset.autoTrayId) : 'none');
+      }
+      
+      // Restore focus if target found
+      if (targetInput) {
+        try {
+          targetInput.focus();
+          targetInput.select();
+          console.log('[FOCUS_RESTORE] Focus restored to:', targetInput.id || targetInput.dataset.autoTrayId);
+        } catch(e) {
+          console.warn('[FOCUS_RESTORE] Failed to restore focus:', e);
+        }
+      }
+    }, 150);  // Wait for DOM to fully stabilize after re-render
 
     // Update phase message after render
     if (typeof window._updatePhaseMessage === 'function') {
@@ -2811,24 +3098,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function _moveToNextSplitInput(currentInput) {
     // Move within same panel first, then cross to other panel
-    var panelType = currentInput.dataset.panel || 'delink';
-    var selector = panelType === 'delink'
-      ? '#delinkPanelTableBody .split-scan-input'
-      : '#excessPanelTableBody .split-scan-input';
-    var inputs = Array.from(document.querySelectorAll(selector));
-    var idx = inputs.indexOf(currentInput);
-    if (idx >= 0 && idx < inputs.length - 1) {
-      try { inputs[idx + 1].focus(); } catch(e) {}
-    } else if (panelType === 'delink') {
-      // Finished delink — try top tray or first excess input
-      var topInp = document.getElementById('excessTopTrayScanInput');
-      if (topInp && !topInp.classList.contains('validated') && topInp.offsetParent !== null) {
-        topInp.focus();
-      } else {
-        var firstExcess = document.querySelector('#excessPanelTableBody .split-scan-input:not(.validated)');
-        if (firstExcess) firstExcess.focus();
+    // Use setTimeout to ensure focus happens AFTER all DOM updates (status badges, innerHTML, etc.)
+    setTimeout(function() {
+      var panelType = currentInput.dataset.panel || 'delink';
+      var selector = panelType === 'delink'
+        ? '#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)'
+        : '#excessPanelTableBody .split-scan-input:not(.validated):not(:disabled)';
+      var inputs = Array.from(document.querySelectorAll(selector));
+      var idx = -1;
+      
+      // Find current input position in the list of unvalidated inputs
+      for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i] === currentInput || inputs[i].dataset.trayId === currentInput.dataset.trayId) {
+          idx = i;
+          break;
+        }
       }
-    }
+      
+      // Try next unvalidated input in same panel
+      if (idx >= 0 && idx < inputs.length - 1) {
+        var nextInp = inputs[idx + 1];
+        try { 
+          nextInp.focus(); 
+          nextInp.select();
+          console.log('[FOCUS_NEXT] Moved to next input in same panel:', nextInp.dataset.trayId || nextInp.id);
+        } catch(e) {
+          console.warn('[FOCUS_NEXT] Failed to focus next input:', e);
+        }
+      } else if (panelType === 'delink') {
+        // Finished delink — try top tray or first excess input
+        var topInp = document.getElementById('excessTopTrayScanInput');
+        if (topInp && !topInp.classList.contains('validated') && !topInp.disabled && topInp.offsetParent !== null) {
+          try {
+            topInp.focus();
+            topInp.select();
+            console.log('[FOCUS_NEXT] Moved to top tray input');
+          } catch(e) {}
+        } else {
+          var firstExcess = document.querySelector('#excessPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+          if (firstExcess) {
+            try {
+              firstExcess.focus();
+              firstExcess.select();
+              console.log('[FOCUS_NEXT] Moved to first excess input');
+            } catch(e) {}
+          }
+        }
+      } else if (panelType === 'excess') {
+        // Finished excess panel — check if there are any delink inputs left
+        var remainingDelink = document.querySelector('#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+        if (remainingDelink) {
+          try {
+            remainingDelink.focus();
+            remainingDelink.select();
+            console.log('[FOCUS_NEXT] Moved back to delink panel');
+          } catch(e) {}
+        }
+      }
+    }, 100);  // Wait 100ms for DOM updates to complete
   }
 
   // CSRF token helper (global)
@@ -3326,11 +3653,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Unified backend-driven render path.
       if (typeof window.applyResponseToUI === 'function') {
+        // ✅ CRITICAL FIX: Set flag BEFORE applyResponseToUI so renderSplitPanels 150ms RESTORE FOCUS
+        // is blocked from auto-focusing excessTopTrayScanInput while draft restore is pending.
+        // Cleared by _restoreScannedTraysFromDraft on success, or immediately if no draft.
+        window._isDraftRestoring = true;
         window.applyResponseToUI(data);
         // Check for saved draft and restore scanned tray states
         setTimeout(function() {
           if (typeof window.checkAndRestoreDraft === 'function') {
             window.checkAndRestoreDraft(data.lot_id, data.batch_id);
+          } else {
+            window._isDraftRestoring = false; // No restore possible — release guard
           }
         }, 500);
         return;
@@ -4757,9 +5090,131 @@ function clearJigUserInputs() {
 }
 
 // ---------------------------------------------------------------
-// resetJigModalState — FULL reset for close/cancel.
-// Clears everything: inputs, display fields, dynamic DOM, globals.
-// Used by: Close (×), Cancel button
+// clearCurrentEditingSession — Clear ONLY unsaved editing changes.
+// Preserves previously saved draft data. Use for Cancel button.
+// ---------------------------------------------------------------
+function clearCurrentEditingSession() {
+  console.log('[CANCEL] Clearing current unsaved editing session only...');
+  
+  // 1. Clear ALL scanned tray inputs and checkbox states (current session)
+  document.querySelectorAll('.tray-id-input, .unified-scan-input, .split-scan-input, .excess-scan-input').forEach(function(inp) {
+    inp.value = '';
+    inp.classList.remove('validated', 'tray-duplicate-error', 'error-input');
+    inp.style.background = '';
+    inp.style.border = '';
+    inp.style.borderColor = '';
+    inp.readOnly = false;
+    inp.disabled = false;
+    inp.style.opacity = '';
+    inp.title = '';
+  });
+
+  // 2. Clear top tray input and checkbox
+  const topTrayInput = document.getElementById('excessTopTrayScanInput');
+  if (topTrayInput) {
+    topTrayInput.value = '';
+    topTrayInput.classList.remove('validated', 'error-input');
+    topTrayInput.style.background = '';
+    topTrayInput.style.borderColor = '';
+    topTrayInput.readOnly = false;
+  }
+  const topTrayCheckbox = document.getElementById('excessTopTrayCheckbox');
+  if (topTrayCheckbox) {
+    topTrayCheckbox.checked = false;
+    topTrayCheckbox.disabled = false;
+    topTrayCheckbox.classList.remove('locked');
+  }
+  const topTrayStatus = document.getElementById('excessTopTrayStatus');
+  if (topTrayStatus) topTrayStatus.innerHTML = '';
+
+  // 3. Clear all checkboxes and row states
+  document.querySelectorAll('.delink-row-checkbox, .excess-row-checkbox').forEach(function(cb) {
+    cb.checked = false;
+    cb.disabled = false;
+    cb.classList.remove('locked');
+  });
+
+  // 4. Clear delink and excess row visual states
+  document.querySelectorAll('#delinkPanelTableBody tr').forEach(function(tr) {
+    tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
+    tr.title = '';
+    const lastCell = tr.cells[tr.cells.length - 1];
+    if (lastCell) lastCell.innerHTML = '';
+  });
+  document.querySelectorAll('#excessPanelTableBody tr').forEach(function(tr) {
+    tr.classList.remove('excess-row-scanned', 'excess-row-auto');
+    const lastCell = tr.cells[tr.cells.length - 1];
+    if (lastCell) lastCell.innerHTML = '';
+  });
+
+  // 5. Clear session-specific global state (NOT backend globals - keep those for draft restore)
+  window._trayAllocations = {};
+  window._lastSentBH = null;
+  window._pendingSecondaryLots = null;
+  window._pendingSecondaryLot = null;
+  
+  // 6. Clear ONLY unsaved session storage (NOT scanned_trays if it came from draft)
+  try { sessionStorage.removeItem('secondary_lot'); } catch(e) {}
+  
+  // 7. Reset Jig ID input (user can re-enter)
+  const jigIdInput = document.getElementById('jigIdInput');
+  if (jigIdInput) {
+    jigIdInput.value = '';
+    jigIdInput.classList.remove('jig-id-error', 'jig-id-valid');
+  }
+  const jigIdError = document.getElementById('jigIdError');
+  if (jigIdError) {
+    jigIdError.textContent = '';
+    jigIdError.style.display = 'none';
+  }
+  const jigValid = document.querySelector('.jig-id-valid-alert');
+  if (jigValid) jigValid.style.display = 'none';
+  const jigError = document.querySelector('.jig-id-error-alert');
+  if (jigError) jigError.style.display = 'none';
+  
+  // 8. Reset broken hooks to 0 (user can re-enter)
+  const bhInput = document.getElementById('brokenBuildupHooksInput');
+  if (bhInput) bhInput.value = 0;
+  window.currentBrokenHooks = 0;
+  
+  // 9. Reset select-all checkboxes
+  const unifiedSelectAll = document.getElementById('unifiedSelectAll');
+  if (unifiedSelectAll) unifiedSelectAll.checked = false;
+  const delinkSelectAll = document.getElementById('delinkSelectAll');
+  if (delinkSelectAll) delinkSelectAll.checked = false;
+
+  // 10. Clear split panel table bodies and delink/excess sections
+  const delinkPanelBody = document.getElementById('delinkPanelTableBody');
+  if (delinkPanelBody) {
+    // Clear all row states but keep the table structure
+    delinkPanelBody.querySelectorAll('tr').forEach(function(tr) {
+      tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
+      const lastCell = tr.cells[tr.cells.length - 1];
+      if (lastCell) lastCell.innerHTML = '';
+    });
+  }
+  const excessPanelBody = document.getElementById('excessPanelTableBody');
+  if (excessPanelBody) {
+    excessPanelBody.querySelectorAll('tr').forEach(function(tr) {
+      tr.classList.remove('excess-row-scanned', 'excess-row-auto');
+      const lastCell = tr.cells[tr.cells.length - 1];
+      if (lastCell) lastCell.innerHTML = '';
+    });
+  }
+
+  // 11. Clear phase message and status badges
+  const phaseMsg = document.getElementById('jigPhaseMessage');
+  if (phaseMsg) phaseMsg.innerHTML = '';
+  const delinkStatsEl = document.getElementById('delinkStatsMessage');
+  if (delinkStatsEl) delinkStatsEl.innerHTML = '';
+
+  console.log('[CANCEL] Current editing session cleared. Saved draft preserved.');
+}
+
+// ---------------------------------------------------------------
+// resetJigModalState — FULL reset for close button (× icon).
+// Clears everything: inputs, display fields, dynamic DOM, globals, AND backend draft.
+// Used by: Close (×) button ONLY
 // ---------------------------------------------------------------
 function resetJigModalState() {
   // 1. Clear user-entered inputs
@@ -4826,7 +5281,7 @@ function resetJigModalState() {
   try { sessionStorage.removeItem('secondary_lots'); } catch(e) {}
   try { sessionStorage.removeItem('secondary_lot'); } catch(e) {}
 
-  // 4b. Fire-and-forget backend clear to delete stale draft
+  // 4b. Fire-and-forget backend clear to delete stale draft (ONLY for close, not cancel)
   const _clearLot = window.CURRENT_LOT_ID || window.currentJigLotId;
   const _clearBatch = window.CURRENT_BATCH_ID || window.currentJigBatchId;
   if (_clearLot && _clearBatch) {
@@ -4938,14 +5393,17 @@ document.addEventListener('click', function (e) {
   }
 });
 
-// --- Cancel button handler: reset state and close ---
+// --- Cancel button handler: clear ONLY unsaved editing session, preserve draft ---
 document.addEventListener('click', function (e) {
   if (e.target.id !== 'cancelJigBtn') return;
   try {
-    if (typeof resetJigModalState === 'function') resetJigModalState();
+    // CRITICAL: Use clearCurrentEditingSession instead of resetJigModalState
+    // This preserves saved draft data while clearing only the current unsaved session
+    if (typeof clearCurrentEditingSession === 'function') clearCurrentEditingSession();
     if (typeof closeJigModal === 'function') closeJigModal();
     const modal = document.getElementById('jigAddModal');
     if (modal) modal.classList.remove('open');
+    console.log('[CANCEL_BTN] Closed modal. Saved draft preserved.');
   } catch (err) {
     console.warn('[CANCEL_BTN] reset failed', err);
   }
@@ -6542,12 +7000,36 @@ if (window.jQuery) {
                 jigIdErrEl.textContent = d.message || 'This Jig ID is already in use. Unload first before reuse.';
                 jigIdErrEl.style.display = 'block';
               }
+              // Auto-select the jig input field for user convenience
+              setTimeout(function() { jigIdEl.select(); }, 50);
               return;
             }
 
             jigIdEl.classList.add('jig-id-valid');
             jigIdEl.classList.remove('jig-id-error');
             if (jigIdErrEl) { jigIdErrEl.textContent = ''; jigIdErrEl.style.display = 'none'; }
+            
+            // ✅ AUTO-FOCUS: Move cursor to excess top tray or first delink tray after Jig ID valid
+            setTimeout(function() {
+              var excessPanel = document.getElementById('splitPanelRight');
+              var excessExists = excessPanel && excessPanel.style.display !== 'none';
+              
+              if (excessExists) {
+                var topTrayScanInput = document.getElementById('excessTopTrayScanInput');
+                if (topTrayScanInput) {
+                  topTrayScanInput.focus();
+                  topTrayScanInput.select();
+                  console.log('✅ [AUTO-FOCUS] Excess top tray input focused');
+                }
+              } else {
+                var firstDelinkInput = document.querySelector('#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+                if (firstDelinkInput) {
+                  firstDelinkInput.focus();
+                  firstDelinkInput.select();
+                  console.log('✅ [AUTO-FOCUS] First delink tray input focused');
+                }
+              }
+            }, 50);
           } else {
             jigIdEl.classList.add('jig-id-error');
             jigIdEl.classList.remove('jig-id-valid');
@@ -6631,12 +7113,36 @@ if (window.jQuery) {
               jigIdErrEl.textContent = d.message || 'This Jig ID is already in use. Unload first before reuse.';
               jigIdErrEl.style.display = 'block';
             }
+            // Auto-select the jig input field for user convenience
+            setTimeout(function() { me.select(); }, 100);
             return;
           }
 
           me.classList.add('jig-id-valid');
           me.classList.remove('jig-id-error');
           if (jigIdErrEl) { jigIdErrEl.textContent = ''; jigIdErrEl.style.display = 'none'; }
+          
+          // ✅ AUTO-FOCUS: Move cursor to excess top tray or first delink tray after Jig ID valid
+          setTimeout(function() {
+            var excessPanel = document.getElementById('splitPanelRight');
+            var excessExists = excessPanel && excessPanel.style.display !== 'none';
+            
+            if (excessExists) {
+              var topTrayScanInput = document.getElementById('excessTopTrayScanInput');
+              if (topTrayScanInput) {
+                topTrayScanInput.focus();
+                topTrayScanInput.select();
+                console.log('✅ [AUTO-FOCUS] Excess top tray input focused (blur)');
+              }
+            } else {
+              var firstDelinkInput = document.querySelector('#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+              if (firstDelinkInput) {
+                firstDelinkInput.focus();
+                firstDelinkInput.select();
+                console.log('✅ [AUTO-FOCUS] First delink tray input focused (blur)');
+              }
+            }
+          }, 50);
         } else {
           me.classList.add('jig-id-error');
           me.classList.remove('jig-id-valid');
@@ -6878,31 +7384,27 @@ if (window.jQuery) {
     .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
     .then(function(result) {
       if (result.ok && result.data.status === 'success') {
+        // Close modal immediately and redirect
+        try {
+          var modal = document.getElementById('jigAddModal');
+          if (modal) modal.classList.remove('open');
+        } catch (e) {}
+        
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'success', title: 'Drafted Successfully',
             text: 'Your jig loading draft has been saved.',
-            confirmButtonText: 'OK', timer: 2500, timerProgressBar: true,
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
             allowOutsideClick: false,
-          }).then(function() {
-            // CRITICAL: Do NOT call resetJigModalState() here.
-            // It sends action='clear' to /api/load/update/ which DELETES the draft we just saved.
-            // Just close the modal visually and redirect — the page reload will reset everything.
-            try {
-              var modal = document.getElementById('jigAddModal');
-              if (modal) modal.classList.remove('open');
-            } catch (e) {}
-            window.location.href = '/jig_loading/JigView/';
           });
-        } else {
-          alert('Drafted successfully!');
-          try {
-            // Do NOT call resetJigModalState() — it sends 'clear' which deletes the draft.
-            var modal = document.getElementById('jigAddModal');
-            if (modal) modal.classList.remove('open');
-          } catch (e) {}
-          window.location.href = '/jig_loading/JigView/';
         }
+        
+        // Redirect after brief delay for user to see success message
+        setTimeout(function() {
+          window.location.href = '/jig_loading/JigView/';
+        }, 1500);
       } else {
         Swal.fire({ icon: 'error', title: 'Draft Failed', text: 'Draft save failed: ' + (result.data.message || 'Unknown error'), confirmButtonColor: '#028084' });
         if (draftBtn) { draftBtn.removeAttribute('disabled'); draftBtn.innerHTML = '<i class="fa fa-save" style="font-size:12px;"></i> Draft'; }
@@ -6936,7 +7438,10 @@ if (window.jQuery) {
       return res.json();
     })
     .then(function(data) {
-      if (!data || data.status !== 'success') return;
+      if (!data || data.status !== 'success') {
+        window._isDraftRestoring = false; // No draft — release guard immediately
+        return;
+      }
       console.log('[DRAFT_RESTORE] Found draft, record_id:', data.record_id, 'updated:', data.updated_at);
 
       // ===== Restore Jig ID =====
@@ -7011,6 +7516,9 @@ if (window.jQuery) {
         try { sessionStorage.setItem('secondary_lots', JSON.stringify(secondaryLots)); } catch(e) {}
 
         console.log('[DRAFT_RESTORE] Multi-model detected — re-calling init with', secondaryLots.length, 'secondary models');
+        // ✅ CRITICAL: Set flag BEFORE callInitAPI so renderSplitPanels guard is active from t=0
+        window._isDraftRestoring = true;
+        
         if (typeof window.callInitAPI === 'function') {
           window.callInitAPI({
             lot_id: data.lot_id || lotId,
@@ -7033,7 +7541,8 @@ if (window.jQuery) {
         return;
       }
 
-      // ===== Restore scanned tray values into split panel inputs (single-model path) (single-model path) =====
+      // ===== Restore scanned tray values into split panel inputs (single-model path) =====
+      window._isDraftRestoring = true;  // Block renderSplitPanels RESTORE FOCUS during draft restore
       _restoreScannedTraysFromDraft(data.scanned_trays);
 
       console.log('[DRAFT_RESTORE] Complete — form fields, BACKEND vars, and scanned trays restored');
@@ -7143,6 +7652,54 @@ if (window.jQuery) {
     if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
     // Re-check submit readiness
     if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
+    
+    // ✅ FIX: Focus next EMPTY scan box after draft restore — skip all validated/filled inputs
+    // The guard window._isDraftRestoring was set true BEFORE this function was called.
+    // Clear it AFTER focus is resolved so renderSplitPanels doesn't interfere.
+    setTimeout(function() {
+      window._isDraftRestoring = false;
+      
+      // FORCE SKIP VALIDATED INPUTS — find first truly empty input only
+      // Priority 1: Find first empty delink input (not yet scanned, no value, not validated)
+      var delinkInputs = document.querySelectorAll('#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+      var firstEmptyDelink = null;
+      for (var i = 0; i < delinkInputs.length; i++) {
+        var inp = delinkInputs[i];
+        if (!inp.value || inp.value.trim() === '') {
+          firstEmptyDelink = inp;
+          break;
+        }
+      }
+      if (firstEmptyDelink && firstEmptyDelink.offsetParent !== null) {
+        try {
+          firstEmptyDelink.focus();
+          firstEmptyDelink.select();
+          console.log('[DRAFT_RESTORE] Focused first truly empty delink input');
+          return;
+        } catch(e) {}
+      }
+      
+      // Priority 2: Find first empty excess panel input (NOT top tray, NOT validated, NO value)
+      var excessInputs = document.querySelectorAll('#excessPanelTableBody .split-scan-input:not(.validated):not(:disabled)');
+      var firstEmptyExcess = null;
+      for (var j = 0; j < excessInputs.length; j++) {
+        var exInp = excessInputs[j];
+        // FORCE SKIP excess top tray — never auto-focus it
+        if (exInp.id === 'excessTopTrayScanInput') continue;
+        if (!exInp.value || exInp.value.trim() === '') {
+          firstEmptyExcess = exInp;
+          break;
+        }
+      }
+      if (firstEmptyExcess && firstEmptyExcess.offsetParent !== null) {
+        try {
+          firstEmptyExcess.focus();
+          firstEmptyExcess.select();
+          console.log('[DRAFT_RESTORE] Focused first truly empty excess input (skipped top tray)');
+        } catch(e) {}
+      }
+      // Note: Do NOT auto-focus excessTopTrayScanInput — user navigates to it after scanning delinks
+    }, 300);
   }
 
   // Expose buildFullPayload for debugging
@@ -7309,158 +7866,143 @@ if (window.jQuery) {
   function mcol(idx,arr){ return arr[idx % arr.length]; }
 
   function renderGallery(){
-    /* ── header badge ── */
-    var jigId = (document.getElementById('jigIdInput')||{}).value||'—';
+    var jigId  = (document.getElementById('jigIdInput')||{}).value||'Jig ID';
+    var jigCap = parseInt((document.getElementById('jigCapacityInput')||{}).value||0)||0;
+    var bh     = parseInt((document.getElementById('brokenBuildupHooksInput')||{}).value||0)||0;
+
     document.getElementById('jcJigIdBadge').textContent = jigId;
 
-    /* ── form scalars ── */
-    var jigCap  = parseInt((document.getElementById('jigCapacityInput')||{}).value||0)||0;
-    var bh      = parseInt((document.getElementById('brokenBuildupHooksInput')||{}).value||0)||0;
+    /* tray data */
+    var trays = (typeof window._collectTrayData === 'function') ? window._collectTrayData() : [];
 
-    /* ── live tray data via existing helper ── */
-    var trays = (typeof collectTrayDataSnapshot === 'function') ? collectTrayDataSnapshot() : [];
+    /* scanned qty for fill */
+    var scannedQty = 0;
+    document.querySelectorAll('#delinkPanelTableBody .split-scan-input.validated').forEach(function(inp){
+      var row = inp.closest('tr');
+      if(row){ var c = row.querySelector('td:nth-child(3)'); if(c) scannedQty += parseInt(c.textContent)||0; }
+    });
+    var fillPct = jigCap > 0 ? Math.min(100, Math.round(scannedQty*100/jigCap)) : 0;
+    var barColor = fillPct>=100?'#28a745': fillPct>=80?'#f57c00':'#028084';
 
-    /* ── aggregates ── */
-    var totalOrig=0, totalDelink=0, totalExcess=0;
-    trays.forEach(function(t){ totalOrig+=t.original_qty; totalDelink+=t.delink_qty; totalExcess+=t.excess_qty; });
-    var fillPct = jigCap > 0 ? Math.min(100, Math.round(totalDelink*100/jigCap)) : 0;
-
-    /* ── model cards ── */
+    /* model cards */
     var mcards = Array.from(document.querySelectorAll('#modelCardStrip .model-card'));
-    var modelMap = {};   // modelCode → {name, qty, colorIdx, role}
-    mcards.forEach(function(card, idx){
-      var name  = (card.querySelector('.model-card-name')||{}).textContent || '';
-      var code  = (card.querySelector('.model-card-code')||{}).textContent || name;
-      var qty   = parseInt(((card.querySelector('.model-card-qty')||{}).textContent||'0'))||0;
-      var role  = card.getAttribute('data-role')||'secondary';
-      modelMap[code] = { name:name, code:code, qty:qty, colorIdx:idx, role:role };
-    });
-    var isMulti = mcards.length > 1;
-
-    /* ── group trays by model ── */
-    var modelTrays = {}; // modelCode → [trays]
-    trays.forEach(function(t){
-      var key = (t.model_code||'').split(' [')[0] || 'Primary';
-      if(!modelTrays[key]) modelTrays[key] = [];
-      modelTrays[key].push(t);
+    /* build code→index map */
+    var codeIdx = {};
+    mcards.forEach(function(card, i){
+      var code = (card.querySelector('.model-card-code')||{}).textContent||'';
+      codeIdx[code] = i;
     });
 
-    /* ── BUILD HTML ── */
     var html = '';
 
-    /* 1. Summary strip */
-    html += '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">';
-    [
-      {n:totalOrig,   l:'Lot Qty',      bg:'#e2fbff', fg:'#007bff'},
-      {n:jigCap,      l:'Jig Capacity', bg:'#e8f5e9', fg:'#28a745'},
-      {n:totalDelink, l:'Delinked',     bg:'#d4edda', fg:'#28a745'},
-      {n:totalExcess, l:'Excess',       bg:'#fff4e6', fg:'#e67e22'},
-      {n:bh,          l:'Broken Hooks', bg:'#fce4ec', fg:'#dc3545'},
-    ].forEach(function(s){
-      html += '<div class="jc-stat-card" style="background:'+s.bg+'; border:2px solid '+s.fg+'20;">'
-        +'<div class="jc-stat-num" style="color:'+s.fg+';">'+s.n+'</div>'
-        +'<div class="jc-stat-lbl" style="color:'+s.fg+';">'+s.l+'</div></div>';
-    });
+    /* ── 1. Fill bar ── */
+/*     html += '<div style="margin-bottom:16px;">';
+    html += '<div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; color:#546e7a; margin-bottom:5px;"><span>Jig Fill</span><span style="color:'+barColor+';">'+scannedQty+' / '+jigCap+'&nbsp;&nbsp;'+fillPct+'%</span></div>';
+    html += '<div style="height:10px; background:#e0e0e0; border-radius:8px; overflow:hidden;"><div style="height:100%; width:'+fillPct+'%; background:'+barColor+'; border-radius:8px; transition:width 0.4s;"></div></div>';
+    if(bh>0){ html += '<div style="font-size:10px; color:#c2185b; margin-top:4px;">⚠ Broken Hooks: '+bh+'</div>'; }
     html += '</div>';
 
-    /* 2. Jig fill bar */
-    var barColor = fillPct>=100?'#28a745': fillPct>=80?'#e67e22':'#007bff';
-    html += '<div style="background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:20px; box-shadow:0 1px 6px rgba(0,0,0,0.06);">';
-    html += '<div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; color:#028084; margin-bottom:6px;">';
-    html += '<span>Jig Fill</span><span>'+totalDelink+' / '+jigCap+' &nbsp;('+fillPct+'%)</span></div>';
-    html += '<div class="jc-progress-bar"><div class="jc-progress-fill" style="width:'+fillPct+'%; background:'+barColor+';"></div></div>';
-    html += '</div>'\;
-
-    /* 3. Multi-model allocation */
-    if(isMulti && mcards.length > 0){
-      html += '<div class="jc-section-title">Model Allocation</div>';
-      html += '<div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:4px;">';
+    /* ── 2. Model legend (horizontal) ── */
+    if(mcards.length > 0){
+      html += '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">';
       mcards.forEach(function(card, idx){
-        var name   = (card.querySelector('.model-card-name')||{}).textContent||'';
-        var code   = (card.querySelector('.model-card-code')||{}).textContent||name;
-        var qty    = parseInt(((card.querySelector('.model-card-qty')||{}).textContent||'0'))||0;
-        var role   = card.getAttribute('data-role')||'secondary';
-        var traysForModel = (modelTrays[code]||[]);
-        var mdDelink = traysForModel.reduce(function(s,t){return s+t.delink_qty;},0);
-        var mdExcess = traysForModel.reduce(function(s,t){return s+t.excess_qty;},0);
-        var mdPct = qty > 0 ? Math.min(100,Math.round(mdDelink*100/qty)) : 0;
-        html += '<div style="background:'+mcol(idx,MODEL_BG)+'; border:2px solid '+mcol(idx,MODEL_FG)+'40; border-radius:12px; padding:12px 16px; min-width:150px; flex:1;">';
-        html += '<div style="font-size:9px; font-weight:700; color:'+mcol(idx,MODEL_FG)+'; text-transform:uppercase; margin-bottom:4px;">M'+(idx+1)+(role==='primary'?' · Primary':'')+'</div>';
-        html += '<div style="font-size:13px; font-weight:800; color:'+mcol(idx,MODEL_FG)+'; font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="'+code+'">'+code+'</div>';
-        html += '<div style="font-size:18px; font-weight:700; color:'+mcol(idx,MODEL_FG)+'; margin-top:4px;">'+qty+' <span style="font-size:10px; opacity:0.65;">allocated</span></div>';
-        html += '<div style="font-size:10px; color:#555; margin-top:3px;">Delinked: <strong>'+mdDelink+'</strong>'+(mdExcess?' &nbsp;| Excess: <strong>'+mdExcess+'</strong>':'')+'</div>';
-        html += '<div class="jc-progress-bar" style="margin-top:8px;"><div class="jc-progress-fill" style="width:'+mdPct+'%; background:'+mcol(idx,MODEL_FG)+';"></div></div>';
+        var code = (card.querySelector('.model-card-code')||{}).textContent||('M'+(idx+1));
+        var qty  = (card.querySelector('.model-card-qty')||{}).textContent||'';
+        html += '<div style="display:flex; align-items:center; gap:6px; background:'+mcol(idx,MODEL_BG)+'; border:1.5px solid '+mcol(idx,MODEL_FG)+'50; border-radius:20px; padding:4px 12px;">';
+        html += '<span style="font-size:11px; font-weight:800; color:'+mcol(idx,MODEL_FG)+'">M'+(idx+1)+'</span>';
+        html += '<span style="font-size:10px; color:#546e7a; font-family:monospace;">'+code+'</span>';
+        if(qty){ html += '<span style="font-size:10px; color:'+mcol(idx,MODEL_FG)+'; font-weight:700;">'+qty+'</span>'; }
         html += '</div>';
       });
       html += '</div>';
     }
 
-    /* 4. Tray-by-tray breakdown */
+    /* ── 3. Tray gallery in Composition — vertical stack, each row = watch icon + label ── */
     if(trays.length > 0){
-      html += '<div class="jc-section-title">Tray Breakdown</div>';
-      html += '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px;">';
-      trays.forEach(function(t){
-        var key    = (t.model_code||'').split(' [')[0]||'';
-        var cidx   = 0;
-        mcards.forEach(function(card,i){ if((card.querySelector('.model-card-code')||{}).textContent===key) cidx=i; });
-        var isExcess = t.excess_qty>0 && t.delink_qty===0;
-        var isPartial = t.delink_qty>0 && t.excess_qty>0;
-        var isTop     = t.top_tray;
-        var chipBg, chipBorder, badgeTxt, badgeBg;
-        if(isTop){           chipBg='#d0f0f2'; chipBorder='#028084'; badgeTxt='Top Tray';   badgeBg='#028084'; }
-        else if(isPartial){  chipBg='#fff9c4'; chipBorder='#c0a000'; badgeTxt='Partial';    badgeBg='#c0a000'; }
-        else if(isExcess){   chipBg='#fff4e6'; chipBorder='#e67e22'; badgeTxt='Excess Lot'; badgeBg='#e67e22'; }
-        else {               chipBg=mcol(cidx,MODEL_BG); chipBorder=mcol(cidx,MODEL_FG); badgeTxt='Delinked'; badgeBg=mcol(cidx,MODEL_FG); }
-
-        html += '<div class="jc-tray-chip" style="background:'+chipBg+'; border-color:'+chipBorder+';">';
-        html += '<div class="jc-tid">'+t.tray_id+'</div>';
-        if(key){ html += '<div style="font-size:9px; color:'+mcol(cidx,MODEL_FG)+'; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;" title="'+key+'">&#9679; '+key+'</div>'; }
-        html += '<div style="display:flex; gap:8px; font-size:10px; color:#555; margin-top:1px;">';
-        html += '<span>Orig: <strong>'+t.original_qty+'</strong></span>';
-        if(t.delink_qty){ html += '<span style="color:#28a745;">&#8595;'+t.delink_qty+'</span>'; }
-        if(t.excess_qty){ html += '<span style="color:#e67e22;">+'+t.excess_qty+'</span>'; }
+      html += '<div style="font-size:10px; font-weight:700; color:#028084; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Tray Stack · '+trays.length+' trays</div>';
+      html += '<div style="display:flex; flex-direction:column; gap:8px;">';
+      trays.forEach(function(t, idx){
+        var key  = (t.model_code||'').split(' [')[0]||'';
+        var cidx = (key && codeIdx[key]!==undefined) ? codeIdx[key] : 0;
+        var isTop = t.top_tray;
+        var isExcess = t.excess_qty > 0 && t.delink_qty === 0;
+        var rowBg   = isTop ? '#e0f7fa' : isExcess ? '#fff3e0' : '#fff';
+        var rowBd   = isTop ? '#00acc1' : isExcess ? '#fb8c00' : '#e8e8e8';
+        var mLabel  = mcards.length > 1 ? 'M'+(cidx+1) : '';
+        var mColor  = mcol(cidx,MODEL_FG);
+        var posLabel = isTop ? '⬆ Top' : isExcess ? '+ Excess' : 'Tray'+(idx+1);
+        var trayQty = parseInt(t.delink_qty||0) + parseInt(t.excess_qty||0);
+        html += '<div style="display:flex; align-items:center; gap:12px; background:'+rowBg+'; border:1.5px solid '+rowBd+'; border-radius:10px; padding:10px 14px;">';
+        html += '<img src="/static/assets/icons/12.png" style="width:40px; height:40px; flex-shrink:0;" />';
+        html += '<div style="flex:1; display:flex; flex-direction:column; gap:4px;">';
+        html += '<div style="display:flex; align-items:center; gap:8px;">';
+        if(mLabel){ html += '<span style="font-size:12px; font-weight:800; color:'+mColor+'; background:'+mcol(cidx,MODEL_BG)+'; border:1px solid '+mColor+'30; border-radius:12px; padding:2px 8px;">'+mLabel+'</span>'; }
+        html += '<span style="font-size:11px; color:#546e7a; font-weight:600;">'+posLabel+'</span>';
+        html += '<span style="font-size:10px; color:#90a4ae; margin-left:auto; font-weight:600;">× '+trayQty+'</span>';
         html += '</div>';
-        html += '<span class="jc-badge" style="background:'+badgeBg+';">'+badgeTxt+'</span>';
+        if(key){ html += '<div style="font-size:10px; color:#78909c; font-family:monospace; font-weight:500;">'+key+'</div>'; }
+        html += '</div>';
         html += '</div>';
       });
       html += '</div>';
     } else {
-      html += '<div style="color:#888; font-size:12px; margin-top:12px; padding:14px; background:#f0f0f0; border-radius:8px;">No tray data yet — load a lot and scan trays first.</div>';
-    }
-
-    /* 5. Excess summary */
-    var excessTrays = trays.filter(function(t){ return t.excess_qty > 0; });
-    if(excessTrays.length > 0){
-      var exSum = excessTrays.reduce(function(s,t){ return s+t.excess_qty; }, 0);
-      html += '<div class="jc-section-title" style="color:#e67e22; border-color:#e67e22;">Excess / Half-Filled <span style="font-size:12px; font-weight:800; color:#e67e22;">'+exSum+' qty</span></div>';
-      html += '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
-      excessTrays.forEach(function(t){
-        var key  = (t.model_code||'').split(' [')[0]||'';
-        var cidx = 0;
-        mcards.forEach(function(card,i){ if((card.querySelector('.model-card-code')||{}).textContent===key) cidx=i; });
-        html += '<div style="background:'+mcol(cidx,MODEL_BG)+'; border:2px solid '+mcol(cidx,MODEL_FG)+'60; border-radius:9px; padding:10px 14px; font-size:11px;">';
-        html += '<div style="font-weight:700; font-family:monospace; color:'+mcol(cidx,MODEL_FG)+';">'+t.tray_id+'</div>';
-        if(key){ html += '<div style="font-size:9px; color:'+mcol(cidx,MODEL_FG)+'; margin-top:2px;">'+key+'</div>'; }
-        html += '<div style="margin-top:4px;">Excess Qty: <strong>'+t.excess_qty+'</strong></div>';
-        html += '<span class="jc-badge" style="background:'+mcol(cidx,MODEL_FG)+'; margin-top:4px;">Excess Lot</span>';
-        html += '</div>';
-      });
-      html += '</div>';
+      html += '<div style="color:#999; font-size:12px; padding:20px; text-align:center; background:#f5f5f5; border-radius:10px;">Scan trays to see composition</div>';
     }
 
     document.getElementById('jcBody').innerHTML = html;
+  }
+
+  // Make composition window draggable (unrestricted movement)
+  function makeDraggable(panel, handle){
+    var pos1=0, pos2=0, pos3=0, pos4=0;
+    handle.onmousedown = function(e){
+      e.preventDefault();
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      document.onmouseup = function(){ document.onmouseup=null; document.onmousemove=null; };
+      document.onmousemove = function(e){
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        var newTop = panel.offsetTop - pos2;
+        var newLeft = panel.offsetLeft - pos1;
+        // No viewport restrictions - allow dragging outside modal
+        panel.style.top = newTop + 'px';
+        panel.style.left = newLeft + 'px';
+        panel.style.transform = 'none';
+      };
+    };
   }
 
   document.addEventListener('DOMContentLoaded', function(){
     var btn   = document.getElementById('jigCompositionBtn');
     var panel = document.getElementById('jigCompositionOverlay');
     var back  = document.getElementById('closeJigCompositionBtn');
+    var header = document.getElementById('jcHeader');
+    
     if(btn && panel){
-      btn.addEventListener('click', function(){ renderGallery(); panel.style.display='block'; });
+      btn.addEventListener('click', function(){ 
+        renderGallery(); 
+        panel.style.display='block';
+        // Keep at top-right on open (no re-centering that traps it)
+        if(!panel._positioned){
+          panel.style.top='80px';
+          panel.style.right='40px';
+          panel.style.left='';
+          panel.style.transform='none';
+          panel._positioned = true;
+        }
+      });
     }
     if(back && panel){
       back.addEventListener('click', function(){ panel.style.display='none'; });
     }
+    if(panel && header){
+      makeDraggable(panel, header);
+    }
+    
     /* Also hide gallery whenever the jig modal is closed */
     var jigModal = document.getElementById('jigAddModal');
     if(jigModal && panel){
@@ -7475,6 +8017,15 @@ if (window.jQuery) {
       });
       observer.observe(jigModal, {attributes:true});
     }
+    
+    // Auto-update composition when trays are scanned (realtime)
+    document.addEventListener('change', function(e){
+      if(e.target.classList && e.target.classList.contains('split-scan-input')){
+        if(panel.style.display === 'block'){
+          setTimeout(function(){ renderGallery(); }, 100);
+        }
+      }
+    });
   });
 })();
 
@@ -7530,16 +8081,14 @@ if (window.jQuery) {
             scanStatus.style.display = 'inline-block';
             scanStatus.style.color = '#dc3545';
             scanStatus.textContent = 'Invalid Tray ID!';
-            scanInput.value = '';
-            scanInput.focus();
+            setTimeout(function() { scanInput.select(); }, 50);
           }
         })
         .catch(function() {
           scanStatus.style.display = 'inline-block';
           scanStatus.style.color = '#dc3545';
           scanStatus.textContent = 'Network error!';
-          scanInput.value = '';
-          scanInput.focus();
+          setTimeout(function() { scanInput.select(); }, 50);
         });
     });
   });

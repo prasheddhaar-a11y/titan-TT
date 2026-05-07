@@ -2,9 +2,26 @@ from django.contrib import admin
 from .models import *
 #test
 class ModelMasterAdmin(admin.ModelAdmin):
-    list_display = ['model_no', 'brand', 'ep_bath_type', 'plating_stk_no']
+    list_display = ['model_no', 'brand', 'ep_bath_type', 'tray_type_display', 'tray_capacity_display', 'plating_stk_no']
     search_fields = ['model_no', 'brand', 'plating_stk_no']
     list_filter = ['brand', 'ep_bath_type']
+
+    def tray_type_display(self, obj):
+        if obj.tray_type:
+            return obj.tray_type.tray_type
+        return ''
+    tray_type_display.short_description = 'Tray Type'
+    tray_type_display.admin_order_field = 'tray_type__tray_type'
+
+    def tray_capacity_display(self, obj):
+        # prefer explicit ModelMaster.tray_capacity, else fallback to linked TrayType
+        if obj.tray_capacity:
+            return obj.tray_capacity
+        if obj.tray_type and getattr(obj.tray_type, 'tray_capacity', None) is not None:
+            return obj.tray_type.tray_capacity
+        return ''
+    tray_capacity_display.short_description = 'Tray Capacity'
+    tray_capacity_display.admin_order_field = 'tray_capacity'
 
 admin.site.register(ModelMaster, ModelMasterAdmin)
 admin.site.register(PolishFinishType)

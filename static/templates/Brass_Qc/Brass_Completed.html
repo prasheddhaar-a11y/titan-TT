@@ -573,10 +573,6 @@
    } /* Version */
    #order-listing th:nth-child(9) {
    min-width: 90px;
-   max-width: 95px;
-   } /* Tray Cate-Capacity */
-   #order-listing th:nth-child(10) {
-   min-width: 90px;
    max-width: 100px;
    } /* Source */
    #order-listing th:nth-child(11) {
@@ -746,10 +742,9 @@
    #order-listing th:nth-child(4),   /* Polishing Stk No */
    #order-listing th:nth-child(5),   /* Plating Color */
    #order-listing th:nth-child(7),   /* Polish Finish */
-   #order-listing th:nth-child(9),   /* Tray Cate-Capacity */
-   #order-listing th:nth-child(11),  /* No of Tray */
-   #order-listing th:nth-child(12),  /* Input Qty */
-   #order-listing th:nth-child(13)   /* Process Status */ {
+   #order-listing th:nth-child(10),  /* No of Tray */
+   #order-listing th:nth-child(11),  /* Input Qty */
+   #order-listing th:nth-child(12)   /* Process Status */ {
    white-space: normal !important;
    line-height: 1.2 !important;
    word-break: break-word !important;
@@ -1015,12 +1010,6 @@
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
-                           <th data-column-index="7" class="sortable">
-                              Tray Cate- <br> Capacity
-                              <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
-                              <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
-                              <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
-                           </th>
                            <th data-column-index="3" class="sortable">
                               Polishing Stk No
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
@@ -1175,7 +1164,6 @@
                                  data-batch-id="{{ data.batch_id }}"
                                  data-model-no="{{ data.plating_stk_no }}"
                                  data-no-of-trays="{{ data.no_of_trays }}"
-                                 data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                                  data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
                                  data-model-image="{{ data.model_images.0|default:'' }}"
                                  data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
@@ -1193,11 +1181,7 @@
                            <td>
                               <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_accepted_qty }}</span>
                               <span style="display: inline-flex; align-items: center; gap: 4px;">
-                              <input type="checkbox"
-                              class="brass-checkbox"
-                              data-lot-id="{{ data.stock_lot_id }}"
-                              style="width: 15px; height: 15px"
-                              {% if data.brass_qc_accepted_qty_verified %}checked disabled{% endif %} />
+                              
                               </span>
                            </td>
                            <td >{{ data.no_of_trays }}</td>
@@ -1266,7 +1250,6 @@
                                  {{ data.next_process_module|clean_next_stage:"Brass Audit" }}
                               </div>
                             </td>
-                            <td >{{ data.tray_type }}-{{ data.tray_capacity }}</td>
                             <td >{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                             <td >{{ data.plating_color }}</td>
                             <td >{{ data.category }}</td>
@@ -3621,19 +3604,18 @@ document.addEventListener('DOMContentLoaded', function() {
         5: 'plating_color',          // Plating Color
         6: 'category',               // Category
         7: 'polish_finish',          // Polish Finish
-        8: 'tray_capacity',          // Tray Cate-Capacity
-        9: 'vendor_location',        // Input Source
-        10: 'no_of_trays',           // No of Trays
-        11: 'total_ip_accepted_qty', // Lot Qty
-        12: 'physical_qty',          // Physical Qty
-        13: 'accepted_qty',          // Accept Qty
-        14: 'rejected_qty',          // Reject Qty
-        15: 'process_status',        // Process Status
-        16: 'action',                // Action (non-sortable)
-        17: 'lot_status',            // Lot Status
-        18: 'current_stage',         // Current Stage
-        19: 'remarks',               // Remarks
-        20: 'rejection_remarks'      // Rejection Remarks
+        8: 'vendor_location',        // Input Source
+        9: 'no_of_trays',            // No of Trays
+        10: 'total_ip_accepted_qty', // Lot Qty
+        11: 'physical_qty',          // Physical Qty
+        12: 'accepted_qty',          // Accept Qty
+        13: 'rejected_qty',          // Reject Qty
+        14: 'process_status',        // Process Status
+        15: 'action',                // Action (non-sortable)
+        16: 'lot_status',            // Lot Status
+        17: 'current_stage',         // Current Stage
+        18: 'remarks',               // Remarks
+        19: 'rejection_remarks'      // Rejection Remarks
     };
 
     // Get current sort parameters

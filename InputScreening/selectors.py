@@ -103,13 +103,11 @@ def pick_table_queryset() -> QuerySet:
         )
     )
     
-    # Check if this lot has an active draft
+    # Check if this lot has an active reject-modal draft (saved via Save Draft button)
+    from .models import IP_Rejection_Draft
     has_draft = Exists(
-        InputScreening_Submitted.objects.filter(
+        IP_Rejection_Draft.objects.filter(
             lot_id=OuterRef("stock_lot_id"),
-            is_active=True,
-            Draft_Saved=True,
-            is_submitted=False
         )
     )
 
@@ -473,16 +471,25 @@ def get_completed_table_rows(from_date=None, to_date=None) -> List[Dict[str, Any
 
         # Override no_of_trays with actual tray count from the submission record
         # (batch.no_of_trays is the original planned count, not the post-split actual count)
+        # For partial accept/reject: count BOTH accept AND reject trays (including delinked)
+        accept_count = 0
+        reject_count = 0
+        
         if accept_lot:
-            actual_tray_count = accept_lot.accept_trays_count
-            if not actual_tray_count and accept_lot.trays_snapshot:
-                actual_tray_count = len(accept_lot.trays_snapshot)
-            if actual_tray_count:
-                row["no_of_trays"] = actual_tray_count
-        elif reject_lot:
-            actual_tray_count = getattr(reject_lot, "reject_trays_count", 0)
-            if actual_tray_count:
-                row["no_of_trays"] = actual_tray_count
+            accept_count = accept_lot.accept_trays_count
+            if not accept_count and accept_lot.trays_snapshot:
+                accept_count = len(accept_lot.trays_snapshot)
+        
+        if reject_lot:
+            # reject_trays_count includes both reject trays and delinked trays
+            # because trays_snapshot contains all trays (reject + delinked)
+            reject_count = reject_lot.reject_trays_count
+            if not reject_count and reject_lot.trays_snapshot:
+                reject_count = len(reject_lot.trays_snapshot)
+        
+        total_tray_count = accept_count + reject_count
+        if total_tray_count > 0:
+            row["no_of_trays"] = total_tray_count
 
         # Fallback timestamp: use submitted_at when stock record is absent
         if not row.get("last_process_date_time"):

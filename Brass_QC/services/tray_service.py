@@ -172,15 +172,17 @@ def resolve_lot_trays(lot_id):
 
     # Step 1: BrassTrayId — skip if IQF found trays above
     if not tray_data:
-        trays = BrassTrayId.objects.filter(lot_id=lot_id).order_by('-top_tray', 'tray_id')
+        trays = BrassTrayId.objects.filter(
+            lot_id=lot_id, rejected_tray=False, delink_tray=False
+        ).order_by('-top_tray', 'tray_id')
         if trays.exists():
             tray_data = [
                 {
                     "tray_id": t.tray_id,
                     "qty": t.tray_quantity or 0,
-                    "is_rejected": t.rejected_tray,
+                    "is_rejected": False,
                     "is_top": t.top_tray,
-                    "is_delinked": t.delink_tray,
+                    "is_delinked": False,
                 }
                 for t in trays
             ]

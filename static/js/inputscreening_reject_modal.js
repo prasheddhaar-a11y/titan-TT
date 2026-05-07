@@ -1126,13 +1126,14 @@
           return;
         }
         setInsight("success", "Drafted successfully.");
-        // Update lot status pill in pick table row
+        // Update lot status pill, S icon, and Current Stage in pick table row
         var lotId = state.lotId;
         if (lotId) {
           var table = document.getElementById("order-listing");
           if (table) {
             table.querySelectorAll("tbody tr").forEach(function (row) {
               if (row.getAttribute("data-stock-lot-id") === lotId) {
+                // Update Lot Status cell → show "Draft" pill
                 var lotStatusCell = row.querySelector("[data-lot-status-cell]") ||
                   (function () {
                     var tds = row.querySelectorAll("td");
@@ -1147,6 +1148,24 @@
                     'style="border:1px solid #4997ac;background-color:#d1f2f3;color:#03425d;' +
                     'font-size:12px;white-space:nowrap;padding:5px;">Draft</div>';
                 }
+                // Update S circle → half-filled green (screening in progress / draft)
+                var processGroup = row.querySelector(".process-status-group");
+                if (processGroup) {
+                  processGroup.querySelectorAll(".rounded-circle").forEach(function (circle) {
+                    if (circle.textContent.trim() === "S") {
+                      circle.style.background = "linear-gradient(to right, #0c8249 50%, #bdbdbd 50%)";
+                      circle.style.backgroundColor = "";
+                    }
+                  });
+                }
+                // Update Current Stage cell → show "Input Screening"
+                var allCells = row.querySelectorAll("td");
+                allCells.forEach(function (cell) {
+                  var innerDiv = cell.querySelector("div.d-inline-block.rounded-pill");
+                  if (innerDiv && innerDiv.textContent.trim().match(/Input Screening|Brass QC|IQF|Day Planning|Jig Loading/i)) {
+                    innerDiv.innerHTML = "Input Screening";
+                  }
+                });
               }
             });
           }

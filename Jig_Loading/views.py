@@ -3273,13 +3273,42 @@ class JigCompletedTable(TemplateView):
 
 	def get_context_data(self, **kwargs):
 		import time as _time
+		from datetime import datetime
 		_t0 = _time.time()
 		context = super().get_context_data(**kwargs)
 		
-		# Fetch all JigCompleted records with draft_status='submitted'
-		jig_completed_records = list(JigCompleted.objects.filter(
+		# Extract date filter parameters from request
+		from_date_str = self.request.GET.get('from_date', '')
+		to_date_str = self.request.GET.get('to_date', '')
+		
+		# Build base query with draft_status='submitted'
+		query = JigCompleted.objects.filter(
 			draft_status='submitted'
-		).select_related('user').order_by('-updated_at')[:200])
+		).select_related('user')
+		
+		# Apply date filters if provided
+		if from_date_str:
+			try:
+				from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+				query = query.filter(updated_at__date__gte=from_date)
+				context['from_date'] = from_date_str
+			except (ValueError, TypeError):
+				context['from_date'] = ''
+		else:
+			context['from_date'] = ''
+		
+		if to_date_str:
+			try:
+				to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+				query = query.filter(updated_at__date__lte=to_date)
+				context['to_date'] = to_date_str
+			except (ValueError, TypeError):
+				context['to_date'] = ''
+		else:
+			context['to_date'] = ''
+		
+		# Fetch records with date filter applied
+		jig_completed_records = list(query.order_by('-updated_at')[:200])
 
 		_t1 = _time.time()
 		print(f"[JIG COMPLETED PERF] query: {_t1 - _t0:.3f}s ({len(jig_completed_records)} rows)")

@@ -916,10 +916,12 @@ def brass_qc_action(request):
                 "top_tray": False,
                 "is_top_tray": False,
             })
-        trays.extend(delink_trays)
+        # ✅ FIX: Do NOT include delink_trays in Brass QC Completed view icon
+        # Only show accepted and rejected trays that were part of the actual submission
+        # trays.extend(delink_trays)
 
         logger.info(f"[ACTION:GET_SUBMISSION_TRAYS] lot_id={lot_id}, type={submission.submission_type}, "
-                    f"accepted={len(accept_qty_map)}, rejected={len(reject_qty_map)}, delinked={len(delink_trays)}")
+                    f"accepted={len(accept_qty_map)}, rejected={len(reject_qty_map)}, delinked={len(delink_trays)} (not included in response)")
         return JsonResponse({
             "success": True,
             "lot_id": lot_id,

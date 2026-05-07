@@ -1590,6 +1590,7 @@ def save_draft_partial_reject(
     }
 
     from .models import IP_Rejection_Draft
+    from modelmasterapp.models import TotalStockModel
 
     draft_obj, created = IP_Rejection_Draft.objects.update_or_create(
         lot_id=lot_id,
@@ -1598,6 +1599,11 @@ def save_draft_partial_reject(
             "draft_data": draft_data,
             "lot_rejection_remarks": remarks or "",
         },
+    )
+
+    # ✅ Update TotalStockModel to reflect Current Stage = "Input Screening"
+    TotalStockModel.objects.filter(lot_id=lot_id).update(
+        last_process_module="Input Screening"
     )
 
     logger.info(
