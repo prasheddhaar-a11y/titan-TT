@@ -14,6 +14,7 @@ This ensures Global Scan respects workflow state, submission flags, and module o
 """
 import json
 import logging
+import re
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
@@ -38,8 +39,10 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         try:
             body = json.loads(request.body)
             tray_id = body.get('tray_id', '').strip().upper()
+            current_path = body.get('current_path', '').strip()
         except (ValueError, KeyError, TypeError):
             tray_id = request.POST.get('tray_id', '').strip().upper()
+            current_path = request.POST.get('current_path', '').strip()
 
         # Normalize: remove any whitespace, newlines, carriage returns
         tray_id = ''.join(tray_id.split())
@@ -54,7 +57,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             request.user.username,
         )
 
-        result = self._search_all_modules(tray_id)
+        result = self._search_all_modules(tray_id, current_path=current_path)
 
         if result:
             # Add tray_id to response for frontend highlight
@@ -81,7 +84,38 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             'message': 'Not Exists'
         })
 
-    
+
+    @staticmethod
+    def _normalize_path(path_value):
+        normalized = str(path_value or '/').split('?', 1)[0].rstrip('/').lower()
+        return normalized or '/'
+
+    def _path_matches(self, response_url, current_path):
+        if not current_path:
+            return False
+        return self._normalize_path(response_url) == self._normalize_path(current_path)
+
+    def _tray_id_variants(self, tray_id):
+        """Return exact tray id plus safe zero-padded suffix variants.
+
+        Some upstream scans arrive as ND-A0002 while stored trays use ND-A00002.
+        Keep matching conservative: only pad the final numeric suffix.
+        """
+        normalized = ''.join(str(tray_id or '').split()).upper()
+        variants = {normalized} if normalized else set()
+        match = re.match(r'^(.*?)(\d+)$', normalized)
+        if match:
+            prefix, digits = match.groups()
+            number = digits.lstrip('0') or '0'
+            for width in {len(digits), 5}:
+                variants.add(f'{prefix}{number.zfill(width)}')
+        return sorted(variants)
+
+    def _tray_query(self, variants, field_name='tray_id'):
+        query = Q()
+        for candidate in variants:
+            query |= Q(**{f'{field_name}__iexact': candidate})
+        return query
 
     def _resolve_candidate_lot_ids(self, tray_id):
         """LOT-FIRST RESOLVER: Scan EVERY tray table to discover all lot_ids
@@ -97,6 +131,8 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         """
         lot_ids = set()
         batch_ids = set()
+        tray_variants = self._tray_id_variants(tray_id)
+        tray_query = self._tray_query(tray_variants)
 
         def _safe_collect(qs, attr='lot_id'):
             try:
@@ -109,10 +145,10 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         # ?? Day Planning / Input Screening source tables (have batch_id) ??
         try:
             from modelmasterapp.models import TrayId, DraftTrayId, TotalStockModel
-            for t in TrayId.objects.filter(tray_id__iexact=tray_id):
+            for t in TrayId.objects.filter(tray_query):
                 if t.batch_id_id:
                     batch_ids.add(t.batch_id_id)
-            for t in DraftTrayId.objects.filter(tray_id__iexact=tray_id):
+            for t in DraftTrayId.objects.filter(tray_query):
                 if getattr(t, 'batch_id_id', None):
                     batch_ids.add(t.batch_id_id)
         except Exception as e:
@@ -133,89 +169,109 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         # ?? Input Screening tray tables ??
         try:
             from InputScreening.models import IPTrayId, IP_Accepted_TrayID_Store
-            _safe_collect(IPTrayId.objects.filter(tray_id__iexact=tray_id))
-            _safe_collect(IP_Accepted_TrayID_Store.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(IPTrayId.objects.filter(tray_query))
+            _safe_collect(IP_Accepted_TrayID_Store.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s IS tray probe failed: %s', SCAN_TAG, e)
 
         # ?? Brass QC tray tables ??
         try:
             from Brass_QC.models import BrassTrayId, Brass_Qc_Accepted_TrayID_Store
-            _safe_collect(BrassTrayId.objects.filter(tray_id__iexact=tray_id))
-            _safe_collect(Brass_Qc_Accepted_TrayID_Store.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(BrassTrayId.objects.filter(tray_query))
+            _safe_collect(Brass_Qc_Accepted_TrayID_Store.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Brass QC tray probe failed: %s', SCAN_TAG, e)
 
         # ?? Brass Audit tray tables ??
         try:
             from BrassAudit.models import BrassAuditTrayId, Brass_Audit_Accepted_TrayID_Store
-            _safe_collect(BrassAuditTrayId.objects.filter(tray_id__iexact=tray_id))
-            _safe_collect(Brass_Audit_Accepted_TrayID_Store.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(BrassAuditTrayId.objects.filter(tray_query))
+            _safe_collect(Brass_Audit_Accepted_TrayID_Store.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Brass Audit tray probe failed: %s', SCAN_TAG, e)
 
         # ?? IQF tray tables ??
         try:
             from IQF.models import IQFTrayId, IQF_Accepted_TrayID_Store
-            _safe_collect(IQFTrayId.objects.filter(tray_id__iexact=tray_id))
-            _safe_collect(IQF_Accepted_TrayID_Store.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(IQFTrayId.objects.filter(tray_query))
+            _safe_collect(IQF_Accepted_TrayID_Store.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s IQF tray probe failed: %s', SCAN_TAG, e)
 
         # ?? Jig Loading / Unloading ??
         try:
             from Jig_Loading.models import JigLoadTrayId
-            _safe_collect(JigLoadTrayId.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(JigLoadTrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Jig Loading tray probe failed: %s', SCAN_TAG, e)
 
         try:
-            from Jig_Unloading.models import JigUnload_TrayId
-            _safe_collect(JigUnload_TrayId.objects.filter(tray_id__iexact=tray_id))
+            from Jig_Unloading.models import JigUnload_TrayId, JUSubmittedZ1
+            _safe_collect(JigUnload_TrayId.objects.filter(tray_query))
+            for candidate in tray_variants:
+                _safe_collect(
+                    JUSubmittedZ1.objects.filter(
+                        is_draft=False,
+                        tray_data__contains=[{'tray_id': candidate}],
+                    )
+                )
         except Exception as e:
             logger.debug('%s Jig Unloading tray probe failed: %s', SCAN_TAG, e)
 
         # ?? Nickel modules ??
         try:
             from Nickel_Inspection.models import NickelQcTrayId
-            _safe_collect(NickelQcTrayId.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(NickelQcTrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Nickel Insp tray probe failed: %s', SCAN_TAG, e)
 
         try:
             from nickel_inspection_zone_two.models import NickelQcTrayId as NQZ2
-            _safe_collect(NQZ2.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(NQZ2.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Nickel Insp Z2 tray probe failed: %s', SCAN_TAG, e)
 
         try:
             from Nickel_Audit.models import Nickel_AuditTrayId
-            _safe_collect(Nickel_AuditTrayId.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(Nickel_AuditTrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Nickel Audit tray probe failed: %s', SCAN_TAG, e)
 
         try:
             from nickel_audit_zone_two.models import NickelQcTrayId as NAZ2
-            _safe_collect(NAZ2.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(NAZ2.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Nickel Audit Z2 tray probe failed: %s', SCAN_TAG, e)
 
         # ?? Spider Spindle ??
         try:
             from SpiderSpindle_Z1.models import SpiderSpindleZ1TrayId
-            _safe_collect(SpiderSpindleZ1TrayId.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(SpiderSpindleZ1TrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s SS Z1 tray probe failed: %s', SCAN_TAG, e)
 
         try:
             from SpiderSpindle_Z2.models import SpiderSpindleZ2TrayId
-            _safe_collect(SpiderSpindleZ2TrayId.objects.filter(tray_id__iexact=tray_id))
+            _safe_collect(SpiderSpindleZ2TrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s SS Z2 tray probe failed: %s', SCAN_TAG, e)
 
+        # Current Nickel Wiping rows may inherit tray IDs from upstream unload
+        # snapshots. Map source lot IDs to the active JigUnloadAfterTable UNLOT.
+        try:
+            from Jig_Unloading.models import JigUnloadAfterTable
+            for source_lot_id in list(lot_ids):
+                _safe_collect(
+                    JigUnloadAfterTable.objects.filter(
+                        combine_lot_ids__contains=[source_lot_id]
+                    )
+                )
+        except Exception as e:
+            logger.debug('%s JigUnloadAfterTable combine-lot probe failed: %s', SCAN_TAG, e)
+
         return lot_ids, batch_ids
 
-    def _search_all_modules(self, tray_id):
+    def _search_all_modules(self, tray_id, current_path=''):
         """LOT-FIRST search.
 
         1. Resolve all candidate lot_ids by scanning EVERY tray table
@@ -245,6 +301,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             ('Jig Loading',     self._check_lot_in_jig_loading),
             ('Jig Unloading',   self._check_lot_in_jig_unloading),
             ('Nickel Wiping',   self._check_lot_in_nickel_wiping),
+            ('Nickel Wiping Z2', self._check_lot_in_nickel_wiping_z2),
             ('Nickel Audit Z1', self._check_lot_in_nickel_audit_z1),
             ('Nickel Audit Z2', self._check_lot_in_nickel_audit_z2),
             ('Spider Spindle Z1', self._check_lot_in_ss_z1),
@@ -256,21 +313,29 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             ('Day Planning',    self._check_lot_in_day_planning),
         ]
 
+        requested_path = self._normalize_path(current_path) if current_path else ''
+        fallback_result = None
         for label, check in checks:
             try:
                 for lid in lot_ids:
                     result = check(lid)
                     if result:
                         logger.info('%s module_match module=%s lot_id=%s', SCAN_TAG, label, lid)
-                        return result
+                        if fallback_result is None:
+                            fallback_result = result
+                        if self._path_matches(result.get('url'), requested_path):
+                            return result
             except Exception as e:
                 logger.error('%s Unexpected error in %s: %s', SCAN_TAG, label, e)
+
+        if fallback_result and not requested_path:
+            return fallback_result
 
         # Day Planning batch fallback (when lot_id not yet created)
         if batch_ids:
             try:
                 result = self._check_batch_in_day_planning(batch_ids)
-                if result:
+                if result and (not requested_path or self._path_matches(result.get('url'), requested_path)):
                     return result
             except Exception as e:
                 logger.error('%s DP batch fallback error: %s', SCAN_TAG, e)
@@ -340,23 +405,59 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
 
     def _check_lot_in_nickel_wiping(self, lot_id):
         try:
-            from Jig_Unloading.models import JigUnloadAfterTable
-            from Nickel_Inspection.models import NickelQC_Submission
-            jut = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
-            if not jut:
-                return None
-            if NickelQC_Submission.objects.filter(lot_id=lot_id).exists():
-                return None
-            stock = self._stock_for(lot_id)
-            return {
-                'module': 'Nickel Wiping',
-                'url': reverse('Nickel_Inspection'),
-                'lot_id': lot_id,
-                'batch_id': self._batch_str(stock, lot_id),
-            }
+            return self._check_lot_in_nickel_wiping_zone(
+                lot_id,
+                zone_field='jig_unload_zone_1',
+                module_name='Nickel Wiping',
+                url_name='Nickel_Inspection',
+            )
         except Exception as e:
             logger.error('%s _check_lot_in_nickel_wiping: %s', SCAN_TAG, e)
             return None
+
+    def _check_lot_in_nickel_wiping_z2(self, lot_id):
+        try:
+            return self._check_lot_in_nickel_wiping_zone(
+                lot_id,
+                zone_field='jig_unload_zone_2',
+                module_name='Nickel Wiping Z2',
+                url_name='NQ_Zone_PickTable',
+            )
+        except Exception as e:
+            logger.error('%s _check_lot_in_nickel_wiping_z2: %s', SCAN_TAG, e)
+            return None
+
+    def _check_lot_in_nickel_wiping_zone(self, lot_id, zone_field, module_name, url_name):
+        from Jig_Unloading.models import JigUnloadAfterTable
+        from modelmasterapp.models import Plating_Color
+
+        allowed_color_ids = Plating_Color.objects.filter(
+            **{zone_field: True}
+        ).values_list('id', flat=True)
+        active_filter = (
+            (
+                (Q(nq_qc_accptance__isnull=True) | Q(nq_qc_accptance=False))
+                & (Q(nq_qc_rejection__isnull=True) | Q(nq_qc_rejection=False))
+                & ~Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
+                & Q(total_case_qty__gt=0)
+            )
+            | Q(send_to_nickel_brass=True)
+            | Q(rejected_nickle_ip_stock=True, nq_onhold_picking=True)
+        )
+        if not JigUnloadAfterTable.objects.filter(
+            lot_id=lot_id,
+            total_case_qty__gt=0,
+            plating_color_id__in=allowed_color_ids,
+        ).filter(active_filter).exists():
+            return None
+
+        stock = self._stock_for(lot_id)
+        return {
+            'module': module_name,
+            'url': reverse(url_name),
+            'lot_id': lot_id,
+            'batch_id': self._batch_str(stock, lot_id),
+        }
 
     def _check_lot_in_nickel_audit_z1(self, lot_id):
         try:

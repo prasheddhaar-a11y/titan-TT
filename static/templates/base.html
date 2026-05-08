@@ -2965,8 +2965,8 @@
     const style = document.createElement('style');
     style.id = 'global-scan-highlight-style';
     style.textContent = [
-      'tr.gs-active-scan > td { background-color:#dff6e5 !important; box-shadow: inset 0 0 0 2px #28a745 !important; }',
-      'tr.gs-active-scan > td:nth-child(-n + 3) { background-color:#dff6e5 !important; z-index:60 !important; }'
+      'tr.gs-active-scan > td { background-color:#fff5bd !important; }',
+      'tr.gs-active-scan > td:nth-child(-n + 3) { background-color:#fff5bd !important; z-index:60 !important; }'
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -3001,8 +3001,8 @@
     window.clearTimeout(highlightTimer);
     scanTimeout = null;
     highlightTimer = null;
-    restorePrioritizedRow();
-    clearScanHighlights();
+    if (!settings.keepPriorityRow) restorePrioritizedRow();
+    if (!settings.keepHighlight) clearScanHighlights();
     sessionStorage.removeItem('globalScanModule');
     sessionStorage.removeItem('globalScanTrayId');
     sessionStorage.removeItem('globalScanLotId');
@@ -3024,7 +3024,7 @@
   function closeGlobalScanModal() {
     scanActive = false;
     scanStatus.style.display = 'none';
-    resetPreviousScanState();
+    resetPreviousScanState({ keepHighlight: true, keepPriorityRow: true });
     setInfo('scanner', 'Press F2 to scan', '#025254');
   }
 
@@ -3137,7 +3137,7 @@
         'X-CSRFToken': getCookie('csrftoken'),
         'X-Requested-With': 'XMLHttpRequest'
       },
-      body: JSON.stringify({ tray_id: trayId })
+      body: JSON.stringify({ tray_id: trayId, current_path: window.location.pathname })
     })
       .then(function(response) { return response.json(); })
       .then(function(data) {
@@ -3560,7 +3560,7 @@
       scanResult.innerHTML = '<div style="color:#28a745;font-weight:700;padding:6px 0;">Exists</div>';
     }
     scanInput.disabled = false;
-    focusScanInput(true);
+    focusScanInput(false);
     logScan('[SCAN_FOUND]', {
       tray_id: trayId,
       table_id: getCurrentTableId(),
