@@ -2392,6 +2392,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!this.value.trim()) this.style.borderColor = '#cfd8dc';
       });
       inp.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
         const val = this.value.trim();
         if (val.length >= 9) {
           this.value = val.substring(0, 9);
@@ -2670,12 +2671,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ✅ Top tray remark validation removed - LOT Qty handles quantity changes
 
+    const topTrayRemark = document.getElementById('z1TopTrayRemark').value.trim();
+    const currentLotQty = parseInt(document.getElementById('z1TrayQty').value) || m.qty;
+
+    // Validate total tray qty matches LOT Qty
+    const totalTrayQty = trayData.reduce(function(sum, t) { return sum + t.qty; }, 0);
+    if (totalTrayQty !== currentLotQty) {
+      showTrayError('Total tray quantity (' + totalTrayQty + ') does not match LOT Qty (' + currentLotQty + ')');
+      return;
+    }
+
     const payload = {
       jig_completed_id: currentJigCompletedId,
       lot_id: m.lot_id,
       model_no: m.model_no,
       tray_data: trayData,
-      total_qty: m.qty,
+      total_qty: currentLotQty,
       missing_qty: 0,
       top_tray_remark: topTrayRemark,
       tray_type: m.tray_type,
@@ -2684,6 +2695,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tray_color: m.tray_color,
       is_draft: false,
       merged_lots: m.merged_lots || [],
+      lot_qty_edited: lotQtyEdited,
     };
 
     const btn = this;

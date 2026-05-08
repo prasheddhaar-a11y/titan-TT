@@ -2,6 +2,14 @@
 {% load static %}
 {% block content %}
 <style>
+#order-listing {
+  --ss-sticky-col-1: 64px;
+  --ss-sticky-col-2: 132px;
+  --ss-sticky-col-3: 156px;
+  position: relative;
+  border-collapse: separate !important;
+  border-spacing: 0;
+}
 #order-listing thead th {
   position: sticky; top: 0; z-index: 10;
   background: #028084 !important; color: #e5fcff !important;
@@ -12,17 +20,35 @@
 #order-listing th, #order-listing td {
   border-right: 1.5px solid #bababa !important;
   border-bottom: 1.5px solid #121413 !important;
+  background-clip: padding-box;
 }
 #order-listing tr, #order-listing td, #order-listing th {
   height: 20px !important; padding: 4px 8px !important;
 }
 #order-listing th:nth-child(1), #order-listing td:nth-child(1) {
-  position: sticky; left: 0 !important; z-index: 12;
-  background: #f7fafd; min-width: 60px; max-width: 60px;
+  position: sticky; left: 0 !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-1); min-width: var(--ss-sticky-col-1); max-width: var(--ss-sticky-col-1);
 }
 #order-listing th:nth-child(2), #order-listing td:nth-child(2) {
-  position: sticky; left: 60px !important; z-index: 12;
-  background: #f7fafd; min-width: 120px; max-width: 130px;
+  position: sticky; left: var(--ss-sticky-col-1) !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-2); min-width: var(--ss-sticky-col-2); max-width: var(--ss-sticky-col-2);
+}
+#order-listing th:nth-child(3), #order-listing td:nth-child(3) {
+  position: sticky; left: calc(var(--ss-sticky-col-1) + var(--ss-sticky-col-2)) !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-3); min-width: var(--ss-sticky-col-3); max-width: var(--ss-sticky-col-3);
+  box-shadow: 1px 0 0 #bababa;
+}
+#order-listing thead th:nth-child(-n + 3) {
+  z-index: 18;
+  background: #028084 !important;
+  color: #e5fcff !important;
+}
+#order-listing th:nth-child(-n + 3),
+#order-listing td:nth-child(-n + 3) {
+  white-space: nowrap !important;
 }
 .calendar-bar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
@@ -39,6 +65,11 @@
   border-radius: 6px; font-weight: 600; cursor: pointer;
 }
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
+  #order-listing {
+    --ss-sticky-col-1: 90px;
+    --ss-sticky-col-2: 150px;
+    --ss-sticky-col-3: 180px;
+  }
   * { font-size: 20px !important; }
 }
 </style>

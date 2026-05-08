@@ -2526,7 +2526,20 @@ class InprocessInspectionCompleteView(TemplateView):
             jig_detail.jig_id = f"JIG-{jig_detail.id}"
             jig_detail.jig_qr_id = jig_detail.jig_id
         jig_detail.jig_loaded_date_time = jig_detail.IP_loaded_date_time or jig_detail.updated_at  # For Date & Time column
-        jig_detail.total_cases_loaded = jig_detail.updated_lot_qty  # For Jig Lot Qty column
+        # Fix: Use same fallback chain as pick table so lot qty is never empty
+        jig_detail.total_cases_loaded = (
+            getattr(jig_detail, 'loaded_cases_qty', None) or
+            getattr(jig_detail, 'updated_lot_qty', None) or
+            getattr(jig_detail, 'original_lot_qty', None) or
+            0
+        )
+        # Fix: Set ep_bath_type from draft_data (same source as pick table) so bath type matches
+        _draft = jig_detail.draft_data or {}
+        jig_detail.ep_bath_type = (
+            _draft.get('nickel_bath_type') or
+            getattr(jig_detail, 'nickel_bath_type', None) or
+            'Bright'
+        )
         
         # Apply existing InprocessInspectionCompleteView logic for single model data
         self.apply_existing_logic(jig_detail)

@@ -3,6 +3,14 @@
 {% block content %}
 <style>
 /* Table styles */
+#order-listing {
+  --ss-sticky-col-1: 64px;
+  --ss-sticky-col-2: 132px;
+  --ss-sticky-col-3: 156px;
+  position: relative;
+  border-collapse: separate !important;
+  border-spacing: 0;
+}
 #order-listing thead th {
   position: sticky;
   top: 0;
@@ -20,6 +28,7 @@
 #order-listing td {
   border-right: 1.5px solid #bababa !important;
   border-bottom: 1.5px solid #121413 !important;
+  background-clip: padding-box;
 }
 #order-listing tr,
 #order-listing td,
@@ -28,40 +37,75 @@
   padding: 4px 8px !important;
 }
 
-/* Freeze first 2 columns */
+/* Freeze first 3 columns */
 #order-listing th:nth-child(1),
 #order-listing td:nth-child(1) {
-  position: sticky; left: 0 !important; z-index: 12;
-  background: #f7fafd; min-width: 60px; max-width: 60px;
+  position: sticky; left: 0 !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-1); min-width: var(--ss-sticky-col-1); max-width: var(--ss-sticky-col-1);
 }
 #order-listing th:nth-child(2),
 #order-listing td:nth-child(2) {
-  position: sticky; left: 60px !important; z-index: 12;
-  background: #f7fafd; min-width: 120px; max-width: 130px;
+  position: sticky; left: var(--ss-sticky-col-1) !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-2); min-width: var(--ss-sticky-col-2); max-width: var(--ss-sticky-col-2);
+}
+#order-listing th:nth-child(3),
+#order-listing td:nth-child(3) {
+  position: sticky; left: calc(var(--ss-sticky-col-1) + var(--ss-sticky-col-2)) !important; z-index: 14;
+  background: #f7fafd;
+  width: var(--ss-sticky-col-3); min-width: var(--ss-sticky-col-3); max-width: var(--ss-sticky-col-3);
+  box-shadow: 1px 0 0 #bababa;
+}
+#order-listing thead th:nth-child(-n + 3) {
+  z-index: 18;
+  background: #028084 !important;
+  color: #e5fcff !important;
+}
+#order-listing th:nth-child(-n + 3),
+#order-listing td:nth-child(-n + 3) {
+  white-space: nowrap !important;
 }
 
 /* Add Spider Modal */
 .ss-modal-overlay {
   display: none; position: fixed; top: 0; left: 0;
-  width: 100vw; height: 100vh; background: rgba(0,0,0,0.35);
-  z-index: 10000; align-items: center; justify-content: center;
+  width: 100vw; height: 100vh; background: rgba(15,23,42,0.32);
+  z-index: 10000; align-items: center; justify-content: center; padding: 16px;
+  backdrop-filter: blur(2px);
 }
 .ss-modal-overlay.open { display: flex; }
 .ss-modal-box {
-  background: #fff; border-radius: 14px; padding: 28px 32px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18); min-width: 380px; max-width: 480px;
+  background: #fff; border-radius: 8px; padding: 0; overflow: hidden;
+  box-shadow: 0 18px 44px rgba(15,23,42,0.18); border: 1px solid #dce4e8;
+  width: min(560px, calc(100vw - 32px)); min-width: 0; max-width: 560px;
 }
-.ss-modal-box h5 { margin-bottom: 18px; font-weight: 700; color: #028084; }
-.ss-modal-box label { font-weight: 600; font-size: 13px; }
-.ss-modal-box input[readonly] { background: #f0f8ff; }
+.ss-modal-box h5 { margin: 0; padding: 14px 18px; font-weight: 700; color: #025254; background: #f7fbfb; border-bottom: 1px solid #dce4e8; display: flex; align-items: center; gap: 8px; }
+.ss-modal-body { padding: 16px 18px 14px; }
+.ss-modal-footer { padding: 14px 18px; border-top: 1px solid #e6ecef; background: #fbfcfd; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.ss-modal-note { background: #eef8f8; border: 1px solid #c7e6e7; color: #025254; border-radius: 6px; padding: 8px 10px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.ss-modal-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ss-summary-card { background: #f8fbfc; border: 1px solid #dce7eb; border-radius: 8px; padding: 10px 12px; }
+.ss-summary-label { display: block; color: #62727b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.ss-summary-value { display: block; color: #102a33; font-size: 14px; font-weight: 700; margin-top: 2px; word-break: break-word; }
+.ss-tray-panel { border: 1px solid #dce7eb; border-radius: 8px; overflow: hidden; background: #fff; }
+.ss-tray-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; background: #f7fbfb; border-bottom: 1px solid #e3ecef; color: #025254; font-size: 12px; font-weight: 700; }
+.ss-tray-count { color: #5f6f7a; font-weight: 600; }
+.ss-tray-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 8px; padding: 12px; }
+.ss-tray-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding: 7px 9px; border: 1px solid #d6e1e5; background: #fbfcfd; border-radius: 6px; color: #17333d; font-size: 12px; font-weight: 700; }
+.ss-tray-chip.is-linked { background: #eef8f1; border-color: #b9dfc8; }
+.ss-tray-index { color: #6b7b84; font-size: 11px; font-weight: 600; }
+.ss-tray-status { border-radius: 999px; padding: 2px 7px; background: #e8edf0; color: #53636d; font-size: 10px; font-weight: 700; }
+.ss-tray-chip.is-linked .ss-tray-status { background: #d8f0df; color: #17633a; }
+.ss-tray-empty { grid-column: 1 / -1; text-align: center; color: #6b7b84; padding: 12px; font-size: 12px; font-weight: 600; }
 .ss-btn-primary {
-  background: #028084; color: #fff; border: none; padding: 8px 22px;
-  border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s;
+  background: #028084; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px;
 }
 .ss-btn-primary:hover { background: #016668; }
 .ss-btn-danger {
-  background: #dc3545; color: #fff; border: none; padding: 6px 16px;
-  border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;
+  background: #dc3545; color: #fff; border: none; padding: 8px 16px;
+  border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;
 }
 .ss-btn-danger:hover { background: #b02a37; }
 .ss-btn-success {
@@ -70,7 +114,7 @@
 }
 .ss-btn-success:hover { background: #146c43; }
 .ss-btn-secondary {
-  background: #6c757d; color: #fff; border: none; padding: 8px 22px;
+  background: #6c757d; color: #fff; border: none; padding: 8px 18px;
   border-radius: 6px; font-weight: 600; cursor: pointer;
 }
 
@@ -89,13 +133,19 @@ tr.hold-row td {
   filter: blur(1px) opacity(0.7);
 }
 tr.hold-row td:first-child,
-tr.hold-row td:nth-child(2) {
+tr.hold-row td:nth-child(2),
+tr.hold-row td:nth-child(3) {
   filter: none !important;
   opacity: 1 !important;
 }
 
 /* Tablet */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
+  #order-listing {
+    --ss-sticky-col-1: 90px;
+    --ss-sticky-col-2: 150px;
+    --ss-sticky-col-3: 180px;
+  }
   * { font-size: 20px !important; }
 }
 
@@ -132,6 +182,7 @@ tr.hold-row td:nth-child(2) {
                   <th>S.No</th>
                   <th>Date & Time</th>
                   <th>Plating Stk No</th>
+                  <th>Action</th>
                   <th>Polishing Stk No</th>
                   <th>Plating Color</th>
                   <th>Category</th>
@@ -140,7 +191,6 @@ tr.hold-row td:nth-child(2) {
                   <th>Tray Type</th>
                   <th>Source</th>
                   <th>Input Qty</th>
-                  <th>Action</th>
                   <th>Remarks</th>
                 </tr>
               </thead>
@@ -163,6 +213,12 @@ tr.hold-row td:nth-child(2) {
                     </div>
                     {% endif %}
                   </td>
+                  <td>
+                    <button type="button" class="ss-btn-success btn-add-spider"
+                            data-lot-id="{{ item.lot_id }}">
+                      Add Spider
+                    </button>
+                  </td>
                   <td>{{ item.polishing_stk_no }}</td>
                   <td>{{ item.plating_color }}</td>
                   <td>{{ item.category }}</td>
@@ -171,12 +227,6 @@ tr.hold-row td:nth-child(2) {
                   <td>{{ item.tray_type }}</td>
                   <td>{{ item.location }}</td>
                   <td>{{ item.total_case_qty }}</td>
-                  <td>
-                    <button type="button" class="ss-btn-success btn-add-spider"
-                            data-lot-id="{{ item.lot_id }}">
-                      Add Spider
-                    </button>
-                  </td>
                   <td style="position:relative;">
                     <a href="#" title="Add Remark" class="remark-tooltip-trigger">
                       <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
@@ -244,36 +294,38 @@ tr.hold-row td:nth-child(2) {
 
 <!-- Add Spider Modal -->
 <div class="ss-modal-overlay" id="addSpiderModal">
-  <div class="ss-modal-box" style="min-width:450px;max-width:600px;">
-    <h5><i class="fa fa-plus-circle"></i> Add Spider — Z1</h5>
-    <div class="mb-3">
-      <label>Lot ID</label>
-      <input type="text" id="modalLotId" class="form-control form-control-sm" readonly />
-    </div>
-    <div class="mb-3">
-      <label>Total Qty</label>
-      <input type="text" id="modalTotalQty" class="form-control form-control-sm" readonly />
-    </div>
-    <div class="mb-3">
-      <label>Tray IDs</label>
-      <div style="max-height:200px;overflow-y:auto;">
-        <table class="table table-sm table-bordered mb-0" id="modalTrayTable">
-          <thead style="background:#028084;color:#fff;">
-            <tr><th>S.No</th><th>Tray ID</th><th>Status</th></tr>
-          </thead>
-          <tbody id="modalTrayTableBody">
-            <tr><td colspan="3" class="text-center">Loading...</td></tr>
-          </tbody>
-        </table>
+  <div class="ss-modal-box">
+    <h5><i class="fa fa-plus-circle"></i> Add Spider - Z1</h5>
+    <div class="ss-modal-body">
+      <div class="ss-modal-note">Ready for backend tray release.</div>
+      <input type="hidden" id="modalLotId" />
+      <div class="ss-modal-summary">
+        <div class="ss-summary-card">
+          <span class="ss-summary-label">Plating Stk No</span>
+          <span class="ss-summary-value" id="modalPlatingStkNoText">-</span>
+        </div>
+        <div class="ss-summary-card">
+          <span class="ss-summary-label">Lot Qty</span>
+          <span class="ss-summary-value" id="modalTotalQtyText">-</span>
+        </div>
+      </div>
+      <div class="ss-tray-panel">
+        <div class="ss-tray-panel-header">
+          <span>Tray IDs</span>
+          <span class="ss-tray-count" id="modalTrayCount">0 trays</span>
+        </div>
+        <div class="ss-tray-list" id="modalTrayList">
+          <div class="ss-tray-empty">Loading...</div>
+        </div>
       </div>
     </div>
-    <div class="d-flex justify-content-end gap-2 mt-3">
+    <div class="ss-modal-footer">
       <button type="button" class="ss-btn-secondary" id="cancelSpiderBtn">Cancel</button>
       <button type="button" class="ss-btn-danger" id="delinkAllBtn" style="display:none;">
         <i class="fa fa-unlink"></i> Delink All
       </button>
       <button type="button" class="ss-btn-primary" id="confirmSpiderBtn">
-        <i class="fa fa-check"></i> Confirm Add Spider
+        <i class="fa fa-check"></i> Proceed
       </button>
     </div>
   </div>
@@ -289,8 +341,10 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', function() {
       const lotId = this.dataset.lotId;
       document.getElementById('modalLotId').value = lotId;
-      document.getElementById('modalTotalQty').value = '';
-      document.getElementById('modalTrayTableBody').innerHTML = '<tr><td colspan="3" class="text-center">Loading...</td></tr>';
+      document.getElementById('modalPlatingStkNoText').textContent = '-';
+      document.getElementById('modalTotalQtyText').textContent = '-';
+      document.getElementById('modalTrayCount').textContent = '0 trays';
+      document.getElementById('modalTrayList').innerHTML = '<div class="ss-tray-empty">Loading...</div>';
       document.getElementById('confirmSpiderBtn').style.display = '';
       document.getElementById('delinkAllBtn').style.display = 'none';
       document.getElementById('confirmSpiderBtn').disabled = false;
@@ -300,20 +354,31 @@ document.addEventListener('DOMContentLoaded', function() {
       fetch(`{% url 'ss_z1_get_all_trays' %}?lot_id=${encodeURIComponent(lotId)}`)
         .then(r => r.json())
         .then(data => {
-          document.getElementById('modalTotalQty').value = data.total_case_qty || '';
-          const tbody = document.getElementById('modalTrayTableBody');
+          document.getElementById('modalPlatingStkNoText').textContent = data.plating_stk_no || '-';
+          document.getElementById('modalTotalQtyText').textContent = data.total_case_qty || '-';
+          const trayList = document.getElementById('modalTrayList');
           if (!data.trays || data.trays.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No trays found.</td></tr>';
+            trayList.innerHTML = '<div class="ss-tray-empty">No trays found.</div>';
+            document.getElementById('modalTrayCount').textContent = '0 trays';
             document.getElementById('confirmSpiderBtn').style.display = 'none';
             return;
           }
           const hasLinked = data.trays.some(t => t.linked);
-          tbody.innerHTML = '';
+          trayList.innerHTML = '';
+          document.getElementById('modalTrayCount').textContent = data.trays.length + (data.trays.length === 1 ? ' tray' : ' trays');
           data.trays.forEach((t, i) => {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td>' + (i+1) + '</td><td>' + t.tray_id + '</td><td>' +
-              (t.linked ? '<span class="badge bg-success">Linked</span>' : '<span class="badge bg-secondary">Available</span>') + '</td>';
-            tbody.appendChild(row);
+            const chip = document.createElement('div');
+            chip.className = 'ss-tray-chip' + (t.linked ? ' is-linked' : '');
+            const index = document.createElement('span');
+            index.className = 'ss-tray-index';
+            index.textContent = String(i + 1).padStart(2, '0');
+            const trayId = document.createElement('span');
+            trayId.textContent = t.tray_id || '-';
+            const status = document.createElement('span');
+            status.className = 'ss-tray-status';
+            status.textContent = t.linked ? 'Linked' : 'Ready';
+            chip.append(index, trayId, status);
+            trayList.appendChild(chip);
           });
           if (hasLinked) {
             document.getElementById('delinkAllBtn').style.display = '';
@@ -321,7 +386,8 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         })
         .catch(() => {
-          document.getElementById('modalTrayTableBody').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading trays.</td></tr>';
+          document.getElementById('modalTrayList').innerHTML = '<div class="ss-tray-empty text-danger">Error loading trays.</div>';
+          document.getElementById('modalTrayCount').textContent = '0 trays';
         });
     });
   });
@@ -340,12 +406,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!lotId) { Swal.fire('Error', 'Missing lot ID.', 'error'); return; }
     const btn = this;
     Swal.fire({
-      title: 'Confirm Add Spider',
-      text: 'Confirm adding spider for this lot?',
+      title: 'Proceed Add Spider',
+      text: 'This will delink this lot\'s tray IDs and release them for reuse.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#028084',
-      confirmButtonText: 'Yes, Add Spider'
+      confirmButtonText: 'Proceed'
     }).then((result) => {
       if (!result.isConfirmed) return;
       btn.disabled = true;
@@ -374,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btn = this;
     Swal.fire({
       title: 'Delink All Trays?',
-      text: 'Are you sure you want to delink all trays?',
+      text: 'This will release all linked trays for reuse.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',

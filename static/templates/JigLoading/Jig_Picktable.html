@@ -3224,6 +3224,7 @@ document.addEventListener('DOMContentLoaded', function () {
       card.setAttribute('data-lot-id', lotId);
       card.setAttribute('data-batch-id', batchId);
       card.setAttribute('data-role', role);  // used by CSS ::before pseudo-element
+      if (modelNo) card.setAttribute('data-plating-stk-no', modelNo);  // used by Add Model handler fallback
 
       let cardHTML = '';
       cardHTML += '<img class="model-card-img" src="' + imgUrl + '" alt="' + displayName + '" />';
@@ -5403,6 +5404,22 @@ document.addEventListener('click', function (e) {
     if (typeof closeJigModal === 'function') closeJigModal();
     const modal = document.getElementById('jigAddModal');
     if (modal) modal.classList.remove('open');
+
+    // Delete any auto-saved 'active' draft so it is NOT restored on next open.
+    // Backend only deletes draft_status='active' — explicit user-saved 'draft' records are preserved.
+    var _cancelLot = window.CURRENT_LOT_ID || window.currentJigLotId || '';
+    var _cancelBatch = window.CURRENT_BATCH_ID || window.currentJigBatchId || '';
+    if (_cancelLot && _cancelBatch) {
+      var _csrf = (function() { var v = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; })();
+      fetch('/jig_loading/api/load/update/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf },
+        body: JSON.stringify({ action: 'clear', lot_id: _cancelLot, batch_id: _cancelBatch, broken_hooks: 0, scanned_trays: [] })
+      }).catch(function(err) { console.warn('[CANCEL_BTN] active draft clear failed:', err); });
+      console.log('[CANCEL_BTN] Clearing active draft for lot:', _cancelLot);
+    }
+
     console.log('[CANCEL_BTN] Closed modal. Saved draft preserved.');
   } catch (err) {
     console.warn('[CANCEL_BTN] reset failed', err);
@@ -6033,6 +6050,12 @@ document.addEventListener('DOMContentLoaded', function () {
             + (nonEligibleParam ? '&non_eligible_models=' + nonEligibleParam : '')
             + (selectedParam ? '&selected_models=' + selectedParam : '');
 
+          // Save Jig ID before navigating — will be restored when returning from filter screen
+          try {
+            var _jigIdVal = (document.getElementById('jigIdInput') || {}).value || '';
+            if (_jigIdVal) sessionStorage.setItem('jig_id_add_model', _jigIdVal);
+          } catch(e) {}
+
           console.log('[ADD_MODEL] Navigating to filter screen with eligibility params');
           window.location.href = url;
         })
@@ -6093,8 +6116,12 @@ document.addEventListener('DOMContentLoaded', function () {
       const blockedSet    = new Set(blockedRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
       const nonEligSet    = new Set(nonEligRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
       const selectedSet   = new Set(selectedRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
+      // Build excludedLotSet from exclude_lot_id param (lot IDs already on the jig)
+      // Used instead of selectedSet (plating_stk_no) to allow same-model different-lot rows.
+      const excludedLotRaw = params.get('exclude_lot_id') || '';
+      const excludedLotSet = new Set(excludedLotRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
 
-      console.log('[FILTER] eligible=', eligibleSet.size, 'blocked_lookalike=', blockedSet.size, 'non_eligible=', nonEligSet.size, 'already_selected=', selectedSet.size);
+      console.log('[FILTER] eligible=', eligibleSet.size, 'blocked_lookalike=', blockedSet.size, 'non_eligible=', nonEligSet.size, 'excluded_lots=', excludedLotSet.size);
 
       // Add compact info banner at top of table
       try {
@@ -6125,8 +6152,9 @@ document.addEventListener('DOMContentLoaded', function () {
           // Lookalike — hide completely
           tr.style.display = 'none';
           hiddenRows.push(tr);
-        } else if (selectedSet.has(psn)) {
-          // Already selected (primary or secondary) — grey out, disable, move to bottom
+        } else if (excludedLotSet.size > 0 && excludedLotSet.has(tr.getAttribute('data-stock-lot-id') || '')) {
+          // Already on this jig (same lot ID) — grey out, disable, move to bottom
+          // Using lot ID (not plating_stk_no) so same-model different-lot rows remain eligible.
           tr.style.opacity = '0.35';
           tr.style.pointerEvents = 'none';
           tr.style.filter = 'blur(0.5px)';
@@ -6289,6 +6317,21 @@ document.addEventListener('DOMContentLoaded', function () {
       if (primaryBtn) {
         console.log('[MERGE_FLOW] Found primary button, triggering init');
         primaryBtn.click();
+        // Restore Jig ID after checkAndRestoreDraft (500ms) + small buffer
+        setTimeout(function() {
+          try {
+            var _savedJigId = sessionStorage.getItem('jig_id_add_model');
+            if (_savedJigId) {
+              sessionStorage.removeItem('jig_id_add_model');
+              var jigInput = document.getElementById('jigIdInput');
+              if (jigInput && !jigInput.value) {
+                jigInput.value = _savedJigId;
+                jigInput.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[MERGE_FLOW] Restored Jig ID from sessionStorage:', _savedJigId);
+              }
+            }
+          } catch(e) {}
+        }, 600);
       } else {
         console.warn('[MERGE_FLOW] Primary button not found for lot:', primaryLot, '— using direct callInitAPI fallback');
         // Fallback: open modal and call init API directly (jig capacity unknown)
@@ -6382,6 +6425,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.checkAndRestoreDraft(data.lot_id, data.batch_id);
               }
             }, 500);
+            // Restore Jig ID from sessionStorage (saved before Add Model navigation)
+            setTimeout(function() {
+              try {
+                var _savedJigId = sessionStorage.getItem('jig_id_add_model');
+                if (_savedJigId) {
+                  sessionStorage.removeItem('jig_id_add_model');
+                  var jigInput = document.getElementById('jigIdInput');
+                  if (jigInput && !jigInput.value) {
+                    jigInput.value = _savedJigId;
+                    jigInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    console.log('[MERGE_FLOW_FALLBACK] Restored Jig ID from sessionStorage:', _savedJigId);
+                  }
+                }
+              } catch(e) {}
+            }, 600);
           });
         }
       }
@@ -6908,7 +6966,7 @@ if (window.jQuery) {
 </script>
 
 <!-- ================================================================
-     NEW: Full Snapshot Draft/Submit APIs (zero recalculation)
+     Full Snapshot Draft/Submit APIs (zero recalculation)
      ================================================================ -->
 <script nonce="{{ csp_nonce }}">
 (function() {

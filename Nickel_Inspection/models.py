@@ -279,6 +279,119 @@ class NickelQC_PartialRejectLot(models.Model):
         return f"NQ-PartialReject: {self.new_lot_id} (from {self.parent_lot_id}, qty={self.rejected_qty})"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Nickel Wiping Submission Records (ERR3 Fix)
+# One table per submission type, each with its own independent lot ID generation.
+# Prefix conventions:
+#   NWFA — Nickel Wiping Full Accept
+#   NWFR — Nickel Wiping Full Reject
+#   NWPA — Nickel Wiping Partial Accept
+#   NWPR — Nickel Wiping Partial Reject
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NickelWiping_FullAcceptRecord(models.Model):
+    """Stores tray scan data for FULL ACCEPT submissions in Nickel Wiping (Z1 and Z2)."""
+    record_lot_id = models.CharField(max_length=50, unique=True, db_index=True,
+                                     help_text="Auto-generated ID: NWFA{timestamp}")
+    source_lot_id = models.CharField(max_length=100, db_index=True,
+                                     help_text="Original lot ID from JigUnloadAfterTable")
+    total_qty = models.IntegerField(default=0)
+    accept_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty, is_top}]")
+    delink_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty}]")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nickel Wiping Full Accept Record"
+        verbose_name_plural = "Nickel Wiping Full Accept Records"
+        indexes = [models.Index(fields=['source_lot_id'])]
+
+    def __str__(self):
+        return f"NWFA: {self.record_lot_id} (lot={self.source_lot_id})"
+
+
+class NickelWiping_FullRejectRecord(models.Model):
+    """Stores tray scan data for FULL REJECT submissions in Nickel Wiping (Z1 and Z2)."""
+    record_lot_id = models.CharField(max_length=50, unique=True, db_index=True,
+                                     help_text="Auto-generated ID: NWFR{timestamp}")
+    source_lot_id = models.CharField(max_length=100, db_index=True,
+                                     help_text="Original lot ID from JigUnloadAfterTable")
+    total_qty = models.IntegerField(default=0)
+    rejected_qty = models.IntegerField(default=0)
+    reject_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty}]")
+    delink_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty}]")
+    reject_reasons = models.JSONField(default=dict, blank=True,
+                                      help_text='{"reason_id": {"reason": "..."}}')
+    remarks = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nickel Wiping Full Reject Record"
+        verbose_name_plural = "Nickel Wiping Full Reject Records"
+        indexes = [models.Index(fields=['source_lot_id'])]
+
+    def __str__(self):
+        return f"NWFR: {self.record_lot_id} (lot={self.source_lot_id})"
+
+
+class NickelWiping_PartialAcceptRecord(models.Model):
+    """Stores accept tray data for PARTIAL submissions in Nickel Wiping (Z1 and Z2)."""
+    record_lot_id = models.CharField(max_length=50, unique=True, db_index=True,
+                                     help_text="Auto-generated ID: NWPA{timestamp}")
+    source_lot_id = models.CharField(max_length=100, db_index=True,
+                                     help_text="Parent lot ID from JigUnloadAfterTable")
+    child_lot_id = models.CharField(max_length=100, blank=True, db_index=True,
+                                    help_text="Child JigUnloadAfterTable lot_id for accepted portion")
+    accepted_qty = models.IntegerField(default=0)
+    rejected_qty = models.IntegerField(default=0)
+    accept_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty, is_top}]")
+    delink_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty}]")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nickel Wiping Partial Accept Record"
+        verbose_name_plural = "Nickel Wiping Partial Accept Records"
+        indexes = [
+            models.Index(fields=['source_lot_id']),
+            models.Index(fields=['child_lot_id']),
+        ]
+
+    def __str__(self):
+        return f"NWPA: {self.record_lot_id} (lot={self.source_lot_id})"
+
+
+class NickelWiping_PartialRejectRecord(models.Model):
+    """Stores reject tray data for PARTIAL submissions in Nickel Wiping (Z1 and Z2)."""
+    record_lot_id = models.CharField(max_length=50, unique=True, db_index=True,
+                                     help_text="Auto-generated ID: NWPR{timestamp}")
+    source_lot_id = models.CharField(max_length=100, db_index=True,
+                                     help_text="Parent lot ID from JigUnloadAfterTable")
+    rejected_qty = models.IntegerField(default=0)
+    reject_trays = models.JSONField(default=list, blank=True,
+                                    help_text="[{tray_id, qty}]")
+    reject_reasons = models.JSONField(default=dict, blank=True,
+                                      help_text='{"reason_id": {"reason": "..."}}')
+    remarks = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nickel Wiping Partial Reject Record"
+        verbose_name_plural = "Nickel Wiping Partial Reject Records"
+        indexes = [models.Index(fields=['source_lot_id'])]
+
+    def __str__(self):
+        return f"NWPR: {self.record_lot_id} (lot={self.source_lot_id})"
+
+
 
 
 

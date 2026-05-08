@@ -3119,6 +3119,23 @@ class JigLoadUpdateAPI(APIView):
 		# Use 'active' for auto-drafts during scanning. Preserve 'draft' if user explicitly drafted.
 		if action in ('scan_tray', 'unscan_tray', 'save_draft', 'update_broken_hooks'):
 			try:
+				# Build scanned_trays in {tray_id, panel, qty} format for _restoreScannedTraysFromDraft
+				# This allows checkAndRestoreDraft to restore scan state after Add Model navigation.
+				_delink_prev_list = payload.get('delink_scanned_trays') or []
+				_delink_prev_ids = set(s.get('tray_id', '') for s in _delink_prev_list if s.get('tray_id'))
+				_all_scans_list = payload.get('scanned_trays') or []
+				_scanned_trays_for_draft = []
+				for _s in _delink_prev_list:
+					_tid = _s.get('tray_id', '')
+					if _tid:
+						_scanned_trays_for_draft.append({'tray_id': _tid, 'panel': 'delink', 'qty': int(_s.get('qty', 0) or 0)})
+				for _s in _all_scans_list:
+					_tid = _s.get('tray_id', '')
+					if _tid and _tid not in _delink_prev_ids:
+						_scanned_trays_for_draft.append({'tray_id': _tid, 'panel': 'excess', 'qty': int(_s.get('qty', 0) or 0)})
+				if action == 'scan_tray' and tray_id and scan_result and scan_result.get('validation_status') == 'success':
+					_scanned_trays_for_draft.append({'tray_id': tray_id, 'panel': scan_panel, 'qty': int(scan_result.get('tray_qty', 0) or 0)})
+
 				defaults = {
 					'broken_hooks': broken_hooks,
 					'loaded_cases_qty': loaded_cases_qty,
@@ -3126,6 +3143,7 @@ class JigLoadUpdateAPI(APIView):
 					'original_lot_qty': lot_data['lot_qty'],
 					'delink_tray_info': computed['delink_tray_info'],
 					'delink_tray_qty': computed['delink_tray_qty'],
+					'scanned_trays': _scanned_trays_for_draft,
 				}
 				# Only set draft_status to 'active' if record doesn't already have explicit 'draft'
 				existing = JigCompleted.objects.filter(

@@ -2941,7 +2941,7 @@ class SubmitAllUnloadZ1View(APIView):
         TotalStockModel.objects.filter(lot_id__in=all_lot_ids).update(
             last_process_module='Jig Unloading',
             next_process_module='Nickel Inspection',
-            updated_at=timezone.now()
+            last_process_date_time=timezone.now()
         )
         print(f"✅ Updated {len(all_lot_ids)} TotalStockModel records: last_process_module='Jig Unloading', next_process_module='Nickel Inspection'")
 
@@ -3107,7 +3107,7 @@ def validate_tray_occupancy_z1(request):
     import re
     from modelmasterapp.tray_code_mapping import TRAY_CODE_MASTER_DATA
     
-    tray_id = request.GET.get('tray_id', '').strip()
+    tray_id = request.GET.get('tray_id', '').strip().upper()
     lot_id = request.GET.get('lot_id', '').strip()
 
     if not tray_id:

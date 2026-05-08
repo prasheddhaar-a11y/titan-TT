@@ -6,6 +6,7 @@ from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, OuterRef, Subquery
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
@@ -55,6 +56,41 @@ def _get_upstream_tray_ids(lot_id, jig_obj=None):
                 return tray_ids
 
     return []
+
+
+def _release_spider_trays_for_reuse(lot_id, tray_ids):
+    tray_ids = [tid for tid in dict.fromkeys(tray_ids or []) if tid]
+    if not tray_ids:
+        return 0
+
+    from InputScreening.models import IPTrayId
+    from Nickel_Inspection.models import NickelQcTrayId
+    from Nickel_Audit.models import Nickel_AuditTrayId
+    from Jig_Unloading.models import JigUnload_TrayId
+    from nickel_audit_zone_two.models import NickelQcTrayId as NickelQcTrayIdZ2
+
+    IPTrayId.objects.filter(lot_id=lot_id, tray_id__in=tray_ids).update(delink_tray=True)
+    NickelQcTrayIdZ2.objects.filter(lot_id=lot_id, tray_id__in=tray_ids).update(delink_tray=True)
+    NickelQcTrayId.objects.filter(lot_id=lot_id, tray_id__in=tray_ids).update(delink_tray=True)
+    Nickel_AuditTrayId.objects.filter(lot_id=lot_id, tray_id__in=tray_ids).update(delink_tray=True)
+    JigUnload_TrayId.objects.filter(lot_id=lot_id, tray_id__in=tray_ids).update(delink_tray=True)
+    TrayId.objects.filter(tray_id__in=tray_ids).update(
+        lot_id=None,
+        batch_id=None,
+        tray_quantity=None,
+        top_tray=False,
+        ip_top_tray=False,
+        ip_top_tray_qty=0,
+        brass_top_tray=False,
+        brass_top_tray_qty=0,
+        iqf_top_tray=False,
+        iqf_top_tray_qty=0,
+        delink_tray=True,
+        delink_tray_qty=None,
+        new_tray=True,
+        scanned=False,
+    )
+    return len(tray_ids)
 
 
 def _get_input_source(jig_unload_obj):
@@ -264,27 +300,30 @@ class SSZ2AddSpiderAPIView(APIView):
         if not upstream_tray_ids:
             return Response({'error': 'No trays found for this lot.'}, status=status.HTTP_404_NOT_FOUND)
 
-        linked_tray_ids = []
-        for tid in upstream_tray_ids:
-            if not SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id, tray_id=tid).exists():
-                SpiderSpindleZ2TrayId.objects.create(
-                    lot_id=lot_id,
-                    tray_id=tid,
-                    linked_by=request.user if request.user.is_authenticated else None,
-                )
-            linked_tray_ids.append(tid)
+        with transaction.atomic():
+            linked_tray_ids = []
+            for tid in upstream_tray_ids:
+                if not SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id, tray_id=tid).exists():
+                    SpiderSpindleZ2TrayId.objects.create(
+                        lot_id=lot_id,
+                        tray_id=tid,
+                        linked_by=request.user if request.user.is_authenticated else None,
+                    )
+                linked_tray_ids.append(tid)
 
-        jig_obj.ss_z2_completed = True
-        jig_obj.ss_z2_tray_id = ','.join(linked_tray_ids)
-        jig_obj.ss_z2_completed_at = timezone.now()
-        jig_obj.ss_z2_completed_by = request.user if request.user.is_authenticated else None
-        jig_obj.save(update_fields=[
-            'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
-        ])
+            released_count = _release_spider_trays_for_reuse(lot_id, linked_tray_ids)
+
+            jig_obj.ss_z2_completed = True
+            jig_obj.ss_z2_tray_id = ','.join(linked_tray_ids)
+            jig_obj.ss_z2_completed_at = timezone.now()
+            jig_obj.ss_z2_completed_by = request.user if request.user.is_authenticated else None
+            jig_obj.save(update_fields=[
+                'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
+            ])
 
         return Response({
             'success': True,
-            'message': f'Spider added for lot {lot_id} with {len(linked_tray_ids)} trays.',
+            'message': f'Spider added for lot {lot_id}. {released_count} trays released for reuse.',
             'trays': [{'tray_id': tid} for tid in linked_tray_ids],
         })
 
@@ -304,21 +343,22 @@ class SSZ2DelinkAPIView(APIView):
         linked_tray_ids = list(SpiderSpindleZ2TrayId.objects.filter(
             lot_id=lot_id
         ).values_list('tray_id', flat=True))
+        if not linked_tray_ids and jig_obj.ss_z2_tray_id:
+            linked_tray_ids = [tid.strip() for tid in jig_obj.ss_z2_tray_id.split(',') if tid.strip()]
 
-        SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id).delete()
+        with transaction.atomic():
+            SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id).delete()
+            released_count = _release_spider_trays_for_reuse(lot_id, linked_tray_ids)
 
-        if linked_tray_ids:
-            TrayId.objects.filter(tray_id__in=linked_tray_ids).update(delink_tray=True)
+            jig_obj.ss_z2_completed = False
+            jig_obj.ss_z2_tray_id = None
+            jig_obj.ss_z2_completed_at = None
+            jig_obj.ss_z2_completed_by = None
+            jig_obj.save(update_fields=[
+                'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
+            ])
 
-        jig_obj.ss_z2_completed = False
-        jig_obj.ss_z2_tray_id = None
-        jig_obj.ss_z2_completed_at = None
-        jig_obj.ss_z2_completed_by = None
-        jig_obj.save(update_fields=[
-            'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
-        ])
-
-        return Response({'success': True, 'message': f'All trays delinked for lot {lot_id}.'})
+        return Response({'success': True, 'message': f'{released_count} trays delinked for lot {lot_id}.'})
 
 
 class SSZ2SaveRemarksAPIView(APIView):
@@ -389,5 +429,6 @@ class SSZ2GetAllTraysAPIView(APIView):
         return Response({
             'trays': trays,
             'lot_id': lot_id,
+            'plating_stk_no': jig_obj.plating_stk_no or '',
             'total_case_qty': jig_obj.total_case_qty,
         })

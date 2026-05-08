@@ -170,6 +170,78 @@ def resolve_lot_trays(lot_id):
                 f"Using IQFTrayId with {len(tray_data)} trays"
             )
 
+    # ─────────────────────────────────────────────────────────────────────
+    # Step 0.9 — BA FULL_REJECT return: use BA/BQ submission snapshots
+    # ─────────────────────────────────────────────────────────────────────
+    # When send_brass_audit_to_qc=True (BA FULL_REJECT → back to BQ), the lot
+    # re-enters BQ with the SAME lot_id. BrassTrayId is empty (FULL_ACCEPT at
+    # BQ never creates BrassTrayId for the original lot). We use snapshots:
+    #   Step 0.9a: BA FULL_REJECT submission full_reject_data.trays — most authoritative
+    #   Step 0.9b: BQ FULL_ACCEPT submission full_accept_data.trays — secondary
+    # Only runs if all earlier steps found nothing.
+    if not tray_data and not is_iqf:
+        _is_audit_return = bool(stock and getattr(stock, 'send_brass_audit_to_qc', False))
+        if _is_audit_return:
+            # Step 0.9a — BA FULL_REJECT submission (most authoritative: these are
+            # the exact trays BA saw when it rejected the lot back to BQ)
+            try:
+                from BrassAudit.models import Brass_Audit_Submission as _BaSubmission
+                _ba_sub = _BaSubmission.objects.filter(
+                    lot_id=lot_id, submission_type='FULL_REJECT'
+                ).order_by('-created_at').first()
+                if _ba_sub:
+                    _ba_snap = _ba_sub.full_reject_data or {}
+                    _ba_trays = _ba_snap.get('trays', []) if isinstance(_ba_snap, dict) else []
+                    if _ba_trays:
+                        source = "BA_FullReject_Snapshot"
+                        tray_data = [
+                            {
+                                "tray_id": t.get("tray_id"),
+                                "qty": int(t.get("qty") or 0),
+                                "is_rejected": False,
+                                "is_top": bool(t.get("is_top", False)),
+                                "is_delinked": False,
+                            }
+                            for t in _ba_trays
+                            if t.get("tray_id") and int(t.get("qty") or 0) > 0
+                        ]
+                        logger.info(
+                            f"[resolve_lot_trays] BA-return lot {lot_id}: "
+                            f"using BA FULL_REJECT snapshot, trays={len(tray_data)}"
+                        )
+            except Exception as _e:
+                logger.warning(f"[resolve_lot_trays] BA-return Step 0.9a failed for {lot_id}: {_e}")
+
+            # Step 0.9b — BQ FULL_ACCEPT submission snapshot (secondary fallback)
+            if not tray_data:
+                try:
+                    from ..models import Brass_QC_Submission
+                    _prev_sub = Brass_QC_Submission.objects.filter(
+                        lot_id=lot_id, is_completed=True
+                    ).order_by('-created_at').first()
+                    if _prev_sub:
+                        _snap = _prev_sub.full_accept_data or {}
+                        _snap_trays = _snap.get('trays', []) if isinstance(_snap, dict) else []
+                        if _snap_trays:
+                            source = "BQ_Submission_Snapshot"
+                            tray_data = [
+                                {
+                                    "tray_id": t.get("tray_id"),
+                                    "qty": int(t.get("qty") or 0),
+                                    "is_rejected": False,
+                                    "is_top": bool(t.get("is_top", False)),
+                                    "is_delinked": False,
+                                }
+                                for t in _snap_trays
+                                if t.get("tray_id") and int(t.get("qty") or 0) > 0
+                            ]
+                            logger.info(
+                                f"[resolve_lot_trays] BA-return lot {lot_id}: "
+                                f"using BQ submission snapshot, trays={len(tray_data)}"
+                            )
+                except Exception as _e:
+                    logger.warning(f"[resolve_lot_trays] BA-return Step 0.9b failed for {lot_id}: {_e}")
+
     # Step 1: BrassTrayId — skip if IQF found trays above
     if not tray_data:
         trays = BrassTrayId.objects.filter(

@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 SCAN_TAG = '[GLOBAL_SCAN_API]'
 
-
+# Global Scan - F2 shortcut in header triggers a POST request to this view with the scanned tray_id.
 class GlobalTraySearchView(LoginRequiredMixin, View):
     """
     Searches for a tray_id across all active module tray tables.
     Priority order (user-specified):
-        Jig Loading ? Jig Unloading ? Nickel Wiping ? Nickel Audit
-        ? Spider Spindle ? IQF ? Brass Audit ? Brass QC ? Input Screening
+        Jig Loading > Jig Unloading > Nickel Wiping > Nickel Audit
+        > Spider Spindle > IQF > Brass Audit > Brass QC > Input Screening
     """
 
     def post(self, request, *args, **kwargs):
@@ -47,36 +47,41 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         if not tray_id:
             return JsonResponse({'success': False, 'error': 'No tray_id provided'}, status=400)
 
-        print(f"\n{'='*80}")
-        print(f"{SCAN_TAG} Search started: tray_id='{tray_id}' user={request.user.username}")
-        print(f"{'='*80}\n")
-        logger.info('%s Search started: tray_id=%s user=%s', SCAN_TAG, tray_id, request.user.username)
+        logger.info(
+            '%s search_started tray_id=%s user=%s',
+            SCAN_TAG,
+            tray_id,
+            request.user.username,
+        )
 
         result = self._search_all_modules(tray_id)
 
         if result:
             # Add tray_id to response for frontend highlight
             result['tray_id'] = tray_id
-            print(f"\n{SCAN_TAG} ? FOUND: {tray_id} ? module={result['module']} lot_id={result.get('lot_id', 'N/A')}")
-            print(f"{SCAN_TAG} Redirect URL: {result['url']}\n")
-            logger.info('%s Found %s ? module=%s lot_id=%s url=%s',
-                        SCAN_TAG, tray_id, result['module'], result.get('lot_id', 'N/A'), result['url'])
+            logger.info(
+                '%s search_found tray_id=%s module=%s lot_id=%s url=%s',
+                SCAN_TAG,
+                tray_id,
+                result['module'],
+                result.get('lot_id', 'N/A'),
+                result['url'],
+            )
             return JsonResponse({
                 'success': True,
                 'found': True,
                 **result
             })
 
-        print(f"\n{SCAN_TAG} ??? NOT FOUND: {tray_id} - checked all modules\n")
-        logger.info('%s Not found in any module: tray_id=%s', SCAN_TAG, tray_id)
+        logger.info('%s search_not_found tray_id=%s', SCAN_TAG, tray_id)
         return JsonResponse({
             'success': False,
             'found': False,
             'tray_id': tray_id,
-            'message': f'Tray {tray_id} not found in any active module'
+            'message': 'Not Exists'
         })
 
-    # ?? Module search dispatcher ?????????????????????????????????????????????
+    
 
     def _resolve_candidate_lot_ids(self, tray_id):
         """LOT-FIRST RESOLVER: Scan EVERY tray table to discover all lot_ids
@@ -223,10 +228,16 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         """
         # Step 1: Resolve candidates
         lot_ids, batch_ids = self._resolve_candidate_lot_ids(tray_id)
-        print(f"{SCAN_TAG} ? Candidate lots: {sorted(lot_ids) or '?'}  batches: {sorted(batch_ids) or '?'}")
+        logger.info(
+            '%s candidates_resolved tray_id=%s lot_ids=%s batch_ids=%s',
+            SCAN_TAG,
+            tray_id,
+            sorted(lot_ids),
+            sorted(batch_ids),
+        )
 
         if not lot_ids and not batch_ids:
-            print(f"{SCAN_TAG} ??? Tray {tray_id} not found in ANY tray table")
+            logger.info('%s no_candidates tray_id=%s', SCAN_TAG, tray_id)
             return None
 
         # Step 2: Check each module's pick table (newest stage first)
@@ -250,11 +261,10 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 for lid in lot_ids:
                     result = check(lid)
                     if result:
-                        print(f"{SCAN_TAG} ? MATCH {label}: lot_id={lid}")
+                        logger.info('%s module_match module=%s lot_id=%s', SCAN_TAG, label, lid)
                         return result
             except Exception as e:
                 logger.error('%s Unexpected error in %s: %s', SCAN_TAG, label, e)
-                print(f"{SCAN_TAG} ??? Error in {label}: {e}")
 
         # Day Planning batch fallback (when lot_id not yet created)
         if batch_ids:

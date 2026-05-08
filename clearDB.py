@@ -113,7 +113,7 @@ def clear_database():
         JigUnloadAfterTable.objects.all().delete()
         JigUnloadAutoSave.objects.all().delete()
         JigUnloadDraft.objects.all().delete()
-        JigUnloadTrayId.objects.all().delete()
+        JigUnload_TrayId.objects.all().delete()
         JUSubmittedZ1.objects.all().delete()
     except NameError:
         print("⚠️ Some Jig_Unloading models not found")
@@ -123,7 +123,7 @@ def clear_database():
     # /nickel_audittrayid/
     # -------------------------------
     try:
-        NickelAuditTrayId.objects.all().delete()
+        Nickel_AuditTrayId.objects.all().delete()
     except NameError:
         print("⚠️ NickelAuditTrayId not found")
 
@@ -132,7 +132,7 @@ def clear_database():
     # /nickelqctrayid/
     # -------------------------------
     try:
-        NickelQCTrayId.objects.all().delete()
+        NickelQcTrayId.objects.all().delete()
     except NameError:
         print("⚠️ NickelQCTrayId not found")
 

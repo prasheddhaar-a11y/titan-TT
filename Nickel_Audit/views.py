@@ -56,6 +56,34 @@ def _get_input_source(jig_unload_obj):
     return ', '.join(names)
 
 
+def _na_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _na_tray_sort_key(tray_id):
+    return str(tray_id or '').strip().upper()
+
+
+def _na_normalize_active_trays(rows):
+    clean_rows = []
+    for row in rows or []:
+        tray_id = row.get('tray_id') if isinstance(row, dict) else getattr(row, 'tray_id', '')
+        qty = row.get('qty', row.get('tray_quantity', 0)) if isinstance(row, dict) else getattr(row, 'tray_quantity', 0)
+        qty = _na_int(qty)
+        if not tray_id or qty <= 0:
+            continue
+        clean_rows.append({'tray_id': tray_id, 'qty': qty, 'is_top': False})
+    if not clean_rows:
+        return []
+    top_row = min(clean_rows, key=lambda item: (item['qty'], _na_tray_sort_key(item['tray_id'])))
+    for item in clean_rows:
+        item['is_top'] = item['tray_id'] == top_row['tray_id']
+    return sorted(clean_rows, key=lambda item: (not item['is_top'], _na_tray_sort_key(item['tray_id'])))
+
+
 class NA_PickTableView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = 'Nickel_Audit/NickelAudit_PickTable.html'
@@ -404,33 +432,52 @@ def na_action(request):
         return Response({'success': False, 'error': 'Lot not found'}, status=404)
     if action == 'GET_TRAYS':
         trays_qs = Nickel_AuditTrayId.objects.filter(
-            lot_id=lot_id, rejected_tray=False
-        ).order_by('-top_tray', 'id')
+            lot_id=lot_id, rejected_tray=False, delink_tray=False
+        ).order_by('tray_id')
         if trays_qs.exists():
             trays = [
                 {
-                    'tray_id': t.tray_id,
-                    'qty': t.tray_quantity or 0,
-                    'is_top': bool(t.top_tray),
-                    'is_delinked': bool(t.delink_tray),
+                    'tray_id': item['tray_id'],
+                    'qty': item['qty'],
+                    'is_top': item['is_top'],
+                    'is_delinked': False,
                 }
-                for t in trays_qs
+                for item in _na_normalize_active_trays(trays_qs)
             ]
         else:
-            upstream, _ = get_upstream_tray_distribution(lot_id)
-            if upstream:
+            # Fallback 1: NickelQcTrayId (lots that just passed Nickel Inspection)
+            nq_trays_qs = NickelQcTrayId.objects.filter(
+                lot_id=lot_id, rejected_tray=False, delink_tray=False
+            ).order_by('tray_id')
+            if nq_trays_qs.exists():
                 trays = [
                     {
-                        'tray_id': t['tray_id'],
-                        'qty': t['tray_quantity'] or 0,
-                        'is_top': bool(t.get('top_tray', False)),
-                        'is_delinked': bool(t.get('delink_tray', False)),
+                        'tray_id': item['tray_id'],
+                        'qty': item['qty'],
+                        'is_top': item['is_top'],
+                        'is_delinked': False,
                     }
-                    for t in upstream
-                    if not t.get('rejected_tray', False)
+                    for item in _na_normalize_active_trays(nq_trays_qs)
                 ]
             else:
-                trays = []
+                # Fallback 2: Upstream jig unloading distribution
+                upstream, _ = get_upstream_tray_distribution(lot_id)
+                if upstream:
+                    trays = [
+                        {
+                            'tray_id': item['tray_id'],
+                            'qty': item['qty'],
+                            'is_top': item['is_top'],
+                            'is_delinked': False,
+                        }
+                        for item in _na_normalize_active_trays([
+                            {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0}
+                            for t in upstream
+                            if not t.get('rejected_tray', False) and not t.get('delink_tray', False)
+                        ])
+                    ]
+                else:
+                    trays = []
         tray_type = (juat.tray_type or '').strip()
         tray_cap = _na_tray_capacity(tray_type) or juat.tray_capacity or 20
         return Response({
@@ -460,19 +507,24 @@ def na_action(request):
             rej_prefix = 'NB'
         trays_qs = Nickel_AuditTrayId.objects.filter(
             lot_id=lot_id, rejected_tray=False, delink_tray=False
-        ).order_by('-top_tray', 'id')
+        ).order_by('tray_id')
         if trays_qs.exists():
-            orig_trays = [
-                {'tray_id': t.tray_id, 'qty': t.tray_quantity or 0, 'is_top': bool(t.top_tray)}
-                for t in trays_qs
-            ]
+            orig_trays = _na_normalize_active_trays(trays_qs)
         else:
-            upstream, _ = get_upstream_tray_distribution(lot_id)
-            orig_trays = [
-                {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0, 'is_top': bool(t.get('top_tray', False))}
-                for t in (upstream or [])
-                if not t.get('delink_tray') and not t.get('rejected_tray')
-            ]
+            # Fallback 1: NickelQcTrayId (lots that just passed Nickel Inspection)
+            nq_trays_qs = NickelQcTrayId.objects.filter(
+                lot_id=lot_id, rejected_tray=False, delink_tray=False
+            ).order_by('tray_id')
+            if nq_trays_qs.exists():
+                orig_trays = _na_normalize_active_trays(nq_trays_qs)
+            else:
+                # Fallback 2: Upstream jig unloading distribution
+                upstream, _ = get_upstream_tray_distribution(lot_id)
+                orig_trays = _na_normalize_active_trays([
+                    {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0, 'is_top': bool(t.get('top_tray', False))}
+                    for t in (upstream or [])
+                    if not t.get('delink_tray') and not t.get('rejected_tray')
+                ])
         reuse_trays = []
         auto_delink_tray_ids = []
         remaining_rej = rejected_qty
@@ -540,19 +592,24 @@ def _na_do_full_accept(request, lot_id, juat):
     total_qty = juat.nq_qc_accepted_qty or juat.total_case_qty or 0
     trays_qs = Nickel_AuditTrayId.objects.filter(
         lot_id=lot_id, rejected_tray=False, delink_tray=False
-    ).order_by('-top_tray', 'id')
+    ).order_by('tray_id')
     if trays_qs.exists():
-        trays = [
-            {'tray_id': t.tray_id, 'qty': t.tray_quantity or 0, 'is_top': bool(t.top_tray)}
-            for t in trays_qs
-        ]
+        trays = _na_normalize_active_trays(trays_qs)
     else:
-        upstream, _ = get_upstream_tray_distribution(lot_id)
-        trays = [
-            {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0, 'is_top': bool(t.get('top_tray', False))}
-            for t in (upstream or [])
-            if not t.get('rejected_tray') and not t.get('delink_tray')
-        ]
+        # Fallback 1: NickelQcTrayId (lots that just passed Nickel Inspection)
+        nq_trays_qs = NickelQcTrayId.objects.filter(
+            lot_id=lot_id, rejected_tray=False, delink_tray=False
+        ).order_by('tray_id')
+        if nq_trays_qs.exists():
+            trays = _na_normalize_active_trays(nq_trays_qs)
+        else:
+            # Fallback 2: Upstream jig unloading distribution
+            upstream, _ = get_upstream_tray_distribution(lot_id)
+            trays = _na_normalize_active_trays([
+                {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0, 'is_top': bool(t.get('top_tray', False))}
+                for t in (upstream or [])
+                if not t.get('rejected_tray') and not t.get('delink_tray')
+            ])
     with transaction.atomic():
         for at in trays:
             tid = at['tray_id']

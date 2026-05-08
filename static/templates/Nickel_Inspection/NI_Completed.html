@@ -1761,7 +1761,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (isVerified) {
         // AFTER CHECK: Use BrassTrayId data with Brass QC parameters
-        trayListEndpoint = '/nickel_audit_zone_two/nickel_CompleteTable_tray_id_list/';
+        trayListEndpoint = '/nickle_inspection/nickel_CompleteTable_tray_id_list/';
         
         // Get Brass QC status from row data attributes
         apiParams = {
@@ -1774,7 +1774,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log(`   Parameters:`, apiParams);
       } else {
         // PICK MODE: Use TrayId data with IP stock parameters  
-        trayListEndpoint = '/nickel_audit_zone_two/nickel_CompleteTable_tray_id_list/';
+        trayListEndpoint = '/nickle_inspection/nickel_CompleteTable_tray_id_list/';
         dataSource = 'TrayId (IPTrayId)';
 
         apiParams = {
@@ -1938,7 +1938,7 @@ document.addEventListener("DOMContentLoaded", function () {
           html += `
             <tr style="background-color: #f8f9fa; font-weight: bold;">
               <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #6c757d; padding: 8px;">
-                Ã°Å¸â€â€” DELINKED TRAYS
+                DELINKED TRAYS
               </td>
             </tr>
           `;

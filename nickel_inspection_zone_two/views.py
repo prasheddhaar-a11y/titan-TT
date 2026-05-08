@@ -615,6 +615,12 @@ class NQ_Zone_CompletedView(APIView):
             .filter(nq_last_process_date_time__range=(from_datetime, to_datetime))
             .order_by("-nq_last_process_date_time", "-lot_id")
         )
+
+        # ERR2 Fix: exclude child lots created by partial rejection — they continue to Nickel Audit.
+        # Only the parent lot (nq_qc_few_cases_accptance=True) should appear in NI completed table.
+        from Nickel_Inspection.models import NickelQC_PartialAcceptLot
+        child_lot_ids = NickelQC_PartialAcceptLot.objects.values_list('new_lot_id', flat=True)
+        queryset = queryset.exclude(lot_id__in=child_lot_ids)
         page_number = request.GET.get("page", 1)
         paginator = Paginator(queryset, 10)
         page_obj = paginator.get_page(page_number)
@@ -654,6 +660,7 @@ class NQ_Zone_CompletedView(APIView):
                 "nq_qc_accepted_qty_verified": jig_unload_obj.nq_qc_accepted_qty_verified,
                 "nq_qc_accepted_qty": jig_unload_obj.nq_qc_accepted_qty or 0,
                 "nq_rejection_qty": jig_unload_obj.nq_rejection_qty,
+                "brass_rejection_total_qty": jig_unload_obj.nq_rejection_qty or 0,
                 "nq_missing_qty": jig_unload_obj.nq_missing_qty or 0,
                 "nq_physical_qty": jig_unload_obj.nq_physical_qty,
                 "nq_physical_qty_edited": False,
@@ -713,19 +720,20 @@ class NQ_Zone_CompletedView(APIView):
                 f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             )
             lot_id = data.get("stock_lot_id")
-            if total_ip_accepted_quantity and total_ip_accepted_quantity > 0:
-                data["display_accepted_qty"] = total_ip_accepted_quantity
-            else:
-                total_rejection_qty = 0
+            rejection_qty = data.get("nq_rejection_qty") or 0
+            if not rejection_qty:
                 rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(
                     lot_id=lot_id
                 ).first()
-                if rejection_store and rejection_store.total_rejection_quantity:
-                    total_rejection_qty = rejection_store.total_rejection_quantity
+                rejection_qty = rejection_store.total_rejection_quantity if rejection_store else 0
+            data["brass_rejection_total_qty"] = rejection_qty
+            if total_ip_accepted_quantity and total_ip_accepted_quantity > 0:
+                data["display_accepted_qty"] = total_ip_accepted_quantity
+            else:
                 jig_unload_obj = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
-                if jig_unload_obj and total_rejection_qty > 0:
+                if jig_unload_obj and rejection_qty > 0:
                     data["display_accepted_qty"] = max(
-                        jig_unload_obj.total_case_qty - total_rejection_qty, 0
+                        jig_unload_obj.total_case_qty - rejection_qty, 0
                     )
                 else:
                     data["display_accepted_qty"] = (

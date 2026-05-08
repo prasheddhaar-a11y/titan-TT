@@ -162,9 +162,9 @@ def validate_model_combination(selected_models):
         prefix = candidate['model_no']
         bath = candidate['ep_bath_type']
 
-        # Skip models already selected (they're already on the jig)
-        if psn in selected_models:
-            continue
+        # NOTE: Do NOT skip candidates with same plating_stk_no as selected models.
+        # Same-model lots are always compatible and must appear in eligible_models.
+        # Specific lot-ID exclusion is handled by exclude_lot_id in the pick table filter.
 
         # Check lookalike block (prefix-level)
         if prefix in blocked_prefixes:

@@ -1020,10 +1020,9 @@
                         ×
                      </button>
                      <div id="scanStatusMessage" style="font-weight:600;color:#333;margin-bottom:4px;margin-top:4px;"></div>
-                     <input type="text" id="globalScanInput" 
-                            placeholder="Scan or type Tray ID (max 9 chars)..."
-                            autocomplete="off"
-                            maxlength="9"
+                    <input type="text" id="globalScanInput" 
+                      placeholder="Scan or paste Tray ID..."
+                      autocomplete="off"
                             style="width:100%;padding:10px 12px;border:1.5px solid #b3e5e6;border-radius:6px;
                                    font-size:13px;margin-top:8px;transition:border-color 0.2s;"/>
                      <div id="scanResult" style="margin-top:10px;font-size:12px;"></div>
@@ -2868,242 +2867,745 @@
 
       <!-- CTRL+SHIFT+R handled in centralized keydown handler below -->
 
-<!-- ✅ GLOBAL SCAN FEATURE: F2 Shortcut + Tray Search + Step-by-Step Info -->
+<!-- GLOBAL SCAN FEATURE: event-driven current pick-table scanner -->
 <script nonce="{{ csp_nonce }}">
 (function() {
   'use strict';
 
-  const scanBtn     = document.getElementById('globalScanBtn');
-  const scanStatus  = document.getElementById('globalScanStatus');
+  const scanBtn = document.getElementById('globalScanBtn');
+  const scanStatus = document.getElementById('globalScanStatus');
   const scanMessage = document.getElementById('scanStatusMessage');
-  const scanInput   = document.getElementById('globalScanInput');
-  const scanResult  = document.getElementById('scanResult');
+  const scanInput = document.getElementById('globalScanInput');
+  const scanResult = document.getElementById('scanResult');
   const closeScanBtn = document.getElementById('closeScanBtn');
   const scanInfoIcon = document.getElementById('scanInfoIcon');
   const scanInfoText = document.getElementById('scanInfoText');
 
   if (!scanBtn || !scanStatus || !scanInput) return;
 
-  let scanActive = false;
-  let navTimer = null;  // tracks pending navigation so a new scan can cancel it
+  const SCAN_TABLE_SELECTOR = '#order-listing';
+  const AUTO_SCAN_LENGTH = 9;
+  const MAX_PAGINATION_SCAN_PAGES = 300;
 
-  // ─── Info box helper ────────────────────────────────────────────────────
+  let scanActive = false;
+  let scanTimeout = null;
+  let highlightTimer = null;
+  let activeScanSequence = 0;
+  let pasteCapturePending = false;
+  let lastSubmittedTrayId = '';
+  let lastSubmittedAt = 0;
+  let priorityMoveState = null;
+
+  function logScan(tag, payload) {
+    try {
+      console.info(tag, payload || {});
+    } catch (error) {
+      /* console can be unavailable in embedded browsers */
+    }
+  }
+
   function setInfo(icon, text, color) {
     if (scanInfoIcon) {
-      if (icon === '📡') {
-        var src = scanInfoIcon.getAttribute('data-scanner-src');
-        if (src) {
-          scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
-        } else {
-          scanInfoIcon.textContent = '📡';
-        }
+      if (icon === 'scanner') {
+        const src = scanInfoIcon.getAttribute('data-scanner-src') || '/static/assets/icons/scanner.png';
+        scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
       } else {
         scanInfoIcon.textContent = icon;
       }
     }
-    if (scanInfoText) { scanInfoText.textContent = text; scanInfoText.style.color = color || '#025254'; }
+    if (scanInfoText) {
+      scanInfoText.textContent = text;
+      scanInfoText.style.color = color || '#025254';
+    }
   }
 
-  // ─── Expose globals for centralized keydown handler ─────────────────────
-  window._gScanActivate = activateScan;
-  window._gScanClose    = closeScan;
-  window._gScanIsActive = function() { return scanActive; };
-
-  // ─── Button clicks ──────────────────────────────────────────────────────
-  scanBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); activateScan(); });
-  if (closeScanBtn) closeScanBtn.addEventListener('click', function(e) { e.stopPropagation(); closeScan(); });
-
-  // ─── Outside click closes ───────────────────────────────────────────────
-  document.addEventListener('click', function(e) {
-    if (scanActive && !scanStatus.contains(e.target) && !scanBtn.contains(e.target)) closeScan();
-  });
-
-
-// ─── Activate ───────────────────────────────────────────────────────────
-function activateScan() {
-  // Cancel any in-flight navigation from previous scan
-  clearTimeout(navTimer);
-  navTimer = null;
-  scanActive = true;
-  scanStatus.style.display = 'block';
-  // Replace text emoji with scanner image
-  scanMessage.innerHTML = '<img src="/static/assets/icons/scanner.png" style="width:35px;height:35px;vertical-align:middle;margin-right:6px;"> Scan or type Tray ID';
-  scanMessage.style.color = '#028084';
-  scanInput.value = '';
-  scanResult.innerHTML = '';
-  scanInput.disabled = false;
-  setInfo(
-    '📡',
-    'Ready — scan tray',
-    '#028084'
-  );
-  scanInput.focus();
-}
-
-  // ─── Close ──────────────────────────────────────────────────────────────
-  function closeScan() {
-    scanActive = false;
-    scanStatus.style.display = 'none';
-    scanInput.value = '';
-    scanResult.innerHTML = '';
-    setInfo('📡', 'Press F2 to scan', '#025254');
+  function setScanMessage(text, color) {
+    if (!scanMessage) return;
+    scanMessage.textContent = text;
+    scanMessage.style.color = color || '#028084';
   }
 
-  // ─── Live typing: Step 1 ────────────────────────────────────────────────
-  let scanTimeout;
-  
-  // Force uppercase input in real-time and enforce 9-char limit
-  scanInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      clearTimeout(scanTimeout);
-      const v = this.value.trim().toUpperCase();
-      if (v.length === 9) searchTray(v);
-      else if (v.length > 0) { scanMessage.textContent = '⚠️ Enter exactly 9 characters'; scanMessage.style.color = '#ff6b00'; }
-      else { scanMessage.textContent = '⚠️ Enter Tray ID'; scanMessage.style.color = '#ff6b00'; }
-    }
-  });
-
-  scanInput.addEventListener('input', function() {
-    // Convert to uppercase and trim
-    let v = this.value.trim().toUpperCase();
-    
-    // Enforce max 9 characters
-    if (v.length > 9) {
-      v = v.slice(0, 9);
-      this.value = v;
-    } else {
-      this.value = v;
-    }
-    
-    clearTimeout(scanTimeout);
-    
-    if (v.length > 0) {
-      // Step 1: show tray id live
-      setInfo('🔍', v.length > 14 ? v.slice(0, 14) + '…' : v, '#028084');
-    } else {
-      setInfo('📡', 'Ready — scan tray', '#028084');
-    }
-    
-    // Auto-search when exactly 9 characters are entered (no auto-select for invalid cases)
-    if (v.length === 9) {
-      // Trigger search after brief delay (don't auto-select, let validation determine next action)
-      scanTimeout = setTimeout(() => searchTray(v), 300);
-    }
-  });
-
-  // ─── Search: Steps 2 → 3 → 4 ────────────────────────────────────────────
-  function searchTray(trayId) {
-    // Step 2: Searching
-    setInfo('⏳', 'Searching modules…', '#028084');
-    scanMessage.textContent = '⏳ Searching...';
-    scanMessage.style.color = '#028084';
-    scanResult.innerHTML = `
-      <div style="text-align:center;padding:12px;">
-        <img src="{% static 'assets/gif/2.gif' %}" alt="Loading..."
-             style="width:40px;height:40px;object-fit:contain;" />
-        <div style="margin-top:6px;font-size:11px;color:#666;">Scanning all modules...</div>
-      </div>`;
-    scanInput.disabled = true;
-
-    fetch('/adminportal/global_tray_search/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ tray_id: trayId })
-    })
-    .then(r => r.json())
-    .then(data => {
-      // DEBUG: Log full response
-      console.log('[SCAN RESPONSE]', JSON.stringify(data, null, 2));
-      
+  function focusScanInput(selectValue) {
+    window.setTimeout(function() {
       scanInput.disabled = false;
-
-      if (data.success && data.found) {
-        // Step 3: Found — all result detail goes to the info box, not the popup
-        const shortMod = data.module.replace('Recovery ', 'Rec. ');
-        const moduleLabel = data.module;
-        const lotId = data.lot_id || trayId;
-        
-        setInfo('✅', trayId + ' found in ' + shortMod, '#28a745');
-        scanMessage.innerHTML = '✅ Tray <strong>' + trayId + '</strong> found<br/><small>' + shortMod + ' — Lot ' + lotId + '</small>';
-        scanMessage.style.color = '#28a745';
-        scanResult.innerHTML = '';  // no duplicate result box inside popup
-
-        // Store context so destination page can continue showing info
-        sessionStorage.setItem('globalScanModule', data.module);
-        sessionStorage.setItem('globalScanTrayId', trayId);
-        sessionStorage.setItem('globalScanLotId', lotId);
-
-        // Step 4: Navigating — show navigating icon, then navigate
-        navTimer = setTimeout(() => {
-          setInfo('🚀', 'Navigating to ' + shortMod + '…', '#0066cc');
-          scanMessage.textContent = '🚀 Navigating...';
-          scanMessage.style.color = '#0066cc';
-        }, 800);
-        
-        // Determine if we're already in the correct module
-        const currentModule = window.location.pathname.split('/').filter(Boolean)[0] || '';
-        const targetModule = (data.url || '').split('/').filter(Boolean)[0] || '';
-        
-        console.log('[SCAN] Current module:', currentModule, '| Target module:', targetModule);
-        console.log('[SCAN] Tray:', trayId, '| Lot:', lotId, '| Module:', moduleLabel);
-        
-        navTimer = setTimeout(() => {
-          if (currentModule === targetModule && currentModule) {
-            // Same module — reload current page with highlight (use scanned tray ID and lot_id)
-            console.log('[SCAN] Same module refresh:', currentModule);
-            const redirectUrl = window.location.pathname + '?highlight=' + encodeURIComponent(trayId) + '&lot=' + encodeURIComponent(lotId);
-            console.log('[SCAN] Reloading:', redirectUrl);
-            window.location.href = redirectUrl;
-          } else {
-            // Different module — navigate to backend-returned URL (use scanned tray ID and lot_id)
-            console.log('[SCAN] Cross-module navigation: ' + currentModule + ' → ' + targetModule);
-            const redirectUrl = data.url + '?highlight=' + encodeURIComponent(trayId) + '&lot=' + encodeURIComponent(lotId) + '&module=' + encodeURIComponent(moduleLabel);
-            console.log('[SCAN] Redirecting to:', redirectUrl);
-            window.location.href = redirectUrl;
-          }
-        }, 2000);
-
-      } else {
-        // Invalid/Not found — NO auto-select, show error and reset
-        setInfo('❌', trayId + ' not found', '#dc3545');
-        scanMessage.textContent = '❌ ' + (data.message || 'Tray not found in any module');
-        scanMessage.style.color = '#dc3545';
-        scanResult.innerHTML = '';  // no inline result box
-        console.log('[SCAN] Tray not found:', trayId);
-        
-      // Reset after delay (don't auto-select on invalid)
-      navTimer = setTimeout(() => {
-      scanInput.value = '';
-      setInfo(
-         '<img src="/static/assets/icons/scanner.png" style="width:16px;height:16px;vertical-align:middle;">',
-         'Ready — scan tray',
-         '#025254'
-      );
-      scanMessage.innerHTML =
-         '<img src="/static/assets/icons/scanner.png" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"> Scan or type Tray ID';
-
-      scanMessage.style.color = '#028084';
       scanInput.focus();
-      }, 2500);
-            }
-    })
-    .catch(err => {
-      console.error('[SCAN ERROR]', err);
-      scanInput.disabled = false;
-      setInfo('❌', 'Error — try again', '#dc3545');
-      scanMessage.textContent = '❌ Network error';
-      scanMessage.style.color = '#dc3545';
-      scanResult.innerHTML = '';
-    });
+      if (selectValue && scanInput.value) {
+        scanInput.select();
+      }
+    }, 30);
+  }
+
+  function normalizeTrayId(rawValue) {
+    return String(rawValue || '')
+      .toUpperCase()
+      .replace(/[\s\r\n]+/g, '')
+      .trim();
+  }
+
+  function normalizeIdentifier(rawValue) {
+    return normalizeTrayId(rawValue);
+  }
+
+  function normalizePath(pathValue) {
+    const normalized = String(pathValue || '/')
+      .replace(/\/+$/g, '')
+      .toLowerCase();
+    return normalized || '/';
   }
 
   function getCookie(name) {
-    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
-    if (p.length === 2) return p.pop().split(';').shift();
+    const value = '; ' + document.cookie;
+    const parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
     return '';
   }
 
+  function ensureScanHighlightStyle() {
+    if (document.getElementById('global-scan-highlight-style')) return;
+    const style = document.createElement('style');
+    style.id = 'global-scan-highlight-style';
+    style.textContent = [
+      'tr.gs-active-scan > td { background-color:#dff6e5 !important; box-shadow: inset 0 0 0 2px #28a745 !important; }',
+      'tr.gs-active-scan > td:nth-child(-n + 3) { background-color:#dff6e5 !important; z-index:60 !important; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function restorePrioritizedRow() {
+    if (!priorityMoveState) return;
+    const row = priorityMoveState.row;
+    const placeholder = priorityMoveState.placeholder;
+    if (row && placeholder && placeholder.parentNode && row.parentNode) {
+      placeholder.parentNode.insertBefore(row, placeholder);
+      placeholder.remove();
+    } else if (placeholder && placeholder.parentNode) {
+      placeholder.remove();
+    }
+    priorityMoveState = null;
+  }
+
+  function clearScanHighlights() {
+    if (typeof window._gkbClearPending === 'function') {
+      window._gkbClearPending();
+    }
+    document.querySelectorAll('tr.gs-active-scan, tr.gs-hi, tr.gkb-row-focus, tr.dp-row-action-highlight')
+      .forEach(function(row) {
+        row.classList.remove('gs-active-scan', 'gs-hi', 'gkb-row-focus', 'dp-row-action-highlight');
+        row.removeAttribute('data-global-scan-active');
+      });
+  }
+
+  function resetPreviousScanState(options) {
+    const settings = options || {};
+    window.clearTimeout(scanTimeout);
+    window.clearTimeout(highlightTimer);
+    scanTimeout = null;
+    highlightTimer = null;
+    restorePrioritizedRow();
+    clearScanHighlights();
+    sessionStorage.removeItem('globalScanModule');
+    sessionStorage.removeItem('globalScanTrayId');
+    sessionStorage.removeItem('globalScanLotId');
+    if (scanResult) scanResult.innerHTML = '';
+    if (!settings.keepInput) scanInput.value = '';
+    if (!settings.keepMessage) setScanMessage('Scan or paste Tray ID', '#028084');
+  }
+
+  function openGlobalScanModal() {
+    logScan('[SCAN_OPEN]', { table_id: getCurrentTableId(), path: window.location.pathname });
+    scanActive = true;
+    scanStatus.style.display = 'block';
+    resetPreviousScanState();
+    scanInput.disabled = false;
+    setInfo('scanner', 'Ready - scan tray', '#028084');
+    focusScanInput(false);
+  }
+
+  function closeGlobalScanModal() {
+    scanActive = false;
+    scanStatus.style.display = 'none';
+    resetPreviousScanState();
+    setInfo('scanner', 'Press F2 to scan', '#025254');
+  }
+
+  function handleEmptyInput() {
+    setInfo('!', 'Enter Tray ID', '#ff6b00');
+    setScanMessage('Enter Tray ID', '#ff6b00');
+    focusScanInput(true);
+  }
+
+  function bindGlobalScanEvents() {
+    scanBtn.addEventListener('click', function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      openGlobalScanModal();
+    });
+
+    if (closeScanBtn) {
+      closeScanBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeGlobalScanModal();
+      });
+    }
+
+    document.addEventListener('click', function(event) {
+      if (scanActive && !scanStatus.contains(event.target) && !scanBtn.contains(event.target)) {
+        closeGlobalScanModal();
+      }
+    });
+
+    scanInput.addEventListener('keydown', function(event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      window.clearTimeout(scanTimeout);
+      runScanFlow(scanInput.value, 'enter');
+    });
+
+    scanInput.addEventListener('paste', function() {
+      pasteCapturePending = true;
+      window.setTimeout(function() {
+        pasteCapturePending = false;
+        const normalized = normalizeTrayId(scanInput.value);
+        scanInput.value = normalized;
+        logScan('[SCAN_INPUT]', { source: 'paste', tray_id: normalized, table_id: getCurrentTableId() });
+        if (normalized) {
+          runScanFlow(normalized, 'paste');
+        } else {
+          handleEmptyInput();
+        }
+      }, 0);
+    });
+
+    scanInput.addEventListener('input', function() {
+      const normalized = normalizeTrayId(scanInput.value);
+      if (scanInput.value !== normalized) {
+        scanInput.value = normalized;
+      }
+
+      window.clearTimeout(scanTimeout);
+      if (!normalized) {
+        setInfo('scanner', 'Ready - scan tray', '#028084');
+        return;
+      }
+
+      setInfo('...', normalized.length > 16 ? normalized.slice(0, 16) : normalized, '#028084');
+      if (!pasteCapturePending && normalized.length >= AUTO_SCAN_LENGTH) {
+        scanTimeout = window.setTimeout(function() {
+          runScanFlow(normalized, 'auto');
+        }, 300);
+      }
+    });
+  }
+
+  function isDuplicateScan(trayId) {
+    const now = Date.now();
+    if (lastSubmittedTrayId === trayId && now - lastSubmittedAt < 650) {
+      return true;
+    }
+    lastSubmittedTrayId = trayId;
+    lastSubmittedAt = now;
+    return false;
+  }
+
+  function runScanFlow(rawValue, source) {
+    const trayId = normalizeTrayId(rawValue);
+    logScan('[SCAN_INPUT]', { source: source || 'unknown', raw_value: rawValue, table_id: getCurrentTableId() });
+    logScan('[SCAN_NORMALIZED]', { tray_id: trayId, table_id: getCurrentTableId() });
+
+    if (!trayId) {
+      handleEmptyInput();
+      return;
+    }
+    if (isDuplicateScan(trayId)) return;
+
+    const scanSequence = ++activeScanSequence;
+    resetPreviousScanState({ keepInput: true, keepMessage: true });
+    scanInput.value = trayId;
+    scanInput.disabled = true;
+    setInfo('...', 'Checking current table', '#028084');
+    setScanMessage('Checking current pick table...', '#028084');
+    if (scanResult) {
+      scanResult.innerHTML = '<div style="text-align:center;padding:10px;color:#666;">Checking current pick table...</div>';
+    }
+
+    fetch('/adminportal/global_tray_search/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({ tray_id: trayId })
+    })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (scanSequence !== activeScanSequence) return null;
+        if (!data || !data.success || !data.found) {
+          handleTrayNotFound(trayId);
+          return null;
+        }
+        return findTrayInCurrentPickTable(trayId, data)
+          .then(function(match) {
+            if (scanSequence !== activeScanSequence) return null;
+            if (match && match.row) {
+              handleTrayFound(match, data, trayId);
+            } else {
+              handleTrayNotFound(trayId);
+            }
+            return null;
+          });
+      })
+      .catch(function(error) {
+        logScan('[SCAN_ERROR]', { tray_id: trayId, error: error && error.message ? error.message : String(error) });
+        scanInput.disabled = false;
+        setInfo('!', 'Scan error', '#dc3545');
+        setScanMessage('Network error', '#dc3545');
+        if (scanResult) scanResult.innerHTML = '';
+        focusScanInput(true);
+      });
+  }
+
+  function getCurrentTable() {
+    return document.querySelector(SCAN_TABLE_SELECTOR) || document.querySelector('table.dataTable') || document.querySelector('table');
+  }
+
+  function getCurrentTableId() {
+    const table = getCurrentTable();
+    return table ? (table.id || table.getAttribute('class') || 'table') : 'none';
+  }
+
+  function resultBelongsToCurrentPath(responseData) {
+    if (!responseData || !responseData.url) return true;
+    try {
+      const targetPath = normalizePath(new URL(responseData.url, window.location.origin).pathname);
+      const currentPath = normalizePath(window.location.pathname);
+      const matched = targetPath === currentPath;
+      logScan('[SCAN_LOOKUP]', {
+        tray_id: responseData.tray_id,
+        table_id: getCurrentTableId(),
+        current_path: currentPath,
+        target_path: targetPath,
+        current_table_match: matched
+      });
+      return matched;
+    } catch (error) {
+      logScan('[SCAN_LOOKUP]', { error: error && error.message ? error.message : String(error), current_table_match: false });
+      return false;
+    }
+  }
+
+  function buildLookupContext(trayId, responseData) {
+    const identifiers = [
+      trayId,
+      responseData && responseData.tray_id,
+      responseData && responseData.lot_id,
+      responseData && responseData.batch_id,
+      responseData && responseData.stock_lot_id
+    ]
+      .map(normalizeIdentifier)
+      .filter(function(value, index, values) {
+        return value && value.length >= 4 && values.indexOf(value) === index;
+      });
+
+    return {
+      trayId: trayId,
+      identifiers: identifiers,
+      responseData: responseData || {}
+    };
+  }
+
+  function collectRowTokens(row) {
+    const tokens = new Set();
+    const dataAttributes = [
+      'data-lot-id',
+      'data-stock-lot-id',
+      'data-batch-id',
+      'data-tray-id',
+      'data-tray-ids',
+      'data-original-batch-id',
+      'data-stock-id'
+    ];
+
+    function addValue(rawValue) {
+      if (rawValue === null || typeof rawValue === 'undefined') return;
+      const value = String(rawValue);
+      const whole = normalizeIdentifier(value);
+      if (whole && whole.length >= 4) tokens.add(whole);
+      value.toUpperCase().split(/[^A-Z0-9-]+/).forEach(function(part) {
+        const token = normalizeIdentifier(part);
+        if (token && token.length >= 4) tokens.add(token);
+      });
+    }
+
+    function readElement(element) {
+      dataAttributes.forEach(function(attrName) {
+        addValue(element.getAttribute(attrName));
+      });
+      if (element.dataset) {
+        Object.keys(element.dataset).forEach(function(key) {
+          addValue(element.dataset[key]);
+        });
+      }
+    }
+
+    readElement(row);
+    row.querySelectorAll('[data-lot-id], [data-stock-lot-id], [data-batch-id], [data-tray-id], [data-tray-ids], [data-original-batch-id], [data-stock-id]')
+      .forEach(readElement);
+    addValue(row.textContent || '');
+
+    return tokens;
+  }
+
+  function rowMatchesContext(row, context) {
+    if (!row || !context || !context.identifiers || !context.identifiers.length) return false;
+    const tokens = collectRowTokens(row);
+    return context.identifiers.some(function(identifier) {
+      return tokens.has(identifier);
+    });
+  }
+
+  function findRowInRoot(root, context) {
+    const table = root.querySelector(SCAN_TABLE_SELECTOR) || root.querySelector('table.dataTable') || root.querySelector('table');
+    if (!table) return null;
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      if (rowMatchesContext(row, context)) {
+        return {
+          row: row,
+          rowIndex: index,
+          targetPage: getCurrentPageNumber(root, window.location.href),
+          source: 'dom'
+        };
+      }
+    }
+    return null;
+  }
+
+  function getCurrentPageNumber(root, baseUrl) {
+    const active = root.querySelector('.pagination .active a, .pagination .active span, .pagination li.active');
+    const activeNumber = active ? parseInt((active.textContent || '').trim(), 10) : NaN;
+    if (!Number.isNaN(activeNumber)) return activeNumber;
+    try {
+      const pageNumber = parseInt(new URL(baseUrl || window.location.href, window.location.origin).searchParams.get('page') || '1', 10);
+      return Number.isNaN(pageNumber) ? 1 : pageNumber;
+    } catch (error) {
+      return 1;
+    }
+  }
+
+  function findRowWithDataTables(context) {
+    if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.dataTable) {
+      return Promise.resolve(null);
+    }
+
+    const tableElements = Array.from(document.querySelectorAll('table'));
+    for (let index = 0; index < tableElements.length; index += 1) {
+      const tableElement = tableElements[index];
+      if (!window.jQuery.fn.dataTable.isDataTable(tableElement)) continue;
+
+      const api = window.jQuery(tableElement).DataTable();
+      const pageLength = api.page.len();
+      let matched = null;
+
+      api.rows({ search: 'applied' }).every(function(rowIndex, tableLoop, displayIndex) {
+        if (matched) return;
+        const node = this.node();
+        if (node && rowMatchesContext(node, context)) {
+          matched = { rowIndex: rowIndex, displayIndex: displayIndex, node: node };
+        }
+      });
+
+      if (matched) {
+        const targetPage = pageLength > 0 ? Math.floor(matched.displayIndex / pageLength) : 0;
+        logScan('[SCAN_PAGE_SWITCH]', {
+          tray_id: context.trayId,
+          table_id: tableElement.id || 'dataTable',
+          matched_row_index: matched.displayIndex,
+          target_page: targetPage + 1
+        });
+        api.page(targetPage).draw('page');
+        return new Promise(function(resolve) {
+          window.setTimeout(function() {
+            const liveMatch = findRowInRoot(document, context);
+            resolve(liveMatch || {
+              row: matched.node,
+              rowIndex: matched.displayIndex,
+              targetPage: targetPage + 1,
+              source: 'datatable'
+            });
+          }, 150);
+        });
+      }
+    }
+
+    return Promise.resolve(null);
+  }
+
+  function parsePageNumberFromUrl(urlValue, baseUrl) {
+    try {
+      const pageValue = new URL(urlValue, baseUrl || window.location.href).searchParams.get('page');
+      const pageNumber = parseInt(pageValue || '1', 10);
+      return Number.isNaN(pageNumber) ? 1 : pageNumber;
+    } catch (error) {
+      return 1;
+    }
+  }
+
+  function getPaginationUrls(root, baseUrl) {
+    const links = Array.from(root.querySelectorAll('.pagination a[href]'));
+    if (!links.length) return [];
+
+    const pageNumbers = links
+      .map(function(link) {
+        const href = link.getAttribute('href');
+        const paramNumber = parsePageNumberFromUrl(href, baseUrl);
+        const textNumber = parseInt((link.textContent || '').trim(), 10);
+        return Number.isNaN(textNumber) ? paramNumber : textNumber;
+      })
+      .filter(function(number) { return number > 0; });
+
+    const activeNumber = getCurrentPageNumber(root, baseUrl);
+    pageNumbers.push(activeNumber);
+    const maxPage = Math.max.apply(null, pageNumbers);
+    if (!maxPage || maxPage < 2) return [];
+
+    const templateLink = links.find(function(link) {
+      try {
+        return new URL(link.getAttribute('href'), baseUrl).searchParams.has('page');
+      } catch (error) {
+        return false;
+      }
+    });
+    const templateUrl = templateLink ? new URL(templateLink.getAttribute('href'), baseUrl) : new URL(baseUrl || window.location.href, window.location.origin);
+    const currentPage = parsePageNumberFromUrl(window.location.href, window.location.href);
+    const urls = [];
+    const pageLimit = Math.min(maxPage, MAX_PAGINATION_SCAN_PAGES);
+
+    for (let page = 1; page <= pageLimit; page += 1) {
+      if (page === currentPage) continue;
+      const url = new URL(templateUrl.toString());
+      url.searchParams.set('page', String(page));
+      urls.push(url.toString());
+    }
+
+    return urls.filter(function(url, index, values) { return values.indexOf(url) === index; });
+  }
+
+  function fetchPageDocument(url) {
+    return fetch(url, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Page request failed: ' + response.status);
+        return response.text();
+      })
+      .then(function(html) {
+        return { url: url, doc: new DOMParser().parseFromString(html, 'text/html') };
+      });
+  }
+
+  function findPaginationContainer(root) {
+    const wrapper = root.querySelector('.pagination-wrapper');
+    if (wrapper) return wrapper;
+    const pagination = root.querySelector('.pagination');
+    if (!pagination) return null;
+    return pagination.closest('nav') || pagination.parentElement;
+  }
+
+  function replaceCurrentTablePage(nextDoc, pageUrl) {
+    const currentTable = document.querySelector(SCAN_TABLE_SELECTOR);
+    const nextTable = nextDoc.querySelector(SCAN_TABLE_SELECTOR);
+    if (!currentTable || !nextTable || !currentTable.tBodies.length || !nextTable.tBodies.length) return false;
+
+    restorePrioritizedRow();
+    currentTable.tBodies[0].innerHTML = nextTable.tBodies[0].innerHTML;
+
+    const currentPagination = findPaginationContainer(document);
+    const nextPagination = findPaginationContainer(nextDoc);
+    if (currentPagination && nextPagination) {
+      currentPagination.outerHTML = nextPagination.outerHTML;
+    }
+
+    try {
+      window.history.replaceState({}, document.title, pageUrl);
+    } catch (error) {
+      /* History is best effort only. */
+    }
+
+    document.dispatchEvent(new CustomEvent('globalScan:pageUpdated', { detail: { url: pageUrl } }));
+    return true;
+  }
+
+  function findRowInServerPagination(context) {
+    const urls = getPaginationUrls(document, window.location.href);
+    if (!urls.length) return Promise.resolve(null);
+
+    let index = 0;
+    function checkNextPage() {
+      if (index >= urls.length) return Promise.resolve(null);
+      const url = urls[index];
+      index += 1;
+      const targetPage = parsePageNumberFromUrl(url, window.location.href);
+      logScan('[SCAN_PAGE_SWITCH]', {
+        tray_id: context.trayId,
+        table_id: getCurrentTableId(),
+        target_page: targetPage
+      });
+      setInfo('...', 'Checking page ' + targetPage, '#028084');
+
+      return fetchPageDocument(url)
+        .then(function(result) {
+          const match = findRowInRoot(result.doc, context);
+          if (!match) return checkNextPage();
+          replaceCurrentTablePage(result.doc, result.url);
+          const liveMatch = findRowInRoot(document, context);
+          return liveMatch || match;
+        })
+        .catch(function(error) {
+          logScan('[SCAN_LOOKUP]', {
+            tray_id: context.trayId,
+            table_id: getCurrentTableId(),
+            target_page: targetPage,
+            error: error && error.message ? error.message : String(error)
+          });
+          return checkNextPage();
+        });
+    }
+
+    return checkNextPage();
+  }
+
+  function findTrayInCurrentPickTable(trayId, responseData) {
+    const normalizedTrayId = normalizeTrayId(trayId);
+    const context = buildLookupContext(normalizedTrayId, responseData || {});
+    logScan('[SCAN_LOOKUP]', {
+      tray_id: normalizedTrayId,
+      table_id: getCurrentTableId(),
+      identifiers: context.identifiers
+    });
+
+    if (!resultBelongsToCurrentPath(responseData)) {
+      return Promise.resolve(null);
+    }
+
+    const visibleMatch = findRowInRoot(document, context);
+    if (visibleMatch) return Promise.resolve(visibleMatch);
+
+    return findRowWithDataTables(context)
+      .then(function(match) {
+        if (match) return match;
+        return findRowInServerPagination(context);
+      });
+  }
+
+  function moveHighlightedRowToTop(row) {
+    if (!row || !row.parentNode || row.parentNode.firstElementChild === row) return;
+    restorePrioritizedRow();
+    const placeholder = document.createComment('global-scan-row-placeholder');
+    row.parentNode.insertBefore(placeholder, row);
+    row.parentNode.insertBefore(row, row.parentNode.firstElementChild);
+    priorityMoveState = { row: row, placeholder: placeholder };
+  }
+
+  function getScrollableAncestor(element) {
+    let current = element ? element.parentElement : null;
+    while (current && current !== document.body) {
+      const style = window.getComputedStyle(current);
+      if (/(auto|scroll)/.test(style.overflowY) && current.scrollHeight > current.clientHeight) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function scrollRowToTop(row) {
+    const navHeight = (document.querySelector('.navbar') || {}).offsetHeight || 60;
+    const container = getScrollableAncestor(row);
+    const rowRect = row.getBoundingClientRect();
+    if (container === document.scrollingElement || container === document.documentElement || container === document.body) {
+      window.scrollTo({ top: window.scrollY + rowRect.top - navHeight - 18, behavior: 'smooth' });
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    container.scrollTo({ top: container.scrollTop + rowRect.top - containerRect.top - navHeight - 18, behavior: 'smooth' });
+  }
+
+  function applyFoundHighlight(row) {
+    ensureScanHighlightStyle();
+    if (typeof window._gkbHighlightRow === 'function') {
+      window._gkbHighlightRow(row);
+    } else {
+      row.classList.add('gkb-row-focus', 'dp-row-action-highlight');
+    }
+    row.classList.add('gs-active-scan');
+    row.setAttribute('data-global-scan-active', '1');
+    window.requestAnimationFrame(function() {
+      scrollRowToTop(row);
+    });
+  }
+
+  function handleTrayFound(match, responseData, trayId) {
+    const row = match.row;
+    moveHighlightedRowToTop(row);
+    applyFoundHighlight(row);
+    setInfo('OK', trayId + ' Exists', '#28a745');
+    setScanMessage('Exists', '#28a745');
+    if (scanResult) {
+      scanResult.innerHTML = '<div style="color:#28a745;font-weight:700;padding:6px 0;">Exists</div>';
+    }
+    scanInput.disabled = false;
+    focusScanInput(true);
+    logScan('[SCAN_FOUND]', {
+      tray_id: trayId,
+      table_id: getCurrentTableId(),
+      matched_row_index: match.rowIndex,
+      target_page: match.targetPage || getCurrentPageNumber(document, window.location.href),
+      module: responseData && responseData.module
+    });
+    logScan('[SCAN_HIGHLIGHT]', {
+      tray_id: trayId,
+      table_id: getCurrentTableId(),
+      matched_row_index: match.rowIndex
+    });
+  }
+
+  function handleTrayNotFound(trayId) {
+    clearScanHighlights();
+    restorePrioritizedRow();
+    scanInput.disabled = false;
+    setInfo('!', 'Not Exists', '#dc3545');
+    setScanMessage('Not Exists', '#dc3545');
+    if (scanResult) {
+      scanResult.innerHTML = '<div style="color:#dc3545;font-weight:700;padding:6px 0;">Not Exists</div>';
+    }
+    focusScanInput(true);
+    logScan('[SCAN_NOT_FOUND]', { tray_id: trayId, table_id: getCurrentTableId() });
+  }
+
+  window.GlobalPickTableScanner = {
+    openScanModal: openGlobalScanModal,
+    openGlobalScanModal: openGlobalScanModal,
+    bindGlobalScanEvents: bindGlobalScanEvents,
+    normalizeTrayId: normalizeTrayId,
+    findTrayInCurrentPickTable: findTrayInCurrentPickTable,
+    handleTrayFound: handleTrayFound,
+    handleTrayNotFound: handleTrayNotFound,
+    resetPreviousScanState: resetPreviousScanState,
+    moveHighlightedRowToTop: moveHighlightedRowToTop
+  };
+
+  window.openGlobalScanModal = openGlobalScanModal;
+  window._gScanActivate = openGlobalScanModal;
+  window._gScanClose = closeGlobalScanModal;
+  window._gScanIsActive = function() { return scanActive; };
+
+  bindGlobalScanEvents();
 })();
 </script>
 
@@ -3157,7 +3659,8 @@ function activateScan() {
   'use strict';
 
   const urlParams    = new URLSearchParams(window.location.search);
-  const highlightLot = urlParams.get('highlight');
+  const highlightTrayId = urlParams.get('highlight');  // This is the scanned tray_id
+  const highlightLotId = urlParams.get('lot');        // This is the lot_id (PRIMARY search key)
   const scanInfoIcon = document.getElementById('scanInfoIcon');
   const scanInfoText = document.getElementById('scanInfoText');
 
@@ -3177,7 +3680,7 @@ function activateScan() {
     if (scanInfoText) { scanInfoText.textContent = text; scanInfoText.style.color = color || '#025254'; }
   }
 
-  if (!highlightLot) {
+  if (!highlightTrayId && !highlightLotId) {
     // Idle state (no scan in progress)
     setInfo('📡', 'Press F2 to scan', '#025254');
     return;
@@ -3185,8 +3688,8 @@ function activateScan() {
 
   // ── Read context stored before navigation ────────────────────────────────
   const scanModule = sessionStorage.getItem('globalScanModule') || '';
-  const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightLot;
-  const scanLotId = sessionStorage.getItem('globalScanLotId') || '';
+  const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightTrayId;
+  const scanLotId = sessionStorage.getItem('globalScanLotId') || highlightLotId;
   const isValidScan = !!(scanModule && scanTrayId); // Valid scan if we have context
   
   // Don't remove yet - let the fallback banner use them
@@ -3222,12 +3725,52 @@ function activateScan() {
 
   // ── Row finder ───────────────────────────────────────────────────────────
   function findRow() {
-    for (const row of document.querySelectorAll('table tbody tr')) {
-      if (row.querySelector('[data-batch-id="' + highlightLot + '"],[data-lot-id="' + highlightLot + '"]')) return row;
-      for (const td of row.querySelectorAll('td')) {
-        if (td.textContent.trim() === highlightLot) return row;
+    console.log('[AUTO-HL] Searching for row... lotId=', highlightLotId, 'trayId=', highlightTrayId);
+    
+    // PRIMARY: Search by lot_id (the most reliable identifier)
+    if (highlightLotId) {
+      const allRows = document.querySelectorAll('table tbody tr');
+      console.log('[AUTO-HL] Found', allRows.length, 'rows in table tbody');
+      
+      for (const row of allRows) {
+        // Try data-lot-id first (most common)
+        const lotId = row.getAttribute('data-lot-id');
+        if (lotId === highlightLotId) {
+          console.log('[AUTO-HL] ✓ Found by data-lot-id:', lotId);
+          return row;
+        }
+        
+        // Try data-stock-lot-id (some modules use this)
+        const stockLotId = row.getAttribute('data-stock-lot-id');
+        if (stockLotId === highlightLotId) {
+          console.log('[AUTO-HL] ✓ Found by data-stock-lot-id:', stockLotId);
+          return row;
+        }
+        
+        // Try to find it in child elements
+        const lotCell = row.querySelector('[data-lot-id="' + highlightLotId + '"], [data-stock-lot-id="' + highlightLotId + '"]');
+        if (lotCell) {
+          console.log('[AUTO-HL] ✓ Found by child element');
+          return row;
+        }
       }
+      console.log('[AUTO-HL] ✗ Lot ID not found in any rows');
     }
+    
+    // FALLBACK: Search by tray_id text (if lot_id not found)
+    if (highlightTrayId) {
+      console.log('[AUTO-HL] Fallback: searching by tray text...');
+      for (const row of document.querySelectorAll('table tbody tr')) {
+        for (const td of row.querySelectorAll('td')) {
+          if (td.textContent.trim() === highlightTrayId) {
+            console.log('[AUTO-HL] ✓ Found by tray text');
+            return row;
+          }
+        }
+      }
+      console.log('[AUTO-HL] ✗ Tray ID not found in any cell text');
+    }
+    
     return null;
   }
 
@@ -3246,8 +3789,10 @@ function activateScan() {
     // Show success with full context for valid scans
     if (isValidScan && scanLotId) {
       setInfo('✅', scanTrayId + ' • Lot ' + scanLotId + ' • ' + shortMod + ' • Page ' + pg, '#28a745');
+    } else if (scanTrayId && highlightLotId) {
+      setInfo('✅', scanTrayId + ' • Lot ' + highlightLotId + ' • ' + shortMod + ' • Page ' + pg, '#28a745');
     } else {
-      setInfo('✅', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
+      setInfo('✅', (scanTrayId || highlightTrayId) + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
     }
 
     // Scroll: offset by navbar height so row isn't hidden under sticky header
@@ -3369,7 +3914,7 @@ function activateScan() {
   if (!document.getElementById('gkb-highlight-style')) {
     var s = document.createElement('style');
     s.id = 'gkb-highlight-style';
-    s.textContent = 'tr.gkb-row-focus > td { background-color: #fff5bd !important; }';
+    s.textContent = 'tr.gkb-row-focus > td { background-color: #fff5bd !important; z-index: 50; }';
     document.head.appendChild(s);
   }
 
@@ -3377,6 +3922,61 @@ function activateScan() {
   var _pendingEl    = null;   // element to click on Enter
   var _pendingRow   = null;   // currently highlighted row
   var _lastSelector = null;   // last row-action selector (kept for ↑↓ navigation)
+
+  // ── sessionStorage Key Management (Step 14: Highlight State Persistence) ──
+  var _SESSION_KEY = 'activeRowContext';
+  
+  function _saveRowState(row) {
+    if (!row) {
+      sessionStorage.removeItem(_SESSION_KEY);
+      return;
+    }
+    var lotId = row.getAttribute('data-stock-lot-id') || 
+                row.getAttribute('data-lot-id') || 
+                row.querySelector('[data-lot-id]')?.getAttribute('data-lot-id');
+    var batchId = row.getAttribute('data-batch-id') || 
+                  row.querySelector('[data-batch-id]')?.getAttribute('data-batch-id');
+    var trayId = row.getAttribute('data-tray-id') || 
+                 row.querySelector('[data-tray-id]')?.getAttribute('data-tray-id');
+    if (lotId) {
+      sessionStorage.setItem(_SESSION_KEY, JSON.stringify({
+        lot_id: lotId,
+        batch_id: batchId || null,
+        tray_id: trayId || null,
+        module: document.querySelector('body').getAttribute('data-module') || 'unknown',
+        timestamp: Date.now()
+      }));
+    }
+  }
+
+  function _restoreRowState() {
+    var stored = sessionStorage.getItem(_SESSION_KEY);
+    if (!stored) return null;
+    try {
+      var ctx = JSON.parse(stored);
+      // Validate stored context is still valid (within 5 minutes)
+      if (Date.now() - ctx.timestamp > 300000) {
+        sessionStorage.removeItem(_SESSION_KEY);
+        return null;
+      }
+      return ctx;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function _findRowByContext(ctx) {
+    if (!ctx) return null;
+    var rows = _getRows();
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var lotId = r.getAttribute('data-stock-lot-id') || 
+                  r.getAttribute('data-lot-id') || 
+                  r.querySelector('[data-lot-id]')?.getAttribute('data-lot-id');
+      if (lotId === ctx.lot_id) return r;
+    }
+    return null;
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -3429,20 +4029,32 @@ function activateScan() {
     _pendingRow = row;
     row.classList.add('gkb-row-focus', 'dp-row-action-highlight');
     _scrollRowIntoView(row);
+    _saveRowState(row);  // ← Save to sessionStorage
   }
 
   function _clearPending() {
     if (_pendingRow) {
       _pendingRow.classList.remove('gkb-row-focus', 'dp-row-action-highlight');
       _pendingRow = null;
+      _saveRowState(null);  // ← Clear sessionStorage
     }
     _pendingEl    = null;
     _lastSelector = null;
   }
 
+  window._gkbHighlightRow = function(row) {
+    if (row) _highlightRow(row);
+  };
+
+  window._gkbClearPending = function(row) {
+    if (!row || row === _pendingRow) _clearPending();
+  };
+
   function _focusEl(el, row) {
     _pendingEl = el;
-    if (row) _highlightRow(row);
+    if (row) {
+      _highlightRow(row);  // This now saves to sessionStorage
+    }
   }
 
   // Find first visible row containing an element matching selector
@@ -3645,9 +4257,9 @@ function activateScan() {
         _doRowAction('.tray-scan-btn, .tray-scan-btn-Jig, .jig-view-btn, .view-icon-btn, .bq-view-btn, .ba-view-btn');
         break;
 
-      case 'd':  // Delete icon — IQF
+      case 'd':  // Delete icon / Draft — IQF, Jig Loading, Draft resume
         e.preventDefault();
-        _doRowAction('.delete-batch-btn');
+        _doRowAction('.delete-batch-btn, .draft-resume-btn');
         break;
 
       case 't':  // Tray Scan — Day Planning
@@ -3668,14 +4280,60 @@ function activateScan() {
 
       case 'u':  // Unload — Jig Unloading
         e.preventDefault();
-        _doRowAction('.z1-unload-link, .z1-unload-btn');
+        _doRowAction('.z1-unload-link, .z1-unload-btn, .jig-unload-btn');
         break;
 
       case 's':  // Add Spider — Spider Spindle Z1/Z2
         e.preventDefault();
-        _doRowOrPageAction('.btn-add-spider', null);
+        _doRowOrPageAction('.btn-add-spider, .spider-add-btn', null);
+        break;
+
+      case 'q':  // Audit (IQF) — IQF Audit child screen
+        e.preventDefault();
+        _doRowAction('.iqf-audit-btn, .audit-action-btn');
+        break;
+
+      case 'i':  // Inspection (IP) — Inprocess Inspection child screen
+        e.preventDefault();
+        _doRowAction('.ip-inspection-btn, .inspection-action-btn');
+        break;
+
+      case 'c':  // Clear (Jig) — Jig Loading: Clear all scanned trays
+        e.preventDefault();
+        var clearBtn = document.querySelector('.jig-clear-btn, .clear-scanned-btn, [data-action="clear-all"]');
+        if (clearBtn && _visible(clearBtn)) {
+          _pendingEl = clearBtn;
+        }
+        break;
+
+      case 'o':  // Redo (Jig) — Jig Loading: Clear and restart
+        e.preventDefault();
+        var redoBtn = document.querySelector('.jig-redo-btn, .redo-action-btn, [data-action="redo"]');
+        if (redoBtn && _visible(redoBtn)) {
+          _pendingEl = redoBtn;
+        }
         break;
     }
+  });
+
+  // ── ON PAGE LOAD: Restore previously highlighted row from sessionStorage ──
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      // PRIMARY: Try keyboard handler's own sessionStorage
+      var ctx = _restoreRowState();
+      
+      if (ctx) {
+        var row = _findRowByContext(ctx);
+        if (row) {
+          _highlightRow(row);
+        } else {
+          // Lot no longer exists, clear stored state
+          sessionStorage.removeItem(_SESSION_KEY);
+          sessionStorage.removeItem('globalScanLotId');
+          sessionStorage.removeItem('globalScanTrayId');
+        }
+      }
+    }, 100);
   });
 
 })();

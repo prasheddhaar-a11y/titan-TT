@@ -852,6 +852,30 @@ def brass_qc_action(request):
             accept_data if isinstance(accept_data, list)
             else (accept_data.get('trays') or [])
         ) if accept_data else []
+        # Fallback: snapshot_data.accepted (both fields are written in parallel at submission time)
+        if not _accept_trays and submission.submission_type == 'FULL_ACCEPT':
+            _snap_d = submission.snapshot_data or {}
+            _accept_trays = _snap_d.get('accepted', []) if isinstance(_snap_d, dict) else []
+        # Audit-return fallback: if this lot is back at BQ after BA FULL_REJECT, use the
+        # BA submission's full_reject_data.trays (= what BQ originally sent to BA).
+        # Gated strictly on send_brass_audit_to_qc=True so it never affects other flows.
+        if not _accept_trays and submission.submission_type == 'FULL_ACCEPT':
+            try:
+                _stock_ar = TotalStockModel.objects.filter(lot_id=lot_id).values_list('send_brass_audit_to_qc', flat=True).first()
+                if _stock_ar:
+                    from BrassAudit.models import Brass_Audit_Submission as _BaSub
+                    _ba_sub = _BaSub.objects.filter(
+                        lot_id=lot_id, submission_type='FULL_REJECT'
+                    ).order_by('-created_at').first()
+                    if _ba_sub:
+                        _ba_snap = _ba_sub.full_reject_data or {}
+                        _accept_trays = _ba_snap.get('trays', []) if isinstance(_ba_snap, dict) else []
+                        logger.info(
+                            f"[ACTION:GET_SUBMISSION_TRAYS] Audit-return fallback for {lot_id}: "
+                            f"using BA FULL_REJECT snapshot, trays={len(_accept_trays)}"
+                        )
+            except Exception as _e:
+                logger.warning(f"[ACTION:GET_SUBMISSION_TRAYS] Audit-return fallback failed for {lot_id}: {_e}")
         for t in _accept_trays:
             tid = t.get("tray_id", "")
             if tid:
@@ -943,6 +967,17 @@ def brass_qc_action(request):
             return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
         tray_data, source, total_qty = _resolve_lot_trays(lot_id)
         active_trays = [t for t in tray_data if not t.get('is_delinked') and not t.get('is_rejected')]
+
+        # ── Audit-return fallback: if tray resolution fails, use stock qty ──
+        # For lots returning from Brass Audit (send_brass_audit_to_qc=True) the tray
+        # snapshot from the prior BQ pass may not always resolve. Fall back to the
+        # stock's recorded total_IP_accpeted_quantity so the qty/slot computation works.
+        if total_qty == 0 and bool(stock.send_brass_audit_to_qc):
+            total_qty = int(stock.total_IP_accpeted_quantity or stock.total_stock or 0)
+            logger.info(
+                f"[ACTION:ALLOCATE] Audit-return tray fallback for {lot_id}: total_qty={total_qty}"
+            )
+
         # Adjust total_qty when IS did partial rejection (original tray qtys are not reduced by IS)
         # Skip when source=IPTrayId — those quantities are already post-IS-rejection adjusted
         if source != "IPTrayId" and getattr(stock, 'few_cases_accepted_Ip_stock', False):
@@ -1191,8 +1226,11 @@ def brass_qc_action(request):
             stock = TotalStockModel.objects.select_related('batch_id').get(lot_id=lot_id)
         except TotalStockModel.DoesNotExist:
             return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
-        # Prevent draft save if already fully submitted
-        if Brass_QC_Submission.objects.filter(lot_id=lot_id, is_completed=True).exists():
+        # For lots returning from Brass Audit (send_brass_audit_to_qc=True), treat as isolated/fresh
+        # — the previous BQ submission belongs to a prior cycle; allow a fresh draft.
+        is_audit_return = bool(stock.send_brass_audit_to_qc)
+        # Prevent draft save if already fully submitted (skip check for audit-returned lots)
+        if not is_audit_return and Brass_QC_Submission.objects.filter(lot_id=lot_id, is_completed=True).exists():
             return JsonResponse({"success": False, "error": "Lot already submitted — cannot save draft"}, status=409)
         draft, created = Brass_QC_Draft_Store.objects.update_or_create(
             lot_id=lot_id,
