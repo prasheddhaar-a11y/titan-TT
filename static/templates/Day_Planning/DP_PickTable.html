@@ -11,6 +11,346 @@ html, body, * {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
+/* Light, minimal header actions */
+.dp-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.dp-title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dp-how-works-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 6px 0 40px;
+  height: 30px;
+  position: relative;
+  background: rgb(255 255 255 / 6%);
+  border: none;
+  border-radius: 30px;
+  box-shadow: rgb(255 0 0 / 52%) 0px 2px 10px;
+  color: #414141;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  margin-right: 15px;
+}
+
+.dp-how-works-btn:hover {
+  background: rgb(255 255 255 / 12%);
+  box-shadow: rgb(2 128 128 / 65%) 0px 3px 12px;
+  color: #025254;
+}
+
+.dp-how-works-btn:active {
+  transform: none;
+  box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;
+}
+
+.dp-how-works-btn img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.dp-how-works-btn img[src*="45.png"] {
+    width: 35px;
+    height: 35px;
+    position: absolute;
+    left: -1px;
+    top: 45%;
+    transform: translateY(-50%);
+}
+
+.dp-how-panel {
+  position: fixed;
+  top: 110px;
+  right: 26px;
+  width: min(440px, calc(100vw - 24px));
+  background: #ffffff;
+  border: 1px solid #caebea;
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(218, 71, 110, 0.14);
+  z-index: 25000;
+  display: none;
+  overflow: hidden;
+}
+
+.dp-how-panel.open {
+  display: block;
+}
+
+.dp-how-panel.dragging {
+  opacity: 1;
+  user-select: none;
+}
+
+.dp-how-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #edf9f8;
+  border-bottom: 1px solid #d8efee;
+  padding: 10px 12px;
+  cursor: grab;
+}
+
+.dp-how-panel-header:active {
+  cursor: grabbing;
+}
+
+.dp-how-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1f636b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dp-how-panel-close {
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  background: #f4dede;
+  color: #a63b3b;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.dp-how-panel-body {
+  padding: 12px;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.dp-how-panel-body::-webkit-scrollbar { width: 4px; }
+.dp-how-panel-body::-webkit-scrollbar-track { background: #f1f5f5; }
+.dp-how-panel-body::-webkit-scrollbar-thumb { background: #b0d5d5; border-radius: 4px; }
+
+.dp-how-panel-body img {
+  width: 100%;
+  max-height: 170px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #d7ecea;
+  margin-bottom: 10px;
+}
+
+.dp-how-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dp-how-card {
+  background: #f8fcfc;
+  border: 1px solid #deefee;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.dp-how-card h6 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f6069;
+}
+
+.dp-how-card ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.dp-how-card li {
+  color: #2d5055;
+  font-size: 12px;
+  margin-bottom: 5px;
+  line-height: 1.25;
+}
+
+.dp-how-remedy {
+  margin-top: 10px;
+  border: 1px solid #f0e5bf;
+  background: #fff8dc;
+  color: #63541f;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dp-how-contact-wrap {
+  margin-top: 10px;
+  border: 1px solid #d5e7f2;
+  background: #f3f9fd;
+  color: #214b63;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dp-how-contact-icons {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dp-how-contact-mail {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #ffffff;
+  background: linear-gradient(145deg, #3d88a6, #5bbf8f);
+  box-shadow: 0 2px 6px rgba(27, 86, 111, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dp-how-contact-mail:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 10px rgba(27, 86, 111, 0.3);
+}
+
+.dp-how-contact-mail i {
+  font-size: 13px;
+}
+
+/* === Quick Help Sections === */
+.dp-qh-section { margin-bottom: 12px; }
+
+.dp-qh-section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0d6571;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 4px 8px;
+  background: #eaf7f6;
+  border-left: 3px solid #028084;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 8px;
+}
+
+.dp-qh-steps { display: flex; flex-direction: column; gap: 4px; }
+
+.dp-qh-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #2a4a50;
+  font-weight: 400;
+}
+
+.dp-qh-step-num {
+  min-width: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #028084;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.dp-qh-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dp-qh-feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0f9f8;
+  border: 1px solid #c8e8e7;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #1a5559;
+  line-height: 1.2;
+}
+
+.dp-qh-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: #f8fdfd;
+  border: 1px solid #d5edec;
+  border-radius: 8px;
+}
+
+.dp-qh-flow-node {
+display: inline-flex;
+    align-items: center;
+    background: #199b9e;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 400;
+    padding: 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.dp-qh-flow-node.active-node {
+  background: #c94f2e;
+  box-shadow: 0 0 0 2px rgba(201,79,46,0.25);
+}
+
+.dp-qh-flow-arrow { color: #8abfbe; font-size: 11px; font-weight: 700; }
+
+.tray-cate-capacity-header {
+  display: inline-block;
+  line-height: 1.05;
+  white-space: nowrap;
+  color: #e5fcff !important;
+}
+
+@media (max-width: 768px) {
+  .dp-title-bar {
+    align-items: flex-start;
+  }
+
+  .dp-how-works-btn {
+    margin-top: 4px;
+    margin-bottom: 10px;
+  }
+
+  .dp-how-panel {
+    top: 95px;
+    right: 12px;
+    width: min(420px, calc(100vw - 20px));
+  }
+
+  .dp-how-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ========== Tablet override — paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
 
@@ -602,15 +942,140 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     <div class="col-12 grid-margin stretch-card">
       <div class="card">
                 <div class="card-body">
-              <h5 class="text-left mt-0 mb-4" style="font-weight:700;">
-                Day Planning Pick Table
-                <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
-                        style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
-                  <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
-                  Scan
+              <div class="dp-title-bar">
+                <h5 class="text-left mt-0 mb-4" style="font-weight:700; margin-bottom: 0 !important;">
+                  <span class="dp-title-left">Day Planning Pick Table</span>
+                  <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
+                </h5>
+                <button type="button" id="howItWorksBtn" class="dp-how-works-btn" aria-label="Open quick help information">
+                  <img src="{% static 'assets/icons/45.png' %}" alt="Quick Help" />
+                  Quick Help
                 </button>
-                <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
-              </h5>
+              </div>
+
+              <div id="howItWorksPanel" class="dp-how-panel" aria-hidden="true">
+                <div id="howItWorksDragHandle" class="dp-how-panel-header">
+                  <div class="dp-how-panel-title">
+                    <img src="{% static 'assets/icons/45.png' %}" alt="Info" style="width:16px; height:16px;" />
+                    Quick Help
+                  </div>
+                  <button type="button" id="howItWorksClose" class="dp-how-panel-close" aria-label="Close quick help panel">&times;</button>
+                </div>
+                <div class="dp-how-panel-body">
+                  <img src="{% static 'assets/images/11.jpg' %}" alt="Day Planning Guidance" />
+
+                  <!-- SECTION 1: Actions to Perform -->
+                  <div class="dp-qh-section">
+                    <div class="dp-qh-section-title">Actions to Perform</div>
+                    <div class="dp-qh-steps">
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">1.</span>
+                        <span>Find your lot in the pick table using Batch ID or Plating Stock No.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">2.</span>
+                        <span>Click Tray Scan in the Action column — tray scan modal opens.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">3.</span>
+                        <span>Scan the tray barcode — tray ID fills in automatically.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">4.</span>
+                        <span>Enter the quantity for each scanned tray.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">5.</span>
+                        <span>Check Top Tray on the topmost tray in the stack.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">6.</span>
+                        <span>If not finished, click Save Draft — reopen anytime to continue.</span>
+                      </div>
+                      <div class="dp-qh-step">
+                        <span class="dp-qh-step-num">7.</span>
+                        <span>Once all trays are scanned, click Submit — lot moves to Completed Table.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SECTION 2: Features -->
+                  <div class="dp-qh-section">
+                    <div class="dp-qh-section-title">Features</div>
+                    <div class="dp-qh-features">
+                      <div class="dp-qh-feature"><span>⏸</span> Hold / Unhold Lot</div>
+                      <div class="dp-qh-feature"><span>📝</span> Draft Save &amp; Resume</div>
+                      <div class="dp-qh-feature"><span>👁</span> View Tray Details</div>
+                      <div class="dp-qh-feature"><span>📅</span> Filter by Date Range</div>
+                      <div class="dp-qh-feature"><span>🔍</span> Search by Lot / Batch</div>
+                      <div class="dp-qh-feature"><span>⌨</span> Keyboard Shortcuts</div>
+                      <div class="dp-qh-feature"><span>📷</span> Barcode Scanner</div>
+                      <div class="dp-qh-feature"><span>🔒</span> Hold Reason Logs</div>
+                      <div class="dp-qh-feature"><span>↑↓</span> Row Navigation (Arrow Keys)</div>
+                    </div>
+                  </div>
+
+                  <!-- SECTION 3: Lot Flow -->
+                  <div class="dp-qh-section">
+                    <div class="dp-qh-section-title">Lot Flow — After Submit</div>
+                    <div class="dp-qh-flow">
+                      <span class="dp-qh-flow-node active-node">Day Planning</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Input Screening</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Brass QC</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">IQF</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Brass Audit</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Jig Loading</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">In-Process</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Jig Unloading</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Nickel Inspection</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Nickel Audit</span>
+                      <span class="dp-qh-flow-arrow">→</span>
+                      <span class="dp-qh-flow-node">Spider Spindle</span>
+                    </div>
+                  </div>
+
+                  <!-- Stuck Remedy -->
+                  <div class="dp-how-remedy">
+                    <strong>Stuck?</strong> — Save as Draft → Close modal → Reopen → Re-scan → Validate again. If issue persists, note the <strong>Batch ID + Tray ID</strong> and raise with supervisor.
+                  </div>
+
+                  <!-- Contact -->
+                  <div class="dp-how-contact-wrap">
+                    <strong>Raise a complaint</strong> — share Batch ID, Lot ID, Tray ID, module, step, and error text.
+                    <div class="dp-how-contact-icons">
+                      <a
+                        class="dp-how-contact-mail"
+                        href="mailto:balajit@titan.co.in?subject=Complaint%20-%20Day%20Planning%20Quick%20Help&body=Batch%20ID%3A%0D%0ALot%20ID%3A%0D%0ATray%20ID%3A%0D%0AModule%3A%20Day%20Planning%0D%0AStuck%20At%20Step%3A%0D%0AError%20Text%3A%0D%0A"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Email Balaji"
+                        title="Balaji"
+                      >
+                        <i class="fa fa-envelope"></i>
+                      </a>
+                      <a
+                        class="dp-how-contact-mail"
+                        href="mailto:athifahamedm@titan.co.in?subject=Complaint%20-%20Day%20Planning%20Quick%20Help&body=Batch%20ID%3A%0D%0ALot%20ID%3A%0D%0ATray%20ID%3A%0D%0AModule%3A%20Day%20Planning%0D%0AStuck%20At%20Step%3A%0D%0AError%20Text%3A%0D%0A"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="Email Athif"
+                        title="Athif"
+                      >
+                        <i class="fa fa-envelope"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               <!-- Hidden input for scanner -->
               <input type="text" id="scanHiddenInput" 
@@ -628,6 +1093,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       <th class="{% if not is_admin and not visible_headings|get_item:heading %}blurred-heading{% endif %}">
         {% if heading == 'Plating Stk No' %}
           Plating Stock Number
+        {% elif heading == 'Tray Cate-Capacity' %}
+          <span class="tray-cate-capacity-header">Tray Cate-<br>Capacity</span>
         {% elif display_headings_map %}
           {{ display_headings_map|get_item:heading|safe }}
         {% else %}
@@ -1153,6 +1620,169 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
  
 {% block script %}
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  // ========== Fetch Quick Help content from database API ==========
+  const dpHowColumns = document.getElementById("dpHowColumns");
+  
+  if (dpHowColumns) {
+    fetch('/dayplanning/quick_help/')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          let dos = data.dos || [];
+          let donts = data.donts || [];
+          
+          // Render Do's card
+          let doHtml = '<div class="dp-how-card"><h6>Do</h6><ul>';
+          dos.forEach(item => {
+            doHtml += `<li>${item.description}</li>`;
+          });
+          doHtml += '</ul></div>';
+          
+          // Render Don'ts card
+          let dontHtml = '<div class="dp-how-card"><h6>Don\'t</h6><ul>';
+          donts.forEach(item => {
+            dontHtml += `<li>${item.description}</li>`;
+          });
+          dontHtml += '</ul></div>';
+          
+          dpHowColumns.innerHTML = doHtml + dontHtml;
+        } else {
+          // Fallback content if API fails
+          dpHowColumns.innerHTML = `
+            <div class="dp-how-card">
+              <h6>Do</h6>
+              <ul>
+                <li>Scan tray IDs exactly in physical sequence.</li>
+                <li>Verify tray quantity before final submit.</li>
+                <li>Use Draft when scanning is incomplete.</li>
+                <li>Confirm lot status before moving next stage.</li>
+              </ul>
+            </div>
+            <div class="dp-how-card">
+              <h6>Don't</h6>
+              <ul>
+                <li>Do not type random tray IDs or guess values.</li>
+                <li>Do not submit if validation shows mismatch.</li>
+                <li>Do not continue with a lot that is on hold.</li>
+                <li>Do not reuse trays without proper delink flow.</li>
+              </ul>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching Quick Help:', error);
+        // Fallback content on error
+        dpHowColumns.innerHTML = `
+          <div class="dp-how-card">
+            <h6>Do</h6>
+            <ul>
+              <li>Scan tray IDs exactly in physical sequence.</li>
+              <li>Verify tray quantity before final submit.</li>
+              <li>Use Draft when scanning is incomplete.</li>
+              <li>Confirm lot status before moving next stage.</li>
+            </ul>
+          </div>
+          <div class="dp-how-card">
+            <h6>Don't</h6>
+            <ul>
+              <li>Do not type random tray IDs or guess values.</li>
+              <li>Do not submit if validation shows mismatch.</li>
+              <li>Do not continue with a lot that is on hold.</li>
+              <li>Do not reuse trays without proper delink flow.</li>
+            </ul>
+          </div>
+        `;
+      });
+  }
+
+  // ========== Quick Help Panel Drag and Open/Close Logic ==========
+  const howBtn = document.getElementById("howItWorksBtn");
+  const howPanel = document.getElementById("howItWorksPanel");
+  const howClose = document.getElementById("howItWorksClose");
+  const dragHandle = document.getElementById("howItWorksDragHandle");
+
+  if (!howBtn || !howPanel || !howClose || !dragHandle) {
+    return;
+  }
+
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  function openPanel() {
+    howPanel.classList.add("open");
+    howPanel.setAttribute("aria-hidden", "false");
+  }
+
+  function closePanel() {
+    howPanel.classList.remove("open");
+    howPanel.setAttribute("aria-hidden", "true");
+  }
+
+  function startDrag(event) {
+    if (event.target.closest("#howItWorksClose")) {
+      return;
+    }
+    dragging = true;
+    const rect = howPanel.getBoundingClientRect();
+    offsetX = event.clientX - rect.left;
+    offsetY = event.clientY - rect.top;
+    howPanel.classList.add("dragging");
+    dragHandle.setPointerCapture(event.pointerId);
+  }
+
+  function onDrag(event) {
+    if (!dragging) {
+      return;
+    }
+    const panelW = howPanel.offsetWidth;
+    const panelH = howPanel.offsetHeight;
+    const maxLeft = Math.max(8, window.innerWidth - panelW - 8);
+    const maxTop = Math.max(8, window.innerHeight - panelH - 8);
+    const nextLeft = Math.min(Math.max(8, event.clientX - offsetX), maxLeft);
+    const nextTop = Math.min(Math.max(8, event.clientY - offsetY), maxTop);
+
+    howPanel.style.left = nextLeft + "px";
+    howPanel.style.top = nextTop + "px";
+    howPanel.style.right = "auto";
+  }
+
+  function stopDrag(event) {
+    if (!dragging) {
+      return;
+    }
+    dragging = false;
+    howPanel.classList.remove("dragging");
+    if (typeof event.pointerId !== "undefined") {
+      dragHandle.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  howBtn.addEventListener("click", function () {
+    if (howPanel.classList.contains("open")) {
+      closePanel();
+    } else {
+      openPanel();
+    }
+  });
+
+  howClose.addEventListener("click", closePanel);
+  dragHandle.addEventListener("pointerdown", startDrag);
+  dragHandle.addEventListener("pointermove", onDrag);
+  dragHandle.addEventListener("pointerup", stopDrag);
+  dragHandle.addEventListener("pointercancel", stopDrag);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && howPanel.classList.contains("open")) {
+      closePanel();
+    }
+  });
+});
+</script>
 
 <!-- Barcode Scanner - Script -->
 <script nonce="{{ csp_nonce }}">
@@ -6314,6 +6944,7 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
   // ESC=clear | Up/Down=navigate | Enter=execute | F2=scan | T=tray-scan
   // Delete=mark delete→Enter confirms | Left/Right=scroll | 1-9=pagination
 
+  if (!window.TTT_DB_SHORTCUTS_ENABLED) {
   let kbIndex = -1;           // currently highlighted row index
   let kbAction = null;        // pending action: 'tray-scan' | 'delete' | null
   const kbTable = document.getElementById('order-listing');
@@ -6415,7 +7046,7 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
       (m.style.display === 'flex' && m.style.visibility !== 'hidden'));
   }
 
-  if (kbTable) {
+  if (kbTable && !window.TTT_DB_SHORTCUTS_ENABLED) {
     document.addEventListener('keydown', function(e) {
       // Skip when typing in an input field or select
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
@@ -6547,6 +7178,7 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
 
     console.log('Keyboard shortcuts ready: Esc=clear | Up/Down=navigate | Enter=execute | F2=scan | T=tray-scan | Delete=delete | Arrows=scroll | 1-9=page');
   }
+  }
 </script>
 
 <!-- ✅ ERR 2 FIX: D Key Delete Mode for DP_PickTable -->
@@ -6554,6 +7186,7 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
 document.addEventListener("DOMContentLoaded", function () {
   const table = document.getElementById("order-listing");
   if (!table) return;
+  if (window.TTT_DB_SHORTCUTS_ENABLED) return;
   
   let selectedDeleteRow = null;
   let inDeleteMode = false; // ✅ NEW: Track delete mode separately from navigation mode

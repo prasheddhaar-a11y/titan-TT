@@ -307,7 +307,9 @@
   document.addEventListener("DOMContentLoaded", function () {
     _injectStyle();
     _initRowClickSync();
-    document.addEventListener("keydown", _onKeydown);
+    if (!window.TTT_DB_SHORTCUTS_ENABLED) {
+      document.addEventListener("keydown", _onKeydown);
+    }
   });
 
 })();

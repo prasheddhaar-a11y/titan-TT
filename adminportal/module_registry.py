@@ -88,6 +88,7 @@ USER_CATEGORY_MODULES = {
 }
 
 LEGACY_MODULE_NAME_MAP = {
+    "Input Screening": ["Input Pick Table", "Input Completed Table", "Input Accept Table", "Input Reject Table"],
     "Input Main Table": ["Input Pick Table"],
     "Input Complete Table": ["Input Completed Table"],
     "Brass QC Pick Table": ["Brass Qc Pick Table"],
@@ -100,5 +101,8 @@ LEGACY_MODULE_NAME_MAP = {
     "IP Inspection": ["IP Main", "IP Completed"],
     "Nickel Inspection": ["Nickel Main Table", "Nickel Completed Table"],
     "Nickel Audit": ["NA Pick Table", "NA Completed"],
+    "Spider Spindle": ["Spider Spindle Z1 Pick Table", "Spider Spindle Z1 Completed Table", "Spider Spindle Z2 Pick Table", "Spider Spindle Z2 Completed Table"],
+    "Spider Spindle Z1": ["Spider Spindle Z1 Pick Table", "Spider Spindle Z1 Completed Table"],
+    "Spider Spindle Z2": ["Spider Spindle Z2 Pick Table", "Spider Spindle Z2 Completed Table"],
 }
 

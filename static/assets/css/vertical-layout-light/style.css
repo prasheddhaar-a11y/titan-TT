@@ -35526,7 +35526,7 @@ div.tagsinput span.tag a {
   overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  background-color: #f5f7ff;
+  background-color: #fff;
   overflow: hidden;
   flex-wrap: nowrap;
   flex-direction: column;

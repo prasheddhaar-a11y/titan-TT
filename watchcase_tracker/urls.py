@@ -18,12 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import TemplateView
 from django.contrib.auth import views as auth_views
+from adminportal.views import IndexView
 from watchcase_tracker import sso
 from django.conf.urls import handler404, handler500, handler403, handler400
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.shortcuts import redirect
 
 
 
@@ -35,11 +36,13 @@ urlpatterns = [
     path('auth/microsoft/login/', sso.microsoft_login, name='microsoft_login'),
     path('auth/microsoft/callback/', sso.microsoft_callback, name='microsoft_callback'),
     
-    path('accounts/profile/', lambda request: HttpResponse('Logged in successfully!')),
+    #path('accounts/profile/', lambda request: HttpResponse('Logged in successfully!')),
+    path('accounts/profile/', lambda request: redirect('home')),
+    
     # Use your custom login template here:    
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'), 
      
-    path('home/', TemplateView.as_view(template_name="index.html"), name="home"),  # Add this line
+    path('home/', IndexView.as_view(), name="home"),  # Dashboard with permission-filtered stats
     path('admin/', admin.site.urls),
     path('',include('modelmasterapp.urls')),
     path('adminportal/',include('adminportal.urls')),

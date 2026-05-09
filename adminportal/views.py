@@ -51,6 +51,18 @@ def get_allowed_modules_for_user(user):
     return get_user_allowed_module_names(user)
 
 
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+class ShortcutConfigurationAPIView(APIView):
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request, format=None):
+        from .services import get_active_shortcut_configurations
+        return Response({
+            'success': True,
+            'shortcuts': get_active_shortcut_configurations(),
+        })
+
+
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
 class IndexView(APIView):
@@ -74,7 +86,11 @@ class IndexView(APIView):
         
         # Get dashboard stats from cache (or fresh calculation)
         t3 = time.time()
-        dashboard_stats = get_cached_dashboard_stats(request.user.id)
+        request._ttt_allowed_modules = allowed_modules
+        dashboard_stats = get_cached_dashboard_stats(
+            request.user.id,
+            allowed_module_names=allowed_modules,
+        )
         dashboard_stats = filter_dashboard_stats_for_modules(dashboard_stats, allowed_modules)
         t4 = time.time()
         if hasattr(request, 'timers'):

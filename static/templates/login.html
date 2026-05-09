@@ -680,7 +680,7 @@
                   {{ error }}
                 </div>
                 {% endif %}
-                <form class="pt-3" method="post" action="{% url 'login-api' %}">
+                <form class="pt-3" method="post" action="{% url 'login' %}">
                   {% csrf_token %}
                   <div class="form-group input-with-icon">
                     <span class="input-icon" aria-hidden="true">
@@ -847,6 +847,7 @@
       const totalSlides = slides.length;
 
       function showSlide(n) {
+        if (totalSlides === 0) return;
         // Remove active class from all slides
         slides.forEach((slide) => slide.classList.remove("active"));
         // Add active class to current slide
@@ -859,7 +860,9 @@
       }
 
       // Auto-slide every 4 seconds
-      setInterval(nextSlide, 4000);
+      if (totalSlides > 0) {
+        setInterval(nextSlide, 4000);
+      }
 
       // Password show/hide toggle
       document.addEventListener("DOMContentLoaded", function () {

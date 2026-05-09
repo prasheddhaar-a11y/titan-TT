@@ -13,10 +13,12 @@
             <h5 class="text-left mt-0 mb-0 d-inline-block" style="font-weight:700;">
               Input Screening Pick Table
               <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton"
-                      title="Open tray scan (F2)"
+                    title="Open tray scan"
+                    data-shortcut-title-code="picktable_scan"
+                    data-shortcut-title-template="{label} ({key})"
                       style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
                 <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
-                Scan <kbd style="font-size:10px;opacity:.75;margin-left:2px;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">F2</kbd>
+                  Scan <kbd data-shortcut-template-code="picktable_scan" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;margin-left:2px;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
               </button>
               <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
             </h5>
@@ -224,24 +226,28 @@
                         <button
                            type="button"
                            class="btn-accept-is"
-                           title="Accept lot (A)"
+                           title="Accept lot"
+                           data-shortcut-title-code="accept_row"
+                           data-shortcut-title-template="{label} ({key})"
                            data-stock-lot-id="{{ data.stock_lot_id }}"
                            data-batch-id="{{ data.batch_id }}"
                            style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: {% if data.all_trays_verified %}pointer{% else %}not-allowed{% endif %}; margin-left: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: {% if data.all_trays_verified %}1{% else %}0.5{% endif %};"
                            {% if not data.all_trays_verified %}disabled{% endif %}>
-                        Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                        Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         
                         <!-- Reject button - enabled when all trays verified -->
                         <button
                            type="button"
                            class="btn-reject-is"
-                           title="Reject lot (R)"
+                           title="Reject lot"
+                           data-shortcut-title-code="reject_row"
+                           data-shortcut-title-template="{label} ({key})"
                            data-stock-lot-id="{{ data.stock_lot_id }}"
                            data-batch-id="{{ data.batch_id }}"
                            style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: {% if data.all_trays_verified %}pointer{% else %}not-allowed{% endif %}; margin-left: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: {% if data.all_trays_verified %}1{% else %}0.5{% endif %};"
                            {% if not data.all_trays_verified %}disabled{% endif %}>
-                        Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                        Reject <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         </td>
                         <!-- LOT Qty Column -->
@@ -966,7 +972,7 @@
         </button>
       </div>
       <div id="tvm-scan-hint" style="font-size:11px; color:#999; margin-top:15px; padding-left:6px; font-weight:500;">
-        Press <kbd style="background:#e8ecef; color:#333; padding:2px 7px; border-radius:4px; font-size:11px; border:1px solid #d0dfe1; font-weight:600;">Enter</kbd>
+        Press <kbd data-shortcut-template-code="execute_pending" data-shortcut-template="{key}" style="background:#e8ecef; color:#333; padding:2px 7px; border-radius:4px; font-size:11px; border:1px solid #d0dfe1; font-weight:600;"></kbd>
         to verify
       </div>
     </div>

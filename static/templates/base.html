@@ -2,6 +2,9 @@
 <!DOCTYPE html>
 <html lang="en">
    <head>
+    <script nonce="{{ csp_nonce }}">
+      window.TTT_DB_SHORTCUTS_ENABLED = true;
+    </script>
       <style>
 /* Tablet / large-touch override: force sidebar width to 280px */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px),
@@ -95,6 +98,17 @@
          body.sidebar-icon-only .sidebar .nav .nav-item .ti[data-tooltip]:hover {
          /* Custom property to help JS position the tooltip if needed */
          }
+         /* Custom PNG icons for menu - 16px sizing */
+         .sidebar .nav .nav-item .menu-icon img,
+         .sidebar .nav .nav-item img.menu-icon {
+         height: 16px !important;
+         width: 16px !important;
+         object-fit: contain;
+         margin-right: 12px !important;
+         vertical-align: middle;
+         display: inline-block;
+         }
+         
          /* Sidebar menu icons: always black by default */
          .sidebar .nav .nav-item .menu-icon,
          .sidebar .nav .nav-item i,
@@ -102,6 +116,8 @@
          .sidebar .nav .nav-item .ti {
          color: #222 !important; /* Black */
          transition: color 0.2s;
+         display: inline-flex;
+         align-items: center;
          }
          /* Active menu: icon and text white, bg teal */
          .sidebar .nav .nav-item.active > .nav-link .menu-icon,
@@ -984,14 +1000,16 @@
                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                               transition:all 0.3s ease;">
                      <span id="scanInfoIcon" data-scanner-src="{% static 'assets/icons/hr.jpg' %}"><img src="{% static 'assets/icons/scanner.png' %}" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/></span>
-                     <span id="scanInfoText" style="margin-left:4px;font-weight:600;">Press F2 to scan</span>
+                     <span id="scanInfoText" data-shortcut-template-code="picktable_scan" data-shortcut-template="Press {key} to scan" style="margin-left:4px;font-weight:600;">Scan ready</span>
                   </div>
                </li>
                
                <!-- ✅ GLOBAL SCAN BUTTON -->
                <li class="nav-item position-relative">
                   <button id="globalScanBtn" class="nav-link btn d-flex flex-row align-items-center" 
-                          title="Global Tray Scan (F2)"
+                      title="Global Tray Scan"
+                      data-shortcut-title-code="picktable_scan"
+                      data-shortcut-title-template="{label} ({key})"
                           style="gap:10px;padding:8px 16px;
                                  background: rgb(255 255 255 / 6%);
                                  border:none;
@@ -1001,7 +1019,7 @@
                      <img src="{% static 'assets/icons/scanner.png' %}" alt="Scan" 
                           style="width:20px;height:20px;object-fit:contain;vertical-align:middle;"
                           onerror="this.onerror=null; this.outerHTML='';" />
-                     <small style="font-size:13px;color:#025254 !important;font-weight:700;margin:0;">Scan (F2)</small>
+                     <small data-shortcut-template-code="picktable_scan" data-shortcut-template="Scan ({key})" style="font-size:13px;color:#025254 !important;font-weight:700;margin:0;">Scan</small>
                   </button>
                   <!-- Inline scan status box -->
                   <div id="globalScanStatus" 
@@ -1079,16 +1097,16 @@
                      >
                      {% if is_admin %}
                      <a class="dropdown-item" href="{% url 'adminportal' %}">
-                     <i class="ti-user text-primary" style="margin-right: 8px;"></i>
+                     <img src="{% static 'assets/icons/36.png' %}" style="height: 16px !important; width: 16px !important; object-fit: contain; margin-right: 12px; vertical-align: middle;" alt="User Creation" />
                      User Creation
                      </a>
                      {% endif %}
                      <a class="dropdown-item" href="{% url 'dp_modelmaster' %}">
-                     <i class="ti-package text-primary" style="margin-right: 8px;"></i>
+                     <img src="{% static 'assets/icons/37.png' %}" style="height: 16px !important; width: 16px !important; object-fit: contain; margin-right: 12px; vertical-align: middle;" alt="Model Master" />
                      Model Master
                      </a>
                      <a class="dropdown-item" href="{% url 'reports_module:reports' %}">
-                     <i class="ti-file text-primary" style="margin-right: 8px;"></i>
+                     <img src="{% static 'assets/icons/38.png' %}" style="height: 16px !important; width: 16px !important; object-fit: contain; margin-right: 12px; vertical-align: middle;" alt="Reports" />
                      Reports
                      </a>
                   </div>
@@ -1106,7 +1124,7 @@
                      >
                      <!-- Swap User -->
                      <a class="dropdown-item" id="swapUserBtn" style="position: relative;">
-                        <i class="ti-user text-primary"></i> Swap User
+                        <img src="{% static 'assets/icons/46.png' %}" alt="Swap User" style="height: 18px; width: 18px; object-fit: contain; margin-right: 8px; vertical-align: middle;"/> Swap User
                         <!-- Mini sub option -->
                         <div id="swapUserSubMenu"
                            style="display: none; position: absolute; right: 100%; top: 0; min-width: 170px; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); z-index: 9999; text-align: center; padding: 5px;">
@@ -1115,7 +1133,7 @@
                      </div>
                      </a>
                      <a class="dropdown-item" href="{% url 'logout' %}">
-                     <i class="ti-power-off text-primary"></i>
+                     <img src="{% static 'assets/icons/47.png' %}" alt="Logout" style="height: 18px; width: 18px; object-fit: contain; margin-right: 8px; vertical-align: middle;"/>
                      Logout
                      </a>
                   </div>
@@ -1464,7 +1482,6 @@
             if(btn) btn.addEventListener('click', function(e){ e.preventDefault(); openModal(e); });
             if(closeBtn) closeBtn.addEventListener('click', closeModal);
             backdrop.addEventListener('click', function(e){ if(e.target === backdrop) closeModal(); });
-            document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && backdrop.style.display === 'flex') closeModal(); });
 
             // Scroll controls for modal body
             const modalBody = document.getElementById('flagModalBody');
@@ -1483,14 +1500,14 @@
    <ul class="nav">
       <li class="nav-item">
          <a class="nav-link" href="{% url 'index' %}">
-         <i class="icon-grid menu-icon" data-tooltip="Dashboard"></i>
+         <img src="{% static 'assets/icons/35.png' %}" class="menu-icon" data-tooltip="Dashboard" alt="Dashboard" />
          <span class="menu-title">Dashboard</span>
          </a>
       </li>
       {% if is_admin or 'DP Pick Table' in allowed_modules or 'DP Complete Table' in allowed_modules or 'Data Upload' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#ui-basic" aria-expanded="false" aria-controls="ui-basic">
-         <i class="icon-watch menu-icon" data-tooltip="Day Planning"></i>
+         <img src="{% static 'assets/icons/21.png' %}" class="menu-icon" data-tooltip="Day Planning" alt="Day Planning" />
          <span class="menu-title">Day Planning</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1521,7 +1538,7 @@
       {% if is_admin or 'Input Pick Table' in allowed_modules or 'Input Completed Table' in allowed_modules or 'Input Accept Table' in allowed_modules or 'Input Reject Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#ui-advanced" aria-expanded="false" aria-controls="ui-advanced">
-         <i class="ti-bar-chart menu-icon"  data-tooltip="Input Screening"></i>
+         <img src="{% static 'assets/icons/22.png' %}" class="menu-icon" data-tooltip="Input Screening" alt="Input Screening" />
          <span class="menu-title">Input Screening</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1555,7 +1572,7 @@
       {% if is_admin or 'Brass Qc Pick Table' in allowed_modules or 'Brass Qc Completed Table' in allowed_modules or 'IQF Pick Table' in allowed_modules or 'IQF Completed Table' in allowed_modules or 'IQF Accept Table' in allowed_modules or 'IQF Reject Table' in allowed_modules or 'Brass Audit Pick Table' in allowed_modules or 'Brass Audit Complete Table' in allowed_modules or 'Brass Audit Reject Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#editors" aria-expanded="false" aria-controls="editors">
-         <i class="fa fa-industry menu-icon"></i>
+         <img src="{% static 'assets/icons/23.png' %}" class="menu-icon" alt="Brass QC" />
          <span class="menu-title">Brass QC</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1614,7 +1631,7 @@
       {% if is_admin or 'Recovery Data Upload' in allowed_modules or 'Recovery Pick Table' in allowed_modules or 'Recovery Completed Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#recovery-onboard" aria-expanded="false" aria-controls="recovery-onboard">
-         <i class="fa fa-history menu-icon" data-tooltip="Recovery Day Planning"></i>
+         <img src="{% static 'assets/icons/24.png' %}" class="menu-icon" data-tooltip="Recovery Day Planning" alt="Recovery Onboard" />
          <span class="menu-title">Recovery Onboard</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1679,7 +1696,7 @@
       {% if is_admin or 'R-Brass Qc Pick Table' in allowed_modules or 'R-Brass Qc Completed Table' in allowed_modules or 'R-IQF Pick Table' in allowed_modules or 'R-IQF Accept Table' in allowed_modules or 'R-IQF Reject Table' in allowed_modules or 'R-IQF Completed Table' in allowed_modules or 'R-Brass Audit Pick Table' in allowed_modules or 'R-Brass Audit Reject Table' in allowed_modules or 'R-Brass Audit Complete Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#recovery-BQ" aria-expanded="false" aria-controls="recovery-BQ">
-         <i class="fa fa-industry menu-icon"></i>
+         <img src="{% static 'assets/icons/26.png' %}" class="menu-icon" alt="R-Brass QC" />
          <span class="menu-title">R-Brass QC</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1738,7 +1755,7 @@
       {% if is_admin or 'Jig Pick Table' in allowed_modules or 'Jig Completed Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#jig-loading" aria-expanded="false" aria-controls="jig-loading">
-         <i class="ti-package menu-icon"></i>
+         <img src="{% static 'assets/icons/27.png' %}" class="menu-icon" alt="Jig Loading" />
          <span class="menu-title">Jig Loading</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1762,7 +1779,7 @@
       {% if is_admin or 'IP Main' in allowed_modules or 'IP Completed' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#inprocessInspectionMenu" aria-expanded="false" aria-controls="inprocessInspectionMenu">
-         <i class="ti-eye menu-icon"></i>
+         <img src="{% static 'assets/icons/28.png' %}" class="menu-icon" alt="Ip Inspection" />
          <span class="menu-title">Ip Inspection</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1786,7 +1803,7 @@
       {% if is_admin or 'JUL Main Table' in allowed_modules or 'JUL Completed' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#jig-unloading-zone1" aria-expanded="false" aria-controls="jig-unloading-zone1">
-         <i class="ti-truck menu-icon"></i>
+         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone 1" />
          <span class="menu-title">Jig Unloading Zone 1</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1809,7 +1826,7 @@
       {% if is_admin or 'JUL Main Table Zone 2' in allowed_modules or 'JUL Completed Zone 2' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#jig-unloading-zone2" aria-expanded="false" aria-controls="jig-unloading-zone2">
-         <i class="ti-truck menu-icon"></i>
+         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone 2" />
          <span class="menu-title">Jig Unloading Zone 2</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1833,7 +1850,7 @@
       {% if is_admin or 'Nickel Main Table' in allowed_modules or 'Nickel Completed Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickel-inspection" aria-expanded="false" aria-controls="nickel-inspection">
-         <i class="ti-eye menu-icon"></i>
+         <img src="{% static 'assets/icons/39.png' %}" class="menu-icon" alt="Nickel Wiping" />
          <span class="menu-title">Nickel Wiping</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1853,7 +1870,7 @@
       </li>
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickel-inspection-zone2" aria-expanded="false" aria-controls="nickel-inspection-zone2">
-         <i class="ti-eye menu-icon"></i>
+         <img src="{% static 'assets/icons/39.png' %}" class="menu-icon" alt="Nickel Wiping Zone2" />
          <span class="menu-title">Nickel Wiping Zone2</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1876,7 +1893,7 @@
       {% if is_admin or 'NA Pick Table' in allowed_modules or 'NA Completed' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickelAuditMenu" aria-expanded="false" aria-controls="nickelAuditMenu">
-         <i class="ti-medall menu-icon"></i>
+         <img src="{% static 'assets/icons/40.png' %}" class="menu-icon" alt="Nickel Audit Zone 1" />
          <span class="menu-title">Nickel Audit Zone 1</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1893,7 +1910,7 @@
       </li>
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickelAuditMenuZone2" aria-expanded="false" aria-controls="nickelAuditMenuZone2">
-         <i class="ti-medall menu-icon"></i>
+         <img src="{% static 'assets/icons/40.png' %}" class="menu-icon" alt="Nickel Audit Zone2" />
          <span class="menu-title">Nickel Audit Zone2</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1914,7 +1931,7 @@
       {% if is_admin or 'Spider Spindle Z1 Pick Table' in allowed_modules or 'Spider Spindle Z1 Completed Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#spiderSpindleZ1Menu" aria-expanded="false" aria-controls="spiderSpindleZ1Menu">
-         <i class="ti-hummer menu-icon"></i>
+         <img src="{% static 'assets/icons/32.png' %}" class="menu-icon" alt="Spider Spindle Z1" />
          <span class="menu-title">Spider Spindle Z1</span>
          <i class="menu-arrow"></i>
          </a>
@@ -1937,7 +1954,7 @@
         {% if is_admin or 'Spider Spindle Z2 Pick Table' in allowed_modules or 'Spider Spindle Z2 Completed Table' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#spiderSpindleZ2Menu" aria-expanded="false" aria-controls="spiderSpindleZ2Menu">
-         <i class="ti-hummer menu-icon"></i>
+         <img src="{% static 'assets/icons/32.png' %}" class="menu-icon" alt="Spider Spindle Z2" />
          <span class="menu-title">Spider Spindle Z2</span>
          <i class="menu-arrow"></i>
          </a>
@@ -2085,10 +2102,10 @@
             </style>
          </div>
       </div>
-      <!-- ✅ SHORTCUTS BACKDROP -->
+      <!-- SHORTCUTS BACKDROP -->
       <div id="shortcutsBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgb(0 0 0 / 62%); backdrop-filter:blur(4px); z-index:1999;"></div>
 
-      <!-- ✅ SHORTCUTS BANNER - ELEGANT TWO-COLUMN LAYOUT -->
+      <!-- SHORTCUTS BANNER -->
       <div id="shortcutsModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:2000; width:95%; max-width:900px; max-height:85vh; overflow-y:auto;">
          <div style="background:linear-gradient(135deg,#fff,#fafcfd); border:1px solid rgba(2,128,132,0.12); border-radius:16px; box-shadow:0 12px 40px rgba(2,128,132,0.15); overflow:hidden; display:flex; flex-direction:row;">
             
@@ -2104,14 +2121,14 @@
                   <!-- Header -->
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
                      <div>
-                        <h5 style="margin:0 0 4px 0; font-weight:800; color:#025254; font-size:18px; letter-spacing:-0.5px;">⌨️ Keyboard Shortcuts</h5>
+                      <h5 style="margin:0 0 4px 0; font-weight:800; color:#025254; font-size:18px; letter-spacing:-0.5px;">Keyboard Shortcuts</h5>
                         <p style="margin:0; font-size:12px; color:#888; font-weight:500;">Quick reference guide</p>
                      </div>
-                     <button id="shortcutsClose" style="background:none; border:none; color:#ccc; font-size:28px; cursor:pointer; padding:0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; hover-color:#999;">×</button>
+                    <button id="shortcutsClose" style="background:none; border:none; color:#ccc; font-size:28px; cursor:pointer; padding:0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; hover-color:#999;">&times;</button>
                   </div>
                   
                   <!-- Shortcuts Grid -->
-                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px 20px;">
+                  <div id="shortcutsGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px 20px;">
                      <style>
                        .sc-item { display:flex; align-items:center; gap:10px; }
                        .sc-key { 
@@ -2122,20 +2139,9 @@
                          font-family:'Courier New', monospace;
                        }
                        .sc-label { color:#444; font-size:13px; font-weight:500; }
+                       .sc-empty { color:#777; font-size:13px; grid-column:1 / -1; }
                      </style>
-                     
-                     <div class="sc-item"><kbd class="sc-key">F2</kbd> <span class="sc-label">Scan Tray</span></div>
-                     <div class="sc-item"><kbd class="sc-key">A</kbd> <span class="sc-label">Accept</span></div>
-                     <div class="sc-item"><kbd class="sc-key">R</kbd> <span class="sc-label">Reject</span></div>
-                     <div class="sc-item"><kbd class="sc-key">V</kbd> <span class="sc-label">View Details</span></div>
-                     <div class="sc-item"><kbd class="sc-key">D</kbd> <span class="sc-label">Delete</span></div>
-                     <div class="sc-item"><kbd class="sc-key">↑↓</kbd> <span class="sc-label">Navigate Rows</span></div>
-                     <div class="sc-item"><kbd class="sc-key">←→</kbd> <span class="sc-label">Scroll Table</span></div>
-                     <div class="sc-item"><kbd class="sc-key">1-9</kbd> <span class="sc-label">Jump Page</span></div>
-                     <div class="sc-item"><kbd class="sc-key">J</kbd> <span class="sc-label">Add Jig</span></div>
-                     <div class="sc-item"><kbd class="sc-key">S</kbd> <span class="sc-label">Spider Spindle</span></div>
-                     <div class="sc-item"><kbd class="sc-key">Esc</kbd> <span class="sc-label">Close</span></div>
-                     <div class="sc-item"><kbd class="sc-key">⏎</kbd> <span class="sc-label">Execute</span></div>
+                     <div class="sc-empty" data-shortcuts-loading>Loading shortcuts...</div>
                   </div>
                </div>
                
@@ -2488,13 +2494,6 @@
                   shortcutsBackdrop.style.display = 'none';
                });
                
-               // Close on Escape
-               document.addEventListener('keydown', function(e) {
-                  if (e.key === 'Escape' && shortcutsModal.style.display === 'block') {
-                     shortcutsModal.style.display = 'none';
-                     shortcutsBackdrop.style.display = 'none';
-                  }
-               });
             }
          });
       </script>
@@ -3030,6 +3029,20 @@
     if (!settings.keepMessage) setScanMessage('Scan or Type Tray ID', '#028084');
   }
 
+  function getGlobalShortcutKeyDisplay(shortcutCode) {
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.getShortcutKeyDisplay === 'function') {
+      return window.GlobalShortcutManager.getShortcutKeyDisplay(shortcutCode);
+    }
+    return '';
+  }
+
+  function getScanPromptText() {
+    const scanKey = getGlobalShortcutKeyDisplay('picktable_scan');
+    return scanKey ? `Press ${scanKey} to scan` : 'Scan ready';
+  }
+
+  window.getGlobalScanPromptText = getScanPromptText;
+
   function openGlobalScanModal() {
     logScan('[SCAN_OPEN]', { table_id: getCurrentTableId(), path: window.location.pathname });
     scanActive = true;
@@ -3044,7 +3057,7 @@
     scanActive = false;
     scanStatus.style.display = 'none';
     resetPreviousScanState({ keepHighlight: true, keepPriorityRow: true });
-    setInfo('scanner', 'Press F2 to scan', '#025254');
+    setInfo('scanner', getScanPromptText(), '#025254');
   }
 
   function handleEmptyInput() {
@@ -3054,13 +3067,6 @@
   }
 
   function bindGlobalScanEvents() {
-    document.addEventListener('keydown', function(event) {
-      if (event.key !== 'F2' && event.keyCode !== 113) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openGlobalScanModal();
-    }, true);
-
     scanBtn.addEventListener('click', function(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -3838,7 +3844,7 @@
 
   if (!highlightTrayId && !highlightLotId) {
     // Idle state (no scan in progress)
-    setInfo('📡', 'Press F2 to scan', '#025254');
+    setInfo('📡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
     return;
   }
 
@@ -3959,7 +3965,7 @@
     setTimeout(() => {
       row.classList.remove('gs-hi');
       window.history.replaceState({}, document.title, window.location.pathname);
-      setInfo('📡', 'Press F2 to scan', '#025254');
+      setInfo('📡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
     }, 12000);
   }
 
@@ -4058,477 +4064,8 @@
 })();
 </script>
 
-<!-- ✅ CENTRALIZED GLOBAL KEYBOARD SHORTCUT HANDLER -->
-<!-- One listener only. F2 (scan), Esc (close), Ctrl+Shift+R (refresh),     -->
-<!-- A/R/V/D (row actions), T/J/B/U/S (module actions), ↑↓ row nav,         -->
-<!-- ←/→ table scroll, 1-9 pagination jump.                                   -->
-<script nonce="{{ csp_nonce }}">
-(function() {
-  'use strict';
-
-  // ── Inject highlight CSS once: light yellow only, no border/outline box ──
-  if (!document.getElementById('gkb-highlight-style')) {
-    var s = document.createElement('style');
-    s.id = 'gkb-highlight-style';
-    s.textContent = 'tr.gkb-row-focus > td { background-color: #fff5bd !important; z-index: 50; }';
-    document.head.appendChild(s);
-  }
-
-  // ── State ────────────────────────────────────────────────────────────────
-  var _pendingEl    = null;   // element to click on Enter
-  var _pendingRow   = null;   // currently highlighted row
-  var _lastSelector = null;   // last row-action selector (kept for ↑↓ navigation)
-
-  // ── sessionStorage Key Management (Step 14: Highlight State Persistence) ──
-  var _SESSION_KEY = 'activeRowContext';
-  
-  function _saveRowState(row) {
-    if (!row) {
-      sessionStorage.removeItem(_SESSION_KEY);
-      return;
-    }
-    var lotId = row.getAttribute('data-stock-lot-id') || 
-                row.getAttribute('data-lot-id') || 
-                row.querySelector('[data-lot-id]')?.getAttribute('data-lot-id');
-    var batchId = row.getAttribute('data-batch-id') || 
-                  row.querySelector('[data-batch-id]')?.getAttribute('data-batch-id');
-    var trayId = row.getAttribute('data-tray-id') || 
-                 row.querySelector('[data-tray-id]')?.getAttribute('data-tray-id');
-    if (lotId) {
-      sessionStorage.setItem(_SESSION_KEY, JSON.stringify({
-        lot_id: lotId,
-        batch_id: batchId || null,
-        tray_id: trayId || null,
-        module: document.querySelector('body').getAttribute('data-module') || 'unknown',
-        timestamp: Date.now()
-      }));
-    }
-  }
-
-  function _restoreRowState() {
-    var stored = sessionStorage.getItem(_SESSION_KEY);
-    if (!stored) return null;
-    try {
-      var ctx = JSON.parse(stored);
-      // Validate stored context is still valid (within 5 minutes)
-      if (Date.now() - ctx.timestamp > 300000) {
-        sessionStorage.removeItem(_SESSION_KEY);
-        return null;
-      }
-      return ctx;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function _findRowByContext(ctx) {
-    if (!ctx) return null;
-    var rows = _getRows();
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i];
-      var lotId = r.getAttribute('data-stock-lot-id') || 
-                  r.getAttribute('data-lot-id') || 
-                  r.querySelector('[data-lot-id]')?.getAttribute('data-lot-id');
-      if (lotId === ctx.lot_id) return r;
-    }
-    return null;
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  function _inInput() {
-    var t = document.activeElement;
-    if (!t) return false;
-    var tag = t.tagName.toLowerCase();
-    return tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable;
-  }
-
-  function _isModalOpen() {
-    if (document.querySelector('.swal2-container')) return true;
-    if (document.querySelector('.modal.show, .modal[aria-modal="true"]')) return true;
-    var ovs = document.querySelectorAll('.modal-overlay, .overlay-modal');
-    for (var i = 0; i < ovs.length; i++) {
-      if (getComputedStyle(ovs[i]).display !== 'none') return true;
-    }
-    return false;
-  }
-
-  function _visible(el) {
-    return !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
-  }
-
-  // All visible tbody rows, deduplicated (DataTables or plain table)
-  function _getRows() {
-    var rows = Array.from(document.querySelectorAll(
-      '#order-listing tbody tr, table.dataTable tbody tr, table tbody tr'
-    ));
-    var seen = new Set();
-    return rows.filter(function(r) {
-      if (seen.has(r)) return false;
-      seen.add(r);
-      return getComputedStyle(r).display !== 'none';
-    });
-  }
-
-  function _scrollRowIntoView(row) {
-    var navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
-    var rect = row.getBoundingClientRect();
-    if (rect.top < navH + 20 || rect.bottom > window.innerHeight - 20) {
-      window.scrollTo({ top: window.scrollY + rect.top - navH - 50, behavior: 'smooth' });
-    }
-  }
-
-  function _clearRowHighlights(exceptRow) {
-    document.querySelectorAll('tr.gkb-row-focus, tr.dp-row-action-highlight, tr.gs-active-scan, tr.gs-hi, tr.highlighted-tray-scan')
-      .forEach(function(row) {
-        if (exceptRow && row === exceptRow) return;
-        row.classList.remove('gkb-row-focus', 'dp-row-action-highlight', 'gs-active-scan', 'gs-hi', 'highlighted-tray-scan');
-        row.removeAttribute('data-global-scan-active');
-      });
-  }
-
-  function _highlightRow(row) {
-    if (!row) return;
-    _clearRowHighlights(row);
-    _pendingRow = row;
-    row.classList.add('gkb-row-focus', 'dp-row-action-highlight');
-    _scrollRowIntoView(row);
-    _saveRowState(row);  // ← Save to sessionStorage
-  }
-
-  function _clearPending() {
-    _clearRowHighlights(null);
-    _pendingRow = null;
-    _saveRowState(null);  // ← Clear sessionStorage
-    _pendingEl    = null;
-    _lastSelector = null;
-  }
-
-  window._gkbHighlightRow = function(row) {
-    if (row) _highlightRow(row);
-  };
-
-  window._gkbClearPending = function(row) {
-    if (!row || row === _pendingRow) _clearPending();
-  };
-
-  function _focusEl(el, row) {
-    _pendingEl = el;
-    if (row) {
-      _highlightRow(row);  // This now saves to sessionStorage
-    }
-  }
-
-  var _ROW_ACTION_SELECTOR = [
-    '.btn-accept-is', '.btn-reject-is', '.tray-scan-btn', '.tray-scan-btn-Jig',
-    '.jig-view-btn', '.view-icon-btn', '.bq-view-btn', '.ba-view-btn',
-    '.delete-batch-btn', '.draft-resume-btn', '.open-jig-modal-btn',
-    '.z1-unload-link', '.z1-unload-btn', '.jig-unload-btn',
-    '.btn-add-spider', '.spider-add-btn', '.iqf-audit-btn', '.audit-action-btn',
-    '.ip-inspection-btn', '.inspection-action-btn', '.remarks-modal-trigger'
-  ].join(', ');
-
-  function _rowForEventTarget(target) {
-    if (!target || !target.closest) return null;
-    var trigger = target.closest(_ROW_ACTION_SELECTOR);
-    var row = (trigger || target).closest('tbody tr');
-    if (!row) return null;
-    if (row.closest('.modal, .swal2-container, .modal-overlay, .overlay-modal, [role="dialog"]')) return null;
-    if (getComputedStyle(row).display === 'none') return null;
-    return row;
-  }
-
-  document.addEventListener('click', function(event) {
-    var row = _rowForEventTarget(event.target);
-    if (!row) return;
-    _highlightRow(row);
-    var trigger = event.target.closest ? event.target.closest(_ROW_ACTION_SELECTOR) : null;
-    if (trigger && _visible(trigger)) {
-      _pendingEl = trigger;
-    }
-  }, true);
-
-  // Find first visible row containing an element matching selector
-  function _findRowWithEl(selector) {
-    var rows = _getRows();
-    for (var i = 0; i < rows.length; i++) {
-      var el = rows[i].querySelector(selector);
-      if (el && _visible(el)) return { row: rows[i], el: el, idx: i };
-    }
-    return null;
-  }
-
-  // Row action: use current row if set, else first matching row
-  function _doRowAction(selector) {
-    _lastSelector = selector;
-    if (_pendingRow) {
-      var el = _pendingRow.querySelector(selector);
-      if (el && _visible(el)) { _focusEl(el, _pendingRow); return; }
-    }
-    var found = _findRowWithEl(selector);
-    if (found) _focusEl(found.el, found.row);
-  }
-
-  // Move row selection up (-1) or down (+1), keeping same action selector
-  function _moveRow(dir) {
-    var rows = _getRows();
-    if (!rows.length) return;
-    var cur = _pendingRow ? rows.indexOf(_pendingRow) : -1;
-    var next = cur < 0 ? (dir > 0 ? 0 : rows.length - 1)
-                       : Math.min(Math.max(cur + dir, 0), rows.length - 1);
-    var newRow = rows[next];
-    if (!newRow || newRow === _pendingRow) return;
-    if (_lastSelector) {
-      var el = newRow.querySelector(_lastSelector);
-      if (el && _visible(el)) { _focusEl(el, newRow); return; }
-    }
-    // No selector yet — just highlight the row
-    _highlightRow(newRow);
-    _pendingEl = null;
-  }
-
-  // Per-row button (row highlighted) with optional page-level fallback
-  function _doRowOrPageAction(rowSel, pageFallbackSel) {
-    _lastSelector = rowSel;
-    if (_pendingRow) {
-      var el = _pendingRow.querySelector(rowSel);
-      if (el && _visible(el)) { _focusEl(el, _pendingRow); return; }
-    }
-    var found = _findRowWithEl(rowSel);
-    if (found) { _focusEl(found.el, found.row); return; }
-    // Fallback to a page-level button (no row highlight)
-    if (pageFallbackSel) {
-      var fb = document.querySelector(pageFallbackSel);
-      if (fb && _visible(fb)) { _pendingEl = fb; }
-    }
-  }
-
-  // Horizontal table scroll
-  function _scrollTable(delta) {
-    var wrapper = document.querySelector(
-      '.table-responsive, .dataTables_scrollBody, .dataTables_wrapper .table-responsive, .table-scroll-wrapper'
-    );
-    if (wrapper) { wrapper.scrollLeft += delta; }
-  }
-
-  // Go to pagination page by number
-  function _gotoPage(num) {
-    // DataTables API
-    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.dataTable) {
-      try {
-        var api = jQuery.fn.dataTable.tables({ visible: true, api: true });
-        if (api && api.length) {
-          var info = api.page.info();
-          if (num >= 1 && num <= info.pages) { api.page(num - 1).draw('page'); return; }
-        }
-      } catch(e) {}
-    }
-    // Bootstrap pagination links — match by text
-    var links = document.querySelectorAll('.pagination .page-item:not(.disabled) .page-link');
-    for (var i = 0; i < links.length; i++) {
-      if (links[i].textContent.trim() === String(num)) { links[i].click(); return; }
-    }
-  }
-
-  // Close any open modal/popup
-  function _closeModal() {
-    if (document.querySelector('.swal2-container')) {
-      var sc = document.querySelector('.swal2-close');
-      if (sc) { sc.click(); return true; }
-      var sk = document.querySelector('.swal2-cancel');
-      if (sk) { sk.click(); return true; }
-      if (window.Swal) { Swal.close(); return true; }
-    }
-    if (typeof jQuery !== 'undefined') {
-      var $m = jQuery('.modal.show');
-      if ($m.length) { $m.first().modal('hide'); return true; }
-    }
-    var bsModal = document.querySelector('.modal.show, .modal[aria-modal="true"]');
-    if (bsModal) {
-      var cb = bsModal.querySelector('[data-dismiss="modal"],[data-bs-dismiss="modal"],.close,.btn-close,.modal-close');
-      if (cb) { cb.click(); return true; }
-      bsModal.style.display = 'none'; return true;
-    }
-    var ovs = document.querySelectorAll('.modal-overlay, .overlay-modal, [role="dialog"]');
-    for (var i = 0; i < ovs.length; i++) {
-      var ov = ovs[i];
-      if (ov.style.display !== 'none' && getComputedStyle(ov).display !== 'none') {
-        var ob = ov.querySelector('.close, .btn-close, .modal-close, [data-dismiss]');
-        if (ob) { ob.click(); return true; }
-        ov.style.display = 'none'; return true;
-      }
-    }
-    var bm = document.querySelector('.barcode-modal');
-    if (bm && getComputedStyle(bm).display !== 'none') {
-      var bc = bm.querySelector('.barcode-modal-close');
-      if (bc) { bc.click(); return true; }
-      bm.style.display = 'none'; return true;
-    }
-    return false;
-  }
-
-  // ── CENTRALIZED KEYDOWN LISTENER ─────────────────────────────────────────
-  document.addEventListener('keydown', function(e) {
-    var key = e.key;
-
-    // ── F2: Global Scan ────────────────────────────────────────────────────
-    if (key === 'F2') {
-      e.preventDefault();
-      if (typeof window._gScanActivate === 'function') window._gScanActivate();
-      return;
-    }
-
-    // ── Ctrl+Shift+R: Hard refresh ─────────────────────────────────────────
-    if (e.ctrlKey && e.shiftKey && key.toLowerCase() === 'r') {
-      e.preventDefault();
-      if (typeof hardRefreshPage === 'function') { hardRefreshPage(); }
-      else { location.reload(true); }
-      return;
-    }
-
-    // ── Escape: Close scan → modal → clear pending ────────────────────────
-    if (key === 'Escape') {
-      if (typeof window._gScanIsActive === 'function' && window._gScanIsActive()) {
-        if (typeof window._gScanClose === 'function') window._gScanClose();
-        return;
-      }
-      _closeModal();
-      _clearPending();
-      return;
-    }
-
-    // ── Block everything else while typing in an input ─────────────────────
-    if (_inInput()) return;
-
-    // ── Enter: Execute the focused shortcut element ───────────────────────
-    if (key === 'Enter') {
-      if (_pendingEl) {
-        e.preventDefault();
-        var ex = _pendingEl;
-        _clearPending();
-        ex.click();
-      }
-      return;
-    }
-
-    // ── ↑↓: Move row selection (works regardless of modal state) ─────────
-    if (key === 'ArrowUp')   { e.preventDefault(); _moveRow(-1); return; }
-    if (key === 'ArrowDown') { e.preventDefault(); _moveRow(1);  return; }
-
-    // ── ←/→: Horizontal table scroll ─────────────────────────────────────
-    if (key === 'ArrowLeft')  { e.preventDefault(); _scrollTable(-240); return; }
-    if (key === 'ArrowRight') { e.preventDefault(); _scrollTable(240);  return; }
-
-    // ── Block letter/number shortcuts when a modal is open ────────────────
-    if (_isModalOpen()) return;
-
-    // ── 1-9: Jump to pagination page ──────────────────────────────────────
-    if (key >= '1' && key <= '9') {
-      e.preventDefault();
-      _gotoPage(parseInt(key, 10));
-      return;
-    }
-
-    // ── Row / module action shortcuts ─────────────────────────────────────
-    var k = key.toLowerCase();
-    switch (k) {
-
-      case 'a':  // Accept — IS, BrassQC
-        e.preventDefault();
-        _doRowAction('.btn-accept-is');
-        break;
-
-      case 'r':  // Reject — IS, BrassQC
-        e.preventDefault();
-        _doRowAction('.btn-reject-is');
-        break;
-
-      case 'v':  // View icon — DP, Jig Loading, IQF, BrassAudit
-        e.preventDefault();
-        _doRowAction('.tray-scan-btn, .tray-scan-btn-Jig, .jig-view-btn, .view-icon-btn, .bq-view-btn, .ba-view-btn');
-        break;
-
-      case 'd':  // Delete icon / Draft — IQF, Jig Loading, Draft resume
-        e.preventDefault();
-        _doRowAction('.delete-batch-btn, .draft-resume-btn');
-        break;
-
-      case 't':  // Tray Scan — Day Planning
-        e.preventDefault();
-        _doRowAction('.tray-scan-btn');
-        break;
-
-      case 'j':  // Add Jig — Jig Loading (per-row button, row is highlighted)
-        e.preventDefault();
-        _doRowOrPageAction('.open-jig-modal-btn', '#addJigBtnAlt');
-        break;
-
-      case 'b':  // Bath Number — Inprocess Inspection
-        e.preventDefault();
-        var bathSel = document.querySelector('.bath-number-select');
-        if (bathSel && _visible(bathSel)) { bathSel.focus(); }
-        break;
-
-      case 'u':  // Unload — Jig Unloading
-        e.preventDefault();
-        _doRowAction('.z1-unload-link, .z1-unload-btn, .jig-unload-btn');
-        break;
-
-      case 's':  // Add Spider — Spider Spindle Z1/Z2
-        e.preventDefault();
-        _doRowOrPageAction('.btn-add-spider, .spider-add-btn', null);
-        break;
-
-      case 'q':  // Audit (IQF) — IQF Audit child screen
-        e.preventDefault();
-        _doRowAction('.iqf-audit-btn, .audit-action-btn');
-        break;
-
-      case 'i':  // Inspection (IP) — Inprocess Inspection child screen
-        e.preventDefault();
-        _doRowAction('.ip-inspection-btn, .inspection-action-btn');
-        break;
-
-      case 'c':  // Clear (Jig) — Jig Loading: Clear all scanned trays
-        e.preventDefault();
-        var clearBtn = document.querySelector('.jig-clear-btn, .clear-scanned-btn, [data-action="clear-all"]');
-        if (clearBtn && _visible(clearBtn)) {
-          _pendingEl = clearBtn;
-        }
-        break;
-
-      case 'o':  // Redo (Jig) — Jig Loading: Clear and restart
-        e.preventDefault();
-        var redoBtn = document.querySelector('.jig-redo-btn, .redo-action-btn, [data-action="redo"]');
-        if (redoBtn && _visible(redoBtn)) {
-          _pendingEl = redoBtn;
-        }
-        break;
-    }
-  });
-
-  // ── ON PAGE LOAD: Restore previously highlighted row from sessionStorage ──
-  document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-      // PRIMARY: Try keyboard handler's own sessionStorage
-      var ctx = _restoreRowState();
-      
-      if (ctx) {
-        var row = _findRowByContext(ctx);
-        if (row) {
-          _highlightRow(row);
-        } else {
-          // Lot no longer exists, clear stored state
-          sessionStorage.removeItem(_SESSION_KEY);
-          sessionStorage.removeItem('globalScanLotId');
-          sessionStorage.removeItem('globalScanTrayId');
-        }
-      }
-    }, 100);
-  });
-
-})();
-</script>
+<!-- DB-backed global keyboard shortcut manager -->
+<script nonce="{{ csp_nonce }}" src="{% static 'js/global_shortcut_manager.js' %}"></script>
 
    </body>
 </html>

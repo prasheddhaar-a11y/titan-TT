@@ -38,7 +38,7 @@ class LoginLatencyMiddleware:
 
     def __call__(self, request):
         # Only profile login-related endpoints
-        if 'login' not in request.path and 'index' not in request.path:
+        if request.path not in ('/', '/home/') and 'login' not in request.path and 'index' not in request.path:
             return self.get_response(request)
 
         request.start_time = time.time()

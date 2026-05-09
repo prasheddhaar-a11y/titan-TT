@@ -81,6 +81,14 @@ class ModuleAdmin(admin.ModelAdmin):
     form = ModuleAdminForm
     list_display = ('name', 'menu_title', 'parent')
 
+
+@admin.register(ShortcutConfiguration)
+class ShortcutConfigurationAdmin(admin.ModelAdmin):
+    list_display = ('key_display', 'label', 'action_type', 'sort_order', 'is_active')
+    list_filter = ('action_type', 'is_active', 'allow_in_modal', 'allow_when_typing')
+    search_fields = ('code', 'key_display', 'label', 'description', 'target_selector')
+    ordering = ('sort_order', 'label')
+
 # Django Admin Panel - Department Master
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):

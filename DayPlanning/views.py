@@ -98,9 +98,7 @@ def check_row_lock_api(request):
         print(f"User name - {user.username if user else 'Anonymous'}")
         print(f"Action performing - check")
         print(f"Start Accessing status - not started")
-        print(f"End accessing status - not ended yet")
-        print(f'"GET /dayplanning/row_lock/check/ batch_id=None lot_id=None Action=check Status=Missing Params"')
-        return JsonResponse({"success": False, "error": "Missing batch_id or lot_id"}, status=400)
+        return JsonResponse({"success": False, "error": "Missing data"}, status=400)
     filters = {}
     if batch_id:
         filters['batch_id'] = batch_id
@@ -113,14 +111,46 @@ def check_row_lock_api(request):
     print(f"User name - {user.username if user else 'Anonymous'}")
     print(f"Action performing - check")
     print(f"Start Accessing status - active")
-    print(f"End accessing status - not ended yet")
+
     if obj:
-        print(f'"GET /dayplanning/row_lock/check/ batch_id={batch_id} lot_id={lot_id if lot_id else "null"} Action=check Status=locked by={obj.accessed_by.username}"')
-        return JsonResponse({"locked": True, "by": obj.accessed_by.username})
-    print(f'"GET /dayplanning/row_lock/check/ batch_id={batch_id} lot_id={lot_id if lot_id else "null"} Action=check Status=free"')
-    return JsonResponse({"locked": False})
+        return JsonResponse({
+            "success": True,
+            "locked": True,
+            "by": obj.accessed_by.username if obj.accessed_by else "Unknown"
+        })
+    return JsonResponse({"success": True, "locked": False})
 
 
+@method_decorator(csrf_exempt, name='dispatch')
+class DPQuickHelpAPIView(APIView):
+    """
+    Fetch Day Planning Quick Help Do's and Don'ts from database
+    Real-time content - admins can add/edit/delete from Django admin panel
+    """
+    
+    def get(self, request):
+        try:
+            # Fetch active guidelines, grouped by category
+            dos = DPQuickHelp.objects.filter(
+                category='do', 
+                is_active=True
+            ).order_by('order', 'created_at').values('title', 'description', 'icon_code')
+            
+            donts = DPQuickHelp.objects.filter(
+                category='dont', 
+                is_active=True
+            ).order_by('order', 'created_at').values('title', 'description', 'icon_code')
+            
+            return JsonResponse({
+                'success': True,
+                'dos': list(dos),
+                'donts': list(donts)
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
 
 
 class DPBulkUploadView(APIView):

@@ -1602,6 +1602,16 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 _dd_f = getattr(jig, 'draft_data', {}) or {}
                 _jfq = _dd_f.get('lot_id_quantities', {}) if isinstance(_dd_f, dict) else {}
             if not _jfq:
+                # Check multi_model_allocation — multi-model jigs store per-model lot_ids here
+                _dd_f = getattr(jig, 'draft_data', {}) or {}
+                _alloc = _dd_f.get('multi_model_allocation', []) if isinstance(_dd_f, dict) else []
+                if _alloc:
+                    _jfq = {
+                        a['lot_id']: a.get('allocated_qty', 1)
+                        for a in _alloc
+                        if isinstance(a, dict) and a.get('lot_id')
+                    }
+            if not _jfq:
                 # Fallback to base lot_id if lot_id_quantities isn't present in draft_data
                 if getattr(jig, 'lot_id', None):
                     _jfq = {jig.lot_id: getattr(jig, 'updated_lot_qty', 1)}
@@ -1697,6 +1707,14 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 .values_list('lot_id', flat=True)
             )
             jig_detail.all_models_submitted_z1 = _all_lids_z1.issubset(_submitted_z1) and len(_submitted_z1) > 0
+
+            # Also mark as draft when some (but not all) models have been finally submitted
+            if not jig_detail.jig_unload_draft and not jig_detail.all_models_submitted_z1:
+                _has_any_final = len(_submitted_z1) > 0
+                if _has_any_final:
+                    jig_detail.has_unload_draft = True
+                    jig_detail.jig_unload_draft = True
+                    has_draft = True
             
             if has_draft:
                 print(f"🎯 Zone 2 - JIG {jig_detail.jig_id} MARKED AS DRAFT")

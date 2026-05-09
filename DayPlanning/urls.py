@@ -43,6 +43,7 @@ urlpatterns = [
     
     path('row_lock/', lock_row_api, name='row_lock_api'),
     path('row_lock/check/', check_row_lock_api, name='check_row_lock_api'),
+    path('quick_help/', DPQuickHelpAPIView.as_view(), name='quick_help_api'),
 
     path('dget_lot_id_for_tray/', dget_lot_id_for_tray, name='dget_lot_id_for_tray'),
     path('draft_tray_delete/', draft_tray_delete, name='draft_tray_delete'),

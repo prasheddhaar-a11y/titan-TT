@@ -498,6 +498,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     pointer-events: auto !important;
     position: relative;
   }
+  /* Active row highlight — only set by JS on explicit click */
+  #order-listing tbody tr.z1-row-open td {
+    background-color: #e8f5e9 !important;
+  }
     /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
     top: auto !important;
@@ -1965,7 +1969,7 @@ body.add-model-mode #selectAllCheckbox {
               
               <!-- Z1 Unload Modal — Two-Layer: Model List → Tray Scan -->
               <div id="z1UnloadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.45); z-index:19000; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
-                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:520px; max-width:720px; width:92vw; max-height:88vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B;">
+                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:700px; max-width:980px; width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B;">
                   <!-- Close button -->
                   <span id="z1ModalClose" style="position:absolute; top:11px; right:16px; font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:2;" title="Close">&times;</span>
 
@@ -1989,6 +1993,7 @@ body.add-model-mode #selectAllCheckbox {
                         <thead>
                           <tr style="background:#f8fafc; border-bottom:2px solid #eceff1;">
                             <th style="padding:9px 12px; font-weight:600; color:#546e7a; font-size:11px; text-align:left; letter-spacing:0.4px; text-transform:uppercase;">Model</th>
+                            <th style="padding:9px 12px; font-weight:600; color:#546e7a; font-size:11px; text-align:left; letter-spacing:0.4px; text-transform:uppercase;">Plating Color</th>
                             <th style="padding:9px 12px; font-weight:600; color:#546e7a; font-size:11px; text-align:left; letter-spacing:0.4px; text-transform:uppercase;">JIG ID</th>
                             <th style="padding:9px 12px; font-weight:600; color:#546e7a; font-size:11px; text-align:center; letter-spacing:0.4px; text-transform:uppercase;">Qty</th>
                             <th style="padding:9px 12px; font-weight:600; color:#546e7a; font-size:11px; text-align:center; letter-spacing:0.4px; text-transform:uppercase;">Tray</th>
@@ -2227,7 +2232,7 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.style.display = 'flex';
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
     const submitBtn = document.getElementById('z1SubmitAllBtn');
     submitBtn.disabled = true;
     submitBtn.style.opacity = '0.5';
@@ -2241,7 +2246,7 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(err => {
         document.getElementById('z1ModelTableBody').innerHTML =
-          '<tr><td colspan="6" style="text-align:center;color:#c62828;padding:20px;">Error loading data</td></tr>';
+          '<tr><td colspan="7" style="text-align:center;color:#c62828;padding:20px;">Error loading data</td></tr>';
         console.error('Z1 API error:', err);
       });
   }
@@ -2259,7 +2264,11 @@ document.addEventListener('DOMContentLoaded', function() {
       let statusHtml, actionHtml;
       if (m.is_unloaded) {
         statusHtml = '<span style="color:#2e7d32;font-size:11px;font-weight:500;"><i class="fa fa-check-circle"></i> Done</span>';
-        actionHtml = '<button class="z1-model-view-btn" data-idx="' + idx + '" style="background:#f8fafc;border:1px solid #b0bec5;color:#546e7a;border-radius:16px;padding:4px 12px;font-size:10px;cursor:pointer;font-weight:500;"><i class="fa fa-eye"></i> View</button>';
+        var viewBtn = '<button class="z1-model-view-btn" data-idx="' + idx + '" style="background:#f8fafc;border:1px solid #b0bec5;color:#546e7a;border-radius:16px;padding:4px 12px;font-size:10px;cursor:pointer;font-weight:500;"><i class="fa fa-eye"></i> View</button>';
+        var submitLotBtn = m.is_submitted_lot
+          ? '<button disabled style="background:#e8f5e9;color:#388e3c;border:1px solid #a5d6a7;border-radius:16px;padding:4px 10px;font-size:10px;font-weight:500;cursor:default;"><i class="fa fa-check"></i> Submitted</button>'
+          : '<button class="z1-model-submit-btn" data-idx="' + idx + '" style="background:#1b5e20;color:#fff;border:none;border-radius:16px;padding:4px 10px;font-size:10px;font-weight:500;cursor:pointer;"><i class="fa fa-paper-plane"></i> Submit</button>';
+        actionHtml = '<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">' + viewBtn + submitLotBtn + '</div>';
       } else if (m.is_draft) {
         statusHtml = '<span style="color:#1565c0;font-size:11px;font-weight:500;"><i class="fa fa-pencil-square-o"></i> Draft</span>';
         actionHtml = '<button class="z1-model-unload-btn" data-idx="' + idx + '" style="background:#1565c0;color:#fff;border:none;border-radius:16px;padding:4px 14px;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:0.2px;"><i class="fa fa-play"></i> Resume</button>';
@@ -2274,6 +2283,7 @@ document.addEventListener('DOMContentLoaded', function() {
           escHtml(m.model_no) +
           (m.merged_info ? '<div style="font-size:9px;color:#1565c0;margin-top:2px;font-style:italic;"><i class="fa fa-info-circle" style="margin-right:2px;"></i>' + escHtml(m.merged_info) + '</div>' : '') +
         '</td>' +
+        '<td style="padding:9px 12px;font-size:11px;color:#455a64;">' + escHtml(m.plating_color_name || '—') + '</td>' +
         '<td style="padding:9px 12px;font-size:11px;color:#78909c;">' + escHtml(m.jig_id || '—') + '</td>' +
         '<td style="padding:9px 12px;text-align:center;font-size:13px;color:#e65100;font-weight:600;">' + m.qty + '</td>' +
         '<td style="padding:9px 12px;text-align:center;">' +
@@ -2290,9 +2300,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (allUnloaded && models.length > 0) {
       submitBtn.disabled = false;
       submitBtn.style.opacity = '1';
+      submitBtn.style.background = '#00897B';
+      submitBtn.style.color = '#fff';
+      submitBtn.style.border = 'none';
+      submitBtn.innerHTML = '<i class="fa fa-check-circle" style="margin-right:5px;"></i>Submit All';
     } else {
       submitBtn.disabled = true;
       submitBtn.style.opacity = '0.45';
+    }
+
+    // Auto-close if ALL models have been individually submitted
+    var allIndividuallySubmitted = models.length > 0 && models.every(function(m) { return m.is_submitted_lot; });
+    if (allIndividuallySubmitted) {
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.background = '#e8f5e9';
+      submitBtn.style.color = '#2e7d32';
+      submitBtn.style.border = '1px solid #a5d6a7';
+      submitBtn.innerHTML = '<i class="fa fa-check-circle" style="margin-right:5px;"></i>Submitted';
+      showZ1Notify(
+        'All models submitted successfully!',
+        'success',
+        function() {
+          modal.style.display = 'none';
+          window.location.reload();
+        }
+      );
     }
 
     // Bind per-model buttons
@@ -2302,6 +2335,107 @@ document.addEventListener('DOMContentLoaded', function() {
     tbody.querySelectorAll('.z1-model-view-btn').forEach(function(btn) {
       btn.addEventListener('click', function() { openView(parseInt(this.dataset.idx)); });
     });
+    tbody.querySelectorAll('.z1-model-submit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { submitSingleModel(parseInt(this.dataset.idx)); });
+    });
+  }
+
+  // --- PER-MODEL SUBMIT ---
+  // ---------- Custom Notify / Confirm (no browser alert/confirm) ----------
+  function showZ1Notify(msg, type, onOk) {
+    var overlay = document.getElementById('z1NotifyOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'z1NotifyOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.42);z-index:20000;display:none;align-items:center;justify-content:center;';
+      document.body.appendChild(overlay);
+    }
+    var color = type === 'success' ? '#2e7d32' : type === 'error' ? '#c62828' : '#1565c0';
+    var icon  = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle';
+    overlay.innerHTML =
+      '<div style="background:#fff;border-radius:14px;padding:30px 34px;max-width:400px;width:92vw;box-shadow:0 10px 36px rgba(0,0,0,0.22);text-align:center;">' +
+        '<div style="font-size:38px;color:' + color + ';margin-bottom:14px;"><i class="fa ' + icon + '"></i></div>' +
+        '<div style="font-size:13.5px;color:#263238;line-height:1.65;margin-bottom:22px;white-space:pre-line;">' + msg + '</div>' +
+        '<button id="z1NotifyOkBtn" style="background:' + color + ';color:#fff;border:none;border-radius:22px;padding:9px 36px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.3px;">OK</button>' +
+      '</div>';
+    overlay.style.display = 'flex';
+    document.getElementById('z1NotifyOkBtn').onclick = function() {
+      overlay.style.display = 'none';
+      if (onOk) onOk();
+    };
+  }
+
+  function showZ1Confirm(msg, onConfirm) {
+    var overlay = document.getElementById('z1ConfirmOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'z1ConfirmOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.42);z-index:20001;display:none;align-items:center;justify-content:center;';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML =
+      '<div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:380px;width:92vw;box-shadow:0 10px 36px rgba(0,0,0,0.22);text-align:center;">' +
+        '<div style="font-size:13.5px;color:#263238;line-height:1.65;margin-bottom:22px;white-space:pre-line;">' + msg + '</div>' +
+        '<div style="display:flex;gap:12px;justify-content:center;">' +
+          '<button id="z1ConfirmCancel" style="background:#fff;border:1px solid #b0bec5;color:#546e7a;border-radius:20px;padding:8px 22px;font-size:13px;cursor:pointer;">Cancel</button>' +
+          '<button id="z1ConfirmOkBtn" style="background:#1b5e20;color:#fff;border:none;border-radius:20px;padding:8px 22px;font-size:13px;font-weight:600;cursor:pointer;"><i class="fa fa-paper-plane"></i> Submit</button>' +
+        '</div>' +
+      '</div>';
+    overlay.style.display = 'flex';
+    document.getElementById('z1ConfirmCancel').onclick = function() { overlay.style.display = 'none'; };
+    document.getElementById('z1ConfirmOkBtn').onclick = function() {
+      overlay.style.display = 'none';
+      onConfirm();
+    };
+  }
+
+  function submitSingleModel(idx) {
+    var m = currentModelsData && currentModelsData.models && currentModelsData.models[idx];
+    if (!m || !m.is_unloaded) {
+      showZ1Notify('This model has not been unloaded yet.\nComplete tray scan first.', 'error');
+      return;
+    }
+    showZ1Confirm(
+      'Submit model "' + m.model_no + '" as a separate lot?\nThis will create an independent lot record for this model.',
+      function() {
+        var btn = document.querySelector('.z1-model-submit-btn[data-idx="' + idx + '"]');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
+
+        fetch(API_BASE + '/submit_single_model_z1/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+          body: JSON.stringify({ jig_completed_id: currentJigCompletedId, lot_id: m.lot_id }),
+        })
+        .then(function(r) {
+          return r.json().catch(function() {
+            return { success: false, error: 'Server error (HTTP ' + r.status + ')' };
+          });
+        })
+        .then(function(data) {
+          if (data.success) {
+            var lotLabel = data.unload_lot_id || data.lot_id || '';
+            var msg = data.already_submitted
+              ? 'Already submitted.\nLot ID: ' + lotLabel
+              : 'Submitted successfully!\nModel: ' + m.model_no + '\nLot ID: ' + lotLabel;
+            showZ1Notify(msg, 'success', function() {
+              openUnloadModal(currentJigCompletedId);
+            });
+          } else {
+            showZ1Notify(
+              'Could not submit model "' + m.model_no + '".\n' + (data.error || 'Please try again.'),
+              'error',
+              function() { openUnloadModal(currentJigCompletedId); }
+            );
+          }
+        })
+        .catch(function(err) {
+          console.error('submitSingleModel error:', err);
+          showZ1Notify('Network error. Please check connection and try again.', 'error', function() {
+            openUnloadModal(currentJigCompletedId);
+          });
+        });
+      }
+    );
   }
 
   // --- LAYER 2: Tray Scan ---
@@ -2820,10 +2954,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- NAVIGATION ---
-  document.getElementById('z1ModalClose').addEventListener('click', function() { modal.style.display = 'none'; });
+  document.getElementById('z1ModalClose').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
   document.getElementById('z1BackToModels').addEventListener('click', function() { showLayer(layerModelList); });
   document.getElementById('z1ViewBackBtn').addEventListener('click', function() { showLayer(layerModelList); });
-  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { modal.style.display = 'none'; });
+  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
   // Prevent modal from closing when clicking outside (backdrop click disabled)
 
   // --- LAYER 4: Add Model (in-scan, same-model merge) ---
@@ -2935,7 +3069,7 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.style.display = 'flex';
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
     const submitBtn = document.getElementById('z1SubmitAllBtn');
     submitBtn.disabled = true;
     submitBtn.style.opacity = '0.5';
@@ -2957,7 +3091,7 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(err => {
         document.getElementById('z1ModelTableBody').innerHTML =
-          '<tr><td colspan="6" style="text-align:center;color:#c62828;padding:20px;">Error loading data</td></tr>';
+          '<tr><td colspan="7" style="text-align:center;color:#c62828;padding:20px;">Error loading data</td></tr>';
         console.error('Z1 API error:', err);
       });
   }
@@ -2966,12 +3100,20 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.z1-unload-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
+      // Highlight only the clicked row
+      document.querySelectorAll('#order-listing tbody tr.z1-row-open').forEach(function(r) { r.classList.remove('z1-row-open'); });
+      var clickedRow = this.closest('tr');
+      if (clickedRow) clickedRow.classList.add('z1-row-open');
       openUnloadModal(this.dataset.jigCompletedId);
     });
   });
   document.querySelectorAll('.z1-view-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
+      // Highlight only the clicked row
+      document.querySelectorAll('#order-listing tbody tr.z1-row-open').forEach(function(r) { r.classList.remove('z1-row-open'); });
+      var clickedRow = this.closest('tr');
+      if (clickedRow) clickedRow.classList.add('z1-row-open');
       openUnloadModal(this.dataset.jigCompletedId);
     });
   });

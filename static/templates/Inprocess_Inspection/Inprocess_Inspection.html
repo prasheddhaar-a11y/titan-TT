@@ -1465,10 +1465,10 @@
                         <!-- Process Status column -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
                         <div style="display: flex; gap: 6px; align-items: center; justify-content: center;">
-                           <!-- Tray Scan (B) - Green when bath number is saved, disabled otherwise -->
-                           <div title="Bright"
-                              class="d-flex align-items-center justify-content-center rounded-circle ms-1 tray-scan-status"
+                           <!-- Tray Scan - Dynamic letter based on bath type (B/D/S) -->
+                           <div class="d-flex align-items-center justify-content-center rounded-circle ms-1 tray-scan-status"
                               data-jig-id="{{ jig_detail.id }}"
+                              data-bath-type="{{ jig_detail.ep_bath_type|default:'B' }}"
                               style="width: 20px; height: 20px; 
                               {% if jig_detail.bath_numbers %}
                               background-color: #0c8249; color: white;
@@ -1476,7 +1476,7 @@
                               background-color: #ccc; color: #888;
                               {% endif %}
                               font-weight: 500; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
-                              B
+                              <span class="bath-type-letter">{% if jig_detail.ep_bath_type == 'Dull' %}D{% elif jig_detail.ep_bath_type == 'Semi Bright' %}S{% else %}B{% endif %}</span>
                            </div>
                            <!-- Rework (R) - Always disabled for now -->
                            <div title="Inspection"
@@ -4164,6 +4164,57 @@ document.addEventListener('DOMContentLoaded', function() {
           .catch(function() {});
       }
     }
+  });
+});
+</script>
+
+<!-- ✅ Fix 3: Update Bath Type Circle Letter (B/D/S) when Bath Number is Selected -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  // Mapping function: Convert bath type to letter
+  function getBathTypeLetterAndTitle(bathType) {
+    bathType = (bathType || '').trim();
+    if (bathType === 'Dull') {
+      return { letter: 'D', title: 'Dull' };
+    } else if (bathType === 'Semi Bright') {
+      return { letter: 'S', title: 'Semi Bright' };
+    } else {
+      return { letter: 'B', title: 'Bright' };
+    }
+  }
+
+  // Handle bath number dropdown changes
+  document.addEventListener('change', function(e) {
+    if (!e.target.classList.contains('bath-number-select')) return;
+
+    const dropdown = e.target;
+    const jigId = dropdown.getAttribute('data-jig-id');
+    const selectedOption = dropdown.options[dropdown.selectedIndex];
+    const bathType = selectedOption.getAttribute('data-bath-type') || 'Bright';
+    
+    // Find the tray-scan-status circle in the same row
+    const row = dropdown.closest('tr');
+    if (!row) return;
+    
+    const circle = row.querySelector('.tray-scan-status');
+    if (!circle) return;
+
+    // Get the letter and title mapping
+    const mapping = getBathTypeLetterAndTitle(bathType);
+    
+    // Update circle
+    const letterSpan = circle.querySelector('.bath-type-letter');
+    if (letterSpan) {
+      letterSpan.textContent = mapping.letter;
+    } else {
+      circle.textContent = mapping.letter;
+    }
+    
+    // Update circle's data attribute
+    circle.setAttribute('data-bath-type', bathType);
+    circle.setAttribute('title', mapping.title);
+    
+    console.log(`[BATH_TYPE] Updated circle for Jig ${jigId}: ${mapping.title} (${mapping.letter})`);
   });
 });
 </script>

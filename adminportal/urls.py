@@ -76,6 +76,7 @@ urlpatterns = [
     path('api/group-modules/', UserGroupListAPIView.as_view(), name='user-groups-api'),
     path('api/user-allowed-modules/', user_allowed_modules, name='user-allowed-modules'),
     path('api/group-modules/<int:group_id>/', GroupModulesAPIView.as_view(), name='group-modules-detail-api'),
+    path('api/shortcuts/', ShortcutConfigurationAPIView.as_view(), name='shortcut-configurations-api'),
     # path('api/users/<int:user_id>/', UserDeleteAPIView.as_view(), name='user-delete'),
     path('extract_headings/', extract_headings_api, name='extract_headings_api'),
     

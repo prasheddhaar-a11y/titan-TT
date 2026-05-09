@@ -7,10 +7,11 @@ from django.core.cache import cache
 from django.conf import settings
 from django.db import transaction
 from django.contrib.auth.models import Group
+from django.utils.text import slugify
 import logging
 import time
-from .selectors import get_all_dashboard_stats
-from .models import Module, UserModuleProvision
+from .selectors import get_dashboard_stat_labels, get_dashboard_stats_for_labels
+from .models import Module, ShortcutConfiguration, UserModuleProvision
 from .module_registry import LEGACY_MODULE_NAME_MAP, MODULE_REGISTRY, USER_CATEGORY_MODULES
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ MODULE_REGISTRY_NAMES = [entry['name'] for entry in MODULE_REGISTRY]
 DASHBOARD_MODULE_ACCESS = {
     'Day Planning': {'Data Upload', 'DP Pick Table', 'DP Complete Table'},
     'Input Screening': {
+        'Input Screening',
         'Input Pick Table', 'Input Completed Table', 'Input Accept Table',
         'Input Reject Table', 'Input Main Table', 'Input Complete Table',
     },
@@ -34,6 +36,7 @@ DASHBOARD_MODULE_ACCESS = {
     'Nickel Inspection': {'Nickel Main Table', 'Nickel Completed Table'},
     'Nickel Audit': {'NA Pick Table', 'NA Completed'},
     'Spider Spindle': {
+        'Spider Spindle', 'Spider Spindle Z1', 'Spider Spindle Z2',
         'Spider Spindle Z1 Pick Table', 'Spider Spindle Z1 Completed Table',
         'Spider Spindle Z2 Pick Table', 'Spider Spindle Z2 Completed Table',
     },
@@ -109,6 +112,19 @@ def _expand_legacy_module_names(module_names):
     return expanded
 
 
+def get_dashboard_labels_for_modules(allowed_module_names):
+    """Resolve visible dashboard labels from canonical sidebar/module permissions."""
+    allowed_set = set(_expand_legacy_module_names(allowed_module_names or []))
+    if not allowed_set:
+        return []
+
+    return [
+        label
+        for label in get_dashboard_stat_labels()
+        if allowed_set.intersection(DASHBOARD_MODULE_ACCESS.get(label, {label}))
+    ]
+
+
 def get_user_allowed_module_names(user):
     """
     Resolve dashboard/sidebar module access for a user.
@@ -142,7 +158,7 @@ def get_user_allowed_module_names(user):
                     .values_list('module_name', flat=True)
                     .distinct()
                 )
-                modules = _expand_legacy_module_names(provisioned_modules) if provisioned_modules else _all_module_names()
+                modules = _expand_legacy_module_names(provisioned_modules) if provisioned_modules else []
 
         cache.set(cache_key, modules, timeout=USER_MODULE_CACHE_TTL)
         return modules
@@ -203,8 +219,29 @@ def get_user_allowed_module_payload(user):
                 })
         return payload
 
-    modules = _registry_modules()
-    return [module_payload(module) for module in modules]
+    return []
+
+
+def get_active_shortcut_configurations():
+    """Return active shortcut configuration used by the global keyboard manager."""
+    shortcuts = ShortcutConfiguration.objects.filter(is_active=True).order_by('sort_order', 'label', 'code')
+    return [
+        {
+            'code': shortcut.code,
+            'keys': shortcut.keys or [],
+            'key_display': shortcut.key_display,
+            'label': shortcut.label,
+            'description': shortcut.description or '',
+            'action_type': shortcut.action_type,
+            'target_selector': shortcut.target_selector or '',
+            'fallback_selector': shortcut.fallback_selector or '',
+            'contexts': shortcut.contexts or [],
+            'allow_in_modal': shortcut.allow_in_modal,
+            'allow_when_typing': shortcut.allow_when_typing,
+            'sort_order': shortcut.sort_order,
+        }
+        for shortcut in shortcuts
+    ]
 
 
 def sync_user_module_provisions_from_group(user):
@@ -236,18 +273,8 @@ def sync_user_module_provisions_from_group(user):
 
 def filter_dashboard_stats_for_modules(dashboard_stats, allowed_module_names):
     """Keep only dashboard cards backed by the user's allowed module names."""
-    allowed_set = set(allowed_module_names or [])
-    if not allowed_set:
-        return []
-
-    filtered_stats = []
-    for stat in dashboard_stats:
-        label = stat.get('label')
-        required_modules = DASHBOARD_MODULE_ACCESS.get(label, {label})
-        if allowed_set.intersection(required_modules):
-            filtered_stats.append(stat)
-
-    return filtered_stats
+    visible_labels = set(get_dashboard_labels_for_modules(allowed_module_names))
+    return [stat for stat in dashboard_stats if stat.get('label') in visible_labels]
 
 
 # Cache configuration - Extended TTL for better performance
@@ -255,49 +282,70 @@ def filter_dashboard_stats_for_modules(dashboard_stats, allowed_module_names):
 DASHBOARD_STATS_CACHE_TTL = getattr(settings, 'DASHBOARD_STATS_CACHE_TTL', 900)  # 15 min (was 5 min)
 
 
-def get_cached_dashboard_stats(user_id):
+def _dashboard_cache_key(label):
+    return f"dashboard_stats_{slugify(label).replace('-', '_')}"
+
+
+def get_cached_dashboard_stats(user_id=None, allowed_module_names=None):
     """
-    Fetch dashboard stats from cache, or calculate fresh if expired.
-    
-    Args:
-        user_id: Current user ID (for potential user-specific future caching)
-        
-    Returns:
-        List of stat dicts for all modules
+    Fetch dashboard stats from cache, calculating only visible cards on miss.
     """
-    # Use global cache key (stats are same for all users)
-    cache_key = 'dashboard_stats_global'
-    
-    # Try cache first
+    labels = (
+        get_dashboard_labels_for_modules(allowed_module_names)
+        if allowed_module_names is not None
+        else get_dashboard_stat_labels()
+    )
+    if not labels:
+        return []
+
+    cache_keys = {label: _dashboard_cache_key(label) for label in labels}
+
     t1 = time.time()
-    stats = cache.get(cache_key)
+    cached_by_key = cache.get_many(cache_keys.values())
     t2 = time.time()
     cache_lookup_ms = (t2 - t1) * 1000
-    
-    if stats is not None:
-        logger.warning(f'CACHE_HIT: dashboard_stats (lookup={cache_lookup_ms:.2f}ms)')
-        return stats
-    
-    # Cache miss: fetch fresh data
-    logger.warning(f'CACHE_MISS: dashboard_stats (lookup={cache_lookup_ms:.2f}ms), calculating fresh...')
-    
+
+    stats_by_label = {
+        label: cached_by_key[cache_key]
+        for label, cache_key in cache_keys.items()
+        if cache_key in cached_by_key
+    }
+    missing_labels = [label for label in labels if label not in stats_by_label]
+
+    if not missing_labels:
+        logger.warning(f'CACHE_HIT: dashboard_stats labels={labels} (lookup={cache_lookup_ms:.2f}ms)')
+        return [stats_by_label[label] for label in labels]
+
+    logger.warning(
+        f'CACHE_MISS: dashboard_stats missing={missing_labels} '
+        f'(lookup={cache_lookup_ms:.2f}ms), calculating fresh...'
+    )
+
     try:
         t3 = time.time()
-        stats = get_all_dashboard_stats()
+        fresh_stats = get_dashboard_stats_for_labels(missing_labels)
         t4 = time.time()
         query_ms = (t4 - t3) * 1000
-        
+
         logger.warning(f'QUERIES_EXECUTED: {query_ms:.2f}ms')
-        
-        # Cache for next 5 min (or configured TTL)
-        cache.set(cache_key, stats, timeout=DASHBOARD_STATS_CACHE_TTL)
-        logger.warning(f'STATS_CACHED: TTL={DASHBOARD_STATS_CACHE_TTL}s')
-        
-        return stats
+
+        cache_payload = {}
+        for stat in fresh_stats:
+            label = stat.get('label')
+            if not label:
+                continue
+            stats_by_label[label] = stat
+            cache_payload[_dashboard_cache_key(label)] = stat
+
+        if cache_payload:
+            cache.set_many(cache_payload, timeout=DASHBOARD_STATS_CACHE_TTL)
+            logger.warning(f'STATS_CACHED: labels={list(cache_payload.keys())} TTL={DASHBOARD_STATS_CACHE_TTL}s')
+
+        return [stats_by_label[label] for label in labels if label in stats_by_label]
     except Exception as e:
         logger.exception(f'Error calculating dashboard stats: {e}')
         # Return empty list on error instead of failing
-        return []
+        return [stats_by_label[label] for label in labels if label in stats_by_label]
 
 
 def invalidate_dashboard_cache():
@@ -308,6 +356,7 @@ def invalidate_dashboard_cache():
     """
     cache_key = 'dashboard_stats_global'
     cache.delete(cache_key)
+    cache.delete_many([_dashboard_cache_key(label) for label in get_dashboard_stat_labels()])
     
     # Increment version to invalidate all HTML caches
     version_key = 'dashboard_cache_version'
@@ -344,12 +393,14 @@ def refresh_dashboard_cache():
     """
     invalidate_dashboard_cache()
     t1 = time.time()
-    stats = get_all_dashboard_stats()
+    stats = get_dashboard_stats_for_labels()
     t2 = time.time()
     query_ms = (t2 - t1) * 1000
-    
-    cache_key = 'dashboard_stats_global'
-    cache.set(cache_key, stats, timeout=DASHBOARD_STATS_CACHE_TTL)
+
+    cache.set_many(
+        {_dashboard_cache_key(stat['label']): stat for stat in stats if stat.get('label')},
+        timeout=DASHBOARD_STATS_CACHE_TTL,
+    )
     logger.warning(f'CACHE_REFRESHED: {query_ms:.2f}ms for {len(stats)} modules')
 
 

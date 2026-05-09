@@ -65,6 +65,40 @@ def get_day_planning_stats():
     }
 
 
+def get_input_screening_stats():
+    """Return Input Screening card counts using submitted-table SSOT rows."""
+    from InputScreening.models import (
+        IS_PartialAcceptLot,
+        IS_PartialRejectLot,
+        InputScreening_Submitted,
+    )
+
+    submitted_lots = InputScreening_Submitted.objects.filter(
+        is_submitted=True,
+        is_active=True,
+    ).values('lot_id')
+
+    pending_pick_rows = (
+        TotalStockModel.objects.filter(batch_id__Moved_to_D_Picker=True)
+        .exclude(lot_id__in=submitted_lots)
+        .exclude(
+            Q(accepted_Ip_stock=True)
+            | Q(accepted_tray_scan_status=True)
+            | Q(rejected_ip_stock=True)
+            | Q(remove_lot=True)
+        )
+        .count()
+    )
+
+    return {
+        'label': 'Input Screening', 'color': '#00897b', 'icon': 'mdi-format-list-checks',
+        'total_input_qty': pending_pick_rows,
+        'accepted_qty': IS_PartialAcceptLot.objects.count(),
+        'rejected_qty': IS_PartialRejectLot.objects.count(),
+        'completed_qty': InputScreening_Submitted.objects.filter(is_submitted=True, is_active=True).count(),
+    }
+
+
 def get_brass_qc_stats():
     """
     Batch 4 separate queries into 2.
@@ -270,35 +304,88 @@ def get_nickel_audit_stats():
     }
 
 
-def get_all_dashboard_stats():
+def get_spider_spindle_stats():
+    """Return combined Spider Spindle Z1/Z2 dashboard counts."""
+    spider_scope = Q(total_case_qty__gt=0, na_qc_accptance=True) & (
+        Q(plating_color__jig_unload_zone_1=True) |
+        Q(plating_color__jig_unload_zone_2=True)
+    )
+    z1_pending = Q(plating_color__jig_unload_zone_1=True, ss_z1_completed=False)
+    z2_pending = Q(plating_color__jig_unload_zone_2=True, ss_z2_completed=False)
+    z1_completed = Q(plating_color__jig_unload_zone_1=True, ss_z1_completed=True)
+    z2_completed = Q(plating_color__jig_unload_zone_2=True, ss_z2_completed=True)
+    pending_scope = z1_pending | z2_pending
+
+    stats = JigUnloadAfterTable.objects.aggregate(
+        total_qty=Count('pk', filter=spider_scope & pending_scope),
+        released_qty=Count('pk', filter=spider_scope & pending_scope & Q(spider_release_lot=True)),
+        hold_qty=Count('pk', filter=spider_scope & pending_scope & Q(spider_hold_lot=True)),
+        completed_qty=Count('pk', filter=spider_scope & (z1_completed | z2_completed)),
+    )
+
+    return {
+        'label': 'Spider Spindle', 'color': '#00796b', 'icon': 'mdi-axis-arrow',
+        'total_qty': stats['total_qty'],
+        'released_qty': stats['released_qty'],
+        'hold_qty': stats['hold_qty'],
+        'completed_qty': stats['completed_qty'],
+        'display_stats': [
+            {'label': 'Total Lots', 'value': stats['total_qty'], 'icon': 'mdi-table'},
+            {'label': 'Released', 'value': stats['released_qty'], 'icon': 'mdi-check-circle'},
+            {'label': 'On Hold', 'value': stats['hold_qty'], 'icon': 'mdi-pause-circle'},
+            {'label': 'Completed', 'value': stats['completed_qty'], 'icon': 'mdi-check-all'},
+        ],
+    }
+
+
+DASHBOARD_STAT_PROVIDERS = [
+    ('Day Planning', get_day_planning_stats),
+    ('Input Screening', get_input_screening_stats),
+    ('Brass QC', get_brass_qc_stats),
+    ('Brass Audit', get_brass_audit_stats),
+    ('IQF', get_iqf_stats),
+    ('Jig Loading', get_jig_loading_stats),
+    ('Jig Unloading', get_jig_unloading_stats),
+    ('Inprocess Inspection', get_inprocess_inspection_stats),
+    ('Nickel Inspection', get_nickel_inspection_stats),
+    ('Nickel Audit', get_nickel_audit_stats),
+    ('Spider Spindle', get_spider_spindle_stats),
+]
+
+
+def get_dashboard_stat_labels():
+    return [label for label, _ in DASHBOARD_STAT_PROVIDERS]
+
+
+def get_dashboard_stats_for_labels(labels=None):
     """
-    Fetch all dashboard stats using optimized batch queries.
-    Returns list of stat dicts for each module.
-    Logs timing for each module query.
+    Fetch dashboard stats for the requested labels only.
+    This keeps login/dashboard rendering from calculating cards the user cannot see.
     """
+    requested_labels = set(labels or get_dashboard_stat_labels())
     stats = []
-    modules = [
-        ('Day Planning', get_day_planning_stats),
-        ('Brass QC', get_brass_qc_stats),
-        ('Brass Audit', get_brass_audit_stats),
-        ('IQF', get_iqf_stats),
-        ('Jig Loading', get_jig_loading_stats),
-        ('Jig Unloading', get_jig_unloading_stats),
-        ('Inprocess Inspection', get_inprocess_inspection_stats),
-        ('Nickel Inspection', get_nickel_inspection_stats),
-        ('Nickel Audit', get_nickel_audit_stats),
-    ]
-    
+
     total_start = time.time()
-    for module_name, func in modules:
+    for module_name, func in DASHBOARD_STAT_PROVIDERS:
+        if module_name not in requested_labels:
+            continue
         t1 = time.time()
         stat = func()
         t2 = time.time()
         elapsed_ms = (t2 - t1) * 1000
         logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
         stats.append(stat)
-    
+
     total_ms = (time.time() - total_start) * 1000
-    logger.warning(f'ALL_MODULES_TOTAL: {total_ms:.2f}ms')
-    
+    logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
+
     return stats
+
+
+def get_all_dashboard_stats():
+    """
+    Fetch all dashboard stats using optimized batch queries.
+    Returns list of stat dicts for each module.
+    Logs timing for each module query.
+    """
+    return get_dashboard_stats_for_labels()

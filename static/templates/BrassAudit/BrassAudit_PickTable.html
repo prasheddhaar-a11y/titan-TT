@@ -1009,14 +1009,14 @@ tr.row-inactive td.action-td {
                                 style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                           {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                          Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                          Reject <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
 
                       {% elif data.action_state == 'ONHOLD_DELINK' %}
@@ -1025,14 +1025,14 @@ tr.row-inactive td.action-td {
                                   style="background-color: #66bb6a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                   data-lot-id="{{ data.stock_lot_id }}"
                                   disabled>
-                            Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                            Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
                           <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                   style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false">
-                            Set Delink <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                            Set Delink <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
 
                       {% elif data.action_state == 'ONHOLD_TOPTRAY' %}
@@ -1041,7 +1041,7 @@ tr.row-inactive td.action-td {
                                   style="background-color: #66bb6a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                   data-lot-id="{{ data.stock_lot_id }}"
                                   disabled>
-                            Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                            Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
                           <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                   style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
@@ -1049,7 +1049,7 @@ tr.row-inactive td.action-td {
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false"
                                   data-tray-capacity="{{ data.tray_capacity|default:'0' }}">
-                            Set Top Tray <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                            Set Top Tray <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
 
                       {% elif data.action_state == 'SEND_BRASS_QC' %}
@@ -1058,14 +1058,14 @@ tr.row-inactive td.action-td {
                                 style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                           {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                          Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                          Reject <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
 
                       {% elif data.action_state == 'AUDIT_RETURN' %}
@@ -1074,7 +1074,7 @@ tr.row-inactive td.action-td {
                                 style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                          Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
@@ -1082,7 +1082,7 @@ tr.row-inactive td.action-td {
                                 data-batch-id="{{ data.batch_id }}"
                                 data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                          Reject <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
 
                       {% elif data.action_state == 'REJECTED' %}
@@ -1103,7 +1103,7 @@ tr.row-inactive td.action-td {
                                 style="background-color: #1ba878; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-lot-id="{{ data.stock_lot_id }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Accept <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">A</kbd>
+                          Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                         <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
@@ -1111,7 +1111,7 @@ tr.row-inactive td.action-td {
                                 data-batch-id="{{ data.batch_id }}"
                                 data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                                 {% if not data.brass_audit_accepted_qty_verified %}disabled{% endif %}>
-                          Reject <kbd style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;">R</kbd>
+                          Reject <kbd data-shortcut-template-code="reject_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
                       {% endif %}
                       </span>

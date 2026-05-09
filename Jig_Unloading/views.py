@@ -1212,11 +1212,18 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
             )
             jig_detail.all_models_submitted_z1 = _all_lids_z1.issubset(_submitted_z1) and len(_submitted_z1) > 0
 
-            # Draft indicator: any JUSubmittedZ1 draft record for this jig
+            # Draft indicator: any JUSubmittedZ1 draft record for this jig,
+            # OR any model partially submitted (final) while not all are done.
             _has_draft_z1 = JUSubmittedZ1.objects.filter(
                 jig_completed_id=jig_detail.id, is_draft=True
             ).exists()
-            if _has_draft_z1 and not jig_detail.all_models_submitted_z1:
+            _has_partial_submitted_z1 = (
+                not jig_detail.all_models_submitted_z1
+                and JUSubmittedZ1.objects.filter(
+                    jig_completed_id=jig_detail.id, is_draft=False
+                ).exists()
+            )
+            if (_has_draft_z1 or _has_partial_submitted_z1) and not jig_detail.all_models_submitted_z1:
                 jig_detail.jig_unload_draft = True
                 jig_detail.has_unload_draft = True
             
@@ -1489,6 +1496,16 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
             if not _jfq:
                 _dd_f = getattr(jig, 'draft_data', {}) or {}
                 _jfq = _dd_f.get('lot_id_quantities', {}) if isinstance(_dd_f, dict) else {}
+            if not _jfq:
+                # Check multi_model_allocation — multi-model jigs store per-model lot_ids here
+                _dd_f = getattr(jig, 'draft_data', {}) or {}
+                _alloc = _dd_f.get('multi_model_allocation', []) if isinstance(_dd_f, dict) else []
+                if _alloc:
+                    _jfq = {
+                        a['lot_id']: a.get('allocated_qty', 1)
+                        for a in _alloc
+                        if isinstance(a, dict) and a.get('lot_id')
+                    }
             if not _jfq:
                 # Fallback to base lot_id if lot_id_quantities isn't present in draft_data
                 if getattr(jig, 'lot_id', None):
@@ -2425,10 +2442,22 @@ class GetUnloadModelsZ1View(APIView):
             # Determine draft status for this model
             has_draft = bool(submitted_data and submitted_data.get('is_draft'))
 
+            # Plating color display name from TotalStockModel
+            plating_color_name = ''
+            _tsm = TotalStockModel.objects.filter(lot_id=lot_id).select_related('plating_color').first()
+            if _tsm and _tsm.plating_color:
+                plating_color_name = _tsm.plating_color.plating_color
+
+            # Check if already submitted as standalone lot
+            is_submitted_lot = JigUnloadAfterTable.objects.filter(
+                combine_lot_ids__contains=[lot_id]
+            ).exists()
+
             models_list.append({
                 'lot_id': lot_id,
                 'model_no': plating_stk_no or lot_id,
                 'polishing_stk_no': polishing_stk_no,
+                'plating_color_name': plating_color_name,
                 'qty': qty,
                 'tray_type': tray_type,
                 'tray_capacity': tray_capacity,
@@ -2438,6 +2467,7 @@ class GetUnloadModelsZ1View(APIView):
                 'tray_slots': tray_slots,
                 'is_unloaded': is_unloaded,
                 'is_draft': has_draft,
+                'is_submitted_lot': is_submitted_lot,
                 'submitted_data': submitted_data,
                 'images': images,
                 'jig_id': jig_id,
@@ -2963,6 +2993,94 @@ class SubmitAllUnloadZ1View(APIView):
             'message': 'Jig unloading submitted successfully. Jig unlocked for reuse.',
             'records': created_records,
             'unload_lot_id': after_table.unload_lot_id or '',
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SubmitSingleModelZ1View(APIView):
+    """
+    POST /api/submit_single_model_z1/
+    Submits a single model as an independent lot (creates standalone JigUnloadAfterTable).
+    Used by the per-model Submit button in the z1LayerModelList.
+    """
+    def post(self, request):
+        from django.utils import timezone
+        jig_completed_id = request.data.get('jig_completed_id')
+        lot_id = request.data.get('lot_id')
+
+        if not jig_completed_id or not lot_id:
+            return Response({'error': 'jig_completed_id and lot_id are required'}, status=400)
+
+        try:
+            jc = JigCompleted.objects.get(id=jig_completed_id)
+        except JigCompleted.DoesNotExist:
+            return Response({'error': 'JigCompleted not found'}, status=404)
+
+        # Verify this model has been unloaded (final, not draft)
+        sub = JUSubmittedZ1.objects.filter(
+            jig_completed_id=jig_completed_id, lot_id=lot_id, is_draft=False
+        ).first()
+        if not sub:
+            return Response({'error': 'Model not yet unloaded. Complete tray scan first.'}, status=400)
+
+        # Idempotency: return existing record if already submitted
+        existing = JigUnloadAfterTable.objects.filter(
+            combine_lot_ids__contains=[lot_id]
+        ).first()
+        if existing:
+            return Response({
+                'success': True,
+                'already_submitted': True,
+                'lot_id': existing.lot_id,
+                'unload_lot_id': existing.unload_lot_id or '',
+                'message': f'Model already submitted as lot {existing.lot_id}',
+            })
+
+        # Build list fields for the single lot
+        plating_stk_no_list = []
+        polish_stk_no_list = []
+        version_list = []
+        try:
+            tsm = TotalStockModel.objects.filter(lot_id=lot_id).select_related('batch_id').first()
+            if tsm and tsm.batch_id:
+                mmc = ModelMasterCreation.objects.select_related('version').filter(
+                    id=tsm.batch_id.id
+                ).first()
+                if mmc:
+                    if mmc.plating_stk_no:
+                        plating_stk_no_list.append(mmc.plating_stk_no)
+                    if mmc.polishing_stk_no:
+                        polish_stk_no_list.append(mmc.polishing_stk_no)
+                    if mmc.version and hasattr(mmc.version, 'version_internal'):
+                        version_list.append(mmc.version.version_internal)
+        except Exception as e:
+            print(f"⚠️ SubmitSingleModelZ1: Error building list fields for {lot_id}: {e}")
+
+        after_table = JigUnloadAfterTable(
+            jig_qr_id=jc.jig_id or jc.lot_id,
+            combine_lot_ids=[lot_id],
+            total_case_qty=sub.total_qty,
+            selected_user=request.user if request.user.is_authenticated else None,
+            Un_loaded_date_time=timezone.now(),
+            last_process_module='Jig Unloading',
+            plating_stk_no_list=plating_stk_no_list,
+            polish_stk_no_list=polish_stk_no_list,
+            version_list=version_list,
+        )
+        after_table.save()
+
+        # Update TotalStockModel to reflect Jig Unloading completion
+        TotalStockModel.objects.filter(lot_id=lot_id).update(
+            last_process_module='Jig Unloading',
+            next_process_module='Nickel Inspection',
+            last_process_date_time=timezone.now(),
+        )
+
+        return Response({
+            'success': True,
+            'lot_id': after_table.lot_id,
+            'unload_lot_id': after_table.unload_lot_id or '',
+            'message': f'Model submitted successfully as lot {after_table.lot_id}',
         })
 
 

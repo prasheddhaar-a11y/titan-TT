@@ -5,6 +5,39 @@ from modelmasterapp.models import ModelMasterCreation
 
 # Create your models here.
 
+class DPQuickHelp(models.Model):
+    """
+    Day Planning Quick Help Guidelines
+    Stores Do's and Don'ts for the Quick Help panel
+    Admins can add, edit, delete items in real-time from Django admin
+    """
+    CATEGORY_CHOICES = [
+        ('do', "Do's"),
+        ('dont', "Don'ts"),
+    ]
+    
+    title = models.CharField(max_length=150, help_text="Title of the guideline (e.g., 'Verify Tray Condition')")
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, help_text="Is this a Do or Don't?")
+    description = models.TextField(help_text="Detailed description/instruction")
+    icon_code = models.CharField(max_length=10, default="✓", help_text="Icon/symbol (✓ for do, ✗ for dont, or emoji)")
+    order = models.PositiveIntegerField(default=0, help_text="Display order (0=first)")
+    is_active = models.BooleanField(default=True, help_text="Show/hide this guideline")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='dpquickhelp_created')
+    updated_at = models.DateTimeField(auto_now=True)
+    remarks = models.CharField(max_length=250, null=True, blank=True, help_text="Internal notes")
+
+    def __str__(self):
+        return f"[{self.get_category_display()}] {self.title}"
+
+    class Meta:
+        verbose_name = "DP Quick Help Guideline"
+        verbose_name_plural = "DP Quick Help Guidelines"
+        ordering = ['category', 'order', 'created_at']
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+        ]
+
 class DPTrayId_History(models.Model):
     """
     TrayId Model

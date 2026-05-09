@@ -5595,7 +5595,9 @@ document.addEventListener('click', function (e) {
               (d.delink_records_created ? '<br><b>Delink Records:</b> ' + d.delink_records_created : '') +
               (d.excess_lot_id ? '<br><b>Excess Lot:</b> ' + d.excess_lot_id + ' (' + d.excess_trays_created + ' trays)' : '') +
               '</div>',
-            confirmButtonText: 'OK',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
             allowOutsideClick: false,
           }).then(function() {
             try {

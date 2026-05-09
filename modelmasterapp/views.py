@@ -260,6 +260,11 @@ class LoginAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         import time
+
+        def record_timer(name, milliseconds):
+            django_request = getattr(request, '_request', request)
+            if hasattr(django_request, 'timers'):
+                django_request.timers[name] = f'{milliseconds:.2f}ms'
         
         # Checkpoint 1: Start auth
         t1 = time.time()
@@ -285,8 +290,7 @@ class LoginAPIView(APIView):
         user = authenticate(request, username=username, password=password)
         t3 = time.time()
         auth_ms = (t3 - t2) * 1000
-        if hasattr(request, 'timers'):
-            request.timers['authentication'] = f'{auth_ms:.2f}ms'
+        record_timer('authentication', auth_ms)
         
         if user is not None:
             if user.is_active:
@@ -295,11 +299,10 @@ class LoginAPIView(APIView):
                 login(request, user)
                 t5 = time.time()
                 login_ms = (t5 - t4) * 1000
-                if hasattr(request, 'timers'):
-                    request.timers['session_create'] = f'{login_ms:.2f}ms'
+                record_timer('session_create', login_ms)
                 
                 if request.accepted_renderer.format == 'html':
-                    return redirect('index')
+                    return redirect('home')
                 return Response({
                     'success': True, 
                     'message': 'Login successful'

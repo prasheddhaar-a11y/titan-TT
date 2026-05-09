@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import *
 
@@ -41,6 +42,50 @@ class Module(models.Model):
     class Meta:
         verbose_name = "Module Master"
         verbose_name_plural = "Module Masters"
+
+
+class ShortcutConfiguration(models.Model):
+    ACTION_TYPE_CHOICES = [
+        ('builtin', 'Built-in'),
+        ('row_action', 'Row action'),
+        ('row_or_page_action', 'Row or page action'),
+        ('page_action', 'Page action'),
+        ('focus', 'Focus element'),
+    ]
+
+    code = models.SlugField(max_length=80, unique=True)
+    keys = models.JSONField(default=list, help_text="Keyboard keys that trigger this shortcut.")
+    key_display = models.CharField(max_length=50)
+    label = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    action_type = models.CharField(max_length=30, choices=ACTION_TYPE_CHOICES)
+    target_selector = models.TextField(blank=True)
+    fallback_selector = models.TextField(blank=True)
+    contexts = models.JSONField(default=list, blank=True, help_text="Path fragments or 'global'.")
+    allow_in_modal = models.BooleanField(default=False)
+    allow_when_typing = models.BooleanField(default=False)
+    sort_order = models.PositiveIntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if not isinstance(self.keys, list) or not self.keys:
+            raise ValidationError({'keys': 'At least one key is required.'})
+        if self.contexts and not isinstance(self.contexts, list):
+            raise ValidationError({'contexts': 'Contexts must be a list.'})
+
+    def __str__(self):
+        return f"{self.key_display} - {self.label}"
+
+    class Meta:
+        ordering = ['sort_order', 'label', 'code']
+        indexes = [
+            models.Index(fields=['is_active', 'sort_order'], name='shortcut_active_sort_idx'),
+            models.Index(fields=['code'], name='shortcut_code_idx'),
+        ]
+        verbose_name = "Shortcut Configuration"
+        verbose_name_plural = "Shortcut Configurations"
   
 
 # User Module Provision Table

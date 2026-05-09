@@ -508,7 +508,9 @@
   document.addEventListener("DOMContentLoaded", function () {
     _injectSelectionStyle();
     _initRowClickSync();
-    document.addEventListener("keydown", _onKeydown);
+    if (!window.TTT_DB_SHORTCUTS_ENABLED) {
+      document.addEventListener("keydown", _onKeydown);
+    }
 
     // Page-level Scan button → show inline "PLEASE SCAN" indicator.
     var scanBtn = document.getElementById("scanButton");
