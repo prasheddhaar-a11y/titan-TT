@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from modelmasterapp.models import *
 from modelmasterapp.tray_code_mapping import get_tray_codes_for_plating_stock, validate_tray_code_for_stock
-from django.db.models import OuterRef, Subquery, Exists, F, TextField
+from django.db.models import OuterRef, Subquery, Exists, F, TextField, Q
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
@@ -2129,6 +2129,91 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
                         continue
 
             # Remove duplicates while preserving order
+            source_jigs_by_id = {}
+
+            def _remember_source_jig(source_jig):
+                if source_jig and getattr(source_jig, 'id', None) not in source_jigs_by_id:
+                    source_jigs_by_id[source_jig.id] = source_jig
+
+            def _ensure_completed_model(model_no):
+                model_no = str(model_no or '').strip()
+                if not model_no:
+                    return
+                if ':' in model_no:
+                    model_no = model_no.split(':', 1)[0].strip()
+                if not model_no:
+                    return
+
+                no_of_model_cases.append(model_no)
+                if model_no not in global_model_colors:
+                    global_model_colors[model_no] = color_palette[len(global_model_colors) % len(color_palette)]
+                model_colors[model_no] = global_model_colors.get(model_no, '#cccccc')
+
+                if model_no not in model_images:
+                    image_payload = model_images_map.get(model_no)
+                    if not image_payload:
+                        clean_model_no = model_no
+                        match = re.match(r'^(\d+)', model_no)
+                        if match:
+                            clean_model_no = match.group(1)
+                        image_urls = []
+                        model_master = ModelMaster.objects.filter(
+                            Q(model_no=clean_model_no) | Q(plating_stk_no=model_no)
+                        ).prefetch_related('images').first()
+                        if model_master:
+                            for image in model_master.images.all():
+                                if image.master_image:
+                                    image_urls.append(image.master_image.url)
+                        image_payload = {
+                            'images': image_urls,
+                            'first_image': image_urls[0] if image_urls else '/static/assets/images/imagePlaceholder.jpg'
+                        }
+                        model_images_map[model_no] = image_payload
+                    model_images[model_no] = image_payload
+
+            if jig_qr_id:
+                for source_jig in JigCompleted.objects.filter(jig_id=jig_qr_id):
+                    _remember_source_jig(source_jig)
+
+            if unload.combine_lot_ids:
+                for combined_lot in unload.combine_lot_ids:
+                    actual_lot_id = _extract_lot_id(combined_lot)
+                    _remember_source_jig(
+                        JigCompleted.objects.filter(
+                            draft_data__lot_id_quantities__has_key=actual_lot_id
+                        ).first()
+                    )
+                    _remember_source_jig(JigCompleted.objects.filter(lot_id=actual_lot_id).first())
+
+            for source_jig in source_jigs_by_id.values():
+                allocation = getattr(source_jig, 'multi_model_allocation', None) or []
+                if isinstance(allocation, str):
+                    try:
+                        allocation = json.loads(allocation)
+                    except Exception:
+                        allocation = []
+                if isinstance(allocation, list):
+                    for model_info in allocation:
+                        if isinstance(model_info, dict):
+                            _ensure_completed_model(
+                                model_info.get('model_name')
+                                or model_info.get('model')
+                                or model_info.get('plating_stk_no')
+                            )
+
+                raw_model_cases = getattr(source_jig, 'no_of_model_cases', None)
+                if raw_model_cases:
+                    if isinstance(raw_model_cases, str):
+                        model_case_list = [item.strip() for item in raw_model_cases.split(',') if item.strip()]
+                    elif isinstance(raw_model_cases, (list, tuple)):
+                        model_case_list = raw_model_cases
+                    else:
+                        model_case_list = [raw_model_cases]
+                    for model_case in model_case_list:
+                        _ensure_completed_model(model_case)
+
+                _ensure_completed_model(getattr(source_jig, 'plating_stock_num', None))
+
             no_of_model_cases = list(dict.fromkeys(no_of_model_cases))
             
             print(f"[DEBUG] ===== FINAL VALUES SUMMARY =====")

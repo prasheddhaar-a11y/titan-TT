@@ -633,10 +633,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Action <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Tray Cate- <br> Capacity
-                      <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
                       No of Trays <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -689,11 +685,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                 
 </thead>
                 <tbody>
-                  <!-- Row 1 - Highlighted -->
+                  <!-- Data rows -->
                    {% for data in master_data %}
 
                   <!-- Update the table row to include brass QC status data attributes -->
-                  <tr class="highlighted-tray-scan" 
+                  <tr
                       data-stock-lot-id="{{ data.lot_id }}"
                       data-model-no="{{ data.plating_stk_no }}"
                       data-available-qty="{{ data.available_qty }}" 
@@ -780,7 +776,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           data-batch-id="{{ data.batch_id }}"
                           data-model-no="{{ data.plating_stk_no }}"
                           data-no-of-trays="{{ data.no_of_trays }}"
-                          data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                           data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
                           data-model-image="{{ data.model_images.0|default:'' }}"
                           data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
@@ -791,32 +786,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                               alt="View"
                               style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
                         </a>
-                    </td>
-                    <!-- Column 5: Tray Cate - Capacity -->
-                    <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if data.tray_type and data.tray_capacity %}
-                        {% if data.tray_capacity == 20 %}
-                          <div class="tray-capacity-badge normal-tray"
-                               style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                               title="Normal Tray - 20 Capacity (Custom for Nickel QC)">
-                            Normal - 20
-                          </div>
-                        {% elif data.tray_capacity == 12 %}
-                          <div class="tray-capacity-badge jumbo-tray"
-                               style="background: #28a745; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0 1px 2px rgba(0,0,0,0.3);"
-                               title="Jumbo Tray - 12 Capacity (RED, DARK GREEN & LITE GREEN)">
-                            Jumbo - 12
-                          </div>
-                        {% else %}
-                          <div class="tray-capacity-badge other-tray"
-                               style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 600; text-align: center;"
-                               title="{{ data.tray_type }} - {{ data.tray_capacity }} Capacity">
-                            {{ data.tray_type }} - {{ data.tray_capacity }}
-                          </div>
-                        {% endif %}
-                      {% else %}
-                        <span style="color: #6c757d; font-style: italic; font-size: 12px;">No Tray Info</span>
-                      {% endif %}
                     </td>
                     <!-- Column 6: No of Trays -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.no_of_trays}}</td>
@@ -1311,7 +1280,7 @@ document.addEventListener("DOMContentLoaded", function() {
       window.location.href = newUrl;
     });
   } else {
-    console.error('Ã¢ÂÅ’ Brass Search button not found with ID: search-date-range-brass');
+    console.error('Brass Search button not found with ID: search-date-range-brass');
   }
   
   // Ã¢Å“â€¦ Clear functionality (prevents cache/flickering issues)
@@ -1326,7 +1295,7 @@ document.addEventListener("DOMContentLoaded", function() {
       window.location.href = currentUrl;
     });
   } else {
-    console.error('Ã¢ÂÅ’ Brass Clear button not found with ID: clear-date-filter-brass');
+    console.error('Brass Clear button not found with ID: clear-date-filter-brass');
   }
   
   console.log('Ã¢Å“â€¦ HTML5 date filtering initialization complete for Brass QC Completed Table');
@@ -1635,7 +1604,7 @@ validateInput.addEventListener("keydown", function (e) {
                 setTimeout(() => {
                   row.style.backgroundColor = '';
                 }, 2000);
-                console.log(`Ã¢ÂÅ’ [Validation Failed] Tray "${trayId}" validation failed in ${validationConfig.dataSource}`);
+                console.log(`[Validation Failed] Tray "${trayId}" validation failed in ${validationConfig.dataSource}`);
               }
             }
           }
@@ -1650,7 +1619,7 @@ validateInput.addEventListener("keydown", function (e) {
       validateInput.focus();
     })
     .catch(error => {
-      console.error('Ã¢ÂÅ’ [Validation Network Error]', error);
+      console.error('[Validation Network Error]', error);
       showError(`Network error occurred while validating the tray ID in ${validationConfig.dataSource}.`);
       validateInput.value = "";
       validateInput.focus();
@@ -1804,10 +1773,10 @@ document.addEventListener("DOMContentLoaded", function () {
           rejectionSummary = result.rejection_summary || {};
           console.log(`Ã¢Å“â€¦ [SUCCESS] Fetched ${traysData.length} trays from ${dataSource}`);
         } else {
-          console.error(`Ã¢ÂÅ’ [ERROR] API call failed:`, result);
+          console.error(`[ERROR] API call failed:`, result);
         }
       } catch (e) {
-        console.error(`Ã¢ÂÅ’ [NETWORK ERROR] Failed to fetch tray data:`, e);
+        console.error(`[NETWORK ERROR] Failed to fetch tray data:`, e);
       }
 
       function buildTableHTML(showValidationColumn = false) {
@@ -1831,7 +1800,7 @@ document.addEventListener("DOMContentLoaded", function () {
           html += `
             <tr style="background-color: #e8f5e8; font-weight: bold;">
               <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #2e7d32; padding: 8px;">
-                Ã¢Å“â€¦ ACCEPTED TRAYS
+                ACCEPTED TRAYS
               </td>
             </tr>
           `;
@@ -1899,7 +1868,7 @@ document.addEventListener("DOMContentLoaded", function () {
           html += `
             <tr style="background-color: #ffebee; font-weight: bold;">
               <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #c62828; padding: 8px;">
-                Ã¢ÂÅ’ REJECTED TRAYS
+                REJECTED TRAYS
               </td>
             </tr>
           `;
@@ -1951,7 +1920,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   <span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">DELINKED</span>
                 </td>
                 <td>
-                  <input type="number" class="form-control" value="${tray.tray_quantity || ''}" readonly style="width: 100%;" />
+                  <span style="display:block; text-align:center; color:#6c757d; font-size:12px;">-</span>
                 </td>
                 ${showValidationColumn ? `
                   <td>

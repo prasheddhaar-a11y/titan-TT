@@ -325,6 +325,13 @@
 
     function installClickTracking() {
         document.addEventListener('click', function (event) {
+            // Skip form elements — clicking select/input/textarea must not steal focus
+            // or trigger row.focus(), which closes native browser dropdowns immediately.
+            var targetTag = (event.target.tagName || '').toUpperCase();
+            if (targetTag === 'SELECT' || targetTag === 'OPTION' ||
+                targetTag === 'INPUT'  || targetTag === 'TEXTAREA') {
+                return;
+            }
             var row = getRowFromEventTarget(event.target);
             if (!row) {
                 return;

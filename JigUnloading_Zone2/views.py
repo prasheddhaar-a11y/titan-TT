@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from modelmasterapp.models import *
 from modelmasterapp.tray_code_mapping import get_tray_codes_for_plating_stock, validate_tray_code_for_stock
-from django.db.models import OuterRef, Subquery, Exists, F, TextField
+from django.db.models import OuterRef, Subquery, Exists, F, TextField, Q
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
@@ -808,10 +808,10 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
-            plating_color_cast__in=plating_patterns,
-            last_process_module='Inprocess Inspection'  # ✅ FIX: Only show lots submitted from Inprocess Inspection
-        ).exclude(
-            last_process_module='Jig Unloading'
+            plating_color_cast__in=plating_patterns
+        ).filter(
+            Q(last_process_module='Inprocess Inspection') |
+            Q(last_process_module='Jig Unloading')
         ).order_by('-IP_loaded_date_time')
         
         # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data 
@@ -821,7 +821,9 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
             plating_color_cast__isnull=True,  # draft_data has no plating_color
-            last_process_module='Inprocess Inspection'  # ✅ FIX: Only show lots submitted from Inprocess Inspection
+        ).filter(
+            Q(last_process_module='Inprocess Inspection') |
+            Q(last_process_module='Jig Unloading')
         ).order_by('-IP_loaded_date_time')
         
         # Get lot_ids from jigs without plating color in draft_data
@@ -1509,6 +1511,74 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
         
         return context
     
+    def _get_zone2_jig_lot_quantities(self, jig):
+        """Return all model lot_ids represented by a Zone 2 jig row."""
+        lot_quantities = {}
+
+        def add_lot(lot_id, qty=1):
+            lot_id = str(lot_id or '').strip()
+            if not lot_id:
+                return
+            try:
+                qty = int(qty or 1)
+            except (TypeError, ValueError):
+                qty = 1
+            if lot_id not in lot_quantities:
+                lot_quantities[lot_id] = qty
+
+        draft_data = getattr(jig, 'draft_data', {}) or {}
+        if isinstance(draft_data, dict):
+            for lot_id, qty in (draft_data.get('lot_id_quantities', {}) or {}).items():
+                add_lot(lot_id, qty)
+
+            draft_allocation = draft_data.get('multi_model_allocation', []) or []
+            if isinstance(draft_allocation, str):
+                try:
+                    draft_allocation = json.loads(draft_allocation)
+                except Exception:
+                    draft_allocation = []
+            if isinstance(draft_allocation, list):
+                for allocation in draft_allocation:
+                    if isinstance(allocation, dict):
+                        add_lot(
+                            allocation.get('lot_id'),
+                            allocation.get('allocated_qty') or allocation.get('qty') or allocation.get('quantity') or 1,
+                        )
+
+        model_allocation = getattr(jig, 'multi_model_allocation', None) or []
+        if isinstance(model_allocation, str):
+            try:
+                model_allocation = json.loads(model_allocation)
+            except Exception:
+                model_allocation = []
+        if isinstance(model_allocation, list):
+            for allocation in model_allocation:
+                if isinstance(allocation, dict):
+                    add_lot(
+                        allocation.get('lot_id'),
+                        allocation.get('allocated_qty') or allocation.get('qty') or allocation.get('quantity') or 1,
+                    )
+
+        raw_model_cases = getattr(jig, 'no_of_model_cases', None)
+        if raw_model_cases:
+            if isinstance(raw_model_cases, str):
+                try:
+                    parsed_model_cases = json.loads(raw_model_cases)
+                except Exception:
+                    parsed_model_cases = raw_model_cases
+            else:
+                parsed_model_cases = raw_model_cases
+
+            case_items = parsed_model_cases if isinstance(parsed_model_cases, (list, tuple)) else [parsed_model_cases]
+            for case_item in case_items:
+                for lot_id in re.findall(r'\b(?:[A-Z]*LID|UNLOT)[A-Za-z0-9]+\b', str(case_item)):
+                    add_lot(lot_id)
+
+        if not lot_quantities and getattr(jig, 'lot_id', None):
+            add_lot(jig.lot_id, getattr(jig, 'updated_lot_qty', 1))
+
+        return lot_quantities
+
     def filter_fully_unloaded_jigs(self, queryset):
         """Smart filter to remove jigs where ALL lot_ids are unloaded"""
         
@@ -1586,31 +1656,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 print(f"🚫 [ZONE2 SECONDARY LOT FILTER] Hiding secondary multi-model lot: {jig.lot_id}")
                 continue
 
-            # ✅ PRIMARY LOT CHECK (NEW): If primary lot is already unloaded,
-            # hide entire jig from Zone 2 pick table (including any secondary lots from Jig Loading).
-            # This prevents "N?A" lots from appearing when the jig was already unloaded in Zone 1.
-            primary_lot_id = getattr(jig, 'lot_id', None)
-            if primary_lot_id:
-                if primary_lot_id in completed_lot_ids or primary_lot_id in bare_unloaded_lot_ids:
-                    print(f"🚫 [ZONE2 PRIMARY LOT FILTER] Hiding jig with unloaded primary lot: {jig.jig_id} (lot_id: {primary_lot_id})")
-                    continue
-            
-            # lot_id_quantities may not be set yet (second-pass loop runs after this filter),
-            # so fall back to reading directly from draft_data on the ORM object.
-            _jfq = getattr(jig, 'lot_id_quantities', None) or {}
-            if not _jfq:
-                _dd_f = getattr(jig, 'draft_data', {}) or {}
-                _jfq = _dd_f.get('lot_id_quantities', {}) if isinstance(_dd_f, dict) else {}
-            if not _jfq:
-                # Check multi_model_allocation — multi-model jigs store per-model lot_ids here
-                _dd_f = getattr(jig, 'draft_data', {}) or {}
-                _alloc = _dd_f.get('multi_model_allocation', []) if isinstance(_dd_f, dict) else []
-                if _alloc:
-                    _jfq = {
-                        a['lot_id']: a.get('allocated_qty', 1)
-                        for a in _alloc
-                        if isinstance(a, dict) and a.get('lot_id')
-                    }
+            _jfq = self._get_zone2_jig_lot_quantities(jig)
             if not _jfq:
                 # Fallback to base lot_id if lot_id_quantities isn't present in draft_data
                 if getattr(jig, 'lot_id', None):
@@ -1623,9 +1669,10 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             jig_lot_ids = set(_jfq.keys())
             _jig_id_z2 = getattr(jig, 'jig_id', None) or jig.lot_id
 
-            # ✅ FAST PATH: check unload_over flag first
-            if _jig_id_z2 in completed_jig_ids or jig.lot_id in completed_lot_ids:
-                print(f"🚫 [ZONE2 FAST PATH] Hiding (unload_over=True): {jig.lot_id}")
+            # ✅ FAST PATH: single-model jigs can be hidden by their completion flag.
+            # Multi-model jigs must stay visible until every model lot_id is submitted.
+            if len(jig_lot_ids) <= 1 and (_jig_id_z2 in completed_jig_ids or jig.lot_id in completed_lot_ids):
+                print(f"🚫 [ZONE2 FAST PATH] Hiding completed single-model jig: {jig.lot_id}")
                 continue
 
             if jig_lot_ids and jig_lot_ids.issubset(completed_lot_ids):
@@ -1672,10 +1719,12 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                         print(f"✅ Zone 2 - DRAFT MATCH in new_lot_ids: {lot_id}")
                         break
             
-            # Check lot_id_quantities keys
-            if not has_draft and hasattr(jig_detail, 'lot_id_quantities') and jig_detail.lot_id_quantities:
-                print(f"   - lot_id_quantities keys: {list(jig_detail.lot_id_quantities.keys())}")
-                for lot_id in jig_detail.lot_id_quantities.keys():
+            zone2_lot_quantities = self._get_zone2_jig_lot_quantities(jig_detail)
+
+            # Check all lot_ids represented by this row, including multi-model lot_ids.
+            if not has_draft and zone2_lot_quantities:
+                print(f"   - zone2 lot_id keys: {list(zone2_lot_quantities.keys())}")
+                for lot_id in zone2_lot_quantities.keys():
                     if lot_id in draft_lot_ids:
                         has_draft = True
                         print(f"✅ Zone 2 - DRAFT MATCH in lot_id_quantities: {lot_id}")
@@ -1693,15 +1742,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             jig_detail.jig_unload_draft = has_draft
             
             # Compute all_models_submitted_z1 for View icon
-            _dd_z1 = getattr(jig_detail, 'draft_data', {}) or {}
-            _alloc_z1 = _dd_z1.get('multi_model_allocation', []) if isinstance(_dd_z1, dict) else []
-            _liq_z1 = _dd_z1.get('lot_id_quantities', {}) if isinstance(_dd_z1, dict) else {}
-            if _alloc_z1:
-                _all_lids_z1 = set(a['lot_id'] for a in _alloc_z1 if a.get('lot_id'))
-            elif _liq_z1:
-                _all_lids_z1 = set(_liq_z1.keys())
-            else:
-                _all_lids_z1 = {jig_detail.lot_id}
+            _all_lids_z1 = set(zone2_lot_quantities.keys()) or {jig_detail.lot_id}
             _submitted_z1 = set(
                 JUSubmittedZ1.objects.filter(jig_completed_id=jig_detail.id, is_draft=False)
                 .values_list('lot_id', flat=True)
@@ -4254,6 +4295,91 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 lot_id_quantities = {unload.lot_id: total_case_qty}
                 model_colors[_mk_fb] = global_model_colors.get(_mk_fb, '#cccccc')
                 model_images[_mk_fb] = model_images_map.get(_mk_fb, {'images': [], 'first_image': "/static/assets/images/imagePlaceholder.jpg"})
+
+            source_jigs_by_id = {}
+
+            def _remember_source_jig(source_jig):
+                if source_jig and getattr(source_jig, 'id', None) not in source_jigs_by_id:
+                    source_jigs_by_id[source_jig.id] = source_jig
+
+            def _ensure_completed_model(model_no):
+                model_no = str(model_no or '').strip()
+                if not model_no:
+                    return
+                if ':' in model_no:
+                    model_no = model_no.split(':', 1)[0].strip()
+                if not model_no:
+                    return
+
+                no_of_model_cases.append(model_no)
+                if model_no not in global_model_colors:
+                    global_model_colors[model_no] = color_palette[len(global_model_colors) % len(color_palette)]
+                model_colors[model_no] = global_model_colors.get(model_no, '#cccccc')
+
+                if model_no not in model_images:
+                    image_payload = model_images_map.get(model_no)
+                    if not image_payload:
+                        clean_model_no = model_no
+                        match = re.match(r'^(\d+)', model_no)
+                        if match:
+                            clean_model_no = match.group(1)
+                        image_urls = []
+                        model_master = ModelMaster.objects.filter(
+                            Q(model_no=clean_model_no) | Q(plating_stk_no=model_no)
+                        ).prefetch_related('images').first()
+                        if model_master:
+                            for image in model_master.images.all():
+                                if image.master_image:
+                                    image_urls.append(image.master_image.url)
+                        image_payload = {
+                            'images': image_urls,
+                            'first_image': image_urls[0] if image_urls else '/static/assets/images/imagePlaceholder.jpg'
+                        }
+                        model_images_map[model_no] = image_payload
+                    model_images[model_no] = image_payload
+
+            if jig_qr_id:
+                for source_jig in JigCompleted.objects.filter(jig_id=jig_qr_id):
+                    _remember_source_jig(source_jig)
+
+            if unload.combine_lot_ids:
+                for combined_lot in unload.combine_lot_ids:
+                    actual_lot_id = _extract_lot_id(combined_lot)
+                    _remember_source_jig(
+                        JigCompleted.objects.filter(
+                            draft_data__lot_id_quantities__has_key=actual_lot_id
+                        ).first()
+                    )
+                    _remember_source_jig(JigCompleted.objects.filter(lot_id=actual_lot_id).first())
+
+            for source_jig in source_jigs_by_id.values():
+                allocation = getattr(source_jig, 'multi_model_allocation', None) or []
+                if isinstance(allocation, str):
+                    try:
+                        allocation = json.loads(allocation)
+                    except Exception:
+                        allocation = []
+                if isinstance(allocation, list):
+                    for model_info in allocation:
+                        if isinstance(model_info, dict):
+                            _ensure_completed_model(
+                                model_info.get('model_name')
+                                or model_info.get('model')
+                                or model_info.get('plating_stk_no')
+                            )
+
+                raw_model_cases = getattr(source_jig, 'no_of_model_cases', None)
+                if raw_model_cases:
+                    if isinstance(raw_model_cases, str):
+                        model_case_list = [item.strip() for item in raw_model_cases.split(',') if item.strip()]
+                    elif isinstance(raw_model_cases, (list, tuple)):
+                        model_case_list = raw_model_cases
+                    else:
+                        model_case_list = [raw_model_cases]
+                    for model_case in model_case_list:
+                        _ensure_completed_model(model_case)
+
+                _ensure_completed_model(getattr(source_jig, 'plating_stock_num', None))
 
             no_of_model_cases = list(dict.fromkeys(no_of_model_cases))
 

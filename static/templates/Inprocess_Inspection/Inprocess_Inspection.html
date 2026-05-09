@@ -4219,5 +4219,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Fix: prevent row highlight from being restored on page load / refresh -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  // Clear the persisted active-row state so restoreSavedRowState()
+  // (in global_shortcut_manager.js) does not re-apply the yellow
+  // gkb-row-focus / dp-row-action-highlight classes on load.
+  sessionStorage.removeItem('activeRowContext');
+
+  // restoreSavedRowState uses a 100 ms setTimeout internally, so we
+  // sweep 200 ms later to ensure any state it managed to restore is
+  // also removed.  This guarantees NO row appears highlighted on page
+  // load or after a refresh.
+  setTimeout(function () {
+    document.querySelectorAll('#order-listing tbody tr').forEach(function (row) {
+      row.classList.remove('gkb-row-focus', 'dp-row-action-highlight', 'gs-active-scan', 'gs-hi');
+    });
+  }, 200);
+});
+</script>
+
 {% endblock %}
 {% endblock content %}

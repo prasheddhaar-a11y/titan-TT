@@ -956,14 +956,14 @@
       <!-- Color Mapping -->
       <script src="{% static 'js/colormapping.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- endinject -->
-      <link rel="shortcut icon" href="assets/images/favicon.png" />
+      <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">   </head>
    <body>
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
-            <img src="{% static 'assets/gif/buffer.gif' %}" alt="Loading..." style="width: 70px; height: 70px;" />
+          <div aria-hidden="true" style="width:70px;height:70px;border:6px solid rgba(2,128,132,0.18);border-top-color:#028084;border-radius:50%;animation:hourglass-spin 0.8s linear infinite;"></div>
             <div style="margin-top:12px; color:#028084; font-weight:600; font-size:1.1rem;">Loading...</div>
          </div>
       </div>
@@ -2111,7 +2111,7 @@
             
             <!-- LEFT: Banner Image -->
             <div style="flex:0 0 35%; background:#f8fafb; display:flex; align-items:center; justify-content:center; min-height:380px; position:relative; overflow:hidden;">
-               <img src="{% static 'assets/images/5.jpg' %}" style="width:100%; height:100%; object-fit:cover;">
+              <img id="shortcutsBannerImage" data-src="{% static 'assets/images/banner.jpg' %}" alt="Keyboard shortcuts" style="width:100%; height:100%; object-fit:cover;">
                <div style="position:absolute; top:0; left:0; right:0; bottom:0; background:linear-gradient(135deg, rgba(2,128,132,0.05), transparent);"></div>
             </div>
             
@@ -2476,6 +2476,10 @@
                shortcutsBtn.addEventListener('click', function(e) {
                   e.preventDefault();
                   const isHidden = shortcutsModal.style.display === 'none';
+                const shortcutsBannerImage = document.getElementById('shortcutsBannerImage');
+                if (isHidden && shortcutsBannerImage && !shortcutsBannerImage.getAttribute('src')) {
+                  shortcutsBannerImage.setAttribute('src', shortcutsBannerImage.getAttribute('data-src'));
+                }
                   shortcutsModal.style.display = isHidden ? 'block' : 'none';
                   shortcutsBackdrop.style.display = isHidden ? 'block' : 'none';
                });

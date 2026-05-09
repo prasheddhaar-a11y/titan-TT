@@ -32,6 +32,7 @@ from Jig_Unloading.models import *
 from Jig_Unloading.tray_utils import get_upstream_tray_distribution, get_model_master_tray_info
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
+from Nickel_Audit.views import _na_latest_submission_qtys, _na_unique_completed_rows
 
 logger = logging.getLogger(__name__)
 
@@ -443,12 +444,21 @@ class NA_Zone_CompletedView(APIView):
             .order_by("-na_last_process_date_time", "-lot_id")
         )
 
+        child_lot_ids = NickelAudit_PartialAcceptLot.objects.values_list("new_lot_id", flat=True)
+        queryset = queryset.exclude(lot_id__in=child_lot_ids)
+        completed_rows = _na_unique_completed_rows(queryset, "Z2")
+
         page_number = request.GET.get("page", 1)
-        paginator = Paginator(queryset, 10)
+        paginator = Paginator(completed_rows, 10)
         page_obj = paginator.get_page(page_number)
 
         master_data = []
         for jig_unload_obj in page_obj.object_list:
+            accepted_qty, rejected_qty = _na_latest_submission_qtys(
+                jig_unload_obj.lot_id,
+                accepted_fallback=jig_unload_obj.na_qc_accepted_qty or 0,
+                rejected_fallback=getattr(jig_unload_obj, "na_rejection_qty", 0) or 0,
+            )
             data = {
                 "batch_id": jig_unload_obj.unload_lot_id,
                 "lot_id": jig_unload_obj.lot_id,
@@ -477,7 +487,8 @@ class NA_Zone_CompletedView(APIView):
                 "na_pick_remarks": jig_unload_obj.na_pick_remarks,
                 "na_accepted_tray_scan_status": jig_unload_obj.na_accepted_tray_scan_status,
                 "na_ac_accepted_qty_verified": jig_unload_obj.na_ac_accepted_qty_verified,
-                "na_qc_accepted_qty": jig_unload_obj.na_qc_accepted_qty or 0,
+                "na_qc_accepted_qty": accepted_qty,
+                "na_rejection_qty": rejected_qty,
                 "na_last_process_date_time": jig_unload_obj.na_last_process_date_time,
                 "plating_stk_no": jig_unload_obj.plating_stk_no or "",
                 "polishing_stk_no": jig_unload_obj.polish_stk_no or "",
@@ -485,8 +496,15 @@ class NA_Zone_CompletedView(APIView):
                 "combine_lot_ids": jig_unload_obj.combine_lot_ids,
                 "unload_lot_id": jig_unload_obj.unload_lot_id,
                 "audit_check": jig_unload_obj.audit_check,
-                "display_accepted_qty": jig_unload_obj.na_physical_qty or 0,
+                "display_accepted_qty": accepted_qty,
+                "available_qty": accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
+                "no_of_trays": 0,
             }
+
+            tray_capacity = data["tray_capacity"]
+            display_qty = data["display_accepted_qty"]
+            if tray_capacity > 0 and display_qty > 0:
+                data["no_of_trays"] = math.ceil(display_qty / tray_capacity)
 
             images = []
             if jig_unload_obj.plating_stk_no:

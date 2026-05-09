@@ -322,6 +322,18 @@
         height: auto;
         filter: drop-shadow(0 0 40px rgba(58, 213, 216, 0.4));
       }
+      .login-loading-spinner {
+        width: 86px;
+        height: 86px;
+        border: 7px solid rgba(58, 213, 216, 0.18);
+        border-top-color: #3ad5d8;
+        border-radius: 50%;
+        animation: login-spin 0.85s linear infinite;
+        filter: drop-shadow(0 0 28px rgba(58, 213, 216, 0.35));
+      }
+      @keyframes login-spin {
+        to { transform: rotate(360deg); }
+      }
 
       /* Input icon styles */
       .input-with-icon {
@@ -654,7 +666,7 @@
     
     <!-- Loading overlay with scanner animation -->
     <div class="loading-overlay" id="loadingOverlay">
-      <img src="{% static 'assets/gif/2.gif' %}" alt="Loading..." />
+      <div class="login-loading-spinner" aria-label="Loading"></div>
     </div>
 
     <div class="container-scroller">

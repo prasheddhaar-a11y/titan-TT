@@ -1243,6 +1243,7 @@ body.add-model-mode #selectAllCheckbox {
                     </th>
                     <th>JIG ID <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Last<br>Updated <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Model Presents <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>No of Trays <i class="fa fa-filter" aria-hidden="true"></i></th>
@@ -1273,6 +1274,32 @@ body.add-model-mode #selectAllCheckbox {
                       <td>
                         {{ jig_detail.Un_loaded_date_time|date:"d-M-y" }}<br>
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ jig_detail.Un_loaded_date_time|date:"h:i A" }}</span>
+                      </td>
+
+                      <!-- Model Presents -->
+                      <td class="model-stock-no-cell"
+                          data-images='{{ jig_detail.model_images|json_encode }}'
+                          data-model-colors='{{ jig_detail.model_colors|json_encode }}'
+                          data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'>
+                        <span class="model-stock-no-text" style="cursor:pointer; white-space: nowrap;">
+                          {% for model_no in jig_detail.no_of_model_cases %}
+                            {% if jig_detail.model_colors %}
+                              <span class="model-circle" title="{{ model_no }}" style="background:{{ jig_detail.model_colors|get_item:model_no }};{% if forloop.last %}margin-right:0;{% endif %}"></span>
+                            {% else %}
+                              <span class="model-circle" title="{{ model_no }}" style="background:#ccc;{% if forloop.last %}margin-right:0;{% endif %}"></span>
+                            {% endif %}
+                          {% empty %}
+                            <span style="color:#6c757d; font-style:italic; font-size:12px;">N/A</span>
+                          {% endfor %}
+                          {% if jig_detail.no_of_model_cases %}
+                            <span class="expand-model-remark" style="display:inline-block;width:18px;height:18px;vertical-align:middle;cursor:pointer;margin-left:6px;" title="Expand">
+                              <svg width="18" height="18" viewBox="0 0 18 18">
+                                <circle cx="9" cy="9" r="8" fill="#bbb"/>
+                                <polygon points="6,7 12,7 9,12" fill="#fff"/>
+                              </svg>
+                            </span>
+                          {% endif %}
+                        </span>
                       </td>
                       
                       <!-- Action -->
@@ -2223,6 +2250,145 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 </script>
+<!-- Model Presents gallery behavior -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  const modal = document.getElementById('modelRemarkModal');
+  const closeBtn = document.getElementById('closeModelRemarkModal');
+  const modalContent = document.getElementById('modelRemarkModalContent');
+
+  function getImagePayload(modelImages, modelNo) {
+    const payload = modelImages[modelNo] || {};
+    if (Array.isArray(payload)) {
+      return {
+        images: payload,
+        first_image: payload[0] || '/static/assets/images/imagePlaceholder.jpg'
+      };
+    }
+    return {
+      images: payload.images || [],
+      first_image: payload.first_image || '/static/assets/images/imagePlaceholder.jpg'
+    };
+  }
+
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  document.querySelectorAll('.expand-model-remark').forEach(function(expandBtn) {
+    expandBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const cell = expandBtn.closest('.model-stock-no-cell');
+      if (!cell || !modal || !modalContent) return;
+
+      try {
+        const modelImages = JSON.parse(cell.getAttribute('data-images') || '{}');
+        const modelColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
+        const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
+
+        let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:18px 12px;justify-items:center;">`;
+        modelList.forEach(function(modelNo) {
+          const color = modelColors[modelNo] || '#ccc';
+          const modelImageData = getImagePayload(modelImages, modelNo);
+          const imageJson = encodeURIComponent(JSON.stringify(modelImageData.images || []));
+          const safeModelNo = escapeHtml(modelNo);
+          const encodedModelNo = encodeURIComponent(String(modelNo));
+          const safeFirstImage = escapeHtml(modelImageData.first_image);
+          html += `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <span class="model-circle" style="background:${color};width:22px;height:22px;display:inline-block;margin-bottom:2px;"></span>
+              <img src="${safeFirstImage}" alt="${safeModelNo}" class="jig-unload-model-image-thumb" data-model-no="${encodedModelNo}" data-images="${imageJson}" style="max-width:80px;max-height:80px;border-radius:8px;border:1px solid #eee;background:#fafafa;cursor:pointer;"/>
+              <div style="font-weight:600;color:#023E4DCC;font-size:0.98rem;text-align:center;word-break:break-all;">${safeModelNo}</div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+
+        modalContent.innerHTML = html;
+        modal.style.display = 'block';
+      } catch (error) {
+        console.error('Error parsing model data:', error);
+        modalContent.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">Error loading model data</div>';
+        modal.style.display = 'block';
+      }
+    });
+  });
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', function() {
+      modal.style.display = 'none';
+    });
+  }
+
+  if (modalContent) {
+    modalContent.addEventListener('click', function(e) {
+      const thumbnail = e.target.closest('.jig-unload-model-image-thumb');
+      if (!thumbnail) return;
+      showJigUnloadModelImages(
+        decodeURIComponent(thumbnail.getAttribute('data-model-no') || ''),
+        decodeURIComponent(thumbnail.getAttribute('data-images') || '%5B%5D')
+      );
+    });
+  }
+
+  window.addEventListener('click', function(e) {
+    if (modal && modal.style.display === 'block' && !modal.contains(e.target) && !e.target.closest('.expand-model-remark')) {
+      modal.style.display = 'none';
+    }
+  });
+});
+
+function showJigUnloadModelImages(modelNo, imagesJson) {
+  try {
+    const images = JSON.parse(imagesJson);
+    if (!images.length) {
+      alert('No images available for ' + modelNo);
+      return;
+    }
+
+    let imageModal = document.getElementById('jigUnloadModelImageViewer');
+    if (!imageModal) {
+      imageModal = document.createElement('div');
+      imageModal.id = 'jigUnloadModelImageViewer';
+      imageModal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100000;display:none;justify-content:center;align-items:center;';
+      document.body.appendChild(imageModal);
+    }
+
+    let currentIndex = 0;
+    function updateImage() {
+      imageModal.innerHTML = `
+        <div style="position:relative;max-width:90%;max-height:90%;background:white;border-radius:8px;overflow:hidden;">
+          <button type="button" id="jigUnloadImageClose" style="position:absolute;top:10px;right:10px;font-size:24px;cursor:pointer;color:#000;z-index:2;background:transparent;border:0;">&times;</button>
+          <div style="padding:20px;text-align:center;">
+            <h3 style="margin:0 0 15px 0;color:#023E4DCC;">${modelNo}</h3>
+            <img src="${images[currentIndex]}" style="max-width:100%;max-height:70vh;object-fit:contain;" />
+            <div style="margin-top:15px;">
+              <button type="button" id="jigUnloadPrevImage" ${currentIndex === 0 ? 'disabled' : ''} style="margin:0 10px;padding:8px 16px;border:none;background:#007bff;color:white;border-radius:4px;cursor:pointer;">Previous</button>
+              <span style="margin:0 15px;color:#666;">${currentIndex + 1} / ${images.length}</span>
+              <button type="button" id="jigUnloadNextImage" ${currentIndex === images.length - 1 ? 'disabled' : ''} style="margin:0 10px;padding:8px 16px;border:none;background:#007bff;color:white;border-radius:4px;cursor:pointer;">Next</button>
+            </div>
+          </div>
+        </div>
+      `;
+      const prevBtn = document.getElementById('jigUnloadPrevImage');
+      const nextBtn = document.getElementById('jigUnloadNextImage');
+      const closeImageBtn = document.getElementById('jigUnloadImageClose');
+      if (prevBtn) prevBtn.onclick = function() { if (currentIndex > 0) { currentIndex -= 1; updateImage(); } };
+      if (nextBtn) nextBtn.onclick = function() { if (currentIndex < images.length - 1) { currentIndex += 1; updateImage(); } };
+      if (closeImageBtn) closeImageBtn.onclick = function() { imageModal.style.display = 'none'; };
+    }
+
+    updateImage();
+    imageModal.style.display = 'flex';
+  } catch (error) {
+    console.error('Error showing model images:', error);
+    alert('Error loading images');
+  }
+}
+</script>
+
 <!-- Active row to be highlighted & Restores the highlighted row to its original position and removes the highlight bg when the tray scan modal is closed. -->
   <script nonce="{{ csp_nonce }}">
   // Append the following code block at the end of the file
@@ -2632,9 +2798,8 @@ document.addEventListener("DOMContentLoaded", function() {
 document.addEventListener("DOMContentLoaded", function () {
   // Get all table rows
   document.querySelectorAll("#order-listing tbody tr").forEach(function (row) {
-    // For Jig Unloading, plating color is in the 6th column (index 5)
-    // Column structure: S.No(0), JIG ID(1), Last Updated(2), Model Presents(3), Polishing Stk No(4), Plating Color(5)
-    var cell = row.children[5]; // Plating Color column
+    // Column structure includes Model Presents, Action, Lot Qty, tray/status/location before Plating Color.
+    var cell = row.children[12]; // Plating Color column
     
     if (!cell) return;
 

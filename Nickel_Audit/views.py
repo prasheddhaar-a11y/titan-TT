@@ -29,6 +29,14 @@ from Nickel_Audit.models import *
 from Nickel_Inspection.models import *
 from Jig_Unloading.models import *
 from Jig_Unloading.tray_utils import get_upstream_tray_distribution, get_model_master_tray_info
+from Nickel_Inspection.services import (
+    build_nq_rejection_allocation,
+    normalize_accept_trays,
+    normalize_operator_delink_trays,
+    normalize_reject_trays,
+    tray_qty_total,
+    validate_original_tray_coverage,
+)
 import logging
 logger = logging.getLogger(__name__)
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -82,6 +90,140 @@ def _na_normalize_active_trays(rows):
     for item in clean_rows:
         item['is_top'] = item['tray_id'] == top_row['tray_id']
     return sorted(clean_rows, key=lambda item: (not item['is_top'], _na_tray_sort_key(item['tray_id'])))
+
+
+def _na_normalize_tray_snapshot(rows, rejected=False):
+    clean_rows = []
+    for row in rows or []:
+        tray_id = row.get('tray_id') if isinstance(row, dict) else getattr(row, 'tray_id', '')
+        qty = row.get('qty', row.get('tray_quantity', 0)) if isinstance(row, dict) else getattr(row, 'tray_quantity', 0)
+        qty = _na_int(qty)
+        if not tray_id or qty <= 0:
+            continue
+        clean_rows.append({
+            'tray_id': str(tray_id).strip().upper(),
+            'tray_quantity': qty,
+            'top_tray': bool(
+                (row.get('is_top') or row.get('top_tray'))
+                if isinstance(row, dict)
+                else getattr(row, 'top_tray', False)
+            ),
+            'rejected_tray': bool(rejected),
+            'delink_tray': False,
+        })
+
+    if not clean_rows:
+        return []
+    if rejected:
+        if not any(item['top_tray'] for item in clean_rows):
+            top_row = min(clean_rows, key=lambda item: (item['tray_quantity'], _na_tray_sort_key(item['tray_id'])))
+            for item in clean_rows:
+                item['top_tray'] = item['tray_id'] == top_row['tray_id']
+        return sorted(clean_rows, key=lambda item: (not item['top_tray'], item['tray_quantity'], _na_tray_sort_key(item['tray_id'])))
+
+    top_row = min(clean_rows, key=lambda item: (item['tray_quantity'], _na_tray_sort_key(item['tray_id'])))
+    for item in clean_rows:
+        item['top_tray'] = item['tray_id'] == top_row['tray_id']
+    return sorted(clean_rows, key=lambda item: (not item['top_tray'], _na_tray_sort_key(item['tray_id'])))
+
+
+def _na_delink_tray_snapshot(lot_id):
+    rows = Nickel_AuditTrayId.objects.filter(
+        lot_id=lot_id,
+        delink_tray=True,
+    ).order_by('tray_id').values('tray_id', 'tray_quantity', 'delink_tray_qty')
+    trays = []
+    for row in rows:
+        tray_id = str(row.get('tray_id') or '').strip().upper()
+        if not tray_id:
+            continue
+        trays.append({
+            'tray_id': tray_id,
+            'tray_quantity': _na_int(row.get('tray_quantity')),
+            'delink_tray_qty': row.get('delink_tray_qty') or '',
+            'top_tray': False,
+            'rejected_tray': False,
+            'delink_tray': True,
+        })
+    return trays
+
+
+def _na_with_delink_tray_snapshot(lot_id, trays):
+    combined = list(trays or [])
+    existing_delink_ids = {
+        str(row.get('tray_id') or '').strip().upper()
+        for row in combined
+        if row.get('delink_tray')
+    }
+    for row in _na_delink_tray_snapshot(lot_id):
+        if row['tray_id'] not in existing_delink_ids:
+            combined.append(row)
+    return combined
+
+
+def _na_completed_tray_snapshot(lot_id):
+    submission = NickelAudit_Submission.objects.filter(lot_id=lot_id).order_by('-created_at').first()
+    if submission:
+        trays = _na_normalize_tray_snapshot(submission.accept_trays_data or [])
+        trays += _na_normalize_tray_snapshot(submission.reject_trays_data or [], rejected=True)
+        return _na_with_delink_tray_snapshot(lot_id, trays)
+
+    active_trays = Nickel_AuditTrayId.objects.filter(
+        lot_id=lot_id,
+        rejected_tray=False,
+        delink_tray=False,
+    ).values('tray_id', 'tray_quantity', 'top_tray')
+    rejected_trays = Nickel_AuditTrayId.objects.filter(
+        lot_id=lot_id,
+        rejected_tray=True,
+        delink_tray=False,
+    ).values('tray_id', 'tray_quantity', 'top_tray')
+    trays = _na_normalize_tray_snapshot(active_trays)
+    trays += _na_normalize_tray_snapshot(rejected_trays, rejected=True)
+    return _na_with_delink_tray_snapshot(lot_id, trays)
+
+
+def _na_latest_submission_qtys(lot_id, accepted_fallback=0, rejected_fallback=0):
+    submission = NickelAudit_Submission.objects.filter(lot_id=lot_id).order_by('-created_at').first()
+    if submission:
+        return submission.accepted_qty or 0, submission.rejected_qty or 0
+    return _na_int(accepted_fallback), _na_int(rejected_fallback)
+
+
+def _na_completed_row_priority(jig_unload_obj):
+    if jig_unload_obj.na_qc_rejection:
+        return 0
+    if jig_unload_obj.na_qc_few_cases_accptance and not jig_unload_obj.na_onhold_picking:
+        return 1
+    return 2
+
+
+def _na_unique_completed_rows(queryset, zone_label):
+    selected_by_source = {}
+    duplicate_count = 0
+    for jig_unload_obj in queryset:
+        source_key = tuple(_na_source_lot_ids(jig_unload_obj))
+        current = selected_by_source.get(source_key)
+        if current is None:
+            selected_by_source[source_key] = jig_unload_obj
+            continue
+        duplicate_count += 1
+        if _na_completed_row_priority(jig_unload_obj) < _na_completed_row_priority(current):
+            selected_by_source[source_key] = jig_unload_obj
+
+    rows = sorted(
+        selected_by_source.values(),
+        key=lambda row: (row.na_last_process_date_time or row.created_at, row.lot_id),
+        reverse=True,
+    )
+    if duplicate_count:
+        logger.info(
+            "[AUDIT_COMPLETED_FILTER] zone=%s removed_duplicate_source_rows=%d output=%d",
+            zone_label,
+            duplicate_count,
+            len(rows),
+        )
+    return rows
 
 
 def _na_upsert_accepted_tray_store(lot_id, tray_id, qty, user):
@@ -503,6 +645,77 @@ def _na_generate_lot_id():
     return f"LID{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}"
 
 
+def _na_get_original_trays_for_allocation(lot_id, juat, create_missing=False):
+    audit_trays_qs = Nickel_AuditTrayId.objects.filter(
+        lot_id=lot_id,
+        rejected_tray=False,
+        delink_tray=False,
+    ).order_by('tray_id')
+    if audit_trays_qs.exists():
+        return [
+            {
+                'tray_id': str(tray.tray_id or '').strip().upper(),
+                'qty': tray.tray_quantity or 0,
+                'is_top': index == 0,
+            }
+            for index, tray in enumerate(audit_trays_qs)
+        ]
+
+    nickel_qc_trays_qs = NickelQcTrayId.objects.filter(
+        lot_id=lot_id,
+        rejected_tray=False,
+        delink_tray=False,
+    ).order_by('tray_id')
+    if nickel_qc_trays_qs.exists():
+        source_rows = [
+            {
+                'tray_id': str(tray.tray_id or '').strip().upper(),
+                'qty': tray.tray_quantity or 0,
+                'is_top': index == 0,
+            }
+            for index, tray in enumerate(nickel_qc_trays_qs)
+        ]
+        if create_missing:
+            for row in source_rows:
+                Nickel_AuditTrayId.objects.get_or_create(
+                    lot_id=lot_id,
+                    tray_id=row['tray_id'],
+                    defaults={
+                        'tray_quantity': row['qty'],
+                        'top_tray': row['is_top'],
+                        'tray_type': juat.tray_type or '',
+                        'tray_capacity': _na_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20,
+                    },
+                )
+        return source_rows
+
+    upstream, _ = get_upstream_tray_distribution(lot_id)
+    raw_trays = sorted(
+        [tray for tray in (upstream or []) if not tray.get('delink_tray') and not tray.get('rejected_tray')],
+        key=lambda tray: str(tray.get('tray_id') or '').strip().upper(),
+    )
+    if create_missing:
+        for index, tray in enumerate(raw_trays):
+            Nickel_AuditTrayId.objects.get_or_create(
+                lot_id=lot_id,
+                tray_id=str(tray.get('tray_id') or '').strip().upper(),
+                defaults={
+                    'tray_quantity': tray.get('tray_quantity') or 0,
+                    'top_tray': bool(tray.get('top_tray', False)) or index == 0,
+                    'tray_type': juat.tray_type or '',
+                    'tray_capacity': _na_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20,
+                },
+            )
+    return [
+        {
+            'tray_id': str(tray.get('tray_id') or '').strip().upper(),
+            'qty': tray.get('tray_quantity') or 0,
+            'is_top': index == 0,
+        }
+        for index, tray in enumerate(raw_trays)
+    ]
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def na_toggle_verified(request):
@@ -558,6 +771,8 @@ def na_action(request):
         )
         if is_occupied:
             return Response({'success': True, 'valid': False, 'message': 'Tray id already occupied'})
+        if len(tray_id_val) > 9:
+            return Response({'success': True, 'valid': False, 'message': 'Tray ID cannot exceed 9 characters'})
         return Response({'success': True, 'valid': True, 'message': 'Valid tray'})
     if not lot_id:
         return Response({'success': False, 'error': 'lot_id required'}, status=400)
@@ -647,56 +862,8 @@ def na_action(request):
         else:
             rej_cap = 16
             rej_prefix = 'NB'
-        trays_qs = Nickel_AuditTrayId.objects.filter(
-            lot_id=lot_id, rejected_tray=False, delink_tray=False
-        ).order_by('tray_id')
-        if trays_qs.exists():
-            orig_trays = _na_normalize_active_trays(trays_qs)
-        else:
-            # Fallback 1: NickelQcTrayId (lots that just passed Nickel Inspection)
-            nq_trays_qs = NickelQcTrayId.objects.filter(
-                lot_id=lot_id, rejected_tray=False, delink_tray=False
-            ).order_by('tray_id')
-            if nq_trays_qs.exists():
-                orig_trays = _na_normalize_active_trays(nq_trays_qs)
-            else:
-                # Fallback 2: Upstream jig unloading distribution
-                upstream, _ = get_upstream_tray_distribution(lot_id)
-                orig_trays = _na_normalize_active_trays([
-                    {'tray_id': t['tray_id'], 'qty': t['tray_quantity'] or 0, 'is_top': bool(t.get('top_tray', False))}
-                    for t in (upstream or [])
-                    if not t.get('delink_tray') and not t.get('rejected_tray')
-                ])
-        reuse_trays = []
-        auto_delink_tray_ids = []
-        accept_auto_trays = []
-        remaining_rej = rejected_qty
-        for t in orig_trays:
-            if remaining_rej <= 0:
-                accept_auto_trays.append({'tray_id': t['tray_id'], 'qty': t['qty']})
-            elif t['qty'] <= remaining_rej:
-                auto_delink_tray_ids.append(t['tray_id'])
-                remaining_rej -= t['qty']
-            else:
-                accept_auto_trays.append({'tray_id': t['tray_id'], 'qty': t['qty'] - remaining_rej})
-                remaining_rej = 0
-
-        reject_slots = []
-        rem_rej = rejected_qty
-        while rem_rej > 0:
-            slot_qty = min(rem_rej, rej_cap)
-            reject_slots.append({'qty': slot_qty, 'is_top': False})
-            rem_rej -= slot_qty
-        accept_slots = [
-            {'qty': t['qty'], 'is_top': i == 0}
-            for i, t in enumerate(accept_auto_trays)
-            if t['qty'] > 0
-        ]
-        remaining_accept_qty = accepted_qty - sum(slot['qty'] for slot in accept_slots)
-        while remaining_accept_qty > 0:
-            slot_qty = min(remaining_accept_qty, orig_cap)
-            accept_slots.append({'qty': slot_qty, 'is_top': not accept_slots})
-            remaining_accept_qty -= slot_qty
+        orig_trays = _na_get_original_trays_for_allocation(lot_id, juat)
+        allocation = build_nq_rejection_allocation(orig_trays, rejected_qty, rej_cap)
         logger.info(
             "[AUDIT_TRAY_DISTRIBUTION] action=ALLOCATE lot=%s total=%d rejected=%d accepted=%d accept_cap=%d reject_cap=%d accept_slots=%s reject_slots=%s auto_delink=%s",
             lot_id,
@@ -705,21 +872,22 @@ def na_action(request):
             accepted_qty,
             orig_cap,
             rej_cap,
-            accept_slots,
-            reject_slots,
-            auto_delink_tray_ids,
+            allocation['accept_slots'],
+            allocation['reject_slots'],
+            allocation['auto_delink_tray_ids'],
         )
         return Response({
             'success': True,
             'accepted_qty': accepted_qty,
             'rejected_qty': rejected_qty,
-            'accept_slots': accept_slots,
-            'reject_slots': reject_slots,
+            'accept_slots': allocation['accept_slots'],
+            'reject_slots': allocation['reject_slots'],
+            'delink_slots': allocation['delink_slots'],
             'original_trays': orig_trays,
-            'accept_auto_trays': accept_auto_trays,
-            'reuse_count': len(reuse_trays),
-            'reuse_trays': reuse_trays,
-            'auto_delink_tray_ids': auto_delink_tray_ids,
+            'accept_auto_trays': allocation['accept_auto_trays'],
+            'reuse_count': len(allocation['delink_slots']),
+            'reuse_trays': allocation['delink_slots'],
+            'auto_delink_tray_ids': allocation['auto_delink_tray_ids'],
             'rej_prefix': rej_prefix,
             'rej_cap': rej_cap,
         })
@@ -833,9 +1001,13 @@ def _na_do_submit_reject(request, lot_id, juat):
     from django.db import transaction
     data = request.data
     reason_ids = data.get('reason_ids', [])
-    rejected_qty = int(data.get('rejected_qty', 0))
+    try:
+        rejected_qty = int(data.get('rejected_qty', 0))
+    except (TypeError, ValueError):
+        return Response({'success': False, 'error': 'Invalid rejected_qty'}, status=400)
     reject_trays = data.get('reject_trays', [])
     accept_trays = data.get('accept_trays', [])
+    submitted_delink_trays = data.get('delink_trays', [])
     remarks = (data.get('remarks', '') or '').strip()
     if not reason_ids or rejected_qty <= 0:
         return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
@@ -844,18 +1016,6 @@ def _na_do_submit_reject(request, lot_id, juat):
         return Response({'success': False, 'error': 'Rejected qty cannot exceed total qty'}, status=400)
     accepted_qty = total_qty - rejected_qty
     is_partial = accepted_qty > 0
-    reject_qty_sum = sum(int(rt.get('qty', 0) or 0) for rt in reject_trays)
-    accept_qty_sum = sum(int(at.get('qty', 0) or 0) for at in accept_trays)
-    if reject_qty_sum != rejected_qty:
-        return Response(
-            {'success': False, 'error': f'Reject tray qty total {reject_qty_sum} must equal rejected qty {rejected_qty}'},
-            status=400,
-        )
-    if accept_qty_sum != accepted_qty:
-        return Response(
-            {'success': False, 'error': f'Accept tray qty total {accept_qty_sum} must equal accepted qty {accepted_qty}'},
-            status=400,
-        )
     tray_type = (juat.tray_type or '').strip().lower()
     accept_cap = _na_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20
     if tray_type.startswith('jb') or 'jumbo' in tray_type:
@@ -864,6 +1024,29 @@ def _na_do_submit_reject(request, lot_id, juat):
     else:
         allowed_prefix = 'NB'
         rej_cap = 16
+    orig_trays = _na_get_original_trays_for_allocation(lot_id, juat, create_missing=True)
+    allocation = build_nq_rejection_allocation(orig_trays, rejected_qty, rej_cap)
+    try:
+        reject_trays = normalize_reject_trays(reject_trays, allocation['reject_slots'])
+        delink_trays_snapshot = normalize_operator_delink_trays(
+            submitted_delink_trays,
+            allocation['delink_slots'],
+            orig_trays,
+        )
+        accept_trays = normalize_accept_trays(
+            accept_trays,
+            allocation['accept_auto_trays'],
+            original_trays=orig_trays,
+            delink_trays=delink_trays_snapshot,
+        )
+        validate_original_tray_coverage(accept_trays, delink_trays_snapshot, orig_trays)
+    except ValueError as exc:
+        return Response({'success': False, 'error': str(exc)}, status=400)
+
+    if tray_qty_total(reject_trays) != rejected_qty:
+        return Response({'success': False, 'error': 'Reject tray total does not match rejected qty'}, status=400)
+    if tray_qty_total(accept_trays) != accepted_qty:
+        return Response({'success': False, 'error': 'Accept tray total does not match accepted qty'}, status=400)
     for rt in reject_trays:
         tid = (rt.get('tray_id') or '').upper()
         if not tid.startswith(allowed_prefix):
@@ -876,16 +1059,8 @@ def _na_do_submit_reject(request, lot_id, juat):
                 {'success': False, 'error': f'Reject tray {tid} qty exceeds max {rej_cap}'},
                 status=400,
             )
-    for at in accept_trays:
-        tid = (at.get('tray_id') or '').strip().upper()
-        qty = int(at.get('qty', 0) or 0)
-        if qty > accept_cap:
-            return Response(
-                {'success': False, 'error': f'Accept tray {tid} qty exceeds max {accept_cap}'},
-                status=400,
-            )
     logger.info(
-        "[AUDIT_REJECT_FLOW] lot=%s total=%d rejected=%d accepted=%d accept_cap=%d reject_cap=%d reject_trays=%s accept_trays=%s",
+        "[AUDIT_REJECT_FLOW] lot=%s total=%d rejected=%d accepted=%d accept_cap=%d reject_cap=%d reject_trays=%s delink_trays=%s accept_trays=%s",
         lot_id,
         total_qty,
         rejected_qty,
@@ -893,10 +1068,13 @@ def _na_do_submit_reject(request, lot_id, juat):
         accept_cap,
         rej_cap,
         reject_trays,
+        delink_trays_snapshot,
         accept_trays,
     )
     with transaction.atomic():
         reasons_qs = Nickel_Audit_Rejection_Table.objects.filter(id__in=reason_ids)
+        if not reasons_qs.exists():
+            return Response({'success': False, 'error': 'Invalid rejection reason'}, status=400)
         reason_store, _ = Nickel_Audit_Rejection_ReasonStore.objects.update_or_create(
             lot_id=lot_id,
             defaults={
@@ -921,30 +1099,25 @@ def _na_do_submit_reject(request, lot_id, juat):
                     'user': request.user,
                 },
             )
-        # Ensure NA tray records exist (create from upstream if needed)
-        orig_trays_qs = Nickel_AuditTrayId.objects.filter(lot_id=lot_id, rejected_tray=False)
-        if not orig_trays_qs.exists():
-            upstream, _ = get_upstream_tray_distribution(lot_id)
-            for t in (upstream or []):
-                Nickel_AuditTrayId.objects.get_or_create(
-                    lot_id=lot_id,
-                    tray_id=t['tray_id'],
-                    defaults={
-                        'tray_quantity': t['tray_quantity'] or 0,
-                        'top_tray': t.get('top_tray', False),
-                        'tray_type': juat.tray_type or '',
-                        'tray_capacity': accept_cap,
-                    },
-                )
-        orig_trays_qs = Nickel_AuditTrayId.objects.filter(lot_id=lot_id, rejected_tray=False)
-        accept_tray_ids = {at['tray_id']: at for at in accept_trays if at.get('tray_id')}
+        orig_trays_qs = Nickel_AuditTrayId.objects.filter(
+            lot_id=lot_id,
+            rejected_tray=False,
+            delink_tray=False,
+        )
+        accept_tray_ids = {
+            str(at['tray_id']).strip().upper(): at
+            for at in accept_trays
+            if at.get('tray_id')
+        }
+        delink_tray_ids = {tray['tray_id'] for tray in delink_trays_snapshot}
         for tray_obj in orig_trays_qs:
-            if tray_obj.tray_id in accept_tray_ids:
-                at = accept_tray_ids[tray_obj.tray_id]
+            tray_key = str(tray_obj.tray_id or '').strip().upper()
+            if tray_key in accept_tray_ids:
+                at = accept_tray_ids[tray_key]
                 tray_obj.tray_quantity = int(at.get('qty', 0))
                 tray_obj.top_tray = bool(at.get('is_top', False))
                 tray_obj.save(update_fields=['tray_quantity', 'top_tray'])
-            else:
+            elif tray_key in delink_tray_ids:
                 tray_obj.delink_tray = True
                 tray_obj.delink_tray_qty = str(tray_obj.tray_quantity)
                 tray_obj.tray_quantity = 0
@@ -1133,6 +1306,29 @@ def na_delink_selected_trays(request):
         return Response({'success': False, 'error': str(e)}, status=500)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def na_completed_tray_list(request):
+    lot_id = request.GET.get('lot_id', '').strip()
+    if not lot_id:
+        return JsonResponse({'success': False, 'error': 'lot_id required'}, status=400)
+    return JsonResponse({'success': True, 'trays': _na_completed_tray_snapshot(lot_id)})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def na_completed_tray_validate(request):
+    lot_id = (request.data.get('lot_id') or '').strip()
+    tray_id = (request.data.get('tray_id') or '').strip().upper()
+    if not lot_id or not tray_id:
+        return JsonResponse({'success': False, 'exists': False, 'error': 'lot_id and tray_id required'}, status=400)
+    if len(tray_id) > 9:
+        return JsonResponse({'success': True, 'exists': False, 'message': 'Tray ID cannot exceed 9 characters'})
+    trays = _na_completed_tray_snapshot(lot_id)
+    exists = any(str(tray.get('tray_id') or '').strip().upper() == tray_id for tray in trays)
+    return JsonResponse({'success': True, 'exists': exists, 'data_source': 'Nickel_Audit_Submission'})
+
+
 # ═══════════════════════════════════════════════════════════════
 #  END NA ACTION API
 # ═══════════════════════════════════════════════════════════════
@@ -1197,12 +1393,21 @@ class NACompletedView(APIView):
             .order_by('-na_last_process_date_time', '-lot_id')
         )
 
+        child_lot_ids = NickelAudit_PartialAcceptLot.objects.values_list('new_lot_id', flat=True)
+        queryset = queryset.exclude(lot_id__in=child_lot_ids)
+        completed_rows = _na_unique_completed_rows(queryset, 'Z1')
+
         page_number = request.GET.get('page', 1)
-        paginator = Paginator(queryset, 10)
+        paginator = Paginator(completed_rows, 10)
         page_obj = paginator.get_page(page_number)
 
         master_data = []
         for jig_unload_obj in page_obj.object_list:
+            accepted_qty, rejected_qty = _na_latest_submission_qtys(
+                jig_unload_obj.lot_id,
+                accepted_fallback=jig_unload_obj.na_qc_accepted_qty or 0,
+                rejected_fallback=getattr(jig_unload_obj, 'na_rejection_qty', 0) or 0,
+            )
             data = {
                 'batch_id': jig_unload_obj.unload_lot_id,
                 'lot_id': jig_unload_obj.lot_id,
@@ -1231,7 +1436,8 @@ class NACompletedView(APIView):
                 'na_pick_remarks': jig_unload_obj.na_pick_remarks,
                 'na_accepted_tray_scan_status': jig_unload_obj.na_accepted_tray_scan_status,
                 'na_ac_accepted_qty_verified': jig_unload_obj.na_ac_accepted_qty_verified,
-                'na_qc_accepted_qty': jig_unload_obj.na_qc_accepted_qty or 0,
+                'na_qc_accepted_qty': accepted_qty,
+                'na_rejection_qty': rejected_qty,
                 'na_last_process_date_time': jig_unload_obj.na_last_process_date_time,
                 'plating_stk_no': jig_unload_obj.plating_stk_no or '',
                 'polishing_stk_no': jig_unload_obj.polish_stk_no or '',
@@ -1239,8 +1445,8 @@ class NACompletedView(APIView):
                 'combine_lot_ids': jig_unload_obj.combine_lot_ids,
                 'unload_lot_id': jig_unload_obj.unload_lot_id,
                 'audit_check': jig_unload_obj.audit_check,
-                'display_accepted_qty': jig_unload_obj.na_physical_qty or 0,
-                'available_qty': jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
+                'display_accepted_qty': accepted_qty,
+                'available_qty': accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
                 'no_of_trays': 0,
             }
 

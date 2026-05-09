@@ -617,6 +617,48 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   cursor: not-allowed !important;
   pointer-events: none !important;
 }
+.nq-reject-modal-shell {
+  width: 1120px;
+  max-width: 98vw;
+}
+.nq-alloc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.nq-alloc-col {
+  min-width: 0;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.nq-alloc-reject { border: 1px solid #ffcdd2; background: #fff8f8; }
+.nq-alloc-delink { border: 1px solid #ffe0b2; background: #fffaf0; }
+.nq-alloc-accept { border: 1px solid #c8e6c9; background: #f9fdf9; }
+.nq-alloc-col h6 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+.nq-alloc-col h6 span {
+  float: none !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.nq-alloc-body,
+.nq-alloc-body > div {
+  min-width: 0;
+}
+.nq-alloc-body input {
+  min-width: 0;
+  width: 100%;
+}
 </style>
 
 <div class="content-wrapper">
@@ -959,7 +1001,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               </table>
               <!-- ══════════ Nickel Audit Zone I REJECTION MODAL ══════════ -->
               <div id="nickelAuditRejectModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.35); z-index:20000; align-items:center; justify-content:center;">
-                <div style="background:#fff; border-radius:12px; width:780px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.22); position:relative;">
+                <div class="nq-reject-modal-shell" style="background:#fff; border-radius:12px; width:1120px; max-width:98vw; max-height:90vh; overflow:auto; box-shadow:0 8px 32px rgba(0,0,0,0.22); position:relative;">
                   <!-- Header -->
                   <div style="padding:18px 24px 12px; border-bottom:1px solid #e8edf2;">
                     <span id="nickelAuditRejectModalClose" style="position:absolute; top:10px; right:18px; font-size:22px; font-weight:bold; color:#d9534f; cursor:pointer;">&times;</span>
@@ -989,26 +1031,30 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <div style="margin-bottom:10px;">
                       <div id="naOriginalTraysContainer" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
                     </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                      <div style="border:1px solid #ffcdd2; border-radius:8px; padding:10px; background:#fff8f8;">
+                    <div class="nq-alloc-grid">
+                      <div class="nq-alloc-col nq-alloc-reject">
                         <h6 style="margin:0 0 4px; font-weight:600; color:#c62828; font-size:13px;">
-                          Reject Trays <span style="float:right; font-size:12px; color:#b71c1c;">Qty: <strong id="naRejectTotalQtyLabel">0</strong></span>
+                          Reject Trays
+                          <span style="float:right; font-size:12px; color:#b71c1c;">Qty: <strong id="naRejectTotalQtyLabel">0</strong></span>
                         </h6>
-                        <p style="margin:0 0 6px; font-size:10px; color:#999; font-style:italic;">Rejected → Next stage</p>
-                        <p id="naRejectReuseInfo" style="margin:0 0 6px; font-size:11px; color:#e65100; display:none;"></p>
-                        <div id="naRejectSlotsContainer"></div>
+                        <p style="margin:0 0 6px; font-size:10px; color:#999; font-style:italic;">Rejected -> Reports</p>
+                        <div id="naRejectSlotsContainer" class="nq-alloc-body"></div>
                       </div>
-                      <div style="border:1px solid #c8e6c9; border-radius:8px; padding:10px; background:#f9fdf9;">
+                      <div id="naDelinkSection" class="nq-alloc-col nq-alloc-delink" style="display:none;">
+                        <h6 style="margin:0 0 6px; font-weight:600; color:#f57c00; font-size:13px;">
+                          <i class="fa fa-unlink"></i> Delink Trays
+                        </h6>
+                        <p id="naRejectReuseInfo" style="margin:0 0 6px; font-size:11px; color:#e65100; display:none;"></p>
+                        <div id="naDelinkListContainer" class="nq-alloc-body" style="font-size:12px;"></div>
+                      </div>
+                      <div class="nq-alloc-col nq-alloc-accept">
                         <h6 style="margin:0 0 4px; font-weight:600; color:#388e3c; font-size:13px;">
-                          Accept Trays <span style="float:right; font-size:12px; color:#2e7d32;">Qty: <strong id="naAcceptTotalQtyLabel">0</strong></span>
+                          Accept Trays (Scan only Top Tray)
+                          <span style="float:right; font-size:12px; color:#2e7d32;">Qty: <strong id="naAcceptTotalQtyLabel">0</strong></span>
                         </h6>
                         <p style="margin:0 0 6px; font-size:10px; color:#999; font-style:italic;">Accepted → Complete</p>
-                        <div id="naAcceptSlotsContainer"></div>
+                        <div id="naAcceptSlotsContainer" class="nq-alloc-body"></div>
                       </div>
-                    </div>
-                    <div id="naDelinkSection" style="display:none; margin-top:10px; border:1px solid #ffe0b2; border-radius:8px; padding:10px; background:#fffaf0;">
-                      <h6 style="margin:0 0 6px; font-weight:600; color:#f57c00; font-size:13px;"><i class="fa fa-unlink"></i> Delinked Trays</h6>
-                      <div id="naDelinkListContainer" style="font-size:12px;"></div>
                     </div>
                     <div style="margin-top:8px; font-size:12px; display:flex; gap:16px; color:#555;">
                       <span>Accepted: <strong id="naCombinedAcceptQty" style="color:#388e3c;">0</strong></span>
@@ -1581,9 +1627,40 @@ document.addEventListener("DOMContentLoaded", function() {
       lotId: '', platingStk: '', totalQty: 0, trayCapacity: 20, trayType: '',
       rejPrefix: 'NB', rejCap: 16,
       reasons: [], origTrays: [], rejectSlots: [], acceptSlots: [],
-      reuseTrays: [], allocDone: false, acceptAutoTrays: [], autoDelinkIds: [],
+      reuseTrays: [], allocDone: false, acceptAutoTrays: [], autoDelinkIds: [], delinkSlots: [],
       pendingRestore: null,
     };
+    var lastFocusedTrayInput = null;
+
+    document.addEventListener('focusin', function (event) {
+      var target = event.target;
+      if (target && target.classList && (target.classList.contains('na-delink-tray-input') || target.classList.contains('na-acc-tray-input'))) {
+        lastFocusedTrayInput = target;
+      }
+    });
+
+    function getFocusedTrayInput(selector, container) {
+      var activeInput = document.activeElement;
+      if (activeInput && activeInput.matches && activeInput.matches(selector) && container.contains(activeInput)) {
+        return activeInput;
+      }
+      if (lastFocusedTrayInput && lastFocusedTrayInput.matches && lastFocusedTrayInput.matches(selector) && container.contains(lastFocusedTrayInput)) {
+        return lastFocusedTrayInput;
+      }
+      return null;
+    }
+
+    function normalizeTrayInputValue(input) {
+      var value = (input.value || '').toUpperCase().replace(/\s+/g, '');
+      if (value.length > 9) value = value.slice(0, 9);
+      input.value = value;
+      return value;
+    }
+
+    function selectTrayInputForOverwrite(input) {
+      if (!input || !input.value || input.value.length < 9 || typeof input.select !== 'function') return;
+      setTimeout(function () { input.select(); }, 0);
+    }
 
     function closeModal() {
       overlay.style.display = 'none';
@@ -1684,14 +1761,21 @@ document.addEventListener("DOMContentLoaded", function() {
         fullRejCb.onchange = function () {
           if (fullRejCb.checked) {
             reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) { inp.value = ''; });
-            var first = reasonsGrid.querySelector('.na-reason-qty');
-            if (first) { first.value = state.totalQty; first.dispatchEvent(new Event('input')); }
+            totalQtyDisp.textContent = state.totalQty;
+            remainingDisp.textContent = '0';
+            fetchAllocation(state.totalQty);
+          } else {
+            totalQtyDisp.textContent = '0';
+            remainingDisp.textContent = state.totalQty;
+            allocSection.style.display = 'none';
+            state.allocDone = false;
           }
         };
       }
     }
 
     function getTotalRejectQty() {
+      if (fullRejCb && fullRejCb.checked) { return state.totalQty; }
       var total = 0;
       reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) {
         total += parseInt(inp.value, 10) || 0;
@@ -1720,6 +1804,7 @@ document.addEventListener("DOMContentLoaded", function() {
           state.acceptSlots = data.accept_slots;
           state.acceptAutoTrays = data.accept_auto_trays || [];
           state.autoDelinkIds = data.auto_delink_tray_ids || [];
+          state.delinkSlots = data.delink_slots || [];
           state.reuseTrays = [];
           state.rejPrefix = data.rej_prefix || 'NB';
           state.rejCap = data.rej_cap || 16;
@@ -1727,24 +1812,93 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    function getDelinkRows() {
+      return Array.from(delinkList.querySelectorAll('.na-delink-tray-input')).map(function (inp) {
+        return {
+          tray_id: inp.value.trim().toUpperCase(),
+          qty: parseInt(inp.dataset.qty, 10) || 0,
+        };
+      }).filter(function (row) { return row.tray_id && row.qty > 0; });
+    }
+
+    function setChipDelinkState(trayId, selected) {
+      var chip = origContainer.querySelector('span[data-tray-id="' + trayId + '"]');
+      if (!chip) return;
+      chip.dataset.selected = selected ? '1' : '0';
+      chip.style.background = selected ? '#fff3e0' : '#e3f2fd';
+      chip.style.borderColor = selected ? '#e65100' : (chip.dataset.isTop === '1' ? '#1565c0' : '#90caf9');
+      chip.style.textDecoration = selected ? 'line-through' : 'none';
+      chip.style.opacity = selected ? '0.7' : '1';
+    }
+
+    function clearDuplicateDelinkValue(trayId, currentInput) {
+      if (!trayId) return;
+      delinkList.querySelectorAll('.na-delink-tray-input').forEach(function (inp) {
+        if (inp !== currentInput && inp.value.trim().toUpperCase() === trayId) {
+          inp.value = '';
+        }
+      });
+    }
+
+    function fillDelinkSlotFromTap(trayId) {
+      var delinkInputs = Array.from(delinkList.querySelectorAll('.na-delink-tray-input'));
+      if (!delinkInputs.length) return false;
+      var targetInput = getFocusedTrayInput('.na-delink-tray-input', delinkList) || delinkInputs.find(function (inp) { return !inp.value.trim(); }) || delinkInputs[0];
+      targetInput.value = trayId;
+      lastFocusedTrayInput = targetInput;
+      clearDuplicateDelinkValue(trayId, targetInput);
+      updateDelinkSection();
+      var nextInput = delinkInputs.find(function (inp) { return !inp.value.trim(); });
+      if (nextInput) {
+        nextInput.focus();
+        lastFocusedTrayInput = nextInput;
+      } else {
+        var acceptTopInput = acceptSlotsCont.querySelector('.na-acc-tray-input');
+        if (acceptTopInput) {
+          acceptTopInput.focus();
+          lastFocusedTrayInput = acceptTopInput;
+        } else {
+          targetInput.focus();
+        }
+      }
+      return true;
+    }
+
+    function fillAcceptSlotFromTap(trayId) {
+      var accInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
+      if (!accInputs.length) return false;
+      var targetInput = getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont) || accInputs.find(function (inp) { return !inp.value.trim(); }) || accInputs[0];
+      targetInput.value = trayId;
+      lastFocusedTrayInput = targetInput;
+      var targetIndex = accInputs.indexOf(targetInput);
+      if (targetIndex === 0) {
+        targetInput.dispatchEvent(new Event('input'));
+      }
+      var nextInput = accInputs.slice(targetIndex + 1).find(function (inp) { return !inp.value.trim(); });
+      if (nextInput) nextInput.focus();
+      else targetInput.focus();
+      return true;
+    }
+
     function updateDelinkSection() {
-      var allChips = Array.from(origContainer.querySelectorAll('span[data-tray-id]'));
-      var delinked = allChips.filter(function (c) { return c.dataset.selected === '1'; });
-      var remaining = allChips.filter(function (c) { return c.dataset.selected !== '1'; });
-      state.reuseTrays = delinked.map(function (c) { return c.dataset.trayId; });
-      combDelink.textContent = delinked.length;
-      if (delinked.length > 0) {
+      var delinkRows = getDelinkRows();
+      state.reuseTrays = delinkRows;
+      combDelink.textContent = delinkRows.length;
+
+      if ((state.delinkSlots || []).length > 0) {
         delinkSection.style.display = '';
-        delinkList.innerHTML = delinked.map(function (c) {
-          return '<span style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:10px;padding:1px 8px;margin:2px;display:inline-block;font-size:11px;">' + c.dataset.trayId + '</span>';
-        }).join('');
-        reuseInfo.textContent = 'Trays marked for delink: ' + state.reuseTrays.join(', ');
+        reuseInfo.textContent = 'Scan or tap delink trays: ' + delinkRows.length + '/' + state.delinkSlots.length;
         reuseInfo.style.display = '';
       } else {
         delinkSection.style.display = 'none';
         reuseInfo.style.display = 'none';
       }
-      var delinkedIdSet = delinked.map(function (c) { return c.dataset.trayId; });
+
+      origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
+        setChipDelinkState(chip.dataset.trayId, delinkRows.some(function (row) { return row.tray_id === chip.dataset.trayId; }));
+      });
+
+      var delinkedIdSet = delinkRows.map(function (row) { return row.tray_id; });
       var filteredAutoTrays = (state.acceptAutoTrays || []).filter(function (t) {
         return delinkedIdSet.indexOf(t.tray_id) === -1;
       });
@@ -1776,20 +1930,25 @@ document.addEventListener("DOMContentLoaded", function() {
         chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#e3f2fd;border:1px solid #90caf9;border-radius:14px;padding:3px 12px;font-size:12px;cursor:pointer;user-select:none;margin:2px;transition:all 0.15s;';
         chip.textContent = t.tray_id + ' (' + t.qty + ')';
         if (t.is_top) chip.style.borderColor = '#1565c0';
-        chip.title = 'Click to fill into next accept tray slot';
+        chip.title = 'Tap to scan this tray';
         chip.dataset.trayId = t.tray_id;
         chip.dataset.qty = t.qty;
         chip.dataset.isTop = t.is_top ? '1' : '0';
         chip.dataset.selected = '0';
         chip.addEventListener('click', function () {
-          var accInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
-          for (var ai = 0; ai < accInputs.length; ai++) {
-            if (!accInputs[ai].value.trim()) {
-              accInputs[ai].value = t.tray_id;
-              if (ai === 0) accInputs[ai].dispatchEvent(new Event('input'));
-              break;
-            }
+          if (getFocusedTrayInput('.na-delink-tray-input', delinkList)) {
+            fillDelinkSlotFromTap(t.tray_id);
+            return;
           }
+          if (getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont)) {
+            fillAcceptSlotFromTap(t.tray_id);
+            return;
+          }
+          if ((state.autoDelinkIds || []).indexOf(t.tray_id) !== -1) {
+            fillDelinkSlotFromTap(t.tray_id);
+            return;
+          }
+          fillAcceptSlotFromTap(t.tray_id);
         });
         origContainer.appendChild(chip);
       });
@@ -1801,9 +1960,9 @@ document.addEventListener("DOMContentLoaded", function() {
           '<span style="font-size:11px;color:#888;min-width:24px;">' + (i + 1) + '.</span>' +
           '<input class="na-rej-tray-input" type="text" placeholder="' + state.rejPrefix + 'xxxx" maxlength="9" ' +
           'style="flex:1;border:1px solid #ef9a9a;border-radius:4px;padding:3px 6px;font-size:12px;text-transform:uppercase;" ' +
-          'data-qty="' + slot.qty + '" data-slot-idx="' + i + '">' +
+          'data-qty="' + slot.qty + '" data-is-top="' + (slot.is_top ? '1' : '0') + '" data-slot-idx="' + i + '">' +
           '<span class="na-rej-tray-status" style="font-size:11px;min-width:16px;"></span>' +
-          '<span style="font-size:12px;color:#c62828;">× ' + slot.qty + '</span>';
+          '<span style="font-size:12px;color:#c62828;">× ' + slot.qty + (slot.is_top ? ' Top' : '') + '</span>';
         rejectSlotsCont.appendChild(wrap);
       });
 
@@ -1813,17 +1972,42 @@ document.addEventListener("DOMContentLoaded", function() {
         wrap.innerHTML =
           '<span style="font-size:11px;color:#888;min-width:24px;">' + (i + 1) + '.</span>' +
           '<input class="na-acc-tray-input" type="text" placeholder="Tray ID" value="" ' +
+          'maxlength="9" ' +
           'style="flex:1;border:1px solid #a5d6a7;border-radius:4px;padding:3px 6px;font-size:12px;" ' +
           'data-qty="' + slot.qty + '" data-is-top="' + (slot.is_top ? '1' : '0') + '" data-slot-idx="' + i + '">' +
           '<span style="font-size:12px;color:#388e3c;">× ' + slot.qty + '</span>';
         acceptSlotsCont.appendChild(wrap);
       });
 
+      (data.delink_slots || []).forEach(function (slot, i) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+        wrap.innerHTML =
+          '<span style="font-size:11px;color:#888;min-width:24px;">' + (i + 1) + '.</span>' +
+          '<input class="na-delink-tray-input" type="text" placeholder="Tray ID" ' +
+          'maxlength="9" ' +
+          'style="flex:1;border:1px solid #ffcc80;border-radius:4px;padding:3px 6px;font-size:12px;text-transform:uppercase;" ' +
+          'data-qty="' + slot.qty + '" data-expected-tray-id="' + slot.tray_id + '" data-slot-idx="' + i + '">' +
+          '<span style="font-size:12px;color:#e65100;">× ' + slot.qty + '</span>';
+        delinkList.appendChild(wrap);
+      });
+
+      delinkList.querySelectorAll('.na-delink-tray-input').forEach(function (inp) {
+        inp.addEventListener('input', function () {
+          normalizeTrayInputValue(inp);
+          var val = inp.value;
+          clearDuplicateDelinkValue(val, inp);
+          updateDelinkSection();
+        });
+      });
+
       var allAccSlotInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
+      allAccSlotInputs.forEach(function (inp) {
+        inp.addEventListener('input', function () { normalizeTrayInputValue(inp); });
+      });
       if (allAccSlotInputs.length >= 1) {
         allAccSlotInputs[0].addEventListener('input', function () {
-          var topVal = allAccSlotInputs[0].value.trim().toUpperCase();
-          allAccSlotInputs[0].value = topVal;
+          var topVal = normalizeTrayInputValue(allAccSlotInputs[0]);
           if (topVal) {
             var otherTrays = (state.acceptAutoTrays || []).filter(function (t) { return t.tray_id !== topVal; });
             var availSlots = allAccSlotInputs.length - 1;
@@ -1833,35 +2017,15 @@ document.addEventListener("DOMContentLoaded", function() {
             for (var k = Math.min(otherTrays.length, availSlots) + 1; k < allAccSlotInputs.length; k++) {
               allAccSlotInputs[k].value = '';
             }
-            origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
-              if ((state.autoDelinkIds || []).indexOf(chip.dataset.trayId) !== -1) {
-                chip.dataset.selected = '1';
-                chip.style.background = '#fff3e0';
-                chip.style.borderColor = '#e65100';
-                chip.style.textDecoration = 'line-through';
-                chip.style.opacity = '0.7';
-              }
-            });
             updateDelinkSection();
           } else {
-            origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
-              if ((state.autoDelinkIds || []).indexOf(chip.dataset.trayId) !== -1) {
-                chip.dataset.selected = '0';
-                chip.style.background = '#e3f2fd';
-                chip.style.borderColor = chip.dataset.isTop === '1' ? '#1565c0' : '#90caf9';
-                chip.style.textDecoration = 'none';
-                chip.style.opacity = '1';
-              }
-            });
-            for (var k2 = 1; k2 < allAccSlotInputs.length; k2++) allAccSlotInputs[k2].value = '';
+            for (var k2 = 1; k2 < allAccSlotInputs.length; k2++) { allAccSlotInputs[k2].value = ''; }
             updateDelinkSection();
           }
         });
       }
 
-      delinkSection.style.display = 'none';
-      reuseInfo.style.display = 'none';
-      combDelink.textContent = '0';
+      updateDelinkSection();
 
       rejectQtyLabel.textContent = data.rejected_qty || 0;
       acceptQtyLabel.textContent = data.accepted_qty || 0;
@@ -1885,18 +2049,26 @@ document.addEventListener("DOMContentLoaded", function() {
             if (allAccInputs[i] && at.tray_id) allAccInputs[i].value = at.tray_id;
           });
         }
+        if (pd.delink_trays && pd.delink_trays.length > 0) {
+          pd.delink_trays.forEach(function (dt) {
+            var tid = (typeof dt === 'string' ? dt : dt.tray_id || '').trim().toUpperCase();
+            var input = tid ? delinkList.querySelector('.na-delink-tray-input[data-expected-tray-id="' + tid + '"]') : null;
+            if (input) input.value = tid;
+          });
+          updateDelinkSection();
+        }
       }
 
       rejectSlotsCont.querySelectorAll('.na-rej-tray-input').forEach(function (inp) {
         var statusEl = inp.nextElementSibling;
         function validateTrayInput() {
-          inp.value = inp.value.toUpperCase();
-          var val = inp.value.trim();
+          var val = normalizeTrayInputValue(inp);
           if (!val) { inp.style.borderColor = '#ef9a9a'; if (statusEl) statusEl.textContent = ''; errDiv.textContent = ''; return; }
           if (!val.startsWith(state.rejPrefix)) {
             inp.style.borderColor = '#f44336';
             if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#f44336'; }
             errDiv.textContent = 'Reject tray must start with ' + state.rejPrefix;
+            selectTrayInputForOverwrite(inp);
             return;
           }
           post(API_BASE + 'action/', { action: 'CHECK_TRAY', tray_id: val })
@@ -1908,10 +2080,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 var allRejInputs = Array.from(rejectSlotsCont.querySelectorAll('.na-rej-tray-input'));
                 var idx = allRejInputs.indexOf(inp);
                 if (idx >= 0 && idx < allRejInputs.length - 1) allRejInputs[idx + 1].focus();
+                else if (idx === allRejInputs.length - 1) {
+                  var firstDelinkInput = Array.from(delinkList.querySelectorAll('.na-delink-tray-input')).find(function (input) {
+                    return !input.value.trim();
+                  });
+                  var firstAccInput = acceptSlotsCont.querySelector('.na-acc-tray-input');
+                  if (firstDelinkInput) firstDelinkInput.focus();
+                  else if (firstAccInput) firstAccInput.focus();
+                }
               } else {
                 inp.style.borderColor = '#f44336';
                 if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#f44336'; }
                 errDiv.textContent = res.message || 'Tray not found in master';
+                selectTrayInputForOverwrite(inp);
               }
             }).catch(function () {
               inp.style.borderColor = '#ef9a9a';
@@ -1919,7 +2100,11 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
         var debouncedValidate = debounce(validateTrayInput, 400);
-        inp.addEventListener('input', function () { inp.value = inp.value.toUpperCase(); debouncedValidate(); });
+        inp.addEventListener('input', function () {
+          var val = normalizeTrayInputValue(inp);
+          if (val.length >= 9) validateTrayInput();
+          else debouncedValidate();
+        });
         inp.addEventListener('blur', validateTrayInput);
       });
     }
@@ -1929,8 +2114,24 @@ document.addEventListener("DOMContentLoaded", function() {
         reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (i) { i.value = ''; });
         totalQtyDisp.textContent = '0';
         remainingDisp.textContent = state.totalQty;
-        allocSection.style.display = 'none';
-        state.allocDone = false;
+        if (state.allocDone) {
+          acceptSlotsCont.querySelectorAll('.na-acc-tray-input').forEach(function (inp) { inp.value = ''; });
+          rejectSlotsCont.querySelectorAll('.na-rej-tray-input').forEach(function (inp) {
+            inp.value = '';
+            inp.style.borderColor = '#ef9a9a';
+            var statusEl = inp.nextElementSibling;
+            if (statusEl) statusEl.textContent = '';
+          });
+          delinkList.querySelectorAll('.na-delink-tray-input').forEach(function (inp) { inp.value = ''; });
+          origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
+            chip.dataset.selected = '0';
+            chip.style.background = '#e3f2fd';
+            chip.style.borderColor = chip.dataset.isTop === '1' ? '#1565c0' : '#90caf9';
+            chip.style.textDecoration = 'none';
+            chip.style.opacity = '1';
+          });
+          updateDelinkSection();
+        }
       });
     }
 
@@ -1940,6 +2141,10 @@ document.addEventListener("DOMContentLoaded", function() {
         var rid = parseInt(inp.dataset.reasonId, 10);
         if ((parseInt(inp.value, 10) || 0) > 0) reasonIds.push(rid);
       });
+      if (fullRejCb && fullRejCb.checked && !reasonIds.length) {
+        var firstReason = reasonsGrid.querySelector('.na-reason-qty');
+        if (firstReason) reasonIds.push(parseInt(firstReason.dataset.reasonId, 10));
+      }
       var rejTrays = [];
       rejectSlotsCont.querySelectorAll('.na-rej-tray-input').forEach(function (inp) {
         var tid = inp.value.trim();
@@ -2020,6 +2225,7 @@ document.addEventListener("DOMContentLoaded", function() {
           draft_data: {
             reason_qtys: reasonQtys,
             reject_trays: rejTrays,
+            delink_trays: state.reuseTrays,
             accept_trays: accTrays,
             remarks: document.getElementById('naRejectRemarksInput').value.trim(),
             rejected_qty: getTotalRejectQty(),

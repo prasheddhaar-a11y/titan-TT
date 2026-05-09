@@ -17,7 +17,8 @@ from .module_registry import LEGACY_MODULE_NAME_MAP, MODULE_REGISTRY, USER_CATEG
 logger = logging.getLogger(__name__)
 
 USER_MODULE_CACHE_TTL = 300
-MODULE_REGISTRY_CACHE_KEY = 'adminportal_module_registry_seeded_v2'
+USER_GROUP_NAMES_CACHE_TTL = 300
+MODULE_REGISTRY_CACHE_KEY = 'adminportal_module_registry_seeded_v3'
 MODULE_REGISTRY_NAMES = [entry['name'] for entry in MODULE_REGISTRY]
 
 DASHBOARD_MODULE_ACCESS = {
@@ -74,15 +75,44 @@ def is_admin_user(user):
     if not getattr(user, 'is_authenticated', False):
         return False
 
-    return (
-        user.is_superuser
-        or user.groups.filter(name__iexact='Admin').exists()
-        or (
-            hasattr(user, 'userprofile')
-            and user.userprofile.department
-            and user.userprofile.department.name.lower() == 'admin'
-        )
-    )
+    cache_key = f'user_is_admin_{user.id}'
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    if user.is_superuser:
+        cache.set(cache_key, True, timeout=USER_MODULE_CACHE_TTL)
+        return True
+
+    group_names = _get_cached_user_group_names(user)
+    is_admin_group = any(group_name.lower() == 'admin' for group_name in group_names)
+
+    department_name = ''
+    try:
+        profile = getattr(user, 'userprofile', None)
+        department = getattr(profile, 'department', None) if profile else None
+        department_name = getattr(department, 'name', '') or ''
+    except Exception:
+        department_name = ''
+
+    is_admin = is_admin_group or department_name.lower() == 'admin'
+    cache.set(cache_key, is_admin, timeout=USER_MODULE_CACHE_TTL)
+    return is_admin
+
+
+def _get_cached_user_group_names(user):
+    """Return user group names with a short cache to keep login permission checks fast."""
+    if not getattr(user, 'is_authenticated', False):
+        return []
+
+    cache_key = f'user_group_names_{user.id}'
+    cached_group_names = cache.get(cache_key)
+    if cached_group_names is not None:
+        return cached_group_names
+
+    group_names = list(user.groups.values_list('name', flat=True))
+    cache.set(cache_key, group_names, timeout=USER_GROUP_NAMES_CACHE_TTL)
+    return group_names
 
 
 def _group_module_queryset(user):
@@ -138,18 +168,26 @@ def get_user_allowed_module_names(user):
     if not getattr(user, 'is_authenticated', False):
         return []
 
-    ensure_module_registry_seeded()
-
     cache_key = f'user_modules_{user.id}'
     cached_modules = cache.get(cache_key)
     if cached_modules is not None:
         return cached_modules
 
     try:
+        group_names = _get_cached_user_group_names(user)
+
         if is_admin_user(user):
-            modules = _all_module_names()
+            modules = list(MODULE_REGISTRY_NAMES)
         else:
-            group_modules = list(_group_module_queryset(user).values_list('name', flat=True))
+            group_modules = []
+            for group_name in group_names:
+                for module_name in USER_CATEGORY_MODULES.get(group_name, []):
+                    if module_name not in group_modules:
+                        group_modules.append(module_name)
+
+            if not group_modules and group_names:
+                group_modules = list(_group_module_queryset(user).values_list('name', flat=True))
+
             if group_modules:
                 modules = group_modules
             else:
@@ -375,8 +413,11 @@ def invalidate_user_modules_cache(user_id=None):
         user_id: Specific user ID to invalidate. If None, invalidates all users.
     """
     if user_id:
-        cache_key = f'user_modules_{user_id}'
-        cache.delete(cache_key)
+        cache.delete_many([
+            f'user_modules_{user_id}',
+            f'user_group_names_{user_id}',
+            f'user_is_admin_{user_id}',
+        ])
         logger.warning(f'USER_CACHE_INVALIDATED: user_id={user_id}')
     else:
         # Invalidate all user module caches (expensive, use sparingly)

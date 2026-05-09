@@ -4,6 +4,8 @@ Uses aggregate() with Case/When to batch queries instead of multiple count() cal
 Reduces ~35 separate queries to ~8 total queries.
 """
 from django.db.models import Count, Q, Case, When, IntegerField, Value
+from django.db import close_old_connections
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from modelmasterapp.models import ModelMasterCreation, TotalStockModel
 from Brass_QC.models import BrassTrayId as BQ_TrayId, Brass_Qc_Accepted_TrayScan, Brass_Qc_Accepted_TrayID_Store
 from Jig_Loading.models import JigCompleted, JigLoadingManualDraft
@@ -12,6 +14,7 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
+DASHBOARD_STATS_MAX_WORKERS = 6
 
 
 def get_day_planning_stats():
@@ -363,23 +366,40 @@ def get_dashboard_stats_for_labels(labels=None):
     This keeps login/dashboard rendering from calculating cards the user cannot see.
     """
     requested_labels = set(labels or get_dashboard_stat_labels())
-    stats = []
+    requested_providers = [
+        (module_name, func)
+        for module_name, func in DASHBOARD_STAT_PROVIDERS
+        if module_name in requested_labels
+    ]
+    stats_by_index = [None] * len(requested_providers)
 
     total_start = time.time()
-    for module_name, func in DASHBOARD_STAT_PROVIDERS:
-        if module_name not in requested_labels:
-            continue
+
+    def run_provider(index, module_name, func):
+        close_old_connections()
         t1 = time.time()
-        stat = func()
-        t2 = time.time()
-        elapsed_ms = (t2 - t1) * 1000
-        logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
-        stats.append(stat)
+        try:
+            stat = func()
+            return index, module_name, stat, (time.time() - t1) * 1000
+        finally:
+            close_old_connections()
+
+    if requested_providers:
+        max_workers = min(DASHBOARD_STATS_MAX_WORKERS, len(requested_providers))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(run_provider, index, module_name, func): index
+                for index, (module_name, func) in enumerate(requested_providers)
+            }
+            for future in as_completed(future_map):
+                index, module_name, stat, elapsed_ms = future.result()
+                logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
+                stats_by_index[index] = stat
 
     total_ms = (time.time() - total_start) * 1000
     logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
 
-    return stats
+    return [stat for stat in stats_by_index if stat is not None]
 
 
 def get_all_dashboard_stats():
