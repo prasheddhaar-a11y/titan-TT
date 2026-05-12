@@ -881,11 +881,11 @@ tr.row-inactive td.action-td {
            <div class="mb-4" style="position: relative;">
             <h5 class="text-left mt-0 mb-0 d-inline-block" style="font-weight:700;">
               Brass QC Pick Table
-              <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
+<!--               <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
                       style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
                 <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
                 Scan
-              </button>
+              </button> -->
               <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
             </h5>
               
@@ -1847,6 +1847,21 @@ document.addEventListener("DOMContentLoaded", function() {
     document.querySelectorAll('tbody tr').forEach(function(row) {
       row.classList.remove('dp-row-action-highlight');
     });
+    
+    // ✅ NEW: Clear global shortcut manager highlight state and sessionStorage
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+      window.GlobalShortcutManager.clear();
+    }
+    
+    // ✅ NEW: Clear global scan context to prevent stale highlights
+    try {
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+    } catch(e) {
+      console.warn('[BrassQC] Could not clear scan context:', e);
+    }
+    
     console.log('[BrassQC] Row position restored to original index');
   }
 
@@ -1930,7 +1945,23 @@ document.addEventListener("DOMContentLoaded", function() {
   ].forEach(function(id) {
     var btn = document.getElementById(id);
     if (btn) {
-      btn.addEventListener('click', restoreRowPosition);
+      btn.addEventListener('click', function() {
+        restoreRowPosition();
+        
+        // ✅ Clear global shortcut manager state
+        if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+          window.GlobalShortcutManager.clear();
+        }
+        
+        // ✅ Clear global scan context
+        try {
+          sessionStorage.removeItem('globalScanModule');
+          sessionStorage.removeItem('globalScanTrayId');
+          sessionStorage.removeItem('globalScanLotId');
+        } catch(e) {
+          console.warn('[BrassQC Modal Close] Could not clear scan context:', e);
+        }
+      });
     }
   });
 
@@ -1943,7 +1974,23 @@ document.addEventListener("DOMContentLoaded", function() {
     var modal = document.getElementById(id);
     if (modal) {
       modal.addEventListener('click', function(event) {
-        if (event.target === modal) restoreRowPosition();
+        if (event.target === modal) {
+          restoreRowPosition();
+          
+          // ✅ Clear global shortcut manager state
+          if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+            window.GlobalShortcutManager.clear();
+          }
+          
+          // ✅ Clear global scan context
+          try {
+            sessionStorage.removeItem('globalScanModule');
+            sessionStorage.removeItem('globalScanTrayId');
+            sessionStorage.removeItem('globalScanLotId');
+          } catch(e) {
+            console.warn('[BrassQC Backdrop Click] Could not clear scan context:', e);
+          }
+        }
       });
     }
   });
@@ -1953,7 +2000,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Restore on ESC key
   document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') restoreRowPosition();
+    if (event.key === 'Escape') {
+      restoreRowPosition();
+      
+      // ✅ Clear global shortcut manager state
+      if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+        window.GlobalShortcutManager.clear();
+      }
+      
+      // ✅ Clear global scan context
+      try {
+        sessionStorage.removeItem('globalScanModule');
+        sessionStorage.removeItem('globalScanTrayId');
+        sessionStorage.removeItem('globalScanLotId');
+      } catch(e) {
+        console.warn('[BrassQC ESC Key] Could not clear scan context:', e);
+      }
+    }
   });
 
   // Restore on SweetAlert Cancel button click
@@ -2434,6 +2497,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function closeModal() {
       overlay.style.display = 'none';
       _lotId = null;
+      
+      // ✅ Clear global shortcut manager state when closing modal
+      if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+        window.GlobalShortcutManager.clear();
+      }
+      
+      // ✅ Clear global scan context
+      try {
+        sessionStorage.removeItem('globalScanModule');
+        sessionStorage.removeItem('globalScanTrayId');
+        sessionStorage.removeItem('globalScanLotId');
+      } catch(e) {
+        console.warn('[BrassQC Reject Modal] Could not clear scan context:', e);
+      }
+      
       // ✅ Restore row position when closing reject modal
       if (typeof window.bqRestoreRowPosition === 'function') {
         window.bqRestoreRowPosition();
@@ -3748,6 +3826,83 @@ document.addEventListener('DOMContentLoaded', function() {
 
     attachHoldToggleListeners();
   })();
+});
+
+// ✅ GLOBAL SCAN INTEGRATION: Auto-open rejection modal when valid tray is scanned
+document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
+  
+  console.log('[Brass QC] Global scan integration initialized');
+  
+  // Listen for successful global scan events
+  document.addEventListener('globalScan:success', function(event) {
+    const detail = (event && event.detail) || {};
+    const trayId = detail.tray_id || '';
+    const module = detail.module || '';
+    
+    console.log('[Brass QC] Global scan success event received:', { tray_id: trayId, module: module });
+    
+    // Only process if this is a Brass QC module
+    if (module !== 'Brass QC' && module !== 'Brass_QC') {
+      console.log('[Brass QC] Scan event not for this module, ignoring');
+      return;
+    }
+    
+    // Give the row highlight and move-to-top animation time to complete
+    setTimeout(function() {
+      // Find the highlighted row (should be at the top now)
+      const highlightedRow = document.querySelector('tbody tr.dp-row-action-highlight, tbody tr.gkb-row-focus, tbody tr:first-child');
+      
+      if (!highlightedRow) {
+        console.log('[Brass QC] No highlighted row found after scan');
+        return;
+      }
+      
+      console.log('[Brass QC] Found highlighted row:', {
+        lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
+        model_no: highlightedRow.getAttribute('data-model-no')
+      });
+      
+      // Find the Reject button in this row
+      const rejectButton = highlightedRow.querySelector('button.tray-scan-btn');
+      
+      if (!rejectButton) {
+        console.log('[Brass QC] No reject button found in row');
+        return;
+      }
+      
+      // Check if the reject button is enabled (not disabled)
+      if (rejectButton.disabled) {
+        console.log('[Brass QC] Reject button is disabled, not opening modal');
+        return;
+      }
+      
+      // Check if the row is in a held/inactive state (blurred)
+      const rowInactiveClass = highlightedRow.classList.contains('row-inactive');
+      if (rowInactiveClass) {
+        console.log('[Brass QC] Row is in held/inactive state, not opening modal');
+        return;
+      }
+      
+      console.log('[Brass QC] ✓ Valid scan with enabled reject button - auto-opening rejection modal');
+      
+      // Programmatically click the reject button to open the modal
+      rejectButton.click();
+      
+      // Dispatch custom event for tracking
+      const openEvent = new CustomEvent('brassQC:autoOpenRejectModal', {
+        detail: {
+          tray_id: trayId,
+          lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
+          triggered_by: 'global_scan'
+        }
+      });
+      document.dispatchEvent(openEvent);
+      
+    }, 300); // 300ms delay to let the highlight animation complete
+  });
+  
+  console.log('[Brass QC] Global scan listener attached for auto-opening rejection modal');
 });
 </script>
 

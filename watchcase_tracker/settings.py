@@ -86,7 +86,7 @@ AUTHENTICATION_BACKENDS = [
 # optional: require verified email before auto-linking
 # SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
 
-# ...existing code...
+
 # Ensure social login redirects to the dashboard
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/home/'
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
@@ -113,6 +113,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -200,6 +201,20 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+PASSWORD_HASHERS = [
+    'watchcase_tracker.hashers.TTTFastPBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+]
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_AGE = 86400  # 24 hours
+ENABLE_MICROSOFT_LOGIN = False
+ENABLE_LOGIN_LATENCY_LOGS = False
+ENABLE_DASHBOARD_LATENCY_LOGS = False
 
 
 # Internationalization

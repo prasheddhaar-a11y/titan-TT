@@ -19,28 +19,36 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
-from adminportal.views import IndexView
-from watchcase_tracker import sso
+from adminportal.views import IndexView, TimedLoginView
 from django.conf.urls import handler404, handler500, handler403, handler400
+from importlib.util import find_spec
+try:
+    from watchcase_tracker import sso as _sso_module
+except ImportError:
+    _sso_module = None
+_social_django_available = find_spec('social_django') is not None
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.shortcuts import redirect
 
 
+def root_redirect(request):
+    return redirect('login')
+
+
+def sso_unavailable(request):
+    return redirect('login')
+
 
 urlpatterns = [
     
     #path('admin/', admin.site.urls),
-    path('auth/', include('social_django.urls', namespace='social')),
-    # Microsoft Entra ID (Azure AD) SSO endpoints
-    path('auth/microsoft/login/', sso.microsoft_login, name='microsoft_login'),
-    path('auth/microsoft/callback/', sso.microsoft_callback, name='microsoft_callback'),
+    path('', root_redirect, name='root'),
     
-    #path('accounts/profile/', lambda request: HttpResponse('Logged in successfully!')),
     path('accounts/profile/', lambda request: redirect('home')),
     
     # Use your custom login template here:    
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'), 
+    path('accounts/login/', TimedLoginView.as_view(template_name='login.html'), name='login'), 
      
     path('home/', IndexView.as_view(), name="home"),  # Dashboard with permission-filtered stats
     path('admin/', admin.site.urls),
@@ -74,6 +82,27 @@ urlpatterns = [
     
     
 ]
+
+# Optional social-auth route package. Username/password login must not depend on it.
+if _social_django_available:
+    urlpatterns += [
+        path('auth/', include('social_django.urls', namespace='social')),
+    ]
+
+# Keep these URL names registered because login.html reverses microsoft_login.
+urlpatterns += [
+    path(
+        'auth/microsoft/login/',
+        _sso_module.microsoft_login if _sso_module else sso_unavailable,
+        name='microsoft_login',
+    ),
+    path(
+        'auth/microsoft/callback/',
+        _sso_module.microsoft_callback if _sso_module else sso_unavailable,
+        name='microsoft_callback',
+    ),
+]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

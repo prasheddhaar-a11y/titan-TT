@@ -808,11 +808,11 @@ tr.row-inactive td.action-td {
            <div class="mb-4" style="position: relative;">
             <h5 class="text-left mt-0 mb-0 d-inline-block" style="font-weight:700;">
               Brass Audit Pick Table
-              <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
+<!--               <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
                       style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
                 <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
                 Scan
-              </button>
+              </button> -->
               <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
             </h5>
               
@@ -1879,6 +1879,43 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
 });
+
+// Global Scan Integration: auto-open Brass Audit rejection modal after a valid scan.
+document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
+
+  document.addEventListener('globalScan:success', function(event) {
+    const detail = (event && event.detail) || {};
+    const trayId = detail.tray_id || '';
+    const module = detail.module || '';
+
+    if (module !== 'Brass Audit' && module !== 'BrassAudit') {
+      return;
+    }
+
+    setTimeout(function() {
+      const highlightedRow = document.querySelector('tbody tr.dp-row-action-highlight, tbody tr.gkb-row-focus, tbody tr:first-child');
+      if (!highlightedRow) return;
+
+      const rejectButton = highlightedRow.querySelector('button.tray-scan-btn');
+      if (!rejectButton || rejectButton.disabled) return;
+
+      if (highlightedRow.classList.contains('row-inactive')) {
+        return;
+      }
+
+      rejectButton.click();
+
+      document.dispatchEvent(new CustomEvent('brassAudit:autoOpenRejectModal', {
+        detail: {
+          tray_id: trayId,
+          lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
+          triggered_by: 'global_scan'
+        }
+      }));
+    }, 300);
+  });
+});
 </script>
 
 <!-- Accept Button: Confirmation → Single API call → Display result -->
@@ -2327,7 +2364,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function closeModal() {
       overlay.style.display = 'none';
       _lotId = null;
-      if (typeof window.bqRestoreRowPosition === 'function') window.bqRestoreRowPosition();
+      
+      // Clear row highlights and session state
+      if (typeof window.GlobalShortcutManager !== 'undefined' && window.GlobalShortcutManager.clear) {
+        window.GlobalShortcutManager.clear();
+      }
+      sessionStorage.removeItem('activeRowContext');
+      
+      // Remove highlight classes from all table rows
+      var highlightClasses = ['gkb-row-focus', 'dp-row-action-highlight', 'gs-active-scan', 'gs-hi'];
+      document.querySelectorAll('#order-listing tbody tr').forEach(function(row) {
+        highlightClasses.forEach(function(cls) {
+          row.classList.remove(cls);
+        });
+      });
+      
+      if (typeof window.baRestoreRowPosition === 'function') window.baRestoreRowPosition();
     }
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
@@ -3245,15 +3297,16 @@ document.addEventListener('DOMContentLoaded', function() {
     fullLotCb.addEventListener('change', function() {
       var inputs = reasonsGrid.querySelectorAll('.reject-qty-input');
       if (this.checked) {
-        // Full lot: clear all reason inputs, do NOT auto-fill (ERR1)
-        inputs.forEach(function(inp) { inp.value = ''; });
+        // Full lot: clear and disable all reason qty inputs
+        inputs.forEach(function(inp) { inp.value = ''; inp.disabled = true; inp.style.background = '#f5f5f5'; inp.style.cursor = 'not-allowed'; });
         allocationSection.style.display = 'none';
         _acceptSlots = [];
         _rejectSlots = [];
         _delinkSlots = [];
         remarksInput.focus();
       } else {
-        inputs.forEach(function(inp) { inp.value = ''; });
+        // Re-enable reason qty inputs
+        inputs.forEach(function(inp) { inp.value = ''; inp.disabled = false; inp.style.background = ''; inp.style.cursor = ''; });
       }
       updateTotals();
     });

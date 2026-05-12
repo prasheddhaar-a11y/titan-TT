@@ -42,9 +42,9 @@ class IPTrayId(models.Model):
     def is_available_for_scanning(self):
         """
         Check if tray is available for scanning
-        Available if: not scanned OR delinked (can be reused)
+        Available if: new OR delinked (can be reused)
         """
-        return not self.scanned or self.delink_tray
+        return self.new_tray or self.delink_tray
 
     @property
     def status_display(self):

@@ -2943,6 +2943,10 @@
     scanMessage.style.color = color || '#028084';
   }
 
+  function dispatchGlobalScanEvent(eventName, detail) {
+    document.dispatchEvent(new CustomEvent(eventName, { detail: detail || {} }));
+  }
+
   function focusScanInput(selectValue) {
     window.setTimeout(function() {
       scanInput.disabled = false;
@@ -2962,6 +2966,28 @@
 
   function normalizeTrayId(rawValue) {
     return normalizeScanToken(rawValue).slice(0, MAX_TRAY_ID_LENGTH);
+  }
+
+  function buildTrayIdVariants(rawValue) {
+    const normalized = normalizeTrayId(rawValue);
+    const variants = [];
+
+    function addVariant(value) {
+      const token = normalizeTrayId(value);
+      if (token && variants.indexOf(token) === -1) variants.push(token);
+    }
+
+    addVariant(normalized);
+    const match = normalized.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const digits = match[2];
+      const numberText = digits.replace(/^0+/, '') || '0';
+      addVariant(prefix + numberText.padStart(digits.length, '0'));
+      addVariant(prefix + numberText.padStart(5, '0'));
+    }
+
+    return variants;
   }
 
   function normalizeIdentifier(rawValue) {
@@ -3010,9 +3036,9 @@
     if (typeof window._gkbClearPending === 'function') {
       window._gkbClearPending();
     }
-    document.querySelectorAll('tr.gs-active-scan, tr.gs-hi, tr.gkb-row-focus, tr.dp-row-action-highlight, tr.highlighted-tray-scan')
+    document.querySelectorAll('tr.gs-active-scan, tr.gs-hi, tr.gkb-row-focus, tr.dp-row-action-highlight')
       .forEach(function(row) {
-        row.classList.remove('gs-active-scan', 'gs-hi', 'gkb-row-focus', 'dp-row-action-highlight', 'highlighted-tray-scan');
+        row.classList.remove('gs-active-scan', 'gs-hi', 'gkb-row-focus', 'dp-row-action-highlight');
         row.removeAttribute('data-global-scan-active');
       });
   }
@@ -3057,11 +3083,18 @@
     focusScanInput(false);
   }
 
-  function closeGlobalScanModal() {
+  function closeGlobalScanModal(options) {
+    const settings = options || {};
     scanActive = false;
     scanStatus.style.display = 'none';
     resetPreviousScanState({ keepHighlight: true, keepPriorityRow: true });
-    setInfo('scanner', getScanPromptText(), '#025254');
+    if (!settings.keepInfo) {
+      setInfo('scanner', getScanPromptText(), '#025254');
+    }
+    dispatchGlobalScanEvent('globalScan:closed', {
+      reason: settings.reason || 'manual',
+      keep_info: !!settings.keepInfo
+    });
   }
 
   function handleEmptyInput() {
@@ -3126,7 +3159,7 @@
         return;
       }
 
-      setInfo('...', normalized.length > 16 ? normalized.slice(0, 16) : normalized, '#028084');
+      setInfo('...', 'Typing: ' + (normalized.length > 16 ? normalized.slice(0, 16) : normalized), '#028084');
       if (!pasteCapturePending && normalized.length >= AUTO_SCAN_LENGTH) {
         scanTimeout = window.setTimeout(function() {
           runScanFlow(normalized, 'auto');
@@ -3680,6 +3713,94 @@
     return null;
   }
 
+  function isInputScreeningResult(responseData) {
+    return String((responseData && responseData.module) || '').toLowerCase() === 'input screening';
+  }
+
+  function findInputScreeningViewTrigger(row) {
+    if (!row) return null;
+    const trigger = row.querySelector('.tray-scan-btn-DayPlanning-view:not(.disabled):not([disabled])');
+    return isVisibleTrigger(trigger) ? trigger : null;
+  }
+
+  function openInputScreeningViewModal(row, responseData, trayId, reason) {
+    const trigger = findInputScreeningViewTrigger(row);
+    if (!trigger) {
+      logScan('[SCAN_IS_MODAL]', {
+        tray_id: trayId,
+        opened: false,
+        reason: 'no_view_trigger'
+      });
+      return false;
+    }
+
+    window.setTimeout(function() {
+      if (!document.body.contains(trigger) || !isVisibleTrigger(trigger)) return;
+      autoOpeningDraftModal = true;
+      try {
+        if (typeof window._gkbHighlightRow === 'function') {
+          window._gkbHighlightRow(row);
+        }
+        trigger.click();
+        logScan('[SCAN_IS_MODAL]', {
+          tray_id: trayId,
+          module: responseData && responseData.module,
+          opened: true,
+          reason: reason || 'verified_tray'
+        });
+      } finally {
+        window.setTimeout(function() {
+          autoOpeningDraftModal = false;
+        }, 250);
+      }
+    }, 260);
+    return true;
+  }
+
+  function maybeOpenInputScreeningVerifiedTrayModal(row, responseData, trayId) {
+    if (!isInputScreeningResult(responseData)) return false;
+
+    const trigger = findInputScreeningViewTrigger(row);
+    if (!trigger) return false;
+
+    const lotId = trigger.getAttribute('data-stock-lot-id') ||
+      row.getAttribute('data-stock-lot-id') ||
+      (responseData && (responseData.lot_id || responseData.stock_lot_id));
+    const batchId = trigger.getAttribute('data-batch-id') ||
+      row.getAttribute('data-batch-id') ||
+      (responseData && responseData.batch_id);
+
+    window.setTimeout(function() {
+      if (!document.body.contains(row)) return;
+
+      const payload = {
+        row: row,
+        trigger: trigger,
+        tray_id: trayId,
+        lot_id: lotId,
+        batch_id: batchId,
+        response_data: responseData || {}
+      };
+
+      if (typeof window.openInputScreeningTrayVerificationFromGlobalScan === 'function') {
+        const opened = window.openInputScreeningTrayVerificationFromGlobalScan(payload);
+        if (opened) {
+          logScan('[SCAN_IS_MODAL]', {
+            tray_id: trayId,
+            lot_id: lotId,
+            opened: true,
+            reason: 'global_scan_exact_tray'
+          });
+          return;
+        }
+      }
+
+      openInputScreeningViewModal(row, responseData, trayId, 'scan_found');
+    }, 180);
+
+    return true;
+  }
+
   function openDraftRowModal(row, responseData, trayId) {
     if (!isDraftRow(row)) return false;
     const trigger = findDraftModalTrigger(row);
@@ -3719,14 +3840,27 @@
     const row = match.row;
     moveHighlightedRowToTop(row);
     applyFoundHighlight(row);
-    openDraftRowModal(row, responseData, trayId);
-    setInfo('OK', trayId + ' Exists', '#28a745');
-    setScanMessage('Exists', '#28a745');
+    const openedDraft = openDraftRowModal(row, responseData, trayId);
+    let openedInputVerification = false;
+    if (!openedDraft) {
+      openedInputVerification = maybeOpenInputScreeningVerifiedTrayModal(row, responseData, trayId);
+    }
+    setInfo(openedInputVerification ? '...' : 'OK', openedInputVerification ? trayId + ' Exists - verifying' : trayId + ' Exists', openedInputVerification ? '#028084' : '#28a745');
+    setScanMessage(openedInputVerification ? 'Opening tray verification...' : 'Exists', openedInputVerification ? '#028084' : '#28a745');
     if (scanResult) {
       scanResult.innerHTML = '<div style="color:#28a745;font-weight:700;padding:6px 0;">Exists</div>';
     }
     scanInput.disabled = false;
-    focusScanInput(false);
+    window.setTimeout(function() {
+      closeGlobalScanModal({ keepInfo: true, reason: 'success' });
+    }, 220);
+    dispatchGlobalScanEvent('globalScan:success', {
+      tray_id: trayId,
+      module: responseData && responseData.module,
+      lot_id: responseData && (responseData.lot_id || responseData.stock_lot_id),
+      batch_id: responseData && responseData.batch_id,
+      target_page: match.targetPage || getCurrentPageNumber(document, window.location.href)
+    });
     logScan('[SCAN_FOUND]', {
       tray_id: trayId,
       table_id: getCurrentTableId(),
@@ -3751,6 +3885,7 @@
       scanResult.innerHTML = '<div style="color:#dc3545;font-weight:700;padding:6px 0;">Not Exists</div>';
     }
     focusScanInput(true);
+    dispatchGlobalScanEvent('globalScan:notFound', { tray_id: trayId });
     logScan('[SCAN_NOT_FOUND]', { tray_id: trayId, table_id: getCurrentTableId() });
   }
 
@@ -3763,13 +3898,34 @@
     handleTrayFound: handleTrayFound,
     handleTrayNotFound: handleTrayNotFound,
     resetPreviousScanState: resetPreviousScanState,
-    moveHighlightedRowToTop: moveHighlightedRowToTop
+    moveHighlightedRowToTop: moveHighlightedRowToTop,
+    closeScanModal: closeGlobalScanModal,
+    setInfo: setInfo,
+    setScanMessage: setScanMessage
   };
 
   window.openGlobalScanModal = openGlobalScanModal;
   window._gScanActivate = openGlobalScanModal;
   window._gScanClose = closeGlobalScanModal;
   window._gScanIsActive = function() { return scanActive; };
+
+  document.addEventListener('inputScreening:globalScanVerification', function(event) {
+    const detail = (event && event.detail) || {};
+    const trayId = detail.tray_id || '';
+    if (detail.status === 'verifying') {
+      setInfo('...', 'Verifying ' + trayId, '#028084');
+    } else if (detail.status === 'verified') {
+      setInfo('OK', trayId + ' Verified', '#28a745');
+    } else if (detail.status === 'already_verified') {
+      if (detail.all_verified === false) {
+        setInfo('...', trayId + ' Already verified - pending remains', '#028084');
+      } else {
+        setInfo('OK', trayId + ' Already verified', '#28a745');
+      }
+    } else if (detail.status === 'not_in_lot') {
+      setInfo('!', trayId + ' not in lot', '#dc3545');
+    }
+  });
 
   bindGlobalScanEvents();
 })();
@@ -3816,6 +3972,84 @@
       this.style.borderColor = '#b3e5e6';
     });
   }
+})();
+</script>
+
+<!-- ✅ UNIVERSAL MODAL CLOSE HANDLER: Clear highlights on any modal close -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+  
+  // Clear row highlights and sessionStorage when any modal is closed
+  function clearHighlightsOnModalClose() {
+    // Clear global shortcut manager state
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+      window.GlobalShortcutManager.clear();
+    }
+    
+    // Clear global scan context
+    try {
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+    } catch(e) {
+      console.warn('[Universal Modal Close] Could not clear scan context:', e);
+    }
+    
+    console.log('[Universal Modal Close] Row highlights and scan context cleared');
+  }
+  
+  // Listen for Bootstrap modal hide events (both Bootstrap 4 & 5)
+  document.addEventListener('hidden.bs.modal', clearHighlightsOnModalClose);
+  document.addEventListener('hide.bs.modal', clearHighlightsOnModalClose);
+  
+  // Listen for jQuery modal hide events (Bootstrap 3)
+  if (typeof jQuery !== 'undefined') {
+    jQuery(document).on('hidden.bs.modal hide.bs.modal', clearHighlightsOnModalClose);
+  }
+  
+  // Listen for manual modal close button clicks (catch-all)
+  document.addEventListener('click', function(event) {
+    var target = event.target;
+    
+    // Check if clicked element is a modal close button
+    if (
+      target.classList.contains('modal-close') ||
+      target.classList.contains('tray-scan-close') ||
+      target.classList.contains('tray-scan-close-readonly') ||
+      target.classList.contains('barcode-modal-close') ||
+      target.classList.contains('close') ||
+      target.classList.contains('btn-close') ||
+      target.getAttribute('data-dismiss') === 'modal' ||
+      target.getAttribute('data-bs-dismiss') === 'modal' ||
+      target.id === 'closeTrayScanModal' ||
+      target.id === 'closeTrayScanModal_DayPlanning' ||
+      target.id === 'closeNewPopupModal'
+    ) {
+      // Delay slightly to allow modal close animation
+      setTimeout(clearHighlightsOnModalClose, 100);
+    }
+  }, true);
+  
+  // Clear on page visibility change (tab switch or window minimize)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      // Check if any modal is still open when returning to page
+      var hasActiveModal = !!(
+        document.querySelector('.modal.show') ||
+        document.querySelector('.modal[style*="display: block"]') ||
+        document.querySelector('.tray-scan-modal.open') ||
+        document.querySelector('[role="dialog"][style*="display: block"]')
+      );
+      
+      // If no modal is open, clear stale highlights
+      if (!hasActiveModal) {
+        clearHighlightsOnModalClose();
+      }
+    }
+  });
+  
+  console.log('[Universal Modal Close Handler] Initialized');
 })();
 </script>
 

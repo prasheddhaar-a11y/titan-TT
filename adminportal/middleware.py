@@ -1,5 +1,6 @@
 import base64
 from django.utils.crypto import get_random_string
+from django.conf import settings
 import time
 import logging
 
@@ -50,10 +51,11 @@ class LoginLatencyMiddleware:
         total_time = (time.time() - request.start_time) * 1000  # Convert to ms
         
         timer_log = ' | '.join([f'{k}={v}' for k, v in request.timers.items()])
-        logger.warning(
-            f'LOGIN_LATENCY: {request.path} | '
-            f'Total={total_time:.2f}ms | {timer_log}'
-        )
+        if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+            logger.warning(
+                f'LOGIN_LATENCY: {request.path} | '
+                f'Total={total_time:.2f}ms | {timer_log}'
+            )
         
         # Add header with timing for debugging
         response['X-Login-Total-Time'] = f'{total_time:.2f}ms'

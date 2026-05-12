@@ -57,7 +57,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             request.user.username,
         )
 
-        result = self._search_all_modules(tray_id, current_path=current_path)
+        result = self._search_all_modules(tray_id, current_path=current_path, user=request.user)
 
         if result:
             # Add tray_id to response for frontend highlight
@@ -117,7 +117,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             query |= Q(**{f'{field_name}__iexact': candidate})
         return query
 
-    def _resolve_candidate_lot_ids(self, tray_id):
+    def _resolve_candidate_lot_ids(self, tray_id, user=None):
         """LOT-FIRST RESOLVER: Scan EVERY tray table to discover all lot_ids
         that this tray belongs to (currently or historically).
 
@@ -131,6 +131,19 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         """
         lot_ids = set()
         batch_ids = set()
+
+        # Jig Loading draft lookup: a scanned Jig ID identifies the drafted lot,
+        # even before any tray table contains the scanned value.
+        try:
+            from Jig_Loading.selectors import find_active_draft_by_jig_id
+            jig_draft = find_active_draft_by_jig_id(tray_id, user=user)
+            if jig_draft and jig_draft.lot_id:
+                lot_ids.add(str(jig_draft.lot_id))
+                if jig_draft.batch_id:
+                    batch_ids.add(str(jig_draft.batch_id))
+        except Exception as e:
+            logger.debug('%s Jig Loading draft jig probe failed: %s', SCAN_TAG, e)
+
         tray_variants = self._tray_id_variants(tray_id)
         tray_query = self._tray_query(tray_variants)
 
@@ -157,6 +170,18 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                     batch_ids.add(t.batch_id_id)
         except Exception as e:
             logger.debug('%s TrayId probe failed: %s', SCAN_TAG, e)
+
+        # Input Screening pick/verification uses DPTrayId_History as the live
+        # tray source, so include it before batch-to-lot resolution runs.
+        try:
+            from DayPlanning.models import DPTrayId_History
+            for t in DPTrayId_History.objects.filter(tray_query):
+                if getattr(t, 'lot_id', None):
+                    lot_ids.add(t.lot_id)
+                if getattr(t, 'batch_id_id', None):
+                    batch_ids.add(t.batch_id_id)
+        except Exception as e:
+            logger.debug('%s DPTrayId_History probe failed: %s', SCAN_TAG, e)
 
         # Resolve batch_ids ? lot_ids via TotalStockModel
         if batch_ids:
@@ -208,6 +233,17 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             _safe_collect(JigLoadTrayId.objects.filter(tray_query))
         except Exception as e:
             logger.debug('%s Jig Loading tray probe failed: %s', SCAN_TAG, e)
+
+        try:
+            from Jig_Loading.selectors import find_active_draft_by_scanned_tray
+            for candidate in tray_variants:
+                draft = find_active_draft_by_scanned_tray(candidate, user=user)
+                if draft and draft.lot_id:
+                    lot_ids.add(str(draft.lot_id))
+                    if draft.batch_id:
+                        batch_ids.add(str(draft.batch_id))
+        except Exception as e:
+            logger.debug('%s Jig Loading draft tray probe failed: %s', SCAN_TAG, e)
 
         try:
             from Jig_Unloading.models import JigUnload_TrayId, JUSubmittedZ1
@@ -275,7 +311,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
 
         return lot_ids, batch_ids
 
-    def _search_all_modules(self, tray_id, current_path=''):
+    def _search_all_modules(self, tray_id, current_path='', user=None):
         """LOT-FIRST search.
 
         1. Resolve all candidate lot_ids by scanning EVERY tray table
@@ -287,7 +323,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                   ? Spider Spindle ? Nickel Audit ? Nickel Wiping ? Jig Unloading ? Jig Loading
         """
         # Step 1: Resolve candidates
-        lot_ids, batch_ids = self._resolve_candidate_lot_ids(tray_id)
+        lot_ids, batch_ids = self._resolve_candidate_lot_ids(tray_id, user=user)
         logger.info(
             '%s candidates_resolved tray_id=%s lot_ids=%s batch_ids=%s',
             SCAN_TAG,
@@ -550,17 +586,11 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
 
     def _check_lot_in_brass_audit(self, lot_id):
         try:
+            from BrassAudit.selectors import get_picktable_base_queryset
+
+            if not get_picktable_base_queryset().filter(lot_id=lot_id).exists():
+                return None
             stock = self._stock_for(lot_id)
-            if not stock:
-                return None
-            active = (
-                stock.iqf_acceptance and
-                not stock.brass_audit_acceptance and
-                not getattr(stock, 'brass_audit_rejection', False) and
-                not stock.remove_lot
-            )
-            if not active:
-                return None
             return {
                 'module': 'Brass Audit',
                 'url': reverse('brass_audit_picktable'),
@@ -591,7 +621,11 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
     def _check_lot_in_input_screening(self, lot_id):
         try:
             from InputScreening.selectors import pick_table_queryset
-            if not pick_table_queryset().filter(lot_id=lot_id).exists():
+            # IS Pick Table renders the TotalStockModel lot as the annotated
+            # stock_lot_id, while ModelMasterCreation.lot_id is often empty.
+            if not pick_table_queryset().filter(
+                Q(stock_lot_id=lot_id) | Q(lot_id=lot_id)
+            ).exists():
                 return None
             stock = self._stock_for(lot_id)
             return {

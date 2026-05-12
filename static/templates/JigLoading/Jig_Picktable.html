@@ -221,7 +221,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
         <h5 class="text-left mt-0 mb-0" style="font-weight: 700">
           Jig Loading - Pick Table
         </h5>
-        <button type="button" id="pickTableScanBtn" class="picktable-scan-btn">Scan</button>
+       <!--  <button type="button" id="pickTableScanBtn" class="picktable-scan-btn">Scan</button> -->
         <span id="pickTableScanStatus" class="picktable-scan-status"></span>
         <input
           type="text"
@@ -285,6 +285,8 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               class="highlighted-tray-scan"
               data-batch-id="{{ data.batch_id }}"
               data-stock-lot-id="{{ data.stock_lot_id }}"
+              data-lot-status="{{ data.lot_status|default:'' }}"
+              {% if data.lot_status == 'Draft' %}data-is-draft="true" data-draft-status="draft"{% endif %}
               data-plating-stk-no="{{ data.plating_stk_no|default:'' }}"
               data-plating-color="{{ data.plating_color|default:'' }}"
               data-polish-finish="{{ data.polish_finish|default:'' }}"
@@ -685,6 +687,13 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               </td>
             </tr>
             {% endfor %}
+            {% if add_model_no_results %}
+            <tr>
+              <td colspan="16" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
+                ⚠ No compatible models found for this selection.
+              </td>
+            </tr>
+            {% endif %}
           </tbody>
         </table>
       </div>
@@ -4179,7 +4188,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Bind to buttons (class-based) and keep existing #addJigBtnAlt as fallback (no init)
   document.querySelectorAll('.open-jig-modal-btn').forEach(btn => {
+    btn.dataset.jigDirectBound = 'true';
     btn.addEventListener('click', function (e) { e.preventDefault(); initJigFromButton(btn); });
+  });
+  document.addEventListener('click', function(e) {
+    const btn = e.target && e.target.closest ? e.target.closest('.open-jig-modal-btn') : null;
+    if (!btn || btn.dataset.jigDirectBound === 'true') return;
+    e.preventDefault();
+    initJigFromButton(btn);
   });
   const fallback = document.getElementById('addJigBtnAlt');
   if (fallback) {
@@ -5645,55 +5661,191 @@ document.addEventListener('click', function (e) {
 <!-- ✅ Active Row Highlighting (UI State Management) -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
-  // ===== Active Row Highlighting State =====
+  // ===== Active Row Highlighting State (page-local) =====
   let activeRowId = null;
+  let _accessOrigPos = null; // Tracks original position of row moved to top
+  let _rowPositions = {}; // Maps "batchId||lotId" to original DOM index for position tracking
 
-  // Tracks original position of row moved to top when a modal is opened
-  let _accessOrigPos = null;
+  // Browser refresh must start clean; Add Model return uses highlight_* URL params instead.
+  (function() {
+    try {
+      sessionStorage.removeItem('jigActiveRowId');
+      sessionStorage.removeItem('activeRowContext');
+    } catch(e) {}
+  })();
+
+  // Restore highlighted row when returning from Add Model filter screen (highlight_lot_id param)
+  (function() {
+    try {
+      var _hlParams = new URLSearchParams(window.location.search);
+      var _hlLot = _hlParams.get('highlight_lot_id');
+      var _hlBatch = _hlParams.get('highlight_batch_id');
+      if (_hlLot) {
+        // Wait for DOM to settle before applying highlight
+        setTimeout(function() {
+          if (_hlBatch) {
+            var key = _hlBatch + '||' + _hlLot;
+            activeRowId = key;
+            try { sessionStorage.setItem('jigActiveRowId', key); } catch(e) {}
+            var targetRow = document.querySelector(
+              'tbody tr[data-batch-id="' + _hlBatch + '"][data-stock-lot-id="' + _hlLot + '"]'
+            );
+            if (targetRow) {
+              targetRow.classList.add('active-row');
+              targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+          // Clean URL so refresh doesn't re-apply highlight
+          try {
+            var cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('highlight_lot_id');
+            cleanUrl.searchParams.delete('highlight_batch_id');
+            window.history.replaceState({}, '', cleanUrl.toString());
+          } catch(e) {}
+        }, 250);
+      }
+    } catch(e) {}
+  })();
 
   // Move a row to the top of tbody and save its original position (for restore on close)
   function moveRowToTopForAccess(row) {
     if (!row) return;
     const tbody = row.parentElement;
     if (!tbody) return;
-    _accessOrigPos = { row: row, parent: tbody, nextSibling: row.nextElementSibling };
+
+    // Capture original position
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const originalIndex = allRows.indexOf(row);
+
+    _accessOrigPos = {
+      batchId: row.dataset.batchId,
+      lotId: row.dataset.stockLotId,
+      originalIndex: originalIndex
+    };
+
+    // Move to top
     if (tbody.firstElementChild !== row) {
       tbody.insertBefore(row, tbody.firstElementChild);
     }
+
+    // Scroll table to top
     const table = tbody.closest('table') || document.getElementById('order-listing');
-    if (table) { table.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (table) {
+      setTimeout(function() {
+        table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
   }
 
   // Restore the row that was moved to top back to its original position
   function restoreAccessRowPosition() {
     if (!_accessOrigPos) return;
-    const { row, parent, nextSibling } = _accessOrigPos;
+
+    const { batchId, lotId, originalIndex } = _accessOrigPos;
     _accessOrigPos = null;
+
     try {
-      if (nextSibling && nextSibling.parentNode === parent) {
-        parent.insertBefore(row, nextSibling);
-      } else {
-        parent.appendChild(row);
+      const tbody = document.querySelector('tbody');
+      if (!tbody) return;
+
+      const row = document.querySelector(
+        'tbody tr[data-batch-id="' + batchId + '"][data-stock-lot-id="' + lotId + '"]'
+      );
+      if (!row) return;
+
+      // Get current state of all rows
+      const allRows = Array.from(tbody.querySelectorAll('tr'));
+      const currentIndex = allRows.indexOf(row);
+
+      // Only move if it's currently at top (index 0)
+      if (currentIndex === 0 && originalIndex > 0) {
+        row.remove();
+        const allRowsAfterRemove = Array.from(tbody.querySelectorAll('tr'));
+
+        if (originalIndex >= allRowsAfterRemove.length) {
+          // Original position no longer valid, append to end
+          tbody.appendChild(row);
+        } else {
+          // Insert before the row that's now at originalIndex
+          const targetRow = allRowsAfterRemove[originalIndex];
+          tbody.insertBefore(row, targetRow);
+        }
       }
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } catch(e) {}
+
+      // Scroll row back into view
+      setTimeout(function() {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    } catch(e) { console.warn('[RESTORE_POS]', e); }
   }
 
-  // Set active row
+  // Set active row for the current page session only.
   window.setActiveRow = function(rowId) {
     if (!rowId) return;
     activeRowId = rowId;
     updateActiveRowUI();
   };
 
-  // Clear active row and restore scroll position if modal was opened via moveRowToTopForAccess
-  window.clearActiveRow = function() {
-    restoreAccessRowPosition();
+  function restoreJigScanRowPosition() {
+    if (!window._jigScanHighlightedRow || !window._jigScanOriginalPosition) return;
+    var prev = window._jigScanOriginalPosition;
+    var row = window._jigScanHighlightedRow;
+    row.style.background = '';
+    row.style.boxShadow = '';
+    if (prev.parent && prev.row) {
+      if (prev.nextSibling && prev.nextSibling.parentNode === prev.parent) {
+        prev.parent.insertBefore(prev.row, prev.nextSibling);
+      } else {
+        prev.parent.appendChild(prev.row);
+      }
+    }
+    window._jigScanHighlightedRow = null;
+    window._jigScanOriginalPosition = null;
+  }
+
+  function clearAllJigHighlightClasses() {
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+      row.classList.remove('active-row', 'gkb-row-focus', 'dp-row-action-highlight', 'gs-active-scan', 'gs-hi');
+      row.removeAttribute('data-global-scan-active');
+      row.removeAttribute('data-gkb-active');
+      row.removeAttribute('aria-selected');
+      row.style.background = '';
+      row.style.boxShadow = '';
+    });
+  }
+
+  window.clearJigActiveHighlightState = function(options) {
+    var settings = options || {};
+    if (settings.restorePosition !== false) {
+      if (window.GlobalPickTableScanner && typeof window.GlobalPickTableScanner.resetPreviousScanState === 'function') {
+        window.GlobalPickTableScanner.resetPreviousScanState({ keepInput: true, keepMessage: true });
+      }
+      restoreAccessRowPosition();
+      restoreJigScanRowPosition();
+    }
+    _accessOrigPos = null;
     activeRowId = null;
-    updateActiveRowUI();
+    try {
+      sessionStorage.removeItem('jigActiveRowId');
+      sessionStorage.removeItem('activeRowContext');
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+    } catch(e) {}
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+      window.GlobalShortcutManager.clear();
+    } else if (typeof window._gkbClearPending === 'function') {
+      window._gkbClearPending();
+    }
+    clearAllJigHighlightClasses();
   };
 
-  // Update UI
+  // Clear active row and restore scroll position if modal was opened via moveRowToTopForAccess
+  window.clearActiveRow = function() {
+    window.clearJigActiveHighlightState();
+  };
+
+  // Update highlighted row for the current page session.
   function updateActiveRowUI() {
     // Remove highlight from all rows
     document.querySelectorAll('tbody tr.active-row').forEach(function(row) {
@@ -5709,6 +5861,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   }
+
+  // Apply URL-return highlight after Add Model navigation, if present.
+  setTimeout(function() {
+    if (activeRowId) {
+      updateActiveRowUI();
+    }
+  }, 250);
 
   // ===== HOLD TOGGLE STATE TRACKING =====
   let rowOriginalPositions = {}; // Maps "batchId||lotId" to original row index
@@ -5772,7 +5931,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    // Delete Button
+    // Delete Button (keeps row highlighted, does NOT move to top)
     document.querySelectorAll('.jig-delete-batch-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         const row = e.target.closest('tr');
@@ -5780,6 +5939,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const batchId = row.dataset.batchId;
           const lotId = row.dataset.stockLotId;
           setActiveRow(batchId + '||' + lotId);
+          // Do NOT move to top for delete — only for modal opens
         }
       });
     });
@@ -5814,42 +5974,57 @@ document.addEventListener('DOMContentLoaded', function() {
   // ===== CLEAR ACTIVE ROW TRIGGERS =====
   // Attach to: closeJigTrayViewPanel, close-btn, submitJigBtn, draftJigBtn, cancelJigBtn
   setTimeout(function() {
-    // Close Modal Button
+    // Close Modal Button (X icon on Jig modal)
     const closeBtn = document.getElementById('closeJigTrayViewPanel');
     if (closeBtn) {
       closeBtn.addEventListener('click', function() {
-        clearActiveRow();
+        window.clearJigActiveHighlightState();
       });
     }
 
-    // Generic close buttons
-    document.querySelectorAll('.close-btn').forEach(function(btn) {
+    // Generic close buttons (Bootstrap modals)
+    document.querySelectorAll('.close-btn, [data-dismiss="modal"]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        clearActiveRow();
+        window.clearJigActiveHighlightState();
       });
     });
 
-    // Submit Button
+    // Submit Button (clears active row after successful submit)
     const submitBtn = document.getElementById('submitJigBtn');
     if (submitBtn) {
       submitBtn.addEventListener('click', function() {
-        clearActiveRow();
+        // On successful submit (after modal closes), clear state
+        setTimeout(function() {
+          var modal = document.getElementById('jigAddModal');
+          if (modal && modal.style.display === 'none') {
+            clearActiveRow();
+          }
+        }, 500);
       });
     }
 
-    // Draft Button
+    // Draft Button (clears active row after successful draft save)
     const draftBtn = document.getElementById('draftJigBtn');
     if (draftBtn) {
       draftBtn.addEventListener('click', function() {
-        clearActiveRow();
+        // On successful draft (after modal closes), clear state
+        setTimeout(function() {
+          var modal = document.getElementById('jigAddModal');
+          if (modal && modal.style.display === 'none') {
+            clearActiveRow();
+          }
+        }, 500);
       });
     }
 
-    // Cancel Button
+    // Cancel Button (from Add Jig modal - closes modal and clears active row state)
     const cancelBtn = document.getElementById('cancelJigBtn');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', function() {
-        clearActiveRow();
+        // Close modal
+        var modal = document.getElementById('jigAddModal');
+        if (modal) { modal.style.display = 'none'; }
+        window.clearJigActiveHighlightState();
       });
     }
   }, 100);
@@ -6047,6 +6222,7 @@ document.addEventListener('DOMContentLoaded', function () {
             + 'exclude_lot_id=' + excludeParam
             + '&primary_lot_id=' + encodeURIComponent(primary)
             + '&primary_batch_id=' + encodeURIComponent(batch)
+            + (primaryPsn ? '&primary_psn=' + encodeURIComponent(primaryPsn) : '')
             + (eligibleParam ? '&eligible_models=' + eligibleParam : '')
             + (blockedParam ? '&blocked_lookalike=' + blockedParam : '')
             + (nonEligibleParam ? '&non_eligible_models=' + nonEligibleParam : '')
@@ -6081,139 +6257,34 @@ document.addEventListener('DOMContentLoaded', function () {
   // Reveal per-row checkbox (keeps table structure intact)
   document.querySelectorAll('.add-model-checkbox').forEach(cb => cb.style.display = 'inline-block');
 
-  // ✅ BUG FIX #1: Add Exit button to return to modal without selecting a model
+  // ✅ BUG FIX #1: Add Cancel/Exit button to return to plain pick table
   try {
     var exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.className = 'btn btn-secondary';
     exitBtn.style.cssText = 'margin-left:12px; padding:6px 18px; font-size:13px; font-weight:600; border-radius:50px; background:#ff4747; color:#fff; border:none; cursor:pointer;';
-    exitBtn.innerHTML = 'Exit';
-    exitBtn.title = 'Return to Jig Loading modal without adding a model';
+    exitBtn.innerHTML = 'Cancel';
+    exitBtn.title = 'Return to pick table without adding a model';
     exitBtn.addEventListener('click', function() {
       var primary = params.get('primary_lot_id') || params.get('primary_lot') || params.get('exclude_lot_id') || '';
       var primaryBatch = params.get('primary_batch_id') || params.get('primary_batch') || '';
-      var redirectUrl = '/jig_loading/JigView/?primary_lot_id=' + encodeURIComponent(primary) + '&primary_batch_id=' + encodeURIComponent(primaryBatch) + '&merge_model=1';
-      window.location.href = redirectUrl;
+      // Go to plain pick table — do NOT use merge_model=1 (that reopens the modal).
+      // Pass highlight params so the previously-selected row gets highlighted on return.
+      var returnUrl = '/jig_loading/JigView/';
+      if (primary) {
+        returnUrl += '?highlight_lot_id=' + encodeURIComponent(primary);
+        if (primaryBatch) returnUrl += '&highlight_batch_id=' + encodeURIComponent(primaryBatch);
+      }
+      window.location.href = returnUrl;
     });
     var headerArea = document.querySelector('.d-flex.align-items-center.gap-2.mb-4');
     if (headerArea) headerArea.appendChild(exitBtn);
   } catch(e) { console.warn('[EXIT_BTN] Failed to add:', e); }
 
-  // ============================================================
-  // FILTER SCREEN — sort rows by eligibility (API-driven)
-  // eligible_models=...  blocked_lookalike=...  non_eligible_models=...
-  // RULE: eligible TOP, non-eligible BOTTOM (greyed), lookalike HIDDEN
-  // ============================================================
-  (function applyEligibilityFilter() {
-    try {
-      const eligibleRaw   = params.get('eligible_models') || '';
-      const blockedRaw    = params.get('blocked_lookalike') || '';
-      const nonEligRaw    = params.get('non_eligible_models') || '';
-      const selectedRaw   = params.get('selected_models') || '';
+  // FILTER SCREEN — rows are filtered server-side via ModelMicroGroup (DB-driven).
+  // No client-side eligibility filtering needed.
 
-      // No filter params = old flow (show all, no sorting)
-      if (!eligibleRaw && !blockedRaw && !nonEligRaw && !selectedRaw) return;
-
-      const eligibleSet   = new Set(eligibleRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
-      const blockedSet    = new Set(blockedRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
-      const nonEligSet    = new Set(nonEligRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
-      const selectedSet   = new Set(selectedRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
-      // Build excludedLotSet from exclude_lot_id param (lot IDs already on the jig)
-      // Used instead of selectedSet (plating_stk_no) to allow same-model different-lot rows.
-      const excludedLotRaw = params.get('exclude_lot_id') || '';
-      const excludedLotSet = new Set(excludedLotRaw.split(',').map(function(s){ return decodeURIComponent(s.trim()); }).filter(Boolean));
-
-      console.log('[FILTER] eligible=', eligibleSet.size, 'blocked_lookalike=', blockedSet.size, 'non_eligible=', nonEligSet.size, 'excluded_lots=', excludedLotSet.size);
-
-      // Add compact info banner at top of table
-      try {
-        var infoBanner = document.createElement('div');
-/*         infoBanner.style.cssText = 'background:linear-gradient(135deg,#e8f5e9,#e3f2fd); border:1px solid #028084; border-radius:8px; padding:8px 16px; margin-bottom:10px; font-size:12px; color:#014d4e; font-weight:600; display:flex; gap:12px; flex-wrap:wrap; align-items:center;';
-        infoBanner.innerHTML = '<span>✅ Eligible: <strong>' + eligibleSet.size + '</strong></span>'
-          + (blockedSet.size ? '<span>🚫 Lookalike blocked (hidden): <strong>' + blockedSet.size + '</strong></span>' : '')
-          + (nonEligSet.size ? '<span>❌ Incompatible: <strong>' + nonEligSet.size + '</strong></span>' : ''); */
-        var tableWrapper = document.querySelector('#order-listing');
-        if (tableWrapper && tableWrapper.parentNode) {
-          tableWrapper.parentNode.insertBefore(infoBanner, tableWrapper);
-        } else {
-          var pageBody = document.querySelector('.content-wrapper') || document.body;
-          if (pageBody && pageBody.firstChild) pageBody.insertBefore(infoBanner, pageBody.firstChild);
-        }
-      } catch(e) { console.warn('[FILTER_BANNER] Failed:', e); }
-
-      // Collect tbody rows
-      var tbody = document.querySelector('#order-listing tbody');
-      if (!tbody) { console.warn('[FILTER] No tbody found'); return; }
-
-      var rows = Array.from(tbody.querySelectorAll('tr.highlighted-tray-scan'));
-      var eligibleRows = [], nonEligRows = [], hiddenRows = [];
-
-      rows.forEach(function(tr) {
-        var psn = tr.getAttribute('data-plating-stk-no') || '';
-        if (blockedSet.has(psn)) {
-          // Lookalike — hide completely
-          tr.style.display = 'none';
-          hiddenRows.push(tr);
-        } else if (excludedLotSet.size > 0 && excludedLotSet.has(tr.getAttribute('data-stock-lot-id') || '')) {
-          // Already on this jig (same lot ID) — grey out, disable, move to bottom
-          // Using lot ID (not plating_stk_no) so same-model different-lot rows remain eligible.
-          tr.style.opacity = '0.35';
-          tr.style.pointerEvents = 'none';
-          tr.style.filter = 'blur(0.5px)';
-          try {
-            var cb = tr.querySelector('.add-model-checkbox');
-            if (cb) { cb.disabled = true; cb.checked = false; }
-            var snoTd = tr.querySelector('td:first-child');
-            if (snoTd) {
-              var badge = document.createElement('span');
-              badge.style.cssText = 'display:block; font-size:9px; color:#555; font-weight:700; background:#e0e0e0; border-radius:4px; padding:1px 5px; margin-top:2px; white-space:nowrap;';
-              badge.textContent = 'Added';
-              snoTd.appendChild(badge);
-            }
-          } catch(e2) {}
-          nonEligRows.push(tr);
-        } else if (nonEligSet.has(psn)) {
-          // Non-eligible — grey out, add inline reason, move to bottom
-          tr.style.opacity = '0.4';
-          tr.style.pointerEvents = 'none';
-          // Show reason badge in first td
-          try {
-            var snoTd = tr.querySelector('td:first-child');
-            if (snoTd) {
-              var badge = document.createElement('span');
-              badge.style.cssText = 'display:block; font-size:9px; color:#c62828; font-weight:700; background:#fce4ec; border-radius:4px; padding:1px 5px; margin-top:2px; white-space:nowrap;';
-              badge.textContent = '❌';
-              snoTd.appendChild(badge);
-            }
-          } catch(e2) {}
-          nonEligRows.push(tr);
-        } else if (eligibleSet.has(psn)) {
-          // Eligible — add visual badge, move to top
-          try {
-            var snoTd = tr.querySelector('td:first-child');
-            if (snoTd) {
-              var badge = document.createElement('span');
-              badge.style.cssText = 'display:block; font-size:9px; color:#155724; font-weight:700; background:#d4edda; border-radius:4px; padding:1px 5px; margin-top:2px; white-space:nowrap;';
-              badge.textContent = '✅';
-              snoTd.appendChild(badge);
-            }
-          } catch(e2) {}
-          eligibleRows.push(tr);
-        }
-        // Rows not in any list = already excluded (not in pick table) — leave as is
-      });
-
-      // Re-append in order: eligible first, non-eligible last
-      eligibleRows.forEach(function(tr) { tbody.appendChild(tr); });
-      nonEligRows.forEach(function(tr) { tbody.appendChild(tr); });
-
-      console.log('[FILTER] Sorted: eligible=' + eligibleRows.length + ' top, non_eligible=' + nonEligRows.length + ' bottom, hidden=' + hiddenRows.length);
-    } catch(err) {
-      console.error('[FILTER] applyEligibilityFilter failed:', err);
-    }
-  })();
-
-  // NEW: Use sessionStorage and single-redirect flow on checkbox select
+  // Use sessionStorage and single-redirect flow on checkbox select
   document.querySelectorAll('.add-model-checkbox').forEach(cb => {
     cb.addEventListener('change', function () {
       try {
@@ -8109,23 +8180,31 @@ if (window.jQuery) {
       scanStatus.style.color = '#28a745';
     });
 
+    function _jigNormalizeScanValue(value) {
+      var normalized = String(value || '').toUpperCase().replace(/[\s\r\n]+/g, '').trim();
+      if (normalized.indexOf('J!') === 0) normalized = 'J1' + normalized.slice(2);
+      return normalized;
+    }
+
     scanInput.addEventListener('keydown', function(e) {
       if (e.key !== 'Enter') return;
-      var trayId = scanInput.value.trim();
-      if (trayId.length < 8) {
+      var scanId = _jigNormalizeScanValue(scanInput.value);
+      scanInput.value = scanId;
+      if (scanId.length < 8) {
         scanStatus.style.display = 'inline-block';
         scanStatus.style.color = '#28a745';
         scanStatus.textContent = 'PLEASE SCAN';
         return;
       }
 
-      fetch('/jig_loading/api/get_lot_id_for_tray/?tray_id=' + encodeURIComponent(trayId))
+      fetch('/jig_loading/api/get_lot_id_for_tray/?scan_id=' + encodeURIComponent(scanId))
         .then(function(res) { return res.json(); })
         .then(function(data) {
           if (data.success && data.lot_id) {
             var row = document.querySelector('tr[data-stock-lot-id="' + data.lot_id + '"]');
             if (row) {
               _jigScanHighlightAndMoveToTop(row, data.lot_id);
+              _jigOpenAddModalForDraftScan(row, data);
               scanInput.value = '';
               scanStatus.style.color = '#28a745';
               scanStatus.textContent = 'PLEASE SCAN';
@@ -8135,12 +8214,12 @@ if (window.jQuery) {
               var currentPage = currentUrl.searchParams.get('page') || '1';
               scanStatus.style.color = '#dc3545';
               scanStatus.textContent = 'Lot not on this page, searching...';
-              _jigScanSearchAcrossPages(data.lot_id, currentPage);
+              _jigScanSearchAcrossPages(data.lot_id, currentPage, data);
             }
           } else {
             scanStatus.style.display = 'inline-block';
             scanStatus.style.color = '#dc3545';
-            scanStatus.textContent = 'Invalid Tray ID!';
+            scanStatus.textContent = 'Invalid Scan ID!';
             setTimeout(function() { scanInput.select(); }, 50);
           }
         })
@@ -8178,16 +8257,52 @@ if (window.jQuery) {
 
     row.style.background = '#fff3cd';
     row.style.boxShadow = 'inset 0 0 0 2px #ffc107';
+    row.classList.add('active-row', 'dp-row-action-highlight', 'gs-active-scan');
+    if (row.dataset.batchId && typeof window.setActiveRow === 'function') {
+      window.setActiveRow(row.dataset.batchId + '||' + lotId);
+    }
     tbody.insertBefore(row, tbody.firstChild);
 
     var table = tbody.closest('table');
     if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function _jigScanSearchAcrossPages(lotId, currentPage) {
+  function _jigRowLooksDraft(row) {
+    if (!row) return false;
+    var status = (row.getAttribute('data-lot-status') || '').toLowerCase();
+    if (status === 'draft' || row.getAttribute('data-is-draft') === 'true') return true;
+    var titles = Array.from(row.querySelectorAll('[title], [data-bs-original-title]'));
+    return titles.some(function(el) {
+      return /\bdrafted?\b/i.test((el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-bs-original-title') || ''));
+    }) || /\bdrafted?\b/i.test(row.textContent || '');
+  }
+
+  function _jigOpenAddModalForDraftScan(row, data) {
+    if (!(data && (data.open_add_jig || data.is_draft)) && !_jigRowLooksDraft(row)) return false;
+    var addBtn = row.querySelector('.open-jig-modal-btn:not([disabled])');
+    if (!addBtn) return false;
+    setTimeout(function() {
+      if (!document.body.contains(addBtn)) return;
+      addBtn.click();
+      if (data && data.jig_id) {
+        setTimeout(function() {
+          var jigInput = document.getElementById('jigIdInput');
+          if (jigInput && !jigInput.value) {
+            jigInput.value = data.jig_id;
+            jigInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }, 650);
+      }
+    }, 180);
+    return true;
+  }
+
+  function _jigScanSearchAcrossPages(lotId, currentPage, scanData) {
     // Store lot_id in sessionStorage, then navigate page-by-page
     sessionStorage.setItem('jigScanPendingLotId', lotId);
     sessionStorage.setItem('jigScanOriginPage', currentPage);
+    sessionStorage.setItem('jigScanPendingOpenAddJig', scanData && scanData.open_add_jig ? '1' : '0');
+    sessionStorage.setItem('jigScanPendingJigId', scanData && scanData.jig_id ? scanData.jig_id : '');
 
     var totalPages = document.querySelectorAll('.pagination .page-link[href]').length;
     // Try next page first, wrap around
@@ -8210,18 +8325,29 @@ if (window.jQuery) {
     }
     sessionStorage.removeItem('jigScanPendingLotId');
     sessionStorage.removeItem('jigScanOriginPage');
+    sessionStorage.removeItem('jigScanPendingOpenAddJig');
+    sessionStorage.removeItem('jigScanPendingJigId');
   }
 
   // On page load: check if we're searching for a lot across pages
   document.addEventListener('DOMContentLoaded', function() {
     var pendingLotId = sessionStorage.getItem('jigScanPendingLotId');
     if (!pendingLotId) return;
+    var pendingOpenAddJig = sessionStorage.getItem('jigScanPendingOpenAddJig') === '1';
+    var pendingJigId = sessionStorage.getItem('jigScanPendingJigId') || '';
 
     var row = document.querySelector('tr[data-stock-lot-id="' + pendingLotId + '"]');
     if (row) {
       sessionStorage.removeItem('jigScanPendingLotId');
       sessionStorage.removeItem('jigScanOriginPage');
+      sessionStorage.removeItem('jigScanPendingOpenAddJig');
+      sessionStorage.removeItem('jigScanPendingJigId');
       _jigScanHighlightAndMoveToTop(row, pendingLotId);
+      _jigOpenAddModalForDraftScan(row, {
+        is_draft: pendingOpenAddJig || _jigRowLooksDraft(row),
+        open_add_jig: pendingOpenAddJig,
+        jig_id: pendingJigId
+      });
       var scanStatus = document.getElementById('pickTableScanStatus');
       if (scanStatus) {
         scanStatus.style.color = '#28a745';
@@ -8239,6 +8365,8 @@ if (window.jQuery) {
       if (nextPage === originPage || currentPage > 100) {
         sessionStorage.removeItem('jigScanPendingLotId');
         sessionStorage.removeItem('jigScanOriginPage');
+        sessionStorage.removeItem('jigScanPendingOpenAddJig');
+        sessionStorage.removeItem('jigScanPendingJigId');
         var scanStatus = document.getElementById('pickTableScanStatus');
         if (scanStatus) {
           scanStatus.style.color = '#dc3545';

@@ -226,6 +226,10 @@ class JigView(TemplateView):
 			exclude_list = [x.strip() for x in exclude_lot_raw.split(',') if x.strip()]
 			if exclude_list:
 				base_qs = base_qs.exclude(lot_id__in=exclude_list)
+			# PSN-based exclusion: already-selected models (primary + any added) by plating_stk_no.
+			# selected_models param = comma-separated PSNs already on the jig.
+			selected_models_raw = self.request.GET.get('selected_models', '')
+			selected_model_psns = [x.strip() for x in selected_models_raw.split(',') if x.strip()]
 			_t1 = _time.time()
 			print(f"[JIG PERF] base_qs built: {_t1 - _t0:.3f}s")
 			# Exclude lots already SUBMITTED in JigCompleted (they move to Completed table).
@@ -235,6 +239,10 @@ class JigView(TemplateView):
 			try:
 				is_merge_return = bool(self.request.GET.get('merge_model'))
 				is_add_model_popup = bool(exclude_lot_raw) and not is_merge_return
+				# Exclude rows whose PSN is already on the jig (catches same-PSN lots that differ by lot_id)
+				if is_add_model_popup and selected_model_psns:
+					base_qs = base_qs.exclude(batch_id__plating_stk_no__in=selected_model_psns)
+					print(f'[JIG PICK] PSN exclusion applied: {selected_model_psns}')
 				exclude_statuses = ['submitted', 'draft'] if is_add_model_popup else ['submitted']
 				# Get all lot_ids in one DB-level query (no Python loop)
 				exclude_lot_ids = set(
@@ -259,8 +267,71 @@ class JigView(TemplateView):
 				logging.exception("[JIG PICK] Failed to exclude submitted/draft lots")
 			_t2 = _time.time()
 			print(f"[JIG PERF] exclude lots: {_t2 - _t1:.3f}s")
-			# Apply ordering and slicing last - FIX 4: REDUCED TO [:10] FOR TESTING
+			# ===== MICRO-GROUP FILTER (DB-driven, Add Model flow only) =====
+			# When primary_lot_id + exclude_lot_id present, restrict pick table to same micro group.
+			# eligible_psns_for_filter is set here and reused by the excess lot loop below.
+			eligible_psns_for_filter = None  # None = no filter active; [] = filter active but empty
+			if primary_lot and is_add_model_popup:
+				try:
+					from Jig_Loading.models import ModelMicroGroup
+
+					# Resolve primary PSN from request first, then backend sources.
+					primary_psn = (self.request.GET.get('primary_psn', '') or '').strip()
+					if not primary_psn:
+						row = TotalStockModel.objects.filter(lot_id=primary_lot).values('batch_id__plating_stk_no').first()
+						primary_psn = ((row or {}).get('batch_id__plating_stk_no') or '').strip()
+					if not primary_psn:
+						row = ModelMasterCreation.objects.filter(lot_id=primary_lot).values('plating_stk_no').first()
+						primary_psn = ((row or {}).get('plating_stk_no') or '').strip()
+					if not primary_psn:
+						row = JigCompleted.objects.filter(lot_id=primary_lot).values('plating_stock_num').first()
+						primary_psn = ((row or {}).get('plating_stock_num') or '').strip()
+
+					print(f'[JIG PICK] Add-model filter: primary_psn={primary_psn!r}')
+
+					if not primary_psn:
+						print(f'[JIG PICK] Add-model filter: primary_psn not resolved for lot_id={primary_lot!r} — showing no rows')
+						base_qs = base_qs.none()
+						eligible_psns_for_filter = []
+					else:
+						# Directly query ModelMicroGroup — single source of truth, no helper wrappers.
+						group_entry = ModelMicroGroup.objects.filter(plating_stk_no=primary_psn, is_active=True).first()
+						group_name = group_entry.group_name if group_entry else None
+						print(f'[JIG PICK] Add-model filter: group_name={group_name!r}')
+
+						if not group_entry:
+							print(f'[JIG PICK] Add-model filter: No micro-group for primary_psn={primary_psn!r} — showing no rows')
+							base_qs = base_qs.none()
+							eligible_psns_for_filter = []
+						else:
+							# Fetch ALL active models in this group (including the primary itself).
+							eligible_psns = list(
+								ModelMicroGroup.objects.filter(group_name=group_name, is_active=True)
+								.values_list('plating_stk_no', flat=True)
+							)
+							print(f'[JIG PICK] Add-model filter: eligible_psns={eligible_psns}')
+
+							if not eligible_psns:
+								base_qs = base_qs.none()
+								eligible_psns_for_filter = []
+							else:
+								base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
+								eligible_psns_for_filter = eligible_psns
+								print(f'[JIG PICK] Add-model filter applied: base_qs count={base_qs.count()}')
+				except Exception:
+					logging.exception("[JIG PICK] Failed to apply micro-group filter")
+			# Apply ordering — no slice limit in Add Model mode (show all eligible)
+			_slice = None if (primary_lot and is_add_model_popup) else 10
 			qs = base_qs.only(
+				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
+				'brass_audit_physical_qty', 'total_stock',
+				'brass_audit_last_process_date_time',
+				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
+				'batch_id__batch_id', 'batch_id__plating_stk_no',
+				'batch_id__polishing_stk_no', 'batch_id__plating_color',
+				'batch_id__polish_finish', 'batch_id__model_stock_no',
+				'batch_id__model_stock_no__id',
+			).order_by('-brass_audit_last_process_date_time') if _slice is None else base_qs.only(
 				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
@@ -433,6 +504,20 @@ class JigView(TemplateView):
 						logging.info(f'[JIG PICK] Skipping excess lot {real_excess_lot_id} — already submitted')
 						continue
 
+					# Skip excess lots explicitly excluded by lot ID (e.g. primary lot in Add Model flow)
+					if exclude_list and real_excess_lot_id in set(exclude_list):
+						continue
+
+					# In Add Model mode, only show excess lots from the same micro group.
+					excess_psn_val = (excess_model_name or jc.plating_stock_num or '').strip().split(' [')[0]
+					if eligible_psns_for_filter is not None:
+						if excess_psn_val not in eligible_psns_for_filter:
+							continue
+
+					# Skip excess lots whose PSN is already selected (primary + added models)
+					if is_add_model_popup and selected_model_psns and excess_psn_val in selected_model_psns:
+						continue
+
 					excess_data = {
 						'batch_id': jc.batch_id,
 						'stock_lot_id': real_excess_lot_id,
@@ -556,6 +641,11 @@ class JigView(TemplateView):
 			page_obj = paginator.get_page(page_number)
 			context['master_data'] = page_obj
 			context['page_obj'] = page_obj
+			# Pass Add Model filter context to template (for empty-state warning)
+			context['is_add_model_popup'] = is_add_model_popup
+			context['add_model_primary_lot'] = primary_lot or ''
+			context['add_model_primary_batch'] = self.request.GET.get('primary_batch_id', '')
+			context['add_model_no_results'] = is_add_model_popup and len(master_data) == 0
 
 			print(f"[JIG PERF] TOTAL JigView: {_time.time() - _t0:.3f}s ({len(master_data)} records)")
 
@@ -4484,13 +4574,35 @@ class LotFetchAPI(APIView):
 			logging.exception('[LOT_FETCH] Failed to read other drafts')
 
 		# 4. Fetch brass-audit-accepted lots, excluding submitted + other drafts + already allocated
+		#    and restricting to primary model's micro group (SSOT).
 		exclude_ids = submitted_lot_ids | other_draft_lot_ids | allocated_lot_ids
 		try:
 			from django.db.models import Q as _Q
+			from Jig_Loading.models import ModelMicroGroup
+
+			primary_psn = ''
+			if primary_lot_id:
+				primary_row = TotalStockModel.objects.filter(lot_id=primary_lot_id).values('batch_id__plating_stk_no').first()
+				primary_psn = ((primary_row or {}).get('batch_id__plating_stk_no') or '').strip()
+			if not primary_psn and primary_lot_id:
+				primary_row = ModelMasterCreation.objects.filter(lot_id=primary_lot_id).values('plating_stk_no').first()
+				primary_psn = ((primary_row or {}).get('plating_stk_no') or '').strip()
+
+			eligible_psns = []
+			if primary_psn:
+				eligible_psns = ModelMicroGroup.get_eligible_models(primary_psn, exclude_psns=[primary_psn])
+				eligible_psns.append(primary_psn)
+				eligible_psns = list(set([psn for psn in eligible_psns if psn]))
 			base_qs = TotalStockModel.objects.filter(
 				_Q(brass_audit_accptance=True) |
 				_Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
 			).select_related('batch_id', 'batch_id__model_stock_no')
+			if primary_lot_id:
+				if eligible_psns:
+					base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
+				else:
+					# Add-mode should fail-closed when micro-group mapping is missing.
+					base_qs = base_qs.none()
 			if exclude_ids:
 				base_qs = base_qs.exclude(lot_id__in=list(exclude_ids))
 			lots = base_qs.order_by('-brass_audit_last_process_date_time')[:200]
@@ -4658,29 +4770,71 @@ class ExcessTrayInfoAPI(APIView):
 
 def jig_get_lot_id_for_tray(request):
 	"""
-	Get lot_id for a given tray_id to support barcode scanner in Jig Loading pick table.
-	Searches JigLoadTrayId first, then BrassAudit tables, then TrayId as fallback.
+	Get lot_id for a scanned tray_id or drafted jig_id in the Jig Loading pick table.
+	Searches drafted Jig IDs first, then active tray drafts, JigLoadTrayId, BrassAudit tables, and TrayId as fallback.
 	Only returns lot_ids that are brass-audit-accepted (visible in pick table).
 
 	GET /jig_loading/api/get_lot_id_for_tray/?tray_id=<tray_id>
 	"""
-	tray_id = request.GET.get('tray_id', '').strip()
+	scan_id = (request.GET.get('scan_id') or request.GET.get('tray_id') or '').strip()
 
-	if not tray_id:
-		return JsonResponse({'success': False, 'error': 'tray_id parameter is required'})
+	if not scan_id:
+		return JsonResponse({'success': False, 'error': 'scan_id or tray_id parameter is required'})
 
 	try:
+		from django.db.models import Q as _Q
+		from .selectors import (
+			find_active_draft_by_jig_id,
+			find_active_draft_by_scanned_tray,
+			looks_like_jig_id,
+			normalize_jig_id,
+			normalize_tray_id,
+		)
+
+		tray_id = normalize_tray_id(scan_id)
+		jig_id = normalize_jig_id(scan_id)
+
+		def _lot_visible_in_jig_picktable(lot_id):
+			return TotalStockModel.objects.filter(
+				_Q(brass_audit_accptance=True) | _Q(brass_audit_few_cases_accptance=True),
+				lot_id=lot_id
+			).exists()
+
+		if looks_like_jig_id(jig_id):
+			active_jig_draft = find_active_draft_by_jig_id(jig_id, request.user)
+			if active_jig_draft and active_jig_draft.lot_id and _lot_visible_in_jig_picktable(str(active_jig_draft.lot_id)):
+				return JsonResponse({
+					'success': True,
+					'lot_id': str(active_jig_draft.lot_id),
+					'batch_id': str(active_jig_draft.batch_id or ''),
+					'source': getattr(active_jig_draft, 'source', active_jig_draft.__class__.__name__),
+					'scan_type': 'jig_id',
+					'jig_id': jig_id,
+					'is_draft': True,
+					'open_add_jig': True,
+				})
+
+		# Drafted delink scans may live only in JigLoadingManualDraft until submit.
+		try:
+			active_draft = find_active_draft_by_scanned_tray(tray_id, request.user)
+			if active_draft and active_draft.lot_id and _lot_visible_in_jig_picktable(str(active_draft.lot_id)):
+				return JsonResponse({
+					'success': True,
+					'lot_id': str(active_draft.lot_id),
+					'batch_id': str(active_draft.batch_id or ''),
+					'source': 'JigLoadingManualDraft',
+					'is_draft': True,
+					'open_add_jig': True,
+				})
+		except Exception as draft_lookup_error:
+			logging.warning(f'jig_get_lot_id_for_tray draft lookup failed: {draft_lookup_error}')
+
 		# Strategy 1: Check JigLoadTrayId table (most specific to Jig Loading)
 		jig_tray = JigLoadTrayId.objects.filter(tray_id=tray_id).first()
 		if jig_tray and jig_tray.lot_id:
 			lot_id = str(jig_tray.lot_id)
 			# Verify lot is in pick table (brass-audit-accepted)
-			from django.db.models import Q as _Q
-			exists = TotalStockModel.objects.filter(
-				_Q(brass_audit_accptance=True) | _Q(brass_audit_few_cases_accptance=True),
-				lot_id=lot_id
-			).exists()
-			if exists:
+			if _lot_visible_in_jig_picktable(lot_id):
 				return JsonResponse({'success': True, 'lot_id': lot_id, 'source': 'JigLoadTrayId'})
 
 		# Strategy 2: Check BrassAudit tables
@@ -4689,22 +4843,12 @@ def jig_get_lot_id_for_tray(request):
 			ba_tray = BrassAuditTrayId.objects.filter(tray_id=tray_id).first()
 			if ba_tray and ba_tray.lot_id:
 				lot_id = str(ba_tray.lot_id)
-				from django.db.models import Q as _Q
-				exists = TotalStockModel.objects.filter(
-					_Q(brass_audit_accptance=True) | _Q(brass_audit_few_cases_accptance=True),
-					lot_id=lot_id
-				).exists()
-				if exists:
+				if _lot_visible_in_jig_picktable(lot_id):
 					return JsonResponse({'success': True, 'lot_id': lot_id, 'source': 'BrassAuditTrayId'})
 			brass_tray = BrassTrayId.objects.filter(tray_id=tray_id).first()
 			if brass_tray and brass_tray.lot_id:
 				lot_id = str(brass_tray.lot_id)
-				from django.db.models import Q as _Q
-				exists = TotalStockModel.objects.filter(
-					_Q(brass_audit_accptance=True) | _Q(brass_audit_few_cases_accptance=True),
-					lot_id=lot_id
-				).exists()
-				if exists:
+				if _lot_visible_in_jig_picktable(lot_id):
 					return JsonResponse({'success': True, 'lot_id': lot_id, 'source': 'BrassTrayId'})
 		except ImportError:
 			pass
@@ -4714,15 +4858,10 @@ def jig_get_lot_id_for_tray(request):
 		tray_obj = TrayId.objects.filter(tray_id=tray_id).first()
 		if tray_obj and tray_obj.lot_id:
 			lot_id = str(tray_obj.lot_id)
-			from django.db.models import Q as _Q
-			exists = TotalStockModel.objects.filter(
-				_Q(brass_audit_accptance=True) | _Q(brass_audit_few_cases_accptance=True),
-				lot_id=lot_id
-			).exists()
-			if exists:
+			if _lot_visible_in_jig_picktable(lot_id):
 				return JsonResponse({'success': True, 'lot_id': lot_id, 'source': 'TrayId'})
 
-		return JsonResponse({'success': False, 'error': f'Tray {tray_id} not found in Jig Loading system'})
+		return JsonResponse({'success': False, 'error': f'Scan ID {scan_id} not found in Jig Loading system'})
 
 	except Exception as e:
 		logging.exception(f'jig_get_lot_id_for_tray error: {str(e)}')

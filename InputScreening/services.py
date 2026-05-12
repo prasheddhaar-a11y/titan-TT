@@ -34,6 +34,47 @@ logger = logging.getLogger(__name__)
 
 _PLACEHOLDER_IMAGE = "assets/images/imagePlaceholder.jpg"
 
+def _verification_row_ui(verified: int, total: int) -> Dict[str, Any]:
+    """Small backend-owned display state for tray verification progress."""
+    pending = max(total - verified, 0)
+    all_verified = total > 0 and pending == 0
+    partial_verified = total > 0 and verified > 0 and not all_verified
+    if all_verified:
+        verification_state = "all_verified"
+        process_q_state = "complete"
+        lot_status_label = "Yet to Start"
+    elif partial_verified:
+        verification_state = "partial_verified"
+        process_q_state = "partial"
+        lot_status_label = "Draft"
+    else:
+        verification_state = "not_started"
+        process_q_state = "pending"
+        lot_status_label = "Yet to Start"
+
+    return {
+        "verification_state": verification_state,
+        "process_q_state": process_q_state,
+        "lot_status_label": lot_status_label,
+        "current_stage_label": "Day Planning to Inputscreening" if all_verified else "",
+        "actions_enabled": all_verified,
+    }
+
+
+def _sync_total_stock_verification_flags(lot_id: str, verified: int, total: int) -> None:
+    """Persist pick-table verification flags on the TotalStockModel SSOT row."""
+    from modelmasterapp.models import TotalStockModel
+
+    row_ui = _verification_row_ui(verified, total)
+    all_verified = row_ui["verification_state"] == "all_verified"
+    partial_verified = row_ui["verification_state"] == "partial_verified"
+    TotalStockModel.objects.filter(lot_id=lot_id).update(
+        ip_person_qty_verified=all_verified,
+        tray_verify=all_verified,
+        draft_tray_verify=partial_verified,
+    )
+
+
 def _prefetch_pick_table_extras(rows: List[Dict[str, Any]]):
     """Bulk-fetch sibling data needed by row enrichment in O(1) queries.
 
@@ -67,26 +108,31 @@ def _prefetch_pick_table_extras(rows: List[Dict[str, Any]]):
         for rec in IP_Rejection_ReasonStore.objects.filter(lot_id__in=lot_ids):
             rejection_map.setdefault(rec.lot_id, rec.total_rejection_quantity or 0)
 
-    # ✅ NEW: Check tray verification status for each lot
     verification_map: Dict[str, bool] = {}
+    partial_verification_map: Dict[str, bool] = {}
     if lot_ids:
-        for lot_id in lot_ids:
-            # Get all active trays for this lot
-            total_trays = DPTrayId_History.objects.filter(
-                lot_id=lot_id, delink_tray=False
-            ).count()
-            
-            # Get verified trays count
-            verified_trays = IP_TrayVerificationStatus.objects.filter(
-                lot_id=lot_id, is_verified=True
-            ).count()
-            
-            # All trays verified if counts match and at least one tray exists
-            verification_map[lot_id] = (
-                total_trays > 0 and total_trays == verified_trays
-            )
+        active_tray_ids_by_lot: Dict[str, set] = {}
+        for tray in DPTrayId_History.objects.filter(
+            lot_id__in=lot_ids, delink_tray=False
+        ).values("lot_id", "tray_id"):
+            active_tray_ids_by_lot.setdefault(tray["lot_id"], set()).add(tray["tray_id"])
 
-    return mmc_map, stock_map, rejection_map, verification_map
+        verified_counts: Dict[str, int] = {lot_id: 0 for lot_id in lot_ids}
+        for status in IP_TrayVerificationStatus.objects.filter(
+            lot_id__in=lot_ids, is_verified=True
+        ).values("lot_id", "tray_id"):
+            active_ids = active_tray_ids_by_lot.get(status["lot_id"], set())
+            if status["tray_id"] in active_ids:
+                verified_counts[status["lot_id"]] = verified_counts.get(status["lot_id"], 0) + 1
+
+        for lot_id in lot_ids:
+            total_trays = len(active_tray_ids_by_lot.get(lot_id, set()))
+            verified_trays = verified_counts.get(lot_id, 0)
+            row_ui = _verification_row_ui(verified_trays, total_trays)
+            verification_map[lot_id] = row_ui["verification_state"] == "all_verified"
+            partial_verification_map[lot_id] = row_ui["verification_state"] == "partial_verified"
+
+    return mmc_map, stock_map, rejection_map, verification_map, partial_verification_map
 
 def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Decorate the dict rows produced by ``pick_table_queryset`` with the
@@ -98,7 +144,7 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     debug ``print`` statements have been replaced with structured
     logging at DEBUG level.
     """
-    mmc_map, stock_map, rejection_map, verification_map = _prefetch_pick_table_extras(rows)
+    mmc_map, stock_map, rejection_map, verification_map, partial_verification_map = _prefetch_pick_table_extras(rows)
     placeholder = [static(_PLACEHOLDER_IMAGE)]
 
     for data in rows:
@@ -106,8 +152,8 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         lot_id = data.get("stock_lot_id")
         logger.debug("IS pick row batch=%s lot=%s", batch_id, lot_id)
 
-        # ✅ NEW: Add tray verification status
         data["all_trays_verified"] = verification_map.get(lot_id, False)
+        data["partial_trays_verified"] = partial_verification_map.get(lot_id, False)
 
         # vendor_location (template renders this directly)
         data["vendor_location"] = (
@@ -200,6 +246,7 @@ def get_dp_tray_panel(lot_id: str) -> Dict[str, Any]:
 
     total = len(tray_list)
     verified = sum(1 for t in tray_list if t["is_verified"])
+    pending = total - verified
 
     plating_stk_no = "—"
     batch = (
@@ -218,7 +265,7 @@ def get_dp_tray_panel(lot_id: str) -> Dict[str, Any]:
         if dp_record and dp_record.batch_id and dp_record.batch_id.plating_stk_no:
             plating_stk_no = dp_record.batch_id.plating_stk_no
 
-    all_verified = total > 0 and (total - verified) == 0
+    all_verified = total > 0 and pending == 0
     return {
         "success": True,
         "lot_id": lot_id,
@@ -226,11 +273,12 @@ def get_dp_tray_panel(lot_id: str) -> Dict[str, Any]:
         "trays": tray_list,
         "total": total,
         "verified": verified,
-        "pending": total - verified,
+        "pending": pending,
         "all_verified": all_verified,
         "enable_actions": {"accept": all_verified, "reject": all_verified},
         "total_qty": total_qty,
         "verified_qty": verified_qty,
+        "row_ui": _verification_row_ui(verified, total),
     }
 
 def record_tray_verification(lot_id: str, tray_id: str, user) -> Tuple[Dict[str, Any], int]:
@@ -252,11 +300,20 @@ def record_tray_verification(lot_id: str, tray_id: str, user) -> Tuple[Dict[str,
     if IP_TrayVerificationStatus.objects.filter(
         lot_id=lot_id, tray_id=tray_id, is_verified=True
     ).exists():
+        stats = get_dp_tray_panel(lot_id)
         return (
             {
                 "success": False,
                 "status": "already_verified",
                 "message": "Already Verified ⚠️",
+                "verified": stats.get("verified", 0),
+                "total": stats.get("total", 0),
+                "pending": stats.get("pending", 0),
+                "all_verified": stats.get("all_verified", False),
+                "enable_actions": stats.get("enable_actions", {"accept": False, "reject": False}),
+                "total_qty": stats.get("total_qty", 0),
+                "verified_qty": stats.get("verified_qty", 0),
+                "row_ui": stats.get("row_ui", _verification_row_ui(0, 0)),
             },
             200,
         )
@@ -315,44 +372,32 @@ def record_tray_verification(lot_id: str, tray_id: str, user) -> Tuple[Dict[str,
     #    update the top cards and enable Accept/Reject without a second
     #    network round-trip.
     from DayPlanning.models import DPTrayId_History as _DPH
-    from django.db.models import Sum as _Sum
     from .models import IP_TrayVerificationStatus as _TVS
 
-    total = _DPH.objects.filter(lot_id=lot_id, delink_tray=False).count()
-    verified = _TVS.objects.filter(lot_id=lot_id, is_verified=True).count()
+    active_trays = list(
+        _DPH.objects.filter(lot_id=lot_id, delink_tray=False)
+        .values("tray_id", "tray_quantity")
+    )
+    active_tray_ids = {tray["tray_id"] for tray in active_trays}
+    verified_tray_ids = set(
+        _TVS.objects.filter(lot_id=lot_id, is_verified=True, tray_id__in=active_tray_ids)
+        .values_list("tray_id", flat=True)
+    )
+    total = len(active_trays)
+    verified = len(verified_tray_ids)
     pending = total - verified
     all_verified = total > 0 and pending == 0
 
-    # When every tray for the lot is verified, mark the parent lot as
-    # quantity-verified so the Pick Table's "Q" badge in Process Status
-    # turns full green (template reads ``ip_person_qty_verified``).
-    # Idempotent — safe to call repeatedly.
-    if all_verified:
-        try:
-            from modelmasterapp.models import ModelMasterCreation as _MMC
-            _MMC.objects.filter(stock_lot_id=lot_id).update(
-                ip_person_qty_verified=True,
-                tray_verify=True,
-            )
-        except Exception:  # pragma: no cover - defensive only
-            logger.warning(
-                "[IS][VERIFY] could not flip ip_person_qty_verified for lot=%s",
-                lot_id,
-            )
+    try:
+        _sync_total_stock_verification_flags(lot_id, verified, total)
+    except Exception:  # pragma: no cover - defensive only
+        logger.warning("[IS][VERIFY] could not sync verification flags for lot=%s", lot_id)
 
-    total_qty = (
-        _DPH.objects.filter(lot_id=lot_id, delink_tray=False)
-        .aggregate(s=_Sum("tray_quantity"))["s"] or 0
-    )
-    verified_tray_ids = set(
-        _TVS.objects.filter(lot_id=lot_id, is_verified=True)
-        .values_list("tray_id", flat=True)
-    )
-    verified_qty = (
-        _DPH.objects.filter(
-            lot_id=lot_id, delink_tray=False, tray_id__in=verified_tray_ids
-        ).aggregate(s=_Sum("tray_quantity"))["s"] or 0
-        if verified_tray_ids else 0
+    total_qty = sum(tray["tray_quantity"] or 0 for tray in active_trays)
+    verified_qty = sum(
+        tray["tray_quantity"] or 0
+        for tray in active_trays
+        if tray["tray_id"] in verified_tray_ids
     )
 
     return (
@@ -367,6 +412,7 @@ def record_tray_verification(lot_id: str, tray_id: str, user) -> Tuple[Dict[str,
             "enable_actions": {"accept": all_verified, "reject": all_verified},
             "total_qty": total_qty,
             "verified_qty": verified_qty,
+            "row_ui": _verification_row_ui(verified, total),
         },
         200,
     )
@@ -405,40 +451,32 @@ def unverify_tray(lot_id: str, tray_id: str) -> Tuple[Dict[str, Any], int]:
 
     # Re-compute stats
     from DayPlanning.models import DPTrayId_History as _DPH
-    from django.db.models import Sum as _Sum
     from .models import IP_TrayVerificationStatus as _TVS
 
-    total = _DPH.objects.filter(lot_id=lot_id, delink_tray=False).count()
-    verified = _TVS.objects.filter(lot_id=lot_id, is_verified=True).count()
+    active_trays = list(
+        _DPH.objects.filter(lot_id=lot_id, delink_tray=False)
+        .values("tray_id", "tray_quantity")
+    )
+    active_tray_ids = {tray["tray_id"] for tray in active_trays}
+    verified_tray_ids = set(
+        _TVS.objects.filter(lot_id=lot_id, is_verified=True, tray_id__in=active_tray_ids)
+        .values_list("tray_id", flat=True)
+    )
+    total = len(active_trays)
+    verified = len(verified_tray_ids)
     pending = total - verified
     all_verified = total > 0 and pending == 0
 
-    # Clear the ip_person_qty_verified flag since at least one tray is now unverified.
-    if not all_verified:
-        try:
-            from modelmasterapp.models import ModelMasterCreation as _MMC
-            _MMC.objects.filter(stock_lot_id=lot_id).update(
-                ip_person_qty_verified=False,
-                tray_verify=False,
-            )
-        except Exception:
-            logger.warning(
-                "[IS][UNVERIFY] could not clear ip_person_qty_verified for lot=%s", lot_id
-            )
+    try:
+        _sync_total_stock_verification_flags(lot_id, verified, total)
+    except Exception:
+        logger.warning("[IS][UNVERIFY] could not sync verification flags for lot=%s", lot_id)
 
-    total_qty = (
-        _DPH.objects.filter(lot_id=lot_id, delink_tray=False)
-        .aggregate(s=_Sum("tray_quantity"))["s"] or 0
-    )
-    verified_tray_ids = set(
-        _TVS.objects.filter(lot_id=lot_id, is_verified=True)
-        .values_list("tray_id", flat=True)
-    )
-    verified_qty = (
-        _DPH.objects.filter(
-            lot_id=lot_id, delink_tray=False, tray_id__in=verified_tray_ids
-        ).aggregate(s=_Sum("tray_quantity"))["s"] or 0
-        if verified_tray_ids else 0
+    total_qty = sum(tray["tray_quantity"] or 0 for tray in active_trays)
+    verified_qty = sum(
+        tray["tray_quantity"] or 0
+        for tray in active_trays
+        if tray["tray_id"] in verified_tray_ids
     )
 
     return (
@@ -454,6 +492,7 @@ def unverify_tray(lot_id: str, tray_id: str) -> Tuple[Dict[str, Any], int]:
             "enable_actions": {"accept": all_verified, "reject": all_verified},
             "total_qty": total_qty,
             "verified_qty": verified_qty,
+            "row_ui": _verification_row_ui(verified, total),
         },
         200,
     )

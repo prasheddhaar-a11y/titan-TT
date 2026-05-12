@@ -901,6 +901,17 @@
   margin: 0;
   max-width: 400px;
 }
+
+/* Override: Remove yellow row highlight for bulk upload data table */
+.data-table tr.dp-row-action-highlight > td {
+  background: inherit !important;
+  z-index: auto !important;
+  position: static !important;
+  left: auto !important;
+}
+.data-table tr.dp-row-action-highlight {
+  background-color: transparent !important;
+}
 </style>
 
 <div>
@@ -2006,7 +2017,17 @@ function renderTable() {
           const input = document.createElement('input');
           input.className = 'cell-input';
           input.value = currentValue;
-          
+
+          // Auto uppercase for text fields (not numeric)
+          if (column !== 'Input Qty') {
+            input.addEventListener('input', function() {
+              const start = this.selectionStart;
+              const end = this.selectionEnd;
+              this.value = this.value.toUpperCase();
+              this.setSelectionRange(start, end);
+            });
+          }
+
           // Only accept numeric input for Input Qty field
           if (column === 'Input Qty') {
             input.type = 'number';
@@ -2068,8 +2089,13 @@ function renderTable() {
           }
           
           const handleBlur = () => {
-            const newValue = input.value.trim();
-            
+            let newValue = input.value.trim();
+
+            // Ensure uppercase for text fields on save
+            if (column !== 'Input Qty') {
+              newValue = newValue.toUpperCase();
+            }
+
             // Validate Input Qty is numeric
             if (column === 'Input Qty' && newValue !== '') {
               if (!/^\d+$/.test(newValue) || parseInt(newValue) < 0) {

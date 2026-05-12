@@ -5,10 +5,12 @@ Cache TTL: 5 minutes (configurable).
 """
 from django.core.cache import cache
 from django.conf import settings
-from django.db import transaction
+from django.db import close_old_connections, transaction
 from django.contrib.auth.models import Group
 from django.utils.text import slugify
+import hashlib
 import logging
+import threading
 import time
 from .selectors import get_dashboard_stat_labels, get_dashboard_stats_for_labels
 from .models import Module, ShortcutConfiguration, UserModuleProvision
@@ -324,7 +326,92 @@ def _dashboard_cache_key(label):
     return f"dashboard_stats_{slugify(label).replace('-', '_')}"
 
 
-def get_cached_dashboard_stats(user_id=None, allowed_module_names=None):
+def _dashboard_latency_logs_enabled():
+    return getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False)
+
+
+def _dashboard_refresh_lock_key(labels):
+    digest = hashlib.md5('|'.join(labels).encode('utf-8')).hexdigest()
+    return f'dashboard_stats_refresh_{digest}'
+
+
+def get_dashboard_cache_snapshot(allowed_module_names=None):
+    """Return currently cached dashboard stats without calculating on miss."""
+    labels = (
+        get_dashboard_labels_for_modules(allowed_module_names)
+        if allowed_module_names is not None
+        else get_dashboard_stat_labels()
+    )
+    if not labels:
+        return [], [], [], 0.0
+
+    cache_keys = {label: _dashboard_cache_key(label) for label in labels}
+
+    t1 = time.time()
+    cached_by_key = cache.get_many(cache_keys.values())
+    cache_lookup_ms = (time.time() - t1) * 1000
+
+    stats_by_label = {}
+    stale_labels = []
+    for label, cache_key in cache_keys.items():
+        if cache_key not in cached_by_key:
+            continue
+        cached_stat = cached_by_key[cache_key]
+        if not cached_stat.get('display_stats'):
+            stale_labels.append(label)
+            continue
+        stats_by_label[label] = cached_stat
+
+    if stale_labels and _dashboard_latency_logs_enabled():
+        logger.warning(f'CACHE_STALE: dashboard_stats labels={stale_labels} missing display metadata')
+
+    missing_labels = [label for label in labels if label not in stats_by_label]
+    stats = [stats_by_label[label] for label in labels if label in stats_by_label]
+    return stats, labels, missing_labels, cache_lookup_ms
+
+
+def refresh_dashboard_stats_async(labels):
+    """Warm missing dashboard stats in a daemon thread without blocking API TTFB."""
+    labels = list(dict.fromkeys(labels or []))
+    if not labels:
+        return False
+
+    lock_key = _dashboard_refresh_lock_key(labels)
+    if not cache.add(lock_key, True, timeout=60):
+        return False
+
+    def refresh_cache():
+        try:
+            close_old_connections()
+            fresh_stats = get_dashboard_stats_for_labels(labels)
+            cache_payload = {}
+            for stat in fresh_stats:
+                label = stat.get('label')
+                if label:
+                    cache_payload[_dashboard_cache_key(label)] = stat
+
+            if cache_payload:
+                cache.set_many(cache_payload, timeout=DASHBOARD_STATS_CACHE_TTL)
+                if _dashboard_latency_logs_enabled():
+                    logger.warning(
+                        f'ASYNC_STATS_CACHED: labels={list(cache_payload.keys())} '
+                        f'TTL={DASHBOARD_STATS_CACHE_TTL}s'
+                    )
+        except RuntimeError as exc:
+            if 'interpreter shutdown' not in str(exc):
+                logger.exception(f'Error refreshing dashboard stats asynchronously: {exc}')
+        except Exception as exc:
+            logger.exception(f'Error refreshing dashboard stats asynchronously: {exc}')
+        finally:
+            cache.delete(lock_key)
+            close_old_connections()
+
+    thread = threading.Thread(target=refresh_cache, name='dashboard-stats-refresh', daemon=True)
+    thread.start()
+    return True
+
+
+def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculate_on_miss=True):
     """
     Fetch dashboard stats from cache, calculating only visible cards on miss.
     """
@@ -343,21 +430,40 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None):
     t2 = time.time()
     cache_lookup_ms = (t2 - t1) * 1000
 
-    stats_by_label = {
-        label: cached_by_key[cache_key]
-        for label, cache_key in cache_keys.items()
-        if cache_key in cached_by_key
-    }
+    stats_by_label = {}
+    stale_labels = []
+    for label, cache_key in cache_keys.items():
+        if cache_key not in cached_by_key:
+            continue
+        cached_stat = cached_by_key[cache_key]
+        if not cached_stat.get('display_stats'):
+            stale_labels.append(label)
+            continue
+        stats_by_label[label] = cached_stat
+
+    if stale_labels and _dashboard_latency_logs_enabled():
+        logger.warning(f'CACHE_STALE: dashboard_stats labels={stale_labels} missing display metadata')
+
     missing_labels = [label for label in labels if label not in stats_by_label]
 
     if not missing_labels:
-        logger.warning(f'CACHE_HIT: dashboard_stats labels={labels} (lookup={cache_lookup_ms:.2f}ms)')
+        if _dashboard_latency_logs_enabled():
+            logger.warning(f'CACHE_HIT: dashboard_stats labels={labels} (lookup={cache_lookup_ms:.2f}ms)')
         return [stats_by_label[label] for label in labels]
 
-    logger.warning(
-        f'CACHE_MISS: dashboard_stats missing={missing_labels} '
-        f'(lookup={cache_lookup_ms:.2f}ms), calculating fresh...'
-    )
+    if not calculate_on_miss:
+        if _dashboard_latency_logs_enabled():
+            logger.warning(
+                f'CACHE_PARTIAL: dashboard_stats missing={missing_labels} '
+                f'(lookup={cache_lookup_ms:.2f}ms), skipped synchronous calculation'
+            )
+        return [stats_by_label[label] for label in labels if label in stats_by_label]
+
+    if _dashboard_latency_logs_enabled():
+        logger.warning(
+            f'CACHE_MISS: dashboard_stats missing={missing_labels} '
+            f'(lookup={cache_lookup_ms:.2f}ms), calculating fresh...'
+        )
 
     try:
         t3 = time.time()
@@ -365,7 +471,8 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None):
         t4 = time.time()
         query_ms = (t4 - t3) * 1000
 
-        logger.warning(f'QUERIES_EXECUTED: {query_ms:.2f}ms')
+        if _dashboard_latency_logs_enabled():
+            logger.warning(f'QUERIES_EXECUTED: {query_ms:.2f}ms')
 
         cache_payload = {}
         for stat in fresh_stats:
@@ -377,7 +484,8 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None):
 
         if cache_payload:
             cache.set_many(cache_payload, timeout=DASHBOARD_STATS_CACHE_TTL)
-            logger.warning(f'STATS_CACHED: labels={list(cache_payload.keys())} TTL={DASHBOARD_STATS_CACHE_TTL}s')
+            if _dashboard_latency_logs_enabled():
+                logger.warning(f'STATS_CACHED: labels={list(cache_payload.keys())} TTL={DASHBOARD_STATS_CACHE_TTL}s')
 
         return [stats_by_label[label] for label in labels if label in stats_by_label]
     except Exception as e:

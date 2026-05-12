@@ -5,6 +5,7 @@ Reduces ~35 separate queries to ~8 total queries.
 """
 from django.db.models import Count, Q, Case, When, IntegerField, Value
 from django.db import close_old_connections
+from django.conf import settings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from modelmasterapp.models import ModelMasterCreation, TotalStockModel
 from Brass_QC.models import BrassTrayId as BQ_TrayId, Brass_Qc_Accepted_TrayScan, Brass_Qc_Accepted_TrayID_Store
@@ -59,6 +60,12 @@ def get_day_planning_stats():
         'moved_to_next_percent': int((jumbo_count / max(dp_total, 1)) * 100),
         'color': '#008080',
         'icon': 'mdi-package-variant-closed',
+        'display_stats': [
+            {'label': 'Total Batches', 'value': yet_to_start, 'unit': f'{yet_to_start}/{dp_total}', 'icon': 'mdi-folder-multiple'},
+            {'label': 'Processed', 'value': dp_processed, 'unit': 'Completed', 'icon': 'mdi-check-circle'},
+            {'label': 'Jumbo Tray Count', 'value': jumbo_count, 'unit': 'Loaded batches', 'icon': 'mdi-arrow-right-circle'},
+            {'label': 'Normal Tray Count', 'value': normal_count, 'unit': 'Loaded batches', 'icon': 'mdi-package-variant'},
+        ],
         'labels': {
             'total_lots': 'Total Rows (Yet to Start)',
             'progress': 'Total Processed in Complete Table',
@@ -93,12 +100,22 @@ def get_input_screening_stats():
         .count()
     )
 
+    accepted_count = IS_PartialAcceptLot.objects.count()
+    rejected_count = IS_PartialRejectLot.objects.count()
+    completed_count = InputScreening_Submitted.objects.filter(is_submitted=True, is_active=True).count()
+
     return {
         'label': 'Input Screening', 'color': '#00897b', 'icon': 'mdi-format-list-checks',
         'total_input_qty': pending_pick_rows,
-        'accepted_qty': IS_PartialAcceptLot.objects.count(),
-        'rejected_qty': IS_PartialRejectLot.objects.count(),
-        'completed_qty': InputScreening_Submitted.objects.filter(is_submitted=True, is_active=True).count(),
+        'accepted_qty': accepted_count,
+        'rejected_qty': rejected_count,
+        'completed_qty': completed_count,
+        'display_stats': [
+            {'label': 'Total Rows in Pick Table', 'value': pending_pick_rows, 'unit': 'Rows', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': accepted_count, 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': rejected_count, 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': completed_count, 'unit': 'Count', 'icon': 'mdi-check-all'},
+        ],
     }
 
 
@@ -124,10 +141,10 @@ def get_brass_qc_stats():
         'label': 'Brass QC', 'color': '#00796b', 'icon': 'mdi-shield-check',
         'total_qty': bq_total, 'accepted_qty': bq_acc, 'rejected_qty': bq_rej, 'completed_qty': bq_comp,
         'display_stats': [
-            {'label': 'Total Lots',  'value': bq_total, 'icon': 'mdi-table'},
-            {'label': 'Accepted',    'value': bq_acc,   'icon': 'mdi-check-circle'},
-            {'label': 'Rejected',    'value': bq_rej,   'icon': 'mdi-close-circle'},
-            {'label': 'Completed',   'value': bq_comp,  'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': bq_total, 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': bq_acc, 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': bq_rej, 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': bq_comp, 'unit': 'Count', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -149,10 +166,10 @@ def get_brass_audit_stats():
         'total_qty': stats['ba_total'], 'accepted_qty': stats['ba_acc'], 
         'rejected_qty': stats['ba_rej'], 'completed_qty': stats['ba_comp'],
         'display_stats': [
-            {'label': 'Total Lots', 'value': stats['ba_total'], 'icon': 'mdi-table'},
-            {'label': 'Accepted',   'value': stats['ba_acc'],   'icon': 'mdi-check-circle'},
-            {'label': 'Rejected',   'value': stats['ba_rej'],   'icon': 'mdi-close-circle'},
-            {'label': 'Completed',  'value': stats['ba_comp'],  'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': stats['ba_total'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': stats['ba_acc'], 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': stats['ba_rej'], 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': stats['ba_comp'], 'unit': 'Count', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -174,10 +191,10 @@ def get_iqf_stats():
         'total_qty': stats['iq_total'], 'accepted_qty': stats['iq_acc'], 
         'rejected_qty': stats['iq_rej'], 'completed_qty': stats['iq_comp'],
         'display_stats': [
-            {'label': 'Total Lots', 'value': stats['iq_total'], 'icon': 'mdi-table'},
-            {'label': 'Accepted',   'value': stats['iq_acc'],   'icon': 'mdi-check-circle'},
-            {'label': 'Rejected',   'value': stats['iq_rej'],   'icon': 'mdi-close-circle'},
-            {'label': 'Completed',  'value': stats['iq_comp'],  'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': stats['iq_total'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': stats['iq_acc'], 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': stats['iq_rej'], 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': stats['iq_comp'], 'unit': 'Count', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -202,10 +219,10 @@ def get_jig_loading_stats():
         'label': 'Jig Loading', 'color': '#0097a7', 'icon': 'mdi-upload',
         'total_qty': jl_total, 'loaded_qty': jl_loaded, 'draft_qty': jl_draft, 'remaining_qty': jl_remain,
         'display_stats': [
-            {'label': 'Total Lots',  'value': jl_total,  'icon': 'mdi-table'},
-            {'label': 'Jig Loaded',  'value': jl_loaded, 'icon': 'mdi-check-circle'},
-            {'label': 'In Draft',    'value': jl_draft,  'icon': 'mdi-pencil-box'},
-            {'label': 'Remaining',   'value': jl_remain, 'icon': 'mdi-clock-outline'},
+            {'label': 'Total Lots in Pick Table', 'value': jl_total, 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Jig Loaded', 'value': jl_loaded, 'unit': 'Completed', 'icon': 'mdi-check-circle'},
+            {'label': 'In Draft', 'value': jl_draft, 'unit': 'In Progress', 'icon': 'mdi-pencil-box'},
+            {'label': 'Remaining', 'value': jl_remain, 'unit': 'Yet to Load', 'icon': 'mdi-clock-outline'},
         ],
     }
 
@@ -227,10 +244,10 @@ def get_jig_unloading_stats():
         'label': 'Jig Unloading', 'color': '#00838f', 'icon': 'mdi-download',
         'total_qty': ju_total, 'unloaded_qty': ju_unloaded, 'draft_qty': ju_draft, 'remaining_qty': ju_remain,
         'display_stats': [
-            {'label': 'Total Jigs',  'value': ju_total,    'icon': 'mdi-table'},
-            {'label': 'Unloaded',    'value': ju_unloaded, 'icon': 'mdi-check-circle'},
-            {'label': 'In Draft',    'value': ju_draft,    'icon': 'mdi-pencil-box'},
-            {'label': 'Remaining',   'value': ju_remain,   'icon': 'mdi-clock-outline'},
+            {'label': 'Total Jigs Loaded', 'value': ju_total, 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Unloaded', 'value': ju_unloaded, 'unit': 'Processed', 'icon': 'mdi-check-circle'},
+            {'label': 'In Draft', 'value': ju_draft, 'unit': 'In Progress', 'icon': 'mdi-pencil-box'},
+            {'label': 'Remaining', 'value': ju_remain, 'unit': 'Yet to Unload', 'icon': 'mdi-clock-outline'},
         ],
     }
 
@@ -251,10 +268,10 @@ def get_inprocess_inspection_stats():
         'total_qty': stats['ip_total'], 'inspected_qty': stats['ip_inspected'], 
         'pending_qty': stats['ip_pending'], 'unloaded_qty': stats['ip_unloaded'],
         'display_stats': [
-            {'label': 'Total Jigs',  'value': stats['ip_total'],     'icon': 'mdi-table'},
-            {'label': 'Inspected',   'value': stats['ip_inspected'], 'icon': 'mdi-eye-check'},
-            {'label': 'Pending',     'value': stats['ip_pending'],   'icon': 'mdi-clock-outline'},
-            {'label': 'Unloaded',    'value': stats['ip_unloaded'],  'icon': 'mdi-check-all'},
+            {'label': 'Total Jigs', 'value': stats['ip_total'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Inspected', 'value': stats['ip_inspected'], 'unit': 'Assigned', 'icon': 'mdi-eye-check'},
+            {'label': 'Pending', 'value': stats['ip_pending'], 'unit': 'In Pick Table', 'icon': 'mdi-clock-outline'},
+            {'label': 'Unloaded', 'value': stats['ip_unloaded'], 'unit': 'Completed', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -275,10 +292,10 @@ def get_nickel_inspection_stats():
         'total_qty': stats['ni_total'], 'accepted_qty': stats['ni_acc'], 
         'rejected_qty': stats['ni_rej'], 'completed_qty': stats['ni_comp'],
         'display_stats': [
-            {'label': 'Total Lots', 'value': stats['ni_total'], 'icon': 'mdi-table'},
-            {'label': 'Accepted',   'value': stats['ni_acc'],   'icon': 'mdi-check-circle'},
-            {'label': 'Rejected',   'value': stats['ni_rej'],   'icon': 'mdi-close-circle'},
-            {'label': 'Completed',  'value': stats['ni_comp'],  'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': stats['ni_total'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': stats['ni_acc'], 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': stats['ni_rej'], 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': stats['ni_comp'], 'unit': 'Count', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -299,10 +316,10 @@ def get_nickel_audit_stats():
         'total_qty': stats['na_total'], 'accepted_qty': stats['na_acc'], 
         'rejected_qty': stats['na_rej'], 'completed_qty': stats['na_comp'],
         'display_stats': [
-            {'label': 'Total Lots', 'value': stats['na_total'], 'icon': 'mdi-table'},
-            {'label': 'Accepted',   'value': stats['na_acc'],   'icon': 'mdi-check-circle'},
-            {'label': 'Rejected',   'value': stats['na_rej'],   'icon': 'mdi-close-circle'},
-            {'label': 'Completed',  'value': stats['na_comp'],  'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': stats['na_total'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Accepted Count', 'value': stats['na_acc'], 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'Rejected Count', 'value': stats['na_rej'], 'unit': 'Count', 'icon': 'mdi-close-circle'},
+            {'label': 'Completed Count', 'value': stats['na_comp'], 'unit': 'Count', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -333,10 +350,10 @@ def get_spider_spindle_stats():
         'hold_qty': stats['hold_qty'],
         'completed_qty': stats['completed_qty'],
         'display_stats': [
-            {'label': 'Total Lots', 'value': stats['total_qty'], 'icon': 'mdi-table'},
-            {'label': 'Released', 'value': stats['released_qty'], 'icon': 'mdi-check-circle'},
-            {'label': 'On Hold', 'value': stats['hold_qty'], 'icon': 'mdi-pause-circle'},
-            {'label': 'Completed', 'value': stats['completed_qty'], 'icon': 'mdi-check-all'},
+            {'label': 'Total Lots in Pick Table', 'value': stats['total_qty'], 'unit': 'Lots', 'icon': 'mdi-table'},
+            {'label': 'Released', 'value': stats['released_qty'], 'unit': 'Count', 'icon': 'mdi-check-circle'},
+            {'label': 'On Hold', 'value': stats['hold_qty'], 'unit': 'Count', 'icon': 'mdi-pause-circle'},
+            {'label': 'Completed', 'value': stats['completed_qty'], 'unit': 'Unloaded', 'icon': 'mdi-check-all'},
         ],
     }
 
@@ -393,11 +410,13 @@ def get_dashboard_stats_for_labels(labels=None):
             }
             for future in as_completed(future_map):
                 index, module_name, stat, elapsed_ms = future.result()
-                logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
+                if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
+                    logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
                 stats_by_index[index] = stat
 
     total_ms = (time.time() - total_start) * 1000
-    logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
+    if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
+        logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
 
     return [stat for stat in stats_by_index if stat is not None]
 

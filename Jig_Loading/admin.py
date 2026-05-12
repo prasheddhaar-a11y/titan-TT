@@ -127,6 +127,14 @@ class JigCompletedAdmin(admin.ModelAdmin):
     get_remarks_preview.admin_order_field = 'remarks'
 
 
+class ModelMicroGroupAdmin(admin.ModelAdmin):
+    list_display = ['group_name', 'plating_stk_no', 'is_active', 'created_at']
+    list_filter = ['group_name', 'is_active']
+    search_fields = ['group_name', 'plating_stk_no']
+    readonly_fields = ['created_at']
+    ordering = ['group_name', 'plating_stk_no']
+
+
 admin.site.register(Jig, JigAdmin)
 admin.site.register(JigLoadTrayId, JigLoadTrayIdAdmin)
 admin.site.register(JigLoadingMaster, JigLoadingMasterAdmin)
@@ -134,3 +142,4 @@ admin.site.register(BathNumbers, BathNumbersAdmin)
 admin.site.register(JigAutoSave, JigAutoSaveAdmin)
 admin.site.register(JigLoadingManualDraft, JigLoadingManualDraftAdmin)
 admin.site.register(JigCompleted, JigCompletedAdmin)
+admin.site.register(ModelMicroGroup, ModelMicroGroupAdmin)

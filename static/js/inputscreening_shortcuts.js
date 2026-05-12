@@ -7,7 +7,7 @@
  *   - F2 is always intercepted (prevents default browser action)
  *
  * Key map:
- *   F2     → Display "Please Scan" hint and open tray verification modal for selected / highlighted row (or first row if none selected)
+ *   F2     → Open shared tray scan mini popup only
  *   A      → focus/select row for Accept action (press Enter to confirm)
  *   R      → focus/select row for Reject action (press Enter to open reject modal)
  *   V      → View / open tray verification modal for selected row (same as clicking eye icon)
@@ -219,6 +219,26 @@
     }
   }
 
+  /** Open the shared global scan popup without choosing any row. */
+  function _openGlobalScanPopup() {
+    _hidePleaseScan();
+    if (window.GlobalPickTableScanner && typeof window.GlobalPickTableScanner.openScanModal === "function") {
+      window.GlobalPickTableScanner.openScanModal();
+      return true;
+    }
+    if (typeof window._gScanActivate === "function") {
+      window._gScanActivate();
+      return true;
+    }
+    var globalBtn = document.getElementById("globalScanBtn");
+    if (globalBtn) {
+      globalBtn.click();
+      return true;
+    }
+    _showPleaseScan();
+    return false;
+  }
+
   /** Focus/select row for Accept action. Pressing Enter then opens confirmation. */
   function _focusAcceptRow() {
     var row = _selectedRow || _getRows()[0];
@@ -381,21 +401,7 @@
     // F2 — always intercept, regardless of focus (changed from F1)
     if (e.key === "F2") {
       e.preventDefault();
-      // Show "Please Scan" hint
-      _showPleaseScan();
-      // If the selected (or first) row already has all trays verified,
-      // just highlight it so the operator can hit A/R immediately.
-      var _f2row = _selectedRow || _getRows()[0];
-      if (_f2row) {
-        var _f2accept = _f2row.querySelector(".btn-accept-is");
-        if (_f2accept && !_f2accept.disabled) {
-          _selectRow(_f2row);
-          _toast("All trays verified \u2013 press A to Accept or R to Reject", "success");
-          return;
-        }
-      }
-      // Otherwise open the Tray Verification Modal for the selected/first row.
-      _openScanMode();
+      _openGlobalScanPopup();
       return;
     }
 
@@ -512,10 +518,13 @@
       document.addEventListener("keydown", _onKeydown);
     }
 
-    // Page-level Scan button → show inline "PLEASE SCAN" indicator.
+    // Page-level Scan button opens the shared global scan popup.
     var scanBtn = document.getElementById("scanButton");
     if (scanBtn) {
-      scanBtn.addEventListener("click", _showPleaseScan);
+      scanBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        _openGlobalScanPopup();
+      });
     }
 
     // Capture-phase guard (ERR4): when the IS Reject Modal is open, block

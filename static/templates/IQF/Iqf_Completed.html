@@ -926,8 +926,7 @@
                           data-model-image="{{ data.model_images.0|default:'' }}"
                           data-few-cases-accepted-ip-stock="{{ data.iqf_few_cases_acceptance|yesno:'true,false' }}"
                             data-total-batch-quantity="{{ data.brass_rejection_total_qty }}"
-                        data-missing-qty="{{ data.iqf_missing_qty }}"
-                        data-physical-qty="{{ data.iqf_physical_qty }}">
+                        data-missing-qty="{{ data.iqf_missing_qty }}">
 
                           
                           <img src="{% static 'assets/icons/view.png' %}"
@@ -1205,8 +1204,7 @@
           </div>
           <p>
               RW Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-              Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
+              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span>
           </p>
         </div>
       </div>
@@ -1914,7 +1912,6 @@ document.addEventListener("DOMContentLoaded", function () {
           const modalModelNo = document.getElementById("modalModelNo_DayPlanning");
           const modalLotQty = document.getElementById("modalLotQty");
           const modalMissingQty = document.getElementById("modalMissingQty");
-          const modalPhysicalQty = document.getElementById("modalPhysicalQty");
 
           modal.dataset.batchId = link.getAttribute('data-batch-id');
           const modelNo = link.getAttribute('data-model-no');
@@ -1922,12 +1919,10 @@ document.addEventListener("DOMContentLoaded", function () {
           const totalBatchQuantity = link.getAttribute('data-total-batch-quantity') || "0";
           const lotQty = link.getAttribute('data-lot-qty') || "0";
           const missingQty = link.getAttribute('data-missing-qty') || "0";
-          const physicalQty = link.getAttribute('data-physical-qty') || "0";
 
           if (modalModelNo && modelNo) modalModelNo.textContent = modelNo;
           if (modalLotQty) modalLotQty.textContent = totalBatchQuantity || lotQty || '0';
           if (modalMissingQty) modalMissingQty.textContent = missingQty || '0';
-          if (modalPhysicalQty) modalPhysicalQty.textContent = physicalQty || '0';
 
           const modalUserImg = modal.querySelector('.user-profile img');
           const modelImage = link.getAttribute('data-model-image');
@@ -2789,7 +2784,6 @@ document.addEventListener('DOMContentLoaded', function() {
         '7': 'tray_type',
         '8': 'no_of_trays',
         '9': 'lot_qty',
-        '10': 'physical_qty',
         '11': 'accept_qty',
         '12': 'reject_qty',
         '13': 'process_status',

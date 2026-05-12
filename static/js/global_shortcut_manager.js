@@ -7,8 +7,7 @@
         'gkb-row-focus',
         'dp-row-action-highlight',
         'gs-active-scan',
-        'gs-hi',
-        'highlighted-tray-scan'
+        'gs-hi'
     ];
     var ROW_QUERY = '#order-listing tbody tr, table.dataTable tbody tr, table tbody tr';
     var MODAL_ROOT_QUERY = [
@@ -36,8 +35,9 @@
     installClickTracking();
     installKeyboardHandler();
     loadShortcuts();
-    onReady(restoreSavedRowState);
+    onReady(clearPending);
     onReady(installMutationObserver);
+    window.addEventListener('pagehide', clearPending);
 
     function injectHighlightStyle() {
         if (document.getElementById('gkb-highlight-style')) {
@@ -898,10 +898,34 @@
             }
             try {
                 var context = JSON.parse(storedValue);
+                
+                // Clear if context is too old (5 minutes)
                 if (!context.timestamp || Date.now() - context.timestamp > 300000) {
                     sessionStorage.removeItem(SESSION_KEY);
                     return;
                 }
+                
+                // ✅ NEW: Check if there's active modal context - if not, clear stale highlights
+                // This prevents highlights from persisting after modal close or browser refresh
+                var hasActiveModal = !!(
+                    document.querySelector('.modal.show') ||
+                    document.querySelector('.modal[style*="display: block"]') ||
+                    document.querySelector('.tray-scan-modal.open') ||
+                    document.querySelector('[role="dialog"][style*="display: block"]')
+                );
+                
+                // ✅ NEW: Check if this is a fresh page load (no referrer = direct navigation/refresh)
+                var isFreshPageLoad = !document.referrer || document.referrer === window.location.href;
+                
+                // Clear highlights on fresh page load or when no modal is active
+                if (isFreshPageLoad && !hasActiveModal) {
+                    sessionStorage.removeItem(SESSION_KEY);
+                    sessionStorage.removeItem('globalScanLotId');
+                    sessionStorage.removeItem('globalScanTrayId');
+                    sessionStorage.removeItem('globalScanModule');
+                    return;
+                }
+                
                 var row = findRowByLotId(context.lot_id);
                 if (row) {
                     highlightRow(row);

@@ -212,6 +212,7 @@ class IQF_Submitted(models.Model):
 
     # Metadata
     is_completed = models.BooleanField(default=True)
+    is_draft = models.BooleanField(default=False, help_text="True while draft is in progress; cleared on Proceed")
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 

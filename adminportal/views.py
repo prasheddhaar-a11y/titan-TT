@@ -64,14 +64,61 @@ class ShortcutConfigurationAPIView(APIView):
 
 
 
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
+# -----------------------------------------------------------------------------
+# TimedLoginView
+# - Extends Django's auth LoginView with per-phase timing so we can see exactly
+#   what part of the POST is slow (form validation vs authenticate vs session
+#   save vs redirect).
+# - Keeps login lightweight. Dashboard stats are loaded separately by the
+#   dashboard API after /home/ is rendered, never during login POST.
+# - Routed via watchcase_tracker/urls.py; settings.py is not modified here.
+# -----------------------------------------------------------------------------
+class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginView']).LoginView):
+    template_name = 'login.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from django.conf import settings
+        context['enable_microsoft_login'] = getattr(settings, 'ENABLE_MICROSOFT_LOGIN', False)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from django.conf import settings
+        import time as _time
+
+        timers = {}
+        t_start = _time.time()
+
+        t0 = _time.time()
+        form = self.get_form()
+        timers['get_form'] = (_time.time() - t0) * 1000
+
+        t0 = _time.time()
+        is_valid = form.is_valid()  # runs authenticate() + password verify
+        timers['form_is_valid'] = (_time.time() - t0) * 1000
+
+        if is_valid:
+            t0 = _time.time()
+            response = self.form_valid(form)  # calls login() + session save
+            timers['form_valid_login'] = (_time.time() - t0) * 1000
+        else:
+            response = self.form_invalid(form)
+            timers['form_invalid'] = 0.0
+
+        total = (_time.time() - t_start) * 1000
+        breakdown = ' | '.join(f'{k}={v:.2f}ms' for k, v in timers.items())
+        if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+            logger.warning('LOGIN_POST_TIMING: total=%.2fms | %s', total, breakdown)
+        return response
+
+
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class IndexView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = 'index.html'
  
     def get(self, request, format=None):
         from django.utils import timezone
-        from .services import filter_dashboard_stats_for_modules, get_cached_dashboard_stats
         import time
         
         # Timing checkpoint 1: Start
@@ -84,14 +131,12 @@ class IndexView(APIView):
         if hasattr(request, 'timers'):
             request.timers['allowed_modules'] = f'{(t2-t1)*1000:.2f}ms'
         
-        # Get dashboard stats from cache (or fresh calculation)
+        # Do not touch dashboard stats during page render.
+        # The browser loads them separately from DashboardStatsAPIView after
+        # /home/ is already visible, so slow cache/log/DB work cannot block TTFB.
         t3 = time.time()
         request._ttt_allowed_modules = allowed_modules
-        dashboard_stats = get_cached_dashboard_stats(
-            request.user.id,
-            allowed_module_names=allowed_modules,
-        )
-        dashboard_stats = filter_dashboard_stats_for_modules(dashboard_stats, allowed_modules)
+        dashboard_stats = []
         t4 = time.time()
         if hasattr(request, 'timers'):
             request.timers['dashboard_stats'] = f'{(t4-t3)*1000:.2f}ms'
@@ -101,6 +146,7 @@ class IndexView(APIView):
             'user': request.user,
             'allowed_modules': allowed_modules,
             'dashboard_stats': dashboard_stats,
+            'dashboard_stats_loading': True,
             'current_date': timezone.now().strftime('%d %b %Y'),
         }
         
@@ -113,6 +159,54 @@ class IndexView(APIView):
         if hasattr(request, 'timers'):
             request.timers['context_build'] = f'{(t5-t4)*1000:.2f}ms'
         
+        return response
+
+
+@method_decorator(login_required(login_url='login'), name='dispatch')
+class DashboardStatsAPIView(APIView):
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request, format=None):
+        from django.conf import settings
+        from .services import (
+            filter_dashboard_stats_for_modules,
+            get_dashboard_cache_snapshot,
+            refresh_dashboard_stats_async,
+        )
+        import time
+
+        t1 = time.time()
+        allowed_modules = get_allowed_modules_for_user(request.user)
+        dashboard_stats, labels, missing_labels, cache_lookup_ms = get_dashboard_cache_snapshot(
+            allowed_module_names=allowed_modules
+        )
+        dashboard_stats = filter_dashboard_stats_for_modules(dashboard_stats, allowed_modules)
+        refresh_started = refresh_dashboard_stats_async(missing_labels) if missing_labels else False
+        elapsed_ms = (time.time() - t1) * 1000
+        if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
+            logger.warning(
+                'DASHBOARD_STATS_API: user_id=%s modules=%s missing=%s refresh_started=%s lookup=%.2fms total=%.2fms',
+                request.user.id,
+                len(dashboard_stats),
+                missing_labels,
+                refresh_started,
+                cache_lookup_ms,
+                elapsed_ms,
+            )
+
+        response = Response({
+            'success': True,
+            'stats': dashboard_stats,
+            'count': len(dashboard_stats),
+            'labels': [stat.get('label') for stat in dashboard_stats if stat.get('label')],
+            'refreshing': bool(missing_labels),
+            'refresh_started': refresh_started,
+            'missing_labels': missing_labels,
+            'expected_labels': labels,
+            'retry_after_ms': 1200 if missing_labels else 0,
+        })
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
         return response
 
     

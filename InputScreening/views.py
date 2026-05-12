@@ -672,13 +672,23 @@ class IS_DelinkSelectedTraysAPI(APIView):
                     if not tray_ids_to_free:
                         continue
                     
-                    # Free all collected trays in the master TrayId table
+                    # Free all collected trays in both IS and master tray tables.
+                    # delink_tray=True is the reusable state; rejected/scanned/lot
+                    # links are cleared so downstream modules can scan the tray.
+                    IPTrayId.objects.filter(tray_id__in=tray_ids_to_free).update(
+                        lot_id=None,
+                        batch_id=None,
+                        delink_tray=True,
+                        rejected_tray=False,
+                        new_tray=True,
+                    )
                     freed = TrayId.objects.filter(tray_id__in=tray_ids_to_free).update(
                         lot_id=None,
                         batch_id=None,
-                        delink_tray=False,
+                        delink_tray=True,
                         rejected_tray=False,
                         scanned=False,
+                        new_tray=True,
                     )
                     
                     updated_trays += freed
@@ -819,18 +829,28 @@ class IS_ClearAllVerificationsAPI(APIView):
                 TotalStockModel.objects.filter(lot_id=lot_id).update(
                     ip_person_qty_verified=False,
                     draft_tray_verify=False,
+                    tray_verify=False,
                 )
 
             logger.info(
                 "IS clear-all-verifications for lot_id=%s by user=%s: %d rows reset",
                 lot_id, request.user, cleared,
             )
+            panel_state = get_dp_tray_panel(lot_id)
             return Response(
                 {
                     "success": True,
                     "message": f"All {cleared} tray verifications cleared.",
                     "lot_id": lot_id,
                     "cleared": cleared,
+                    "verified": panel_state.get("verified", 0),
+                    "total": panel_state.get("total", 0),
+                    "pending": panel_state.get("pending", 0),
+                    "all_verified": panel_state.get("all_verified", False),
+                    "enable_actions": panel_state.get("enable_actions", {"accept": False, "reject": False}),
+                    "total_qty": panel_state.get("total_qty", 0),
+                    "verified_qty": panel_state.get("verified_qty", 0),
+                    "row_ui": panel_state.get("row_ui", {}),
                 },
                 status=status.HTTP_200_OK,
             )

@@ -384,3 +384,64 @@ class ExcessLotTray(models.Model):
 
     def __str__(self):
         return f"ExcessTray: {self.tray_id} qty={self.qty} (lot={self.lot_id})"
+
+
+# =============================================================================
+# MICRO GROUP — Single flat table for Add Model eligibility (DB-driven)
+# =============================================================================
+
+class ModelMicroGroup(models.Model):
+    """
+    Single flat table for Jig Loading multi-model eligibility (Add Model flow).
+
+    Each row maps one plating_stk_no to a group_name.
+    All models sharing the same group_name are eligible to be loaded together.
+    Any new model can be added directly via Django admin without code changes.
+
+    Usage:
+        ModelMicroGroup.get_eligible_models('2648WAA02', exclude=['2648WAA02'])
+        → ['2648WAB02', '2648WAD02', '2648WAE02', '2648WAF02']
+    """
+    group_name = models.CharField(
+        max_length=50,
+        db_index=True,
+        help_text="Group identifier (e.g. GROUP_004). All models with same group_name are compatible.",
+    )
+    plating_stk_no = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Plating stock number / model code (e.g. 2648WAA02)",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive entries are excluded from eligibility checks",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Model Micro Group"
+        verbose_name_plural = "Model Micro Groups"
+        unique_together = [["group_name", "plating_stk_no"]]
+        ordering = ["group_name", "plating_stk_no"]
+        indexes = [
+            models.Index(fields=["group_name", "is_active"], name="jl_micgrp_gname_active_idx"),
+            models.Index(fields=["plating_stk_no", "is_active"], name="jl_micgrp_psn_active_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.group_name} → {self.plating_stk_no}"
+
+    @classmethod
+    def get_eligible_models(cls, primary_psn, exclude_psns=None):
+        """
+        Return list of plating_stk_nos eligible to add alongside primary_psn.
+        Excludes already-selected models (exclude_psns).
+        Returns empty list if primary_psn has no group assigned.
+        """
+        group_entry = cls.objects.filter(plating_stk_no=primary_psn, is_active=True).first()
+        if not group_entry:
+            return []
+        qs = cls.objects.filter(group_name=group_entry.group_name, is_active=True)
+        if exclude_psns:
+            qs = qs.exclude(plating_stk_no__in=exclude_psns)
+        return list(qs.values_list("plating_stk_no", flat=True))

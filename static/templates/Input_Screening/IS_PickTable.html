@@ -12,14 +12,14 @@
           <div class="mb-4">
             <h5 class="text-left mt-0 mb-0 d-inline-block" style="font-weight:700;">
               Input Screening Pick Table
-              <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton"
+<!--               <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton"
                     title="Open tray scan"
                     data-shortcut-title-code="picktable_scan"
                     data-shortcut-title-template="{label} ({key})"
                       style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
                 <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
                   Scan <kbd data-shortcut-template-code="picktable_scan" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;margin-left:2px;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
-              </button>
+              </button> -->
               <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
             </h5>
             
@@ -121,6 +121,8 @@
                         data-ip-onhold-picking="{{ data.ip_onhold_picking }}"
                         data-tray-verify="{{ data.tray_verify }}"
                         data-draft-tray-verify="{{ data.draft_tray_verify }}"
+                        data-all-trays-verified="{{ data.all_trays_verified|yesno:'true,false' }}"
+                        data-partial-trays-verified="{{ data.partial_trays_verified|yesno:'true,false' }}"
                         data-ip-person-qty-verified="{{ data.ip_person_qty_verified|yesno:'true,false' }}"
                         data-ip-hold-lot="{{ data.ip_hold_lot }}"
                         data-few-cases-acceptance="{{data.few_cases_accepted_Ip_stock}}"
@@ -265,16 +267,17 @@
                         {{ data.ip_rejection_total_qty|default:0 }}
                         </td>
                         <!-- Process Status Column -->
-                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <td data-process-status-cell {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
                         <div class="process-status-group d-flex align-items-center justify-content-center" style="gap: 6px;">
                            <!-- Q icon -->
                            <div
+                          data-process-status-q
                               data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quantity"
                               class="d-flex align-items-center justify-content-center rounded-circle"
                               style="width: 28px; height: 28px; 
                               {% if data.all_trays_verified %}
                               background-color: #0c8249;
-                              {% elif data.draft_tray_verify and not data.all_trays_verified %}
+                          {% elif data.partial_trays_verified or data.draft_tray_verify %}
                               background: linear-gradient(to right, #0c8249 50%, #bdbdbd 50%);
                               {% else %}
                               background-color: #bdbdbd;
@@ -284,6 +287,7 @@
                            </div>
                            <!-- S icon -->
                            <div
+                            data-process-status-s
                               data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Screening"
                               class="d-flex align-items-center justify-content-center rounded-circle"
                               style="
@@ -305,7 +309,7 @@
                         </div>
                         </td>
                         <!-- Lot Status Column -->
-                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <td data-lot-status-cell {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {% if data.ip_hold_lot %}
                         <!-- When ip_hold_lot is True, show "On Hold" status -->
                         <div
@@ -321,7 +325,7 @@
                            >
                            On Hold
                         </div>
-                        {% elif data.draft_tray_verify or data.has_draft %}
+                        {% elif data.partial_trays_verified or data.draft_tray_verify or data.has_draft %}
                         <div
                            class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="
@@ -343,7 +347,7 @@
                         {% endif %}
                         </td>
                         <!-- Current Stage Column -->
-                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <td data-current-stage-cell {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
                       <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
                         {{ data.last_process_module|default:"N/A" }}

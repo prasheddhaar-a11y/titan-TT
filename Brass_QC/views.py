@@ -52,9 +52,14 @@ from .services.tray_service import (
     adjust_total_qty_for_is_partial,
     compute_slots,
     compute_reuse_trays as _svc_compute_reuse_trays,
+    release_tray_for_reuse,
 )
 from .services.lot_service import generate_lot_id
 from .services.submission_service import handle_submission
+from .services.validators import (
+    is_input_screening_delink_only_tray,
+    validate_tray_not_rejected_in_is,
+)
 
 # Brass QC Pick Table View
 @method_decorator(login_required, name='dispatch')
@@ -893,34 +898,48 @@ def brass_qc_action(request):
             if tid:
                 reject_qty_map[tid] = int(t.get("qty") or 0)
 
-        # Build delinked trays: original trays whose full qty was not consumed
-        # Source: BrassTrayId (all, including any previously delinked) → fallback TrayId
-        # ✅ FIX: Use parent lot_id for original tray lookups when dealing with child lots
+        # Build delinked trays only from explicit Brass QC delink state.
+        # Do not infer delinks from "original minus accepted/rejected" because that can
+        # pull Input Screening history into the Brass QC completed view.
         parent_lot_id = submission.lot_id if (is_child_accept or is_child_reject) else lot_id
-        
-        original_qty_map = {}  # tray_id → original qty
-        for bt in BrassTrayId.objects.filter(lot_id=parent_lot_id):
-            if bt.tray_id:
-                original_qty_map[bt.tray_id] = int(bt.tray_quantity or 0)
-        if not original_qty_map:
-            for ti in TrayId.objects.filter(lot_id=parent_lot_id, tray_quantity__gt=0):
-                original_qty_map[ti.tray_id] = int(ti.tray_quantity or 0)
-
+        consumed_tray_ids = {
+            str(tid or "").strip().upper()
+            for tid in list(accept_qty_map.keys()) + list(reject_qty_map.keys())
+        }
         delink_trays = []
-        for orig_tid, orig_qty in original_qty_map.items():
-            if orig_qty <= 0:
-                continue
-            # Tray consumed (fully or partially) in accept/reject → NOT delinked
-            if orig_tid in accept_qty_map or orig_tid in reject_qty_map:
-                continue
+        seen_delink_ids = set()
+
+        def _add_delink_tray(tray_id, qty=0):
+            tid = str(tray_id or "").strip().upper()
+            if not tid or tid in consumed_tray_ids or tid in seen_delink_ids:
+                return
+            try:
+                tray_qty = int(qty or 0)
+            except (TypeError, ValueError):
+                tray_qty = 0
+            seen_delink_ids.add(tid)
             delink_trays.append({
-                "tray_id": orig_tid,
-                "tray_quantity": orig_qty,
+                "tray_id": tid,
+                "tray_quantity": tray_qty,
                 "rejected_tray": False,
                 "delink_tray": True,
                 "top_tray": False,
                 "is_top_tray": False,
             })
+
+        for bt in BrassTrayId.objects.filter(
+            lot_id=parent_lot_id,
+            delink_tray=True,
+            rejected_tray=False,
+        ).order_by('id'):
+            _add_delink_tray(bt.tray_id, bt.tray_quantity)
+
+        for ti in TrayId.objects.filter(
+            lot_id=parent_lot_id,
+            delink_tray=True,
+            rejected_tray=False,
+        ).order_by('id'):
+            _add_delink_tray(ti.tray_id, ti.tray_quantity)
 
         for tid, qty in accept_qty_map.items():
             trays.append({
@@ -940,12 +959,10 @@ def brass_qc_action(request):
                 "top_tray": False,
                 "is_top_tray": False,
             })
-        # ✅ FIX: Do NOT include delink_trays in Brass QC Completed view icon
-        # Only show accepted and rejected trays that were part of the actual submission
-        # trays.extend(delink_trays)
+        trays.extend(delink_trays)
 
         logger.info(f"[ACTION:GET_SUBMISSION_TRAYS] lot_id={lot_id}, type={submission.submission_type}, "
-                    f"accepted={len(accept_qty_map)}, rejected={len(reject_qty_map)}, delinked={len(delink_trays)} (not included in response)")
+                f"accepted={len(accept_qty_map)}, rejected={len(reject_qty_map)}, delinked={len(delink_trays)}")
         return JsonResponse({
             "success": True,
             "lot_id": lot_id,
@@ -1077,22 +1094,11 @@ def brass_qc_action(request):
         if not tray_id:
             return JsonResponse({"valid": False, "error": "tray_id is required"}, status=400)
         
-        # ✅ FIX: Check if tray was REJECTED in Input Screening (permanently ineligible)
-        # Check 1: IPTrayId flag (set by our services_reject.py fix for new submissions)
-        ip_rejected = IPTrayId.objects.filter(
-            tray_id=tray_id, rejected_tray=True
-        ).exists()
-        if ip_rejected:
-            return JsonResponse({"valid": False, "error": "Tray was rejected in Input Screening - permanently ineligible for reuse", "selected_tray_id": tray_id, "auto_selected": True})
-
-        # ✅ ERR2 FIX: Check IS_PartialRejectLot.trays_snapshot directly — this covers
-        # historical rejections where the rejected_tray flag was not set at the time.
-        # trays_snapshot is a JSON list: [{tray_id, qty, reason_id, ...}, ...]
-        is_partial_rejected = IS_PartialRejectLot.objects.filter(
-            trays_snapshot__contains=[{"tray_id": tray_id}]
-        ).exists()
-        if is_partial_rejected:
-            return JsonResponse({"valid": False, "error": "Tray was rejected in Input Screening - permanently ineligible for reuse", "selected_tray_id": tray_id, "auto_selected": True})
+        is_rejected_error = validate_tray_not_rejected_in_is(tray_id)
+        if is_rejected_error:
+            return JsonResponse({"valid": False, "error": is_rejected_error, "selected_tray_id": tray_id, "auto_selected": True})
+        if is_input_screening_delink_only_tray(tray_id):
+            release_tray_for_reuse(tray_id)
         
         # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
         # Get lot's model tray_type requirement
@@ -1118,7 +1124,7 @@ def brass_qc_action(request):
         except TotalStockModel.DoesNotExist:
             return JsonResponse({"valid": False, "error": "Lot not found", "selected_tray_id": tray_id}, status=404)
         
-        # Check TrayId master table
+        # Check TrayId master table after any reusable-delink repair above.
         tray = TrayId.objects.filter(tray_id=tray_id).first()
         if not tray:
             # Attempt prefix-based auto-select when user types >=9 chars
@@ -1130,9 +1136,9 @@ def brass_qc_action(request):
                 if len(candidates) == 1:
                     # Single candidate found — evaluate eligibility
                     cand = TrayId.objects.filter(tray_id=candidates[0]).first()
-                    if cand.rejected_tray:
+                    if cand.rejected_tray and not cand.delink_tray:
                         return JsonResponse({"valid": False, "error": "Tray is permanently rejected in master table", "selected_tray_id": cand.tray_id, "auto_selected": True})
-                    if cand.scanned:
+                    if cand.scanned and not cand.delink_tray:
                         return JsonResponse({"valid": False, "error": "Tray is currently scanned/in-use", "selected_tray_id": cand.tray_id, "auto_selected": True})
                     
                     # ═══ TRAY TYPE COMPATIBILITY CHECK for auto-selected candidate ═══
@@ -1159,11 +1165,11 @@ def brass_qc_action(request):
 
             return JsonResponse({"valid": False, "error": "Tray ID not found in system"}, status=404)
 
-        if tray.lot_id and tray.lot_id != lot_id:
+        if tray.lot_id and tray.lot_id != lot_id and not tray.delink_tray:
             return JsonResponse({"valid": False, "error": "Tray is currently occupied", "selected_tray_id": tray.tray_id, "auto_selected": True})
-        if tray.rejected_tray:
+        if tray.rejected_tray and not tray.delink_tray:
             return JsonResponse({"valid": False, "error": "Tray is permanently rejected in master table", "selected_tray_id": tray.tray_id, "auto_selected": True})
-        if tray.scanned:
+        if tray.scanned and not tray.delink_tray:
             return JsonResponse({"valid": False, "error": "Tray is currently scanned/in-use", "selected_tray_id": tray.tray_id, "auto_selected": True})
         
         # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
@@ -1345,7 +1351,7 @@ def validate_tray_id(request):
     """Validate a tray ID before assigning it to a slot.
     Checks: (1) tray exists in TrayId table, (2) not occupied by a different lot.
     """
-    tray_id = request.GET.get('tray_id', '').strip()
+    tray_id = request.GET.get('tray_id', '').strip().upper()
     lot_id = request.GET.get('lot_id', '').strip()
 
     if not tray_id:
@@ -1359,7 +1365,6 @@ def validate_tray_id(request):
             candidates = list(TrayId.objects.filter(
                 tray_id__istartswith=prefix,
                 rejected_tray=False,
-                delink_tray=False
             ).values_list('tray_id', flat=True)[:10])
 
             if len(candidates) == 1:
@@ -1373,7 +1378,6 @@ def validate_tray_id(request):
                 other_candidates.extend(list(m.objects.filter(
                     tray_id__istartswith=prefix,
                     rejected_tray=False,
-                    delink_tray=False
                 ).values_list('tray_id', flat=True)[:10]))
 
             if len(other_candidates) == 1:
@@ -1383,8 +1387,19 @@ def validate_tray_id(request):
 
         return JsonResponse({"valid": False, "error": "Tray ID not found in system"}, status=404)
 
-    if tray.lot_id and tray.lot_id != lot_id:
+    rejected_error = validate_tray_not_rejected_in_is(tray_id)
+    if rejected_error:
+        return JsonResponse({"valid": False, "error": rejected_error})
+    if is_input_screening_delink_only_tray(tray_id):
+        release_tray_for_reuse(tray_id)
+        tray = TrayId.objects.filter(tray_id=tray_id).first()
+
+    if tray.lot_id and tray.lot_id != lot_id and not tray.delink_tray:
         return JsonResponse({"valid": False, "error": f"Tray belongs to lot {tray.lot_id}"})
+    if tray.rejected_tray and not tray.delink_tray:
+        return JsonResponse({"valid": False, "error": "Tray is permanently rejected in master table"})
+    if tray.scanned and not tray.delink_tray:
+        return JsonResponse({"valid": False, "error": "Tray is currently scanned/in-use"})
 
     return JsonResponse({"valid": True})
 

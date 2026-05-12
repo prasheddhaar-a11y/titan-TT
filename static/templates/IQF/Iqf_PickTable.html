@@ -1610,11 +1610,11 @@
           <div class="mb-4">
             <h5 class="text-left mt-0 mb-0 d-inline-block" style="font-weight:700;">
               IQF / Pick Table
-              <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
+<!--               <button type="button" class="btn btn-primary btn-sm ms-3" id="scanButton" 
                       style="background-color: #028084; border-color: #028084; font-weight: 600; vertical-align: middle;">
                 <i class="fa fa-qrcode" style="margin-right: 6px;"></i>
                 Scan
-              </button>
+              </button> -->
               <span id="scanStatusMessage" style="display: none; margin-left: 12px; vertical-align: middle; color: #28a745; font-size: 15px; font-weight: 700;">PLEASE SCAN</span>
             </h5>
             
@@ -2677,8 +2677,8 @@
 
   // ── LOT REJECTION: Pure render helper — backend decides, frontend displays ──
   function _applyLotRejectionUI(isActive, rwQty){
-    var tbody = document.getElementById('rejection-table-body');
-    var inputs = tbody ? tbody.querySelectorAll('.rejection-qty-input') : [];
+    var grid = document.getElementById('rejection-grid-2col');
+    var inputs = grid ? grid.querySelectorAll('.rejection-qty-input') : [];
     var batchRejCb = document.getElementById('batchRejection');
     var draftBtn = document.getElementById('iqfDraftBtn');
     var proceedBtn = document.getElementById('iqfProceedBtn');
@@ -2734,6 +2734,12 @@
         document.getElementById('modalPhysicalQty') && (document.getElementById('modalPhysicalQty').textContent = json.physical_qty || '');
         document.getElementById('modalIqfTotal') && (document.getElementById('modalIqfTotal').textContent = totalIqfQty);
         document.getElementById('modalAcceptedQty') && (document.getElementById('modalAcceptedQty').textContent = acceptedQty);
+        var draftRemarkField = document.getElementById('iqfAuditNotes');
+        if(draftRemarkField){
+          draftRemarkField.value = json.draft_remark || '';
+          draftRemarkField.style.border = '';
+          draftRemarkField.style.boxShadow = '';
+        }
 
         // ✅ NEW: Update summary badges
         document.getElementById('iqfSummaryTotalQty') && (document.getElementById('iqfSummaryTotalQty').textContent = rw);
@@ -2859,6 +2865,25 @@
               var val = i.value || '';
               items.push({ reason_id: rid, iqf_qty: val });
             });
+            var acceptedTraysForDraft = [];
+            document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input').forEach(function(inp){
+              var trayId = (inp.value || '').trim();
+              var qty = parseInt(inp.getAttribute('data-expected-qty') || '0', 10);
+              var isTop = inp.getAttribute('data-is-top-tray') === 'true';
+              if(trayId && qty > 0){
+                acceptedTraysForDraft.push({ tray_id: trayId, qty: qty, is_top_tray: isTop });
+              }
+            });
+            var rejectedTraysForDraft = [];
+            document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(inp){
+              var trayId = (inp.value || '').trim();
+              var qty = parseInt(inp.getAttribute('data-rej-qty') || '0', 10);
+              var isTop = inp.getAttribute('data-is-top') === 'true';
+              if(trayId && qty > 0){
+                rejectedTraysForDraft.push({ tray_id: trayId, qty: qty, is_top_tray: isTop });
+              }
+            });
+            var draftRemark = (document.getElementById('iqfAuditNotes') && document.getElementById('iqfAuditNotes').value || '').trim();
             fetch('/iqf/iqf_submit_audit/', {
               method: 'POST',
               credentials: 'same-origin',
@@ -2866,7 +2891,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrftoken || ''
               },
-              body: JSON.stringify({ lot_id: lotId, action: 'draft', items: items })
+              body: JSON.stringify({ lot_id: lotId, action: 'draft', items: items, accepted_trays: acceptedTraysForDraft, rejected_trays: rejectedTraysForDraft, remark: draftRemark })
             }).then(function(resp){
               return resp.json().catch(function(){ return { success: false, error: 'Invalid JSON' }; });
             }).then(function(body){
@@ -2946,6 +2971,7 @@
         // ── Auto-trigger tray slots if draft has pre-filled IQF total ──
         var prefilledTotal = parseInt(json.total_iqf_qty || 0, 10);
         window._iqfDraftAcceptedTrays = json.draft_accepted_trays || [];
+        window._iqfDraftRejectedTrays = json.draft_rejected_trays || [];
         if(prefilledTotal > 0 && typeof window._iqfFetchTraySlots === 'function'){
           // Show wrapper immediately, compute reject preview, then fetch accept slots
           var _wrapperOnOpen = document.getElementById('iqf-tray-columns-wrapper');
@@ -3091,7 +3117,17 @@
       }
     });
 
-    var payload = { lot_id: lotId, action: action, items: items, accepted_trays: acceptedTrays, remark: (document.getElementById('iqfAuditNotes').value || '').trim() };
+    var rejectedTrays = [];
+    document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(inp){
+      var trayId = (inp.value || '').trim();
+      var qty = parseInt(inp.getAttribute('data-rej-qty') || '0', 10);
+      var isTop = inp.getAttribute('data-is-top') === 'true';
+      if(trayId && qty > 0){
+        rejectedTrays.push({ tray_id: trayId, qty: qty, is_top_tray: isTop });
+      }
+    });
+
+    var payload = { lot_id: lotId, action: action, items: items, accepted_trays: acceptedTrays, rejected_trays: rejectedTrays, remark: (document.getElementById('iqfAuditNotes').value || '').trim() };
     var csrftoken = getCookie('csrftoken');
 
     var draftBtn = document.getElementById('iqfDraftBtn');
@@ -3193,6 +3229,27 @@
       if(typeof window._iqfResetTraySlots === 'function') window._iqfResetTraySlots();
       // Reset lot rejection checkbox
       var _cb = document.getElementById('batchRejection'); if(_cb) _cb.checked = false;
+      
+      // ✅ Clear global shortcut manager state
+      if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+        window.GlobalShortcutManager.clear();
+      }
+      
+      // ✅ Clear global scan context
+      try {
+        sessionStorage.removeItem('globalScanModule');
+        sessionStorage.removeItem('globalScanTrayId');
+        sessionStorage.removeItem('globalScanLotId');
+      } catch(e) {
+        console.warn('[IQF Cancel Button] Could not clear scan context:', e);
+      }
+      
+      console.log('[IQF] Modal closed via Cancel - refreshing page to clear highlights');
+      
+      // ✅ Refresh page to clear all highlights
+      setTimeout(function() {
+        location.reload();
+      }, 100);
     }
 
     if(e.target && e.target.id === 'iqfDraftBtn'){
@@ -3846,6 +3903,7 @@ document.addEventListener('click', function(evt){
     window._iqfCurrentLotTrays = [];
     window._iqfRejectSlotsRendered = false;
     window._iqfLastRenderedRejTotal = 0;
+    window._iqfDraftRejectedTrays = [];
     // Reset reject scanned badge
     var _rejBadgeRst = document.getElementById('iqfRejScannedBadge');
     if(_rejBadgeRst){ _rejBadgeRst.style.display = 'none'; _rejBadgeRst.textContent = 'Scanned: 0/0'; }
@@ -4224,9 +4282,35 @@ document.addEventListener('click', function(evt){
       }
     });
 
+    var _draftRejectedTrays = window._iqfDraftRejectedTrays || [];
+    if(_draftRejectedTrays.length > 0){
+      var _allRejectInputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
+      _draftRejectedTrays.forEach(function(dt, di){
+        if(di < _allRejectInputs.length){
+          var _inp = _allRejectInputs[di];
+          _inp.value = (dt.tray_id || '').toUpperCase();
+          if(_inp.value){
+            _inp.classList.add('rej-scan-valid');
+            _inp.style.borderColor = '#b71c1c';
+            _inp.style.background = '#ffebee';
+            var _rejSlotNo = _inp.getAttribute('data-rej-slot');
+            var _rejStatus = document.querySelector('.rej-scan-status[data-rej-slot="' + _rejSlotNo + '"]');
+            if(_rejStatus){
+              _rejStatus.textContent = '\u2713 Restored';
+              _rejStatus.className = 'rej-scan-status';
+              _rejStatus.style.color = '#2e7d32';
+              _rejStatus.style.fontWeight = '600';
+            }
+          }
+        }
+      });
+      window._iqfDraftRejectedTrays = [];
+    }
+
     // Show scanned badge
     var _rejBadge = document.getElementById('iqfRejScannedBadge');
-    if(_rejBadge){ _rejBadge.textContent = 'Scanned: 0/' + _rejSlots.length; _rejBadge.style.display = ''; }
+    var _rejDoneCount = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input.rej-scan-valid').length;
+    if(_rejBadge){ _rejBadge.textContent = 'Scanned: ' + _rejDoneCount + '/' + _rejSlots.length; _rejBadge.style.display = ''; }
     document.getElementById('iqfSummaryRejectCount') && (document.getElementById('iqfSummaryRejectCount').textContent = _rejSlots.length);
 
     // Auto-focus first reject input only if accept is already fully scanned
@@ -5094,7 +5178,8 @@ document.addEventListener('click', function(evt){
           iqf_rejection_total: _delinkRejTotal,
           accepted_tray_ids: _delinkAcceptedTrayIds,
           delinked_tray_ids: delinkedIds,
-          confirm: true
+          confirm: true,
+          remark: (document.getElementById('iqfAuditNotes') ? (document.getElementById('iqfAuditNotes').value || '') : '').trim()
         })
       })
       .then(function(res){ return res.json().catch(function(){ return { success: false }; }); })
@@ -5235,7 +5320,27 @@ document.addEventListener("DOMContentLoaded", function() {
   if (trayViewCloseBtn) {
     trayViewCloseBtn.addEventListener('click', function() {
       restoreRowPosition();
-      console.log('[IQF] Tray view closed - highlight cleared');
+      
+      // ✅ Clear global shortcut manager state
+      if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+        window.GlobalShortcutManager.clear();
+      }
+      
+      // ✅ Clear global scan context
+      try {
+        sessionStorage.removeItem('globalScanModule');
+        sessionStorage.removeItem('globalScanTrayId');
+        sessionStorage.removeItem('globalScanLotId');
+      } catch(e) {
+        console.warn('[IQF Tray View Close] Could not clear scan context:', e);
+      }
+      
+      console.log('[IQF] Tray view closed - refreshing page to clear highlights');
+      
+      // ✅ Refresh page to clear all highlights
+      setTimeout(function() {
+        location.reload();
+      }, 100);
     });
   }
 
@@ -5244,7 +5349,27 @@ document.addEventListener("DOMContentLoaded", function() {
   if (iqfModalCloseBtn) {
     iqfModalCloseBtn.addEventListener('click', function() {
       restoreRowPosition();
-      console.log('[IQF] IQF modal closed - highlight cleared');
+      
+      // ✅ Clear global shortcut manager state
+      if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+        window.GlobalShortcutManager.clear();
+      }
+      
+      // ✅ Clear global scan context
+      try {
+        sessionStorage.removeItem('globalScanModule');
+        sessionStorage.removeItem('globalScanTrayId');
+        sessionStorage.removeItem('globalScanLotId');
+      } catch(e) {
+        console.warn('[IQF Modal Close] Could not clear scan context:', e);
+      }
+      
+      console.log('[IQF] IQF modal closed - refreshing page to clear highlights');
+      
+      // ✅ Refresh page to clear all highlights
+      setTimeout(function() {
+        location.reload();
+      }, 100);
     });
   }
 
@@ -5722,6 +5847,93 @@ function attachHoldToggleListeners() {
 
 document.addEventListener("DOMContentLoaded", function () {
   attachHoldToggleListeners();
+});
+</script>
+
+<!-- ✅ GLOBAL SCAN INTEGRATION: Auto-open audit modal when valid tray is scanned -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
+  
+  console.log('[IQF] Global scan integration initialized');
+  
+  // Listen for successful global scan events
+  document.addEventListener('globalScan:success', function(event) {
+    const detail = (event && event.detail) || {};
+    const trayId = detail.tray_id || '';
+    const module = detail.module || '';
+    
+    console.log('[IQF] Global scan success event received:', { tray_id: trayId, module: module });
+    
+    // Only process if this is an IQF module
+    if (module !== 'IQF' && module !== 'Iqf') {
+      console.log('[IQF] Scan event not for this module, ignoring');
+      return;
+    }
+    
+    // Give the row highlight and move-to-top animation time to complete
+    setTimeout(function() {
+      // Find the highlighted row (should be at the top now)
+      const highlightedRow = document.querySelector('tbody tr.dp-row-action-highlight, tbody tr.gkb-row-focus, tbody tr:first-child');
+      
+      if (!highlightedRow) {
+        console.log('[IQF] No highlighted row found after scan');
+        return;
+      }
+      
+      console.log('[IQF] Found highlighted row:', {
+        lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
+        batch_id: highlightedRow.getAttribute('data-batch-id')
+      });
+      
+      // Find the Audit button in this row
+      const auditButton = highlightedRow.querySelector('button.tray-scan-btn');
+      
+      if (!auditButton) {
+        console.log('[IQF] No audit button found in row');
+        return;
+      }
+      
+      // Check if the audit button is enabled (not disabled)
+      if (auditButton.disabled) {
+        console.log('[IQF] Audit button is disabled (checkbox not verified), not opening modal');
+        return;
+      }
+      
+      // Check if button is actually for Audit action (not some other action)
+      const buttonLabel = (auditButton.textContent || '').toLowerCase();
+      if (buttonLabel.indexOf('audit') === -1) {
+        console.log('[IQF] Button is not an Audit button, ignoring');
+        return;
+      }
+      
+      // Check if the row is in a held/inactive state (blurred)
+      const rowInactiveClass = highlightedRow.classList.contains('row-inactive');
+      if (rowInactiveClass) {
+        console.log('[IQF] Row is in held/inactive state, not opening modal');
+        return;
+      }
+      
+      console.log('[IQF] ✓ Valid scan with enabled audit button - auto-opening audit modal');
+      
+      // Programmatically click the audit button to open the modal
+      auditButton.click();
+      
+      // Dispatch custom event for tracking
+      const openEvent = new CustomEvent('iqf:autoOpenAuditModal', {
+        detail: {
+          tray_id: trayId,
+          lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
+          batch_id: highlightedRow.getAttribute('data-batch-id'),
+          triggered_by: 'global_scan'
+        }
+      });
+      document.dispatchEvent(openEvent);
+      
+    }, 300); // 300ms delay to let the highlight animation complete
+  });
+  
+  console.log('[IQF] Global scan listener attached for auto-opening audit modal');
 });
 </script>
 

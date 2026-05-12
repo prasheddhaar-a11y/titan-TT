@@ -15,6 +15,30 @@ from InputScreening.models import IPTrayId
 logger = logging.getLogger(__name__)
 
 
+def release_tray_for_reuse(tray_id):
+    """Idempotently mark a tray free/reusable across IS and master tables."""
+    tid = (tray_id or "").strip().upper()
+    if not tid:
+        return 0
+    IPTrayId.objects.filter(tray_id=tid).update(
+        lot_id=None,
+        batch_id=None,
+        delink_tray=True,
+        rejected_tray=False,
+        new_tray=True,
+    )
+    updated = TrayId.objects.filter(tray_id=tid).update(
+        lot_id=None,
+        batch_id=None,
+        delink_tray=True,
+        rejected_tray=False,
+        scanned=False,
+        new_tray=True,
+    )
+    logger.info("[release_tray_for_reuse] tray_id=%s updated=%s", tid, updated)
+    return updated
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tray Resolution — single source of truth
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1164,16 +1164,21 @@ def validate_scanned_tray(
             master = TrayId.objects.get(tray_id=tid)
         except TrayId.DoesNotExist:
             return {"valid": False, "reason": f"Tray {tid} not found in master."}
-        if master.lot_id:
+        from .models import IS_AllocationTray
+        released_for_reuse = bool(master.delink_tray) or IS_AllocationTray.objects.filter(
+            tray_id=tid,
+            reject_lot__isnull=False,
+            is_delinked=True,
+            qty__lte=0,
+        ).exists()
+        if master.lot_id and not released_for_reuse:
             return {"valid": False, "reason": f"Tray {tid} occupied by lot {master.lot_id}."}
-        if master.batch_id_id:
+        if master.batch_id_id and not released_for_reuse:
             return {"valid": False, "reason": f"Tray {tid} linked to an active batch."}
-        if master.rejected_tray:
+        if master.rejected_tray and not released_for_reuse:
             return {"valid": False, "reason": f"Tray {tid} is permanently rejected."}
-        if master.scanned:
+        if master.scanned and not released_for_reuse:
             return {"valid": False, "reason": f"Tray {tid} is currently in-use."}
-        if master.delink_tray:
-            return {"valid": False, "reason": f"Tray {tid} is in delinked state."}
         if tray_type and master.tray_type and master.tray_type.lower() != tray_type.lower():
             return {
                 "valid": False,
@@ -1344,8 +1349,13 @@ def finalize_submission_v2(
 
     delinked_ids = [_norm(t) for t in (delink_tray_ids or [])]
 
+    # Save the count of ACTUAL reject trays BEFORE appending delinked entries.
+    # Delinked trays are appended for audit purposes but must NOT inflate the
+    # reject_trays_count stored on the record.
+    reject_only_count = len(reject_alloc)
+
     # Include delinked trays in reject snapshot so the view-icon selector
-    # can derive delinked_tray_ids from source=="reused" entries.
+    # can derive delinked_tray_ids from source=="reused" AND qty==0 entries.
     for _tid in delinked_ids:
         reject_alloc.append({
             "tray_id": _tid,
@@ -1421,7 +1431,7 @@ def finalize_submission_v2(
         parent_batch_id=batch_id_val,
         parent_submission=submission,
         rejected_qty=total_non_shortage_reject,  # shortage not counted as reject
-        reject_trays_count=len(reject_alloc),
+        reject_trays_count=reject_only_count,    # only actual reject trays, not delinks
         rejection_reasons=rejection_reasons_json,
         trays_snapshot=reject_alloc,
         delink_count=len(delinked_ids),
@@ -1453,18 +1463,44 @@ def finalize_submission_v2(
             tray_quantity=_a["qty"]
         )
 
-    # ✅ CRITICAL: Mark ALL rejected tray IDs as permanently rejected in both
-    # IPTrayId and TrayId master so no downstream module (Brass QC, IQF, etc.)
-    # can ever reuse them.
+    # Mark only real reject trays as permanently rejected. Pure delink rows are
+    # audit/release entries (qty=0, no reason) and must remain reusable.
     from .models import IPTrayId as _IPTrayId
     from modelmasterapp.models import TrayId as _TrayId
-    _reject_tray_ids_v2 = {r["tray_id"] for r in reject_alloc}
+    _reject_tray_ids_v2 = {
+        r["tray_id"]
+        for r in reject_alloc
+        if int(r.get("qty") or 0) > 0 and (r.get("reason_id") or r.get("reason_text"))
+    }
     if _reject_tray_ids_v2:
-        _IPTrayId.objects.filter(tray_id__in=_reject_tray_ids_v2).update(rejected_tray=True)
-        _TrayId.objects.filter(tray_id__in=_reject_tray_ids_v2).update(rejected_tray=True)
+        _IPTrayId.objects.filter(tray_id__in=_reject_tray_ids_v2).update(
+            rejected_tray=True,
+            delink_tray=False,
+        )
+        _TrayId.objects.filter(tray_id__in=_reject_tray_ids_v2).update(
+            rejected_tray=True,
+            delink_tray=False,
+        )
+
+    if delinked_ids:
+        _IPTrayId.objects.filter(tray_id__in=delinked_ids).update(
+            lot_id=None,
+            batch_id=None,
+            delink_tray=True,
+            rejected_tray=False,
+            new_tray=True,
+        )
+        _TrayId.objects.filter(tray_id__in=delinked_ids).update(
+            lot_id=None,
+            batch_id=None,
+            delink_tray=True,
+            rejected_tray=False,
+            scanned=False,
+            new_tray=True,
+        )
     logger.info(
-        "[IS][PARTIAL_SUBMIT_V2] marked %d reject tray(s) as permanently rejected: %s",
-        len(_reject_tray_ids_v2), sorted(_reject_tray_ids_v2),
+        "[IS][PARTIAL_SUBMIT_V2] marked %d reject tray(s) rejected and released %d delink tray(s): reject=%s delink=%s",
+        len(_reject_tray_ids_v2), len(delinked_ids), sorted(_reject_tray_ids_v2), sorted(delinked_ids),
     )
 
     _mark_lot_submitted_flags(lot_id, accepted_qty=total_accept)
@@ -1487,7 +1523,7 @@ def finalize_submission_v2(
         "total_shortage_qty": shortage_qty,
         "total_accept_qty": total_accept,
         "effective_lot_qty": effective_lot_qty,
-        "reject_trays": len(reject_alloc),
+        "reject_trays": reject_only_count,
         "accept_trays": len(accept_alloc),
         "delink_trays": len(delinked_ids),
     }

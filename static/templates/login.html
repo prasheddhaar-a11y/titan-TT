@@ -97,10 +97,18 @@
         position: relative;
         z-index: 2;
       }
+      .login-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
       /* New centered card layout (override earlier positioning) */
       .page-card {
         width: min(940px, 92%);
-        margin: 4vh auto;
+        margin: 0 auto;
         background: linear-gradient(135deg, rgba(12, 23, 34, 0.94) 0%, rgba(20, 35, 50, 0.92) 50%, rgba(12, 23, 34, 0.94) 100%);
         background-size: 400% 400%;
         animation: subtle-shift 8s ease infinite;
@@ -112,8 +120,7 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         overflow: hidden;
         display: flex;
-        min-height: 460px;
-        max-height: 84vh;
+        min-height: 492px;
         backdrop-filter: blur(18px);
       }
       @keyframes subtle-shift {
@@ -153,8 +160,9 @@
       .card-right img {
         position: relative;
         z-index: 1;
-        width: 100%;
+        width: min(86%, 360px);
         height: auto;
+        max-height: 360px;
         object-fit: contain;
         pointer-events: none;
       }
@@ -338,6 +346,7 @@
       /* Input icon styles */
       .input-with-icon {
         position: relative;
+        width: 100%;
       }
       .input-with-icon .input-icon {
         position: absolute;
@@ -367,6 +376,13 @@
       }
       .input-with-icon .form-control {
         padding-left: 52px !important;
+        padding-right: 52px !important;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .page-card form,
+      .page-card .form-group {
+        width: 100%;
       }
       .auth-form-btn {
         width: auto !important;
@@ -598,6 +614,7 @@
         margin: 0 !important;
       }
       @media (max-width: 480px) {
+        .login-shell,
         .content-wrapper.d-flex.align-items-center.justify-content-end.auth.px-0 {
           justify-content: center !important;
           padding: 0.75rem !important;
@@ -672,7 +689,7 @@
     <div class="container-scroller">
       <div class="container-fluid page-body-wrapper full-page-wrapper">
         <div
-          class="content-wrapper d-flex align-items-center justify-content-start auth px-0"
+          class="content-wrapper login-shell d-flex align-items-center justify-content-center auth px-0"
           style="min-height: 100vh"
         >
           <div class="page-card" role="main">
@@ -815,6 +832,7 @@
                     <button type="submit" class="btn btn-primary auth-form-btn" id="loginBtn">
                       Login
                     </button>
+                    {% if enable_microsoft_login %}
                     <a href="{% url 'microsoft_login' %}" class="btn-microsoft auth-form-btn" aria-label="Login with Microsoft">
                       <!-- Inline Microsoft logo (4 tiles) -->
                       <span class="ms-logo" aria-hidden="true">
@@ -827,6 +845,7 @@
                       </span>
                       <span class="ms-text">Sign-in with Microsoft</span>
                     </a>
+                    {% endif %}
                   </div>
                 </form>
               </div>
@@ -836,6 +855,7 @@
               <img
                 src="{% static 'assets/images/1.jpg' %}"
                 alt="illustration"
+                decoding="async"
               />
             </div>
           </div>
@@ -845,14 +865,8 @@
       <!-- page-body-wrapper ends -->
     </div>
     <!-- container-scroller -->
-    <script src="{% static 'assets/vendors/js/vendor.bundle.base.js' %}"></script>
-    <script src="{% static 'assets/js/off-canvas.js' %}"></script>
-    <script src="{% static 'assets/js/hoverable-collapse.js' %}"></script>
-    <script src="{% static 'assets/js/template.js' %}"></script>
-    <script src="{% static 'assets/js/settings.js' %}"></script>
-    <script src="{% static 'assets/js/todolist.js' %}"></script>
     <!-- Gallery grid and tilt effect JS -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
       // Auto-sliding carousel
       let currentSlide = 0;
       const slides = document.querySelectorAll(".carousel-slide");

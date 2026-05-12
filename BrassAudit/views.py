@@ -31,6 +31,7 @@ import datetime
 import pytz
 import logging
 from django.db import transaction
+from .selectors import get_picktable_base_queryset
 
 logger = logging.getLogger(__name__)
 
@@ -69,48 +70,7 @@ class BrassAuditPickTableView(APIView):
 
         brass_rejection_reasons = Brass_Audit_Rejection_Table.objects.all()
 
-        queryset = TotalStockModel.objects.select_related(
-            'batch_id',
-            'batch_id__model_stock_no',
-            'batch_id__version',
-            'batch_id__location'
-        ).filter(
-            batch_id__total_batch_quantity__gt=0
-        )
-
-        has_draft_subquery = Exists(
-            Brass_Audit_Draft_Store.objects.filter(lot_id=OuterRef('lot_id'))
-        )
-        draft_type_subquery = Brass_Audit_Draft_Store.objects.filter(
-            lot_id=OuterRef('lot_id')
-        ).values('draft_type')[:1]
-        brass_rejection_qty_subquery = Brass_Audit_Rejection_ReasonStore.objects.filter(
-            lot_id=OuterRef('lot_id')
-        ).values('total_rejection_quantity')[:1]
-
-        queryset = queryset.annotate(
-            wiping_required=F('batch_id__model_stock_no__wiping_required'),
-            has_draft=has_draft_subquery,
-            draft_type=draft_type_subquery,
-            brass_rejection_total_qty=brass_rejection_qty_subquery,
-        )
-
-        # Filter: lots from Brass QC (accepted/partial) that are pending in Brass Audit
-        # ✅ FIXED: Include IQF-accepted lots - they should appear in Brass Audit after IQF → Brass QC → Brass Audit flow
-        queryset = queryset.filter(
-            Q(brass_qc_accptance=True, brass_audit_accptance__isnull=True) |
-            Q(brass_qc_accptance=True, brass_audit_accptance=False) |
-            Q(brass_qc_few_cases_accptance=True, brass_onhold_picking=False) |
-            Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=True)
-        ).exclude(
-            brass_audit_rejection=True
-        ).exclude(
-            Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
-        ).exclude(
-            next_process_module="Split Completed"
-        ).exclude(
-            remove_lot=True  # Exclude parent lots split in Brass QC (children are the real lots)
-        )
+        queryset = get_picktable_base_queryset()
 
         if sort and sort in sort_field_mapping:
             field = sort_field_mapping[sort]

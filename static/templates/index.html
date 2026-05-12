@@ -429,6 +429,28 @@
       margin-bottom: 1rem;
     }
 
+    .dashboard-loading-state {
+      width: 100%;
+      text-align: center;
+      padding: 3rem;
+      color: #5f7d7c;
+      background: #ffffff;
+      border: 1px solid rgba(7, 59, 58, 0.06);
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(44, 62, 80, 0.06);
+    }
+
+    .dashboard-loading-state i {
+      font-size: 2.5rem;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .dashboard-loading-state h4 {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
     /* Carousel Styles */
     .modules-container {
       display: flex;
@@ -1001,6 +1023,13 @@
           {% endif %}
         </div>
         {% endfor %} {% else %}
+        {% if dashboard_stats_loading %}
+        <div class="dashboard-loading-state" id="dashboardLoadingState">
+          <i class="mdi mdi-loading mdi-spin"></i>
+          <h4>Loading dashboard statistics</h4>
+          <p>Please wait while the latest module counts are prepared.</p>
+        </div>
+        {% else %}
         <div class="empty-state">
           <i class="mdi mdi-inbox-multiple"></i>
           <h4>No data available</h4>
@@ -1009,28 +1038,35 @@
           </p>
         </div>
         {% endif %}
+        {% endif %}
       </div>
     </div>
 
     <!-- Right graph panel removed: modules now span full width -->
 
     <!-- Carousel Navigation Dots -->
-    {% if dashboard_stats %}
-    <div class="carousel-nav">
+    <div id="dashboardCarouselNav" class="carousel-nav" {% if not dashboard_stats %}style="display: none;"{% endif %}>
+      {% if dashboard_stats %}
       {% for stat in dashboard_stats %}
       <div
         class="carousel-dot"
         data-module-index="{{ forloop.counter0 }}"
       ></div>
       {% endfor %}
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
 
 <!-- Scripts -->
 <script nonce="{{ csp_nonce }}">
   const container = document.querySelector(".modules-container");
+  const carouselNav = document.getElementById("dashboardCarouselNav");
+  const dashboardStatsUrl = "{% url 'dashboard-stats-api' %}";
+  let autoSlideInterval;
+  let dashboardStatsRetryTimer;
+  let dashboardStatsRetryCount = 0;
+  const maxDashboardStatsRetries = 8;
 
   function scrollToIndex(index) {
     const cards = document.querySelectorAll(".module-card");
@@ -1043,40 +1079,45 @@
     updateActiveDot(index);
   }
 
-  // Smooth scroll navigation for carousel dots
-  document.querySelectorAll(".carousel-dot").forEach((dot, index) => {
-    dot.addEventListener("click", () => scrollToIndex(index));
-  });
+  if (carouselNav) {
+    carouselNav.addEventListener("click", (event) => {
+      const dot = event.target.closest(".carousel-dot");
+      if (!dot) return;
+      scrollToIndex(Number(dot.dataset.moduleIndex || 0));
+    });
+  }
 
-  // Update active dot based on index
   function updateActiveDot(index) {
     document.querySelectorAll(".carousel-dot").forEach((dot, i) => {
       dot.classList.toggle("active", i === index);
     });
   }
 
-  // Initialize first dot as active
-  // Try to make 'Day Planning' the initial active card if present
-  let initialIndex = -1;
-  const cards = Array.from(document.querySelectorAll(".module-card"));
-  cards.forEach((c, i) => {
-    if ((c.dataset.label || "").trim().toLowerCase() === "day planning") {
-      initialIndex = i;
+  function renderCarouselDots(count) {
+    if (!carouselNav) return;
+    carouselNav.innerHTML = "";
+    if (count <= 0) {
+      carouselNav.style.display = "none";
+      return;
     }
-  });
-  if (initialIndex === -1) {
-    initialIndex = 0;
-  }
-  if (document.querySelectorAll(".carousel-dot").length > 0) {
-    // ensure dots reflect initial index
-    updateActiveDot(initialIndex);
-    // scroll to initial card after a short delay so layout stabilizes
-    setTimeout(() => scrollToIndex(initialIndex), 80);
+    carouselNav.style.display = "flex";
+    for (let index = 0; index < count; index += 1) {
+      const dot = document.createElement("div");
+      dot.className = "carousel-dot";
+      dot.dataset.moduleIndex = String(index);
+      carouselNav.appendChild(dot);
+    }
   }
 
-  // Auto-slide functionality (advances forward — works with RTL visual flow)
-  let autoSlideInterval;
+  function getInitialModuleIndex(cards) {
+    const dayPlanningIndex = cards.findIndex((card) =>
+      (card.dataset.label || "").trim().toLowerCase() === "day planning",
+    );
+    return dayPlanningIndex === -1 ? 0 : dayPlanningIndex;
+  }
+
   function startAutoSlide() {
+    stopAutoSlide();
     autoSlideInterval = setInterval(() => {
       const cards = document.querySelectorAll(".module-card");
       const dots = document.querySelectorAll(".carousel-dot");
@@ -1096,10 +1137,151 @@
     clearInterval(autoSlideInterval);
   }
 
-  // Start auto-slide on page load
-  startAutoSlide();
+  function initializeDashboardCarousel() {
+    stopAutoSlide();
+    const cards = Array.from(document.querySelectorAll(".module-card"));
+    renderCarouselDots(cards.length);
+    if (cards.length === 0) return;
 
-  // Pause auto-slide on hover and update active dot on scroll
+    const initialIndex = getInitialModuleIndex(cards);
+    updateActiveDot(initialIndex);
+    setTimeout(() => scrollToIndex(initialIndex), 80);
+    startAutoSlide();
+  }
+
+  function showDashboardLoadError() {
+    if (!container || document.querySelectorAll(".module-card").length > 0) return;
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="mdi mdi-alert-circle-outline"></i>
+        <h4>Dashboard statistics are taking longer than expected</h4>
+        <p>Please refresh this page after a moment.</p>
+      </div>
+    `;
+    renderCarouselDots(0);
+  }
+
+  function scheduleDashboardStatsRetry(delayMs) {
+    clearTimeout(dashboardStatsRetryTimer);
+    if (dashboardStatsRetryCount >= maxDashboardStatsRetries) {
+      showDashboardLoadError();
+      return;
+    }
+    dashboardStatsRetryCount += 1;
+    dashboardStatsRetryTimer = setTimeout(loadDashboardStats, delayMs || 1200);
+  }
+
+  function createIcon(iconName) {
+    const icon = document.createElement("i");
+    icon.className = `mdi ${String(iconName || "mdi-table").replace(/[^a-z0-9-_\s]/gi, "")}`;
+    return icon;
+  }
+
+  function createStatCard(item) {
+    const card = document.createElement("div");
+    card.className = "stat-card";
+
+    const label = document.createElement("div");
+    label.className = "stat-label";
+    label.appendChild(createIcon(item.icon));
+    label.appendChild(document.createTextNode(` ${item.label || "Total Lots"}`));
+
+    const value = document.createElement("div");
+    value.className = "stat-value";
+    value.textContent = item.value ?? 0;
+
+    const unit = document.createElement("div");
+    unit.className = "stat-unit";
+    unit.textContent = item.unit || "Count";
+
+    card.appendChild(label);
+    card.appendChild(value);
+    card.appendChild(unit);
+    return card;
+  }
+
+  function createModuleCard(stat) {
+    const card = document.createElement("div");
+    card.className = "module-card";
+    card.dataset.label = stat.label || "";
+
+    const header = document.createElement("div");
+    header.className = "module-header";
+    header.style.background = stat.color || "#008080";
+
+    const titleWrapper = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = stat.label || "Dashboard";
+    titleWrapper.appendChild(title);
+
+    const moduleIcon = document.createElement("div");
+    moduleIcon.className = "module-icon";
+    moduleIcon.appendChild(createIcon(stat.icon));
+
+    header.appendChild(titleWrapper);
+    header.appendChild(moduleIcon);
+
+    const statCards = document.createElement("div");
+    statCards.className = "stat-cards-container";
+    const displayStats = Array.isArray(stat.display_stats) && stat.display_stats.length > 0
+      ? stat.display_stats
+      : [{ label: "Total Lots", value: stat.total_qty ?? stat.total_lot ?? 0, unit: "Lots", icon: "mdi-table" }];
+    displayStats.forEach((item) => statCards.appendChild(createStatCard(item)));
+
+    card.appendChild(header);
+    card.appendChild(statCards);
+    return card;
+  }
+
+  function renderDashboardStats(stats) {
+    if (!container) return;
+    container.innerHTML = "";
+    if (!Array.isArray(stats) || stats.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="mdi mdi-inbox-multiple"></i>
+          <h4>No data available</h4>
+          <p>Start by creating batches in your modules to see statistics here.</p>
+        </div>
+      `;
+      renderCarouselDots(0);
+      return;
+    }
+    stats.forEach((stat) => container.appendChild(createModuleCard(stat)));
+    initializeDashboardCarousel();
+  }
+
+  async function loadDashboardStats() {
+    if (!container || !dashboardStatsUrl) return;
+    container.setAttribute("aria-busy", "true");
+    try {
+      const response = await fetch(dashboardStatsUrl, {
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!response.ok) throw new Error(`Dashboard stats failed: ${response.status}`);
+      const payload = await response.json();
+      if (!payload.success || !Array.isArray(payload.stats)) {
+        throw new Error("Dashboard stats response was invalid");
+      }
+      if (payload.stats.length > 0 || !payload.refreshing) {
+        renderDashboardStats(payload.stats);
+      }
+      if (payload.refreshing) {
+        scheduleDashboardStatsRetry(payload.retry_after_ms || 1200);
+        return;
+      }
+      dashboardStatsRetryCount = 0;
+    } catch (error) {
+      showDashboardLoadError();
+    } finally {
+      container.removeAttribute("aria-busy");
+    }
+  }
+
+  initializeDashboardCarousel();
+  setTimeout(loadDashboardStats, 60);
+
   if (container) {
     container.addEventListener("mouseenter", stopAutoSlide);
     container.addEventListener("mouseleave", startAutoSlide);

@@ -10,9 +10,110 @@ Rule: No DB writes. No HTTP layer. Pure validation functions.
 import logging
 
 from modelmasterapp.models import TrayId
-from InputScreening.models import IPTrayId, IP_Rejected_TrayScan, IS_PartialRejectLot
+from InputScreening.models import (
+    IPTrayId,
+    IP_Rejected_TrayScan,
+    IS_AllocationTray,
+    IS_PartialRejectLot,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _norm_tray_id(tray_id):
+    return (tray_id or "").strip().upper()
+
+
+def _safe_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _iter_snapshot_reject_lots(tray_id):
+    tid = _norm_tray_id(tray_id)
+    base_qs = IS_PartialRejectLot.objects.exclude(trays_snapshot__isnull=True).only("trays_snapshot")
+    try:
+        return list(base_qs.filter(trays_snapshot__contains=[{"tray_id": tid}]))
+    except Exception as exc:
+        logger.debug(
+            "[validators] JSON contains lookup unavailable for tray_id=%s: %s",
+            tid,
+            exc,
+        )
+        return list(base_qs)
+
+
+def is_tray_released_for_reuse(tray_id):
+    """Return True when master tray state says the tray is reusable."""
+    tray = TrayId.objects.filter(tray_id=_norm_tray_id(tray_id)).first()
+    if not tray:
+        return False
+    if tray.delink_tray and not tray.scanned:
+        return True
+    return bool(
+        tray.new_tray
+        and not tray.lot_id
+        and not tray.batch_id_id
+        and not tray.rejected_tray
+        and not tray.scanned
+    )
+
+
+def _snapshot_has_actual_is_reject(tray_id):
+    tid = _norm_tray_id(tray_id)
+    for reject_lot in _iter_snapshot_reject_lots(tid):
+        for tray in reject_lot.trays_snapshot or []:
+            if _norm_tray_id(tray.get("tray_id")) != tid:
+                continue
+            qty = _safe_int(tray.get("qty"))
+            has_reason = bool(tray.get("reason_id") or tray.get("reason_text"))
+            if qty > 0 and has_reason:
+                return True
+    return False
+
+
+def is_input_screening_delink_only_tray(tray_id):
+    """True when IS history shows this tray only as a delink/release row."""
+    tid = _norm_tray_id(tray_id)
+    if IS_AllocationTray.objects.filter(
+        tray_id=tid,
+        reject_lot__isnull=False,
+        is_delinked=True,
+        qty__lte=0,
+    ).exists():
+        return True
+    for reject_lot in _iter_snapshot_reject_lots(tid):
+        for tray in reject_lot.trays_snapshot or []:
+            if _norm_tray_id(tray.get("tray_id")) != tid:
+                continue
+            qty = _safe_int(tray.get("qty"))
+            has_reason = bool(tray.get("reason_id") or tray.get("reason_text"))
+            if qty <= 0 and not has_reason:
+                return True
+    return False
+
+
+def is_tray_rejected_in_input_screening(tray_id):
+    """Return True only for real IS rejects that have not been released."""
+    tid = _norm_tray_id(tray_id)
+    if is_tray_released_for_reuse(tid):
+        return False
+
+    has_actual_reject_allocation = IS_AllocationTray.objects.filter(
+        tray_id=tid,
+        reject_lot__isnull=False,
+        qty__gt=0,
+    ).exists()
+    if has_actual_reject_allocation or IP_Rejected_TrayScan.objects.filter(rejected_tray_id=tid).exists():
+        return True
+    if _snapshot_has_actual_is_reject(tid):
+        return True
+
+    if IPTrayId.objects.filter(tray_id=tid, rejected_tray=True, delink_tray=False).exists():
+        return not is_input_screening_delink_only_tray(tid)
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -107,20 +208,8 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
                 if not TrayId.objects.filter(tray_id=tid).exists():
                     return [], [], f"Reject tray '{tid}' not found in master tray list"
 
-                # Block trays rejected in Input Screening
-                if IPTrayId.objects.filter(tray_id=tid, rejected_tray=True).exists():
-                    return [], [], (
-                        f"Tray '{tid}' was rejected in Input Screening — "
-                        f"permanently ineligible for reuse"
-                    )
-                if IP_Rejected_TrayScan.objects.filter(rejected_tray_id=tid).exists():
-                    return [], [], (
-                        f"Tray '{tid}' was rejected in Input Screening — "
-                        f"permanently ineligible for reuse"
-                    )
-                if IS_PartialRejectLot.objects.filter(
-                    trays_snapshot__contains=[{"tray_id": tid}]
-                ).exists():
+                # Block only true IS rejects. Released/delink-only trays remain reusable.
+                if is_tray_rejected_in_input_screening(tid):
                     return [], [], (
                         f"Tray '{tid}' was rejected in Input Screening — "
                         f"permanently ineligible for reuse"
@@ -173,13 +262,7 @@ def validate_tray_not_rejected_in_is(tray_id):
     - IPTrayId.rejected_tray flag (set by IS services)
     - IS_PartialRejectLot.trays_snapshot (historical rejections)
     """
-    if IPTrayId.objects.filter(tray_id=tray_id, rejected_tray=True).exists():
-        return (
-            "Tray was rejected in Input Screening - permanently ineligible for reuse"
-        )
-    if IS_PartialRejectLot.objects.filter(
-        trays_snapshot__contains=[{"tray_id": tray_id}]
-    ).exists():
+    if is_tray_rejected_in_input_screening(tray_id):
         return (
             "Tray was rejected in Input Screening - permanently ineligible for reuse"
         )

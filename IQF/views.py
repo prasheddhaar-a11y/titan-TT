@@ -766,12 +766,14 @@ def iqf_rejection_audit_iqf_reject(request):
         _has_completed_sub = IQF_Submitted.objects.filter(lot_id=lot_id, is_completed=True).exists()
         try:
             draft = IQF_Draft_Store.objects.filter(lot_id=lot_id, draft_type='batch_rejection').order_by('-updated_at').first()
-            if draft and draft.draft_data and not _has_completed_sub:
+            if draft and draft.draft_data and draft.draft_data.get('is_draft') is True and not _has_completed_sub:
                 d_items = draft.draft_data.get('items') or []
                 # map reason_id -> qty
                 d_map = { (int(it.get('reason_id')) if it.get('reason_id') is not None else None): int(it.get('iqf_qty') or 0) for it in d_items }
                 total_from_draft = int(draft.draft_data.get('total_iqf') or 0)
                 draft_accepted_trays = draft.draft_data.get('accepted_trays') or []
+                draft_rejected_trays = draft.draft_data.get('rejected_trays') or []
+                draft_remark = draft.draft_data.get('remark') or ''
                 # overlay
                 for row in response_data:
                     rid = row.get('reason_id')
@@ -786,6 +788,9 @@ def iqf_rejection_audit_iqf_reject(request):
                     "is_lot_rejection": _is_lot_rejection,
                     "current_lot_trays": current_lot_trays,
                     "draft_accepted_trays": draft_accepted_trays,
+                    "draft_rejected_trays": draft_rejected_trays,
+                    "draft_remark": draft_remark,
+                    "has_draft": True,
                 })
         except Exception:
             pass
@@ -797,6 +802,10 @@ def iqf_rejection_audit_iqf_reject(request):
             "total_iqf_qty": 0,
             "is_lot_rejection": _is_lot_rejection,
             "current_lot_trays": current_lot_trays,
+            "draft_accepted_trays": [],
+            "draft_rejected_trays": [],
+            "draft_remark": "",
+            "has_draft": False,
         })
 
     except Exception as e:
@@ -1013,13 +1022,14 @@ def iqf_submit_audit(request):
             # ─── 5. DRAFT SAVE ───
             if action == 'draft':
                 accepted_trays_payload = data.get('accepted_trays') or []
+                rejected_trays_payload = data.get('rejected_trays') or []
                 IQF_Draft_Store.objects.update_or_create(
                     lot_id=lot_id,
                     draft_type='batch_rejection',
                     defaults={
                         'batch_id': batch_id_val,
                         'user': request.user,
-                        'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf, 'accepted_trays': accepted_trays_payload},
+                        'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf, 'accepted_trays': accepted_trays_payload, 'rejected_trays': rejected_trays_payload, 'remark': remark},
                     }
                 )
                 return Response({'success': True, 'draft': True, 'rw_qty': iqf_incoming_qty, 'rejection_rows': parsed_items, 'total_iqf_qty': total_iqf})
@@ -1565,6 +1575,7 @@ def iqf_submit_audit(request):
                     'rejection_details': rejection_details,
                     'remarks': remark,
                     'is_completed': True,
+                    'is_draft': False,
                     'created_by': request.user,
                 }
             )
@@ -2148,11 +2159,24 @@ class IQFRejectionTableView(APIView):
                 rejected_qty__gt=0, is_completed=True
             ).order_by('-created_at')
 
+            submitted_list = list(submitted_qs)
+
             # Pre-fetch lot IDs that have IQFTrayId records (for delink checkbox)
-            all_lot_ids = list(submitted_qs.values_list('lot_id', flat=True))
+            all_lot_ids = [sub.lot_id for sub in submitted_list]
+            partial_reject_lot_map = {}
+            for sub in submitted_list:
+                if sub.submission_type == 'PARTIAL' and sub.partial_reject_data:
+                    reject_child_lot_id = sub.partial_reject_data.get('rejected_lot_id')
+                    if reject_child_lot_id:
+                        partial_reject_lot_map[sub.lot_id] = reject_child_lot_id
+            partial_reject_lot_map.update(dict(
+                IQF_PartialRejectLot.objects.filter(parent_lot_id__in=all_lot_ids)
+                .values_list('parent_lot_id', 'new_lot_id')
+            ))
+            active_tray_lot_ids = list(set(all_lot_ids + list(partial_reject_lot_map.values())))
             lots_with_trays = set(
                 IQFTrayId.objects.filter(
-                    lot_id__in=all_lot_ids, delink_tray=False
+                    lot_id__in=active_tray_lot_ids, delink_tray=False
                 ).values_list('lot_id', flat=True).distinct()
             )
 
@@ -2163,7 +2187,7 @@ class IQFRejectionTableView(APIView):
             )
 
             master_data = []
-            for sub in submitted_qs:
+            for sub in submitted_list:
                 batch = sub.batch_id
                 if not batch:
                     continue
@@ -2201,9 +2225,12 @@ class IQFRejectionTableView(APIView):
                 else:
                     status_label = sub.submission_type
 
+                delink_lot_id = partial_reject_lot_map.get(sub.lot_id, sub.lot_id)
+
                 master_data.append({
                     'batch_id': batch.batch_id,
                     'stock_lot_id': sub.lot_id,
+                    'delink_lot_id': delink_lot_id,
                     'iqf_last_process_date_time': sub.created_at,
                     'plating_stk_no': batch.plating_stk_no or '',
                     'polishing_stk_no': batch.polishing_stk_no or '',
@@ -2221,7 +2248,7 @@ class IQFRejectionTableView(APIView):
                     'batch_rejection': is_lot_rejection,
                     'lot_rejected_comment': sub.remarks or '',
                     'dp_missing_qty': 0,
-                    'tray_id_in_trayid': sub.lot_id in lots_with_trays,
+                    'tray_id_in_trayid': delink_lot_id in lots_with_trays,
                     'status_label': status_label,
                     'submission_type': sub.submission_type,
                     # Original lot quantity BEFORE any rejection (preferred for UI display)
@@ -2954,16 +2981,31 @@ def iqf_validate_tray_scan(request):
         })
 
     # Also check if tray exists in other tray tables (cross-module) but not in master
-    exists_elsewhere = (
-        IQFTrayId.objects.filter(tray_id=tray_id).exists() or
-        BrassTrayId.objects.filter(tray_id=tray_id).exists()
+    # ✅ FIX: Only block ACTIVE (non-delinked) records — delinked trays from BrassQC can be reused in IQF as new trays
+    exists_active_elsewhere = (
+        IQFTrayId.objects.filter(tray_id=tray_id, delink_tray=False).exists() or
+        BrassTrayId.objects.filter(tray_id=tray_id, delink_tray=False).exists()
     )
-    if exists_elsewhere:
-        print(f"🚫 [TRAY_VALIDATION] {tray_id}: Found in IQFTrayId/BrassTrayId (different lot) — blocking")
+    if exists_active_elsewhere:
+        print(f"🚫 [TRAY_VALIDATION] {tray_id}: Found active in IQFTrayId/BrassTrayId — blocking")
         return Response({
             'success': True,
             'status': 'invalid_format',
             'message': 'Tray already in use in another module — cannot reuse',
+            'tray_id': tray_id,
+        })
+
+    # If tray exists only in delinked state — it is a free/released tray, allow as new
+    exists_delinked = (
+        IQFTrayId.objects.filter(tray_id=tray_id, delink_tray=True).exists() or
+        BrassTrayId.objects.filter(tray_id=tray_id, delink_tray=True).exists()
+    )
+    if exists_delinked:
+        print(f"✅ [TRAY_VALIDATION] {tray_id}: Found only as delinked in module tables — valid free tray")
+        return Response({
+            'success': True,
+            'status': 'delink',
+            'message': 'New Tray',
             'tray_id': tray_id,
         })
 
@@ -3004,6 +3046,7 @@ def iqf_accept_delink_modal(request):
         rej_total_str = str(payload.get('iqf_rejection_total', '0'))
         accepted_tray_ids = payload.get('accepted_tray_ids') or []
         delinked_tray_ids = payload.get('delinked_tray_ids') or []
+        remark = (payload.get('remark') or '').strip()
 
     if not lot_id:
         return Response({'success': False, 'error': 'Missing lot_id'}, status=400)
@@ -3377,7 +3420,7 @@ def iqf_accept_delink_modal(request):
                             for _reason_obj in rej_reason_store_parent.rejection_reason.all():
                                 _new_rejection_details.append({
                                     'reason_id': _reason_obj.id,
-                                    'reason': str(_reason_obj.rejection_reason),
+                                    'reason_text': str(_reason_obj.rejection_reason),
                                     'iqf_qty': rejected_qty,
                                 })
 
@@ -3506,11 +3549,13 @@ def iqf_accept_delink_modal(request):
                             total_lot_qty=rw_qty,
                             accepted_qty=accepted_qty,
                             rejected_qty=rejected_qty,
+                            remarks=remark,
                             submission_type=IQF_Submitted.SUB_PARTIAL,
                             partial_accept_data=_partial_accept_data,
                             partial_reject_data=_partial_reject_data,
                             rejection_details=_new_rejection_details,
                             is_completed=True,
+                            is_draft=False,
                             created_by=request.user,
                         )
                         print(f'[DELINK CONFIRM NEW] IQF_Submitted created for parent lot={lot_id}')
@@ -3815,6 +3860,7 @@ def iqf_lot_rejection(request):
                         'rejection_details': None,
                         'remarks': remark,
                         'is_completed': True,
+                        'is_draft': False,
                         'created_by': request.user,
                     }
                 )

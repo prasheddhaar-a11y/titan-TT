@@ -358,33 +358,38 @@ document.addEventListener("DOMContentLoaded", function () {
       placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
       placeholderRow.parentNode.removeChild(placeholderRow);
       movedRow.classList.remove("dp-row-action-highlight");
-      movedRow = null;
-      placeholderRow = null;
-      originalRowIndex = null;
     }
-    // Also remove highlight from any row just in case
+    movedRow = null;
+    placeholderRow = null;
+    originalRowIndex = null;
+    // Clear ALL possible highlight classes from all rows
     document.querySelectorAll("tbody tr").forEach(function (row) {
-      row.classList.remove("dp-row-action-highlight");
-      row.classList.remove("highlighted-tray-scan");
+      row.classList.remove(
+        "dp-row-action-highlight",
+        "gkb-row-focus",
+        "is-kbd-selected",
+        "gs-active-scan",
+        "gs-hi"
+      );
     });
+    // Clear session storage to prevent highlight persistence on page refresh
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === "function") {
+      window.GlobalShortcutManager.clear();
+    } else if (typeof window._gkbClearPending === "function") {
+      window._gkbClearPending();
+    }
   }
-  // Add event listeners for View buttons (tray-scan-btn-Jig)
-  document.querySelectorAll(".tray-scan-btn-Jig").forEach(function (link) {
-    link.addEventListener("click", handleRowHighlight);
+  document.addEventListener("click", function (event) {
+    var trigger = event.target.closest(
+      ".tray-scan-btn-Jig, .tray-scan-btn-DayPlanning-view, .btn-accept-is, .btn-reject-is"
+    );
+    if (!trigger || !document.getElementById("order-listing") || !document.getElementById("order-listing").contains(trigger)) return;
+    handleRowHighlight.call(trigger, event);
   });
-  // Add event listeners for Tray Verification View buttons
-  document
-    .querySelectorAll(".tray-scan-btn-DayPlanning-view")
-    .forEach(function (button) {
-      button.addEventListener("click", handleRowHighlight);
-    });
-  // Add event listeners for Accept buttons (btn-accept-is)
-  document.querySelectorAll(".btn-accept-is").forEach(function (button) {
-    button.addEventListener("click", handleRowHighlight);
-  });
-  // Add event listeners for Reject buttons (btn-reject-is)
-  document.querySelectorAll(".btn-reject-is").forEach(function (button) {
-    button.addEventListener("click", handleRowHighlight);
+  document.addEventListener("globalScan:pageUpdated", restoreRowPosition);
+  document.addEventListener("globalScan:closed", function (event) {
+    if (event && event.detail && event.detail.reason === "success") return;
+    restoreRowPosition();
   });
   // Expose restoreRowPosition globally so other scripts (e.g. tvmClose) can call it
   window.restoreRowPosition = restoreRowPosition;
@@ -859,7 +864,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const lotId = row.getAttribute("data-stock-lot-id");
       if (!lotId) return;
       // Check both the <tr> and the nested view <a> tag for the flag
-      const rowFlag = row.getAttribute("data-ip-person-qty-verified");
+      const rowFlag = row.getAttribute("data-all-trays-verified") || row.getAttribute("data-ip-person-qty-verified");
       const aTag = row.querySelector("a[data-ip-person-qty-verified]");
       const aFlag = aTag ? aTag.getAttribute("data-ip-person-qty-verified") : null;
       const verified = rowFlag === "true" || aFlag === "true";
@@ -1131,7 +1136,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             if (tr) tr.is_verified = false;
           }
-          isEnableActionButtons(lotId, data.all_verified);
+          tvmApplyPickTableVerificationState(lotId, data);
           // Enable Undo button when trays become unverified (pending > 0)
           if (data.pending > 0) {
             var undoBtn = document.getElementById("tvm-undo-all-btn");
@@ -1194,23 +1199,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (data.success) {
           tvmSetActivity("success", "All verifications cleared ✓");
           tvmSetRunningInfo("Status: All verifications cleared");
-          // Reload trays to show all as unverified
+          tvmApplyPickTableVerificationState(lotId, data);
           tvmLoadTrays(lotId);
-          // Reset Accept/Reject buttons to disabled
-          isEnableActionButtons(lotId, false);
-          // Update Q icon to grey (not verified)
-          var table = document.getElementById("order-listing");
-          if (table) {
-            table.querySelectorAll("tbody tr").forEach(function (row) {
-              if (row.getAttribute("data-stock-lot-id") === lotId) {
-                var qIcon = row.querySelector(".process-status-group div:first-child");
-                if (qIcon) {
-                  qIcon.style.backgroundColor = "#bdbdbd";
-                  qIcon.style.background = "#bdbdbd";
-                }
-              }
-            });
-          }
           Swal.fire({
             icon: "success",
             title: "All Verifications Cleared",
@@ -1297,62 +1287,120 @@ document.addEventListener("DOMContentLoaded", function () {
         if (btn) { btn.disabled = false; btn.innerHTML = "\uD83D\uDCBE Save Draft"; }
       });
   }
-  function isEnableActionButtons(lotId, enable) {
-    // Find row in table that has this lot_id
-    const table = document.getElementById("order-listing");
-    if (!table) return;
-    const rows = table.querySelectorAll("tbody tr");
-    rows.forEach(function (row) {
-      const rowLotId = row.getAttribute("data-stock-lot-id");
-      if (rowLotId === lotId) {
-        const acceptBtn = row.querySelector(".btn-accept-is");
-        const rejectBtn = row.querySelector(".btn-reject-is");
-        if (acceptBtn) {
-          acceptBtn.disabled = !enable;
-          acceptBtn.style.cursor = enable ? "pointer" : "not-allowed";
-          acceptBtn.style.opacity = enable ? "1" : "0.5";
-        }
-        if (rejectBtn) {
-          rejectBtn.disabled = !enable;
-          rejectBtn.style.cursor = enable ? "pointer" : "not-allowed";
-          rejectBtn.style.opacity = enable ? "1" : "0.5";
-        }
-        // Update Process Status "Q" indicator to full green when verified
-        if (enable) {
-          const processStatusCell = row.querySelector("td:nth-child(9)"); // Process Status column
-          if (processStatusCell) {
-            const qIcon = processStatusCell.querySelector(
-              "div > div:nth-child(1)",
-            ); // Q icon
-            if (qIcon) {
-              qIcon.style.backgroundColor = "#0c8249";
-              qIcon.style.background = "#0c8249"; // Override gradient
-              qIcon.style.opacity = "1";
-            }
-          }
-          // ── Dynamically update Lot Status → "Yet to Start" ──────────
-          const lotStatusCell = row.querySelector("td:nth-child(10)");
-          if (lotStatusCell) {
-            const pill = lotStatusCell.querySelector("div");
-            if (pill) {
-              pill.style.border = "1px solid #f9a825";
-              pill.style.backgroundColor = "#fff8e1";
-              pill.style.color = "#b26a00";
-              pill.style.fontSize = "13px";
-              pill.style.whiteSpace = "nowrap";
-              pill.textContent = "Yet to Start";
-            }
-          }
-          // ── Dynamically update Current Stage label ───────────────────
-          const currentStageCell = row.querySelector("td:nth-child(11)");
-          if (currentStageCell) {
-            const pill = currentStageCell.querySelector("div");
-            if (pill) {
-              pill.textContent = "Day Planning to Inputscreening";
-            }
-          }
-        }
+  function tvmCount(value) {
+    var parsed = parseInt(value || 0, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function tvmFindPickTableRows(lotId) {
+    var table = document.getElementById("order-listing");
+    if (!table || !lotId) return [];
+    return Array.from(table.querySelectorAll("tbody tr")).filter(function (row) {
+      return row.getAttribute("data-stock-lot-id") === lotId;
+    });
+  }
+
+  function tvmSetActionButtons(row, enable) {
+    [".btn-accept-is", ".btn-reject-is"].forEach(function (selector) {
+      var button = row.querySelector(selector);
+      if (!button) return;
+      button.disabled = !enable;
+      button.style.cursor = enable ? "pointer" : "not-allowed";
+      button.style.opacity = enable ? "1" : "0.5";
+    });
+  }
+
+  function tvmSetQStatus(row, state) {
+    var qIcon = row.querySelector("[data-process-status-q]") ||
+      row.querySelector(".process-status-group > div:first-child");
+    if (!qIcon) return;
+    if (state === "complete") {
+      qIcon.style.backgroundColor = "#0c8249";
+      qIcon.style.background = "#0c8249";
+      qIcon.style.opacity = "1";
+    } else if (state === "partial") {
+      qIcon.style.backgroundColor = "";
+      qIcon.style.background = "linear-gradient(to right, #0c8249 50%, #bdbdbd 50%)";
+      qIcon.style.opacity = "1";
+    } else {
+      qIcon.style.backgroundColor = "#bdbdbd";
+      qIcon.style.background = "#bdbdbd";
+      qIcon.style.opacity = "1";
+    }
+  }
+
+  function tvmPaintLotStatus(cell, label) {
+    if (!cell) return;
+    var pill = cell.querySelector("div");
+    if (!pill) {
+      pill = document.createElement("div");
+      pill.className = "d-inline-block px-3 fw-semibold text-center rounded-pill";
+      cell.innerHTML = "";
+      cell.appendChild(pill);
+    }
+    pill.style.fontSize = label === "Draft" ? "12px" : "13px";
+    pill.style.whiteSpace = "nowrap";
+    pill.style.padding = "5px";
+    if (label === "Draft") {
+      pill.style.border = "1px solid #4997ac";
+      pill.style.backgroundColor = "#d1f2f3";
+      pill.style.color = "#03425d";
+      pill.textContent = "Draft";
+      return;
+    }
+    pill.style.border = "1px solid #f9a825";
+    pill.style.backgroundColor = "#fff8e1";
+    pill.style.color = "#b26a00";
+    pill.textContent = "Yet to Start";
+  }
+
+  function tvmApplyPickTableVerificationState(lotId, data) {
+    var rowUi = (data && data.row_ui) || {};
+    var total = tvmCount(data && data.total);
+    var verified = tvmCount(data && data.verified);
+    var pending = data && data.pending !== undefined ? tvmCount(data.pending) : Math.max(total - verified, 0);
+    var state = rowUi.verification_state || "not_started";
+    if (!rowUi.verification_state) {
+      if (data && data.all_verified) state = "all_verified";
+      else if (total > 0 && verified > 0 && pending > 0) state = "partial_verified";
+    }
+
+    var complete = state === "all_verified";
+    var partial = state === "partial_verified";
+    var actionsEnabled = rowUi.actions_enabled !== undefined ? !!rowUi.actions_enabled : complete;
+    var qState = rowUi.process_q_state || (complete ? "complete" : partial ? "partial" : "pending");
+    var lotStatusLabel = rowUi.lot_status_label || (partial ? "Draft" : "Yet to Start");
+    var currentStageLabel = rowUi.current_stage_label || (complete ? "Day Planning to Inputscreening" : "");
+
+    tvmFindPickTableRows(lotId).forEach(function (row) {
+      row.setAttribute("data-all-trays-verified", complete ? "true" : "false");
+      row.setAttribute("data-partial-trays-verified", partial ? "true" : "false");
+      row.setAttribute("data-ip-person-qty-verified", complete ? "true" : "false");
+      row.setAttribute("data-draft-tray-verify", partial ? "True" : "False");
+      tvmSetActionButtons(row, actionsEnabled);
+      tvmSetQStatus(row, qState);
+      tvmPaintLotStatus(row.querySelector("[data-lot-status-cell]") || row.querySelector("td:nth-child(10)"), lotStatusLabel);
+      if (currentStageLabel) {
+        var currentStageCell = row.querySelector("[data-current-stage-cell]") || row.querySelector("td:nth-child(11)");
+        var currentStagePill = currentStageCell ? currentStageCell.querySelector("div") : null;
+        if (currentStagePill) currentStagePill.textContent = currentStageLabel;
       }
+    });
+  }
+
+  function isEnableActionButtons(lotId, enable) {
+    tvmApplyPickTableVerificationState(lotId, {
+      all_verified: !!enable,
+      verified: enable ? 1 : 0,
+      total: enable ? 1 : 0,
+      pending: enable ? 0 : 1,
+      row_ui: {
+        verification_state: enable ? "all_verified" : "not_started",
+        process_q_state: enable ? "complete" : "pending",
+        lot_status_label: "Yet to Start",
+        current_stage_label: enable ? "Day Planning to Inputscreening" : "",
+        actions_enabled: !!enable,
+      },
     });
   }
   // ─── Mark S circle as half-green (WIP) ──────────────────────────────
@@ -1505,87 +1553,125 @@ document.addEventListener("DOMContentLoaded", function () {
     
     verifyNextTray(0);
   }
+  function tvmFetchTrayData(lotId) {
+    return fetch("/inputscreening/get_dp_trays/?lot_id=" + encodeURIComponent(lotId))
+      .then(function (r) {
+        return r.json();
+      })
+      .catch(function () {
+        return { success: false, error: "Network error" };
+      });
+  }
+
+  function tvmTrayPendingCount(data) {
+    if (!data) return 0;
+    if (data.pending !== undefined && data.pending !== null) {
+      var pending = parseInt(data.pending || 0, 10);
+      return isNaN(pending) ? 0 : pending;
+    }
+    return (data.trays || []).filter(function (tray) {
+      return tray && !tray.is_verified;
+    }).length;
+  }
+
+  function tvmTrayTotalCount(data) {
+    if (!data) return 0;
+    if (data.total !== undefined && data.total !== null) {
+      var total = parseInt(data.total || 0, 10);
+      return isNaN(total) ? 0 : total;
+    }
+    return (data.trays || []).length;
+  }
+
+  function tvmFindTrayInData(data, trayId) {
+    var normalizedTrayId = tvmFormatTrayId(trayId || "");
+    return (data && data.trays || []).find(function (tray) {
+      return tray && tvmFormatTrayId(tray.tray_id || "") === normalizedTrayId;
+    }) || null;
+  }
+
+  function tvmApplyTrayData(lotId, data) {
+    const tbody = document.getElementById("tvm-tray-tbody");
+    if (!tbody) return data;
+    if (!data || !data.success) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" style="text-align:center;color:#d67d3a;padding:28px;">Error: ' +
+        ((data && data.error) || "Could not load trays") +
+        "</td></tr>";
+      return data;
+    }
+    // Update plating stock number (ERR 3)
+    const platEl = document.getElementById("tvm-plating-stk");
+    if (platEl && data.plating_stk_no) {
+      platEl.textContent = data.plating_stk_no;
+    }
+    // Store trays list and pending count for local lookup
+    window._tvmPendingCount = data.pending;
+    window._tvmTrays = data.trays || [];
+    window._tvmCurrentLotId = lotId; // Store current lot for button handlers
+    tvmUpdateStats(
+      data.verified,
+      data.total,
+      data.pending,
+      data.verified_qty,
+      data.total_qty,
+    );
+    tvmRenderTable(data.trays);
+    if (data.total === 0) {
+      tvmSetActivity(
+        "info",
+        "No trays found for this lot in Day Planning.",
+      );
+    } else if (tvmTrayPendingCount(data) === 0) {
+      tvmSetActivity(
+        "success",
+        "All trays already verified ✅  Ready for Input Screening",
+      );
+      // Enable action buttons when all verified
+      isEnableActionButtons(lotId, true);
+      // Disable Undo button when all trays verified
+      var undoBtn = document.getElementById("tvm-undo-all-btn");
+      if (undoBtn) {
+        undoBtn.disabled = true;
+        undoBtn.style.opacity = "0.5";
+        undoBtn.style.cursor = "not-allowed";
+        undoBtn.title = "All trays verified - cannot undo";
+      }
+    } else {
+      tvmSetActivity(
+        "wait",
+        "Waiting for tray scan… (" + tvmTrayPendingCount(data) + " pending)",
+      );
+      // Enable Undo button when trays are pending
+      var undoPendingBtn = document.getElementById("tvm-undo-all-btn");
+      if (undoPendingBtn) {
+        undoPendingBtn.disabled = false;
+        undoPendingBtn.style.opacity = "1";
+        undoPendingBtn.style.cursor = "pointer";
+        undoPendingBtn.title = "Undo all verifications - mark all trays as Not Verified";
+      }
+    }
+    return data;
+  }
+
   // ─── Load trays from backend ───────────────────────────────────────────────
   function tvmLoadTrays(lotId) {
     const tbody = document.getElementById("tvm-tray-tbody");
     tbody.innerHTML =
       '<tr><td colspan="4" style="text-align:center;color:#bbb;padding:28px;font-size:13px;">Loading trays…</td></tr>';
-    fetch("/inputscreening/get_dp_trays/?lot_id=" + encodeURIComponent(lotId))
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        if (!data.success) {
-          tbody.innerHTML =
-            '<tr><td colspan="4" style="text-align:center;color:#d67d3a;padding:28px;">Error: ' +
-            (data.error || "Could not load trays") +
-            "</td></tr>";
-          return;
-        }
-        // Update plating stock number (ERR 3)
-        const platEl = document.getElementById("tvm-plating-stk");
-        if (platEl && data.plating_stk_no) {
-          platEl.textContent = data.plating_stk_no;
-        }
-        // Store trays list and pending count for local lookup
-        window._tvmPendingCount = data.pending;
-        window._tvmTrays = data.trays || [];
-        window._tvmCurrentLotId = lotId; // Store current lot for button handlers
-        tvmUpdateStats(
-          data.verified,
-          data.total,
-          data.pending,
-          data.verified_qty,
-          data.total_qty,
-        );
-        tvmRenderTable(data.trays);
-        if (data.total === 0) {
-          tvmSetActivity(
-            "info",
-            "No trays found for this lot in Day Planning.",
-          );
-        } else if (data.pending === 0) {
-          tvmSetActivity(
-            "success",
-            "All trays already verified ✅  Ready for Input Screening",
-          );
-          // Enable action buttons when all verified
-          isEnableActionButtons(lotId, true);
-          // Disable Undo button when all trays verified
-          var undoBtn = document.getElementById("tvm-undo-all-btn");
-          if (undoBtn) {
-            undoBtn.disabled = true;
-            undoBtn.style.opacity = "0.5";
-            undoBtn.style.cursor = "not-allowed";
-            undoBtn.title = "All trays verified - cannot undo";
-          }
-        } else {
-          tvmSetActivity(
-            "wait",
-            "Waiting for tray scan… (" + data.pending + " pending)",
-          );
-          // Enable Undo button when trays are pending
-          var undoBtn = document.getElementById("tvm-undo-all-btn");
-          if (undoBtn) {
-            undoBtn.disabled = false;
-            undoBtn.style.opacity = "1";
-            undoBtn.style.cursor = "pointer";
-            undoBtn.title = "Undo all verifications - mark all trays as Not Verified";
-          }
-        }
-      })
-      .catch(function () {
-        tbody.innerHTML =
-          '<tr><td colspan="4" style="text-align:center;color:#d67d3a;padding:28px;">Network error — could not load trays</td></tr>';
-        tvmSetActivity("error", "Network error �?�");
-      });
+    return tvmFetchTrayData(lotId).then(function (data) {
+      return tvmApplyTrayData(lotId, data);
+    });
   }
   // ─── Verify a tray scan ────────────────────────────────────────────────────
   function tvmVerifyScan(trayId) {
     const lotId = window._tvmCurrentLotId;
-    if (!lotId || !trayId) return;
+    if (!lotId || !trayId) return Promise.resolve(null);
+    document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+      detail: { status: "verifying", tray_id: trayId, lot_id: lotId }
+    }));
     tvmSetActivity("info", "Verifying: " + trayId + "…");
-    fetch("/inputscreening/verify_tray/", {
+    return fetch("/inputscreening/verify_tray/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1633,6 +1719,9 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           // FIX 4: Update running info
           tvmSetRunningInfo("Scanned: " + trayId + " ✅");
+          document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+            detail: { status: "verified", tray_id: trayId, lot_id: lotId, all_verified: !!data.all_verified }
+          }));
           if (data.all_verified) {
             // ── SSOT: enable action buttons from backend response ──────────
             isEnableActionButtons(window._tvmCurrentLotId, true);
@@ -1683,6 +1772,9 @@ document.addEventListener("DOMContentLoaded", function () {
             tvmScrollToTray(trayId, true);
             // Update running info
             tvmSetRunningInfo("Scanned: " + trayId + " (Already Verified)");
+            document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+              detail: { status: "already_verified", tray_id: trayId, lot_id: lotId }
+            }));
             // Auto-select input for already verified trays
             setTimeout(function () {
               input.select();
@@ -1695,6 +1787,9 @@ document.addEventListener("DOMContentLoaded", function () {
             tvmSetActivity("error", data.message || "Invalid Tray ID �?�");
             // Update running info with invalid scan
             tvmSetRunningInfo("Invalid: " + trayId + " �?�");
+            document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+              detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
+            }));
             // Shake animation
             input.style.animation = "";
             void input.offsetWidth; // reflow to restart
@@ -1717,6 +1812,9 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function () {
         tvmSetActivity("error", "Network error �?�");
+        document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+          detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
+        }));
         const input = document.getElementById("tvm-scan-input");
         input.value = "";
         setTimeout(function () {
@@ -1728,7 +1826,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
   // ─── Open / close ──────────────────────────────────────────────────────────
-  function tvmOpen(lotId, batchId) {
+  function tvmOpen(lotId, batchId, preloadedTrayData) {
     window._tvmCurrentLotId = lotId;
     window._tvmCurrentBatchId = batchId;
     tvmUpdateStats(0, 0, 0, 0, 0);
@@ -1750,7 +1848,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (banner) banner.style.display = "none";
     const modal = document.getElementById("trayVerificationModal");
     modal.style.display = "flex";
-    tvmLoadTrays(lotId);
+    const loadPromise = preloadedTrayData
+      ? Promise.resolve(tvmApplyTrayData(lotId, preloadedTrayData))
+      : tvmLoadTrays(lotId);
     // ERR 2: Auto focus cursor on modal open
     setTimeout(function () {
       const input = document.getElementById("tvm-scan-input");
@@ -1760,6 +1860,7 @@ document.addEventListener("DOMContentLoaded", function () {
         input.setSelectionRange(0, 0);
       }
     }, 120);
+    return loadPromise;
   }
   function tvmClose() {
     document.getElementById("trayVerificationModal").style.display = "none";
@@ -1769,9 +1870,85 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.restoreRowPosition === "function") {
       window.restoreRowPosition();
     }
+    // Clear session storage to prevent highlight on page refresh
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === "function") {
+      window.GlobalShortcutManager.clear();
+    } else if (typeof window._gkbClearPending === "function") {
+      window._gkbClearPending();
+    }
   }
   // Expose globally so keyboard shortcut handler can close the modal via Esc
   window.tvmClose = tvmClose;
+  window.openInputScreeningTrayVerificationFromGlobalScan = function (payload) {
+    payload = payload || {};
+    var row = payload.row || null;
+    var trigger = payload.trigger || (row ? row.querySelector(".tray-scan-btn-DayPlanning-view") : null);
+    var trayId = tvmFormatTrayId(payload.tray_id || "");
+    var lotId = payload.lot_id || (trigger && trigger.getAttribute("data-stock-lot-id")) || (row && row.getAttribute("data-stock-lot-id"));
+    var batchId = payload.batch_id || (trigger && trigger.getAttribute("data-batch-id")) || (row && row.getAttribute("data-batch-id"));
+
+    if (!trayId || !lotId) return false;
+
+    tvmFetchTrayData(lotId).then(function (trayData) {
+      if (!trayData || !trayData.success) {
+        document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+          detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
+        }));
+        return;
+      }
+
+      var matchedTray = tvmFindTrayInData(trayData, trayId);
+      var pendingCount = tvmTrayPendingCount(trayData);
+      var totalCount = tvmTrayTotalCount(trayData);
+
+      if (!matchedTray) {
+        document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+          detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
+        }));
+        return;
+      }
+
+      if (totalCount > 0 && pendingCount === 0) {
+        isEnableActionButtons(lotId, true);
+        if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+        document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+          detail: { status: "already_verified", tray_id: trayId, lot_id: lotId, all_verified: true }
+        }));
+        return;
+      }
+
+      tvmSetActivity("info", "Opening scanned tray " + trayId + "...");
+      tvmSetRunningInfo("Verification: " + trayId);
+
+      Promise.resolve(tvmOpen(lotId, batchId || "", trayData))
+        .then(function (loadedData) {
+          var matchedTrayAfterOpen = tvmFindTrayInData(loadedData || trayData, trayId);
+
+          if (!matchedTrayAfterOpen) {
+            tvmSetActivity("error", "Scanned tray " + trayId + " is not in this lot.");
+            tvmSetRunningInfo("Invalid: " + trayId);
+            document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+              detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
+            }));
+            return;
+          }
+
+          tvmScrollToTray(matchedTrayAfterOpen.tray_id, true);
+          if (matchedTrayAfterOpen.is_verified) {
+            tvmSetActivity("info", "Tray " + matchedTrayAfterOpen.tray_id + " is already verified. Continue pending trays.");
+            tvmSetRunningInfo("Scanned: " + matchedTrayAfterOpen.tray_id + " (Already Verified)");
+            document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
+              detail: { status: "already_verified", tray_id: matchedTrayAfterOpen.tray_id, lot_id: lotId, all_verified: false }
+            }));
+            return;
+          }
+
+          tvmVerifyScan(matchedTrayAfterOpen.tray_id);
+        });
+    });
+
+    return true;
+  };
   // ─── Event: Save Draft button ──────────────────────────────────────────────
   var tvmDraftBtn = document.getElementById("tvm-save-draft-btn");
   if (tvmDraftBtn) tvmDraftBtn.addEventListener("click", tvmSaveDraft);
