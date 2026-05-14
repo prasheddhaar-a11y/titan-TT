@@ -2025,6 +2025,9 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 				'delink_qty': delink_qty,
 				'excess_qty': excess_qty_row,
 				'original_qty': original_qty,
+				'source_lot_id': meta.get('lot_id', source_lot),
+				'batch_id': meta.get('batch_id', ''),
+				'model_code': m_code,
 			}
 		sno += 1
 
@@ -2050,8 +2053,9 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 	if excess_exists:
 		# Partial (split) tray as top tray
 		if split_tray:
-			st_model = tray_model_map.get(split_tray['tray_id'], '')
-			st_lot_id = ''
+			st_model = split_tray.get('model_code') or tray_model_map.get(split_tray['tray_id'], '')
+			st_lot_id = split_tray.get('source_lot_id', '')
+			st_batch_id = split_tray.get('batch_id', '')
 			if not st_model:
 				for at in all_trays:
 					if at.get('tray_id') == split_tray['tray_id'] and at.get('source_lot_id'):
@@ -2061,6 +2065,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 			if not st_lot_id:
 				st_meta = tray_meta_map.get(split_tray['tray_id'], {})
 				st_lot_id = st_meta.get('lot_id', '')
+				st_batch_id = st_batch_id or st_meta.get('batch_id', '')
 				if not st_lot_id:
 					for at in all_trays:
 						if at.get('tray_id') == split_tray['tray_id']:
@@ -2076,6 +2081,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 				'model_code': st_model,
 				'original_tray_id': split_tray['tray_id'],
 				'lot_id': st_lot_id,
+				'batch_id': st_batch_id,
 			}
 
 		# Full excess trays (delink_qty == 0)
@@ -2085,12 +2091,12 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 			if at_excess <= 0 or at_delink > 0:
 				continue
 			at_tid = at.get('tray_id', '')
+			et_meta = tray_meta_map.get(at_tid, {})
 			et_model = tray_model_map.get(at_tid, '')
 			et_lot_id = at.get('source_lot_id', '')
 			if not et_model and et_lot_id:
 				et_model = lot_model_map.get(et_lot_id, '')
 			if not et_lot_id:
-				et_meta = tray_meta_map.get(at_tid, {})
 				et_lot_id = et_meta.get('lot_id', '')
 			excess_panel_trays.append({
 				'sno': ex_sno,
@@ -2107,6 +2113,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 				'is_checkbox_enabled': True,
 				'state': 'default',
 				'lot_id': et_lot_id,
+				'batch_id': et_meta.get('batch_id', ''),
 			})
 			ex_sno += 1
 
@@ -3090,6 +3097,19 @@ class JigLoadUpdateAPI(APIView):
 		primary_lot_id = payload.get('primary_lot_id', lot_id)
 		primary_batch_id = payload.get('primary_batch_id', batch_id)
 
+		if isinstance(multi_model_flag, str):
+			multi_model_flag = multi_model_flag.lower() in ('1', 'true', 'yes', 'on')
+		if isinstance(secondary_lots, str):
+			try:
+				secondary_lots = json.loads(secondary_lots)
+			except json.JSONDecodeError:
+				secondary_lots = []
+		if not isinstance(secondary_lots, list):
+			secondary_lots = []
+
+		state_lot_id = primary_lot_id if multi_model_flag and primary_lot_id else lot_id
+		state_batch_id = primary_batch_id if multi_model_flag and primary_batch_id else batch_id
+
 		if not lot_id or not batch_id:
 			return Response({'error': 'lot_id and batch_id are required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3101,18 +3121,37 @@ class JigLoadUpdateAPI(APIView):
 			allow_reuse_delink = bool(payload.get('allow_reuse_delink', False))
 			allow_new_half_filled = bool(payload.get('allow_new_half_filled', False))
 			already_scanned = set(s.get('tray_id', '') for s in scanned_trays if s.get('tray_id'))
-			is_valid, tray_qty, validation_status, message = validate_tray_for_scan(
-				tray_id,
-				lot_id,
-				already_scanned,
-				allow_reuse_delink=allow_reuse_delink,
-				allow_new_half_filled=allow_new_half_filled,
-			)
+			candidate_lot_ids = []
+			for candidate in [lot_id, primary_lot_id] + [sec.get('lot_id') for sec in secondary_lots if isinstance(sec, dict)]:
+				if candidate and candidate not in candidate_lot_ids:
+					candidate_lot_ids.append(candidate)
+
+			is_valid = False
+			tray_qty = 0
+			validation_status = 'invalid_tray'
+			message = 'Invalid tray or wrong lot'
+			validated_lot_id = lot_id
+			for candidate_lot_id in candidate_lot_ids:
+				is_valid, tray_qty, validation_status, message = validate_tray_for_scan(
+					tray_id,
+					candidate_lot_id,
+					already_scanned,
+					allow_reuse_delink=allow_reuse_delink,
+					allow_new_half_filled=allow_new_half_filled,
+				)
+				if is_valid:
+					validated_lot_id = candidate_lot_id
+					break
+				if validation_status != 'invalid_tray':
+					break
+			if is_valid and validated_lot_id != lot_id:
+				logging.info(f'[UPDATE_MM_SCAN_CONTEXT] tray={tray_id} posted_lot={lot_id} validated_lot={validated_lot_id}')
 			scan_result = {
 				'validation_status': validation_status,
 				'message': message,
 				'tray_id': tray_id,
 				'tray_qty': tray_qty,
+				'validated_lot_id': validated_lot_id,
 			}
 			if not is_valid:
 				return Response(scan_result, status=status.HTTP_400_BAD_REQUEST if validation_status != 'error' else status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3134,9 +3173,9 @@ class JigLoadUpdateAPI(APIView):
 			scanned_trays = []
 			try:
 				JigCompleted.objects.filter(
-					batch_id=batch_id, lot_id=lot_id, user=request.user, draft_status='active'
+					batch_id=state_batch_id, lot_id=state_lot_id, user=request.user, draft_status='active'
 				).delete()
-				logging.info(f'[CLEAR] Working-state draft deleted for lot={lot_id}, batch={batch_id}')
+				logging.info(f'[CLEAR] Working-state draft deleted for lot={state_lot_id}, batch={state_batch_id}')
 			except Exception:
 				logging.exception('JigLoadUpdateAPI: clear draft delete failed')
 
@@ -3234,12 +3273,12 @@ class JigLoadUpdateAPI(APIView):
 				}
 				# Only set draft_status to 'active' if record doesn't already have explicit 'draft'
 				existing = JigCompleted.objects.filter(
-					batch_id=batch_id, lot_id=lot_id, user=request.user
+					batch_id=state_batch_id, lot_id=state_lot_id, user=request.user
 				).values_list('draft_status', flat=True).first()
 				if existing != 'draft':
 					defaults['draft_status'] = 'active'
 				JigCompleted.objects.update_or_create(
-					batch_id=batch_id, lot_id=lot_id, user=request.user,
+					batch_id=state_batch_id, lot_id=state_lot_id, user=request.user,
 					defaults=defaults
 				)
 			except Exception:
@@ -3315,8 +3354,8 @@ class JigLoadUpdateAPI(APIView):
 
 		logging.info(json.dumps({
 			'event': 'JIG_LOAD_UPDATE_UNIFIED_TABLE',
-			'lot_id': lot_id,
-			'batch_id': batch_id,
+			'lot_id': state_lot_id,
+			'batch_id': state_batch_id,
 			'action': action,
 			'rows': len(unified_tray_table),
 			'is_multi_model': bool(multi_model_flag),
@@ -3324,8 +3363,8 @@ class JigLoadUpdateAPI(APIView):
 		}))
 
 		response = {
-			'lot_id': lot_id,
-			'batch_id': batch_id,
+			'lot_id': state_lot_id,
+			'batch_id': state_batch_id,
 			'lot_qty': lot_data['lot_qty'],
 			'total_qty': computed['total_qty'],
 			'total_multi_model_qty': total_multi_model_qty,
@@ -3695,17 +3734,16 @@ class JigSaveAPI(APIView):
 					status=status.HTTP_409_CONFLICT
 				)
 
-			# Jig uniqueness check
-			already_loaded = JigCompleted.objects.filter(
-				jig_id=jig_id, draft_status='submitted'
-			).exclude(batch_id=batch_id, lot_id=lot_id, user=user).exists()
-			if already_loaded:
-				return Response({'status': 'error', 'message': f'Jig {jig_id} is already in use.'}, status=status.HTTP_409_CONFLICT)
-			jig_obj_loaded = Jig.objects.filter(jig_qr_id=jig_id, is_loaded=True).exclude(
+			# Jig occupancy check: submitted JigCompleted rows are historical records.
+			# Reuse is blocked only while the Jig master marks the jig as occupied/loaded.
+			jig_obj_loaded = Jig.objects.filter(
+				jig_qr_id=jig_id,
+				occupied_flag=True,
+			).exclude(
 				current_user=user, batch_id=batch_id, lot_id=lot_id
 			).exists()
 			if jig_obj_loaded:
-				return Response({'status': 'error', 'message': f'Jig {jig_id} is currently loaded.'}, status=status.HTTP_409_CONFLICT)
+				return Response({'status': 'error', 'message': f'Jig {jig_id} is already in use.'}, status=status.HTTP_409_CONFLICT)
 
 			# Check jig not locked by another user
 			jig_obj = Jig.objects.filter(jig_qr_id=jig_id).first()

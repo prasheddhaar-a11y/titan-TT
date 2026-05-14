@@ -163,6 +163,64 @@ def _nq_upsert_accepted_tray_store(lot_id, tray_id, qty, user):
     )
 
 
+def _nq_list(value):
+    return value if isinstance(value, list) else []
+
+
+def _nq_draft_zone_label(request):
+    return 'Zone 2' if 'zone_two' in (request.path or '').lower() else 'Zone 1'
+
+
+def _nq_build_draft_snapshot(raw_draft_data, juat, request):
+    draft_data = dict(raw_draft_data) if isinstance(raw_draft_data, dict) else {}
+    total_qty = _nq_int(draft_data.get('total_lot_qty', draft_data.get('total_qty', juat.total_case_qty or 0)))
+    rejected_qty = _nq_int(draft_data.get('rejected_qty', 0))
+    accepted_qty = _nq_int(draft_data.get('accepted_qty', max(total_qty - rejected_qty, 0)))
+    reason_qtys = _nq_list(draft_data.get('reason_qtys'))
+    reject_trays = _nq_list(draft_data.get('reject_trays'))
+    accept_trays = _nq_list(draft_data.get('accept_trays'))
+    delink_trays = _nq_list(draft_data.get('delink_trays'))
+    original_trays = _nq_list(draft_data.get('original_trays'))
+
+    draft_data.update({
+        'isDraft': True,
+        'is_draft': True,
+        'status': 'Draft',
+        'module': 'Nickel Inspection',
+        'zone': draft_data.get('zone') or _nq_draft_zone_label(request),
+        'lot_id': juat.lot_id,
+        'batch_id': juat.unload_lot_id or juat.lot_id,
+        'plating_stk_no': draft_data.get('plating_stk_no') or juat.plating_stk_no or '',
+        'total_lot_qty': total_qty,
+        'total_qty': total_qty,
+        'rejected_qty': rejected_qty,
+        'accepted_qty': accepted_qty,
+        'remaining_qty': max(total_qty - rejected_qty, 0),
+        'reason_qtys': reason_qtys,
+        'reject_trays': reject_trays,
+        'accept_trays': accept_trays,
+        'delink_trays': delink_trays,
+        'original_trays': original_trays,
+        'reject_slots': _nq_list(draft_data.get('reject_slots')),
+        'accept_slots': _nq_list(draft_data.get('accept_slots')),
+        'delink_slots': _nq_list(draft_data.get('delink_slots')),
+        'accept_auto_trays': _nq_list(draft_data.get('accept_auto_trays')),
+        'auto_delink_tray_ids': _nq_list(draft_data.get('auto_delink_tray_ids')),
+        'tray_counts': {
+            'original': len(original_trays),
+            'reject': len(reject_trays),
+            'accept': len(accept_trays),
+            'delink': len(delink_trays),
+        },
+    })
+    draft_data.setdefault('rejection_reasons', reason_qtys)
+    return draft_data
+
+
+def _nq_clear_draft_state(lot_id):
+    Nickel_QC_Draft_Store.objects.filter(lot_id=lot_id, draft_type='batch_rejection').delete()
+
+
 def _nq_get_original_trays_for_allocation(lot_id, juat, create_missing=False):
     trays_qs = NickelQcTrayId.objects.filter(
         lot_id=lot_id, rejected_tray=False, delink_tray=False
@@ -705,9 +763,7 @@ def nq_toggle_verified(request):
             if not obj:
                 return Response({'success': False, 'error': 'Lot not found'}, status=404)
             obj.nq_qc_accepted_qty_verified = True
-            obj.nq_draft = True
-            obj.last_process_module = 'Nickel Audit'
-            obj.save(update_fields=['nq_qc_accepted_qty_verified', 'nq_draft', 'last_process_module'])
+            obj.save(update_fields=['nq_qc_accepted_qty_verified'])
         logger.info("[nq_toggle_verified] lot=%s user=%s", lot_id, request.user)
         return Response({'success': True, 'last_process_module': obj.last_process_module or ''})
     except Exception as e:
@@ -848,26 +904,29 @@ def nq_action(request):
             return Response({'success': False, 'error': str(e)}, status=500)
     if action == 'SAVE_DRAFT':
         from django.db import transaction as _tx
-        draft_data = request.data.get('draft_data', {})
+        draft_data = _nq_build_draft_snapshot(request.data.get('draft_data', {}), juat, request)
         with _tx.atomic():
             Nickel_QC_Draft_Store.objects.update_or_create(
                 lot_id=lot_id,
+                draft_type='batch_rejection',
                 defaults={
                     'batch_id': juat.unload_lot_id or lot_id,
                     'user': request.user,
-                    'draft_type': 'batch_rejection',
                     'draft_data': draft_data,
                 },
             )
             juat.nq_draft = True
-            juat.nq_onhold_picking = True
-            juat.save(update_fields=['nq_draft', 'nq_onhold_picking'])
+            update_fields = ['nq_draft']
+            if juat.nq_onhold_picking and not juat.nq_qc_rejection and not juat.nq_qc_few_cases_accptance:
+                juat.nq_onhold_picking = False
+                update_fields.append('nq_onhold_picking')
+            juat.save(update_fields=update_fields)
         logger.info("[nq_action SAVE_DRAFT] lot=%s user=%s", lot_id, request.user)
-        return Response({'success': True})
+        return Response({'success': True, 'isDraft': True, 'status': 'Draft', 'draft_data': draft_data})
     if action == 'GET_DRAFT':
-        draft = Nickel_QC_Draft_Store.objects.filter(lot_id=lot_id).first()
+        draft = Nickel_QC_Draft_Store.objects.filter(lot_id=lot_id, draft_type='batch_rejection').first()
         if draft:
-            return Response({'success': True, 'has_draft': True, 'draft_data': draft.draft_data})
+            return Response({'success': True, 'has_draft': True, 'isDraft': True, 'status': 'Draft', 'draft_data': _nq_build_draft_snapshot(draft.draft_data, juat, request)})
         return Response({'success': True, 'has_draft': False, 'draft_data': {}})
     return Response({'success': False, 'error': f'Unknown action: {action}'}, status=400)
 
@@ -964,12 +1023,16 @@ def _nq_do_full_accept(request, lot_id, juat):
         )
         juat.nq_qc_accptance = True
         juat.nq_qc_accepted_qty = total_qty
+        juat.nq_draft = False
+        juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
+            'nq_draft', 'nq_onhold_picking',
             'nq_last_process_date_time', 'last_process_module',
         ])
+        _nq_clear_draft_state(lot_id)
     logger.info("[nq_full_accept] lot=%s user=%s qty=%d", lot_id, request.user, total_qty)
     return Response({'success': True})
 
@@ -1114,14 +1177,18 @@ def _nq_do_submit_reject(request, lot_id, juat):
         import django.utils.timezone as tz
         juat.nq_qc_rejection = not is_partial
         juat.nq_qc_few_cases_accptance = is_partial
+        juat.nq_draft = False
+        juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
         if is_partial:
             juat.nq_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
             'nq_qc_rejection', 'nq_qc_few_cases_accptance',
+            'nq_draft', 'nq_onhold_picking',
             'nq_last_process_date_time', 'last_process_module', 'nq_qc_accepted_qty',
         ])
+        _nq_clear_draft_state(lot_id)
         # ── Create NickelQC_Submission record ──────────────────────────────────
         submission_type = 'PARTIAL' if is_partial else 'FULL_REJECT'
         reason_data = {
@@ -1268,12 +1335,16 @@ def _nq_do_submit_accept(request, lot_id, juat):
             _nq_upsert_accepted_tray_store(lot_id, tid, qty, request.user)
         juat.nq_qc_accptance = True
         juat.nq_qc_accepted_qty = juat.total_case_qty
+        juat.nq_draft = False
+        juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
+            'nq_draft', 'nq_onhold_picking',
             'nq_last_process_date_time', 'last_process_module',
         ])
+        _nq_clear_draft_state(lot_id)
         # ERR3: Save independent NickelWiping_FullAcceptRecord for view icon
         NickelWiping_FullAcceptRecord.objects.update_or_create(
             source_lot_id=lot_id,

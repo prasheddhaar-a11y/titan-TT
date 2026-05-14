@@ -32,7 +32,7 @@ from Jig_Unloading.models import *
 from Jig_Unloading.tray_utils import get_upstream_tray_distribution, get_model_master_tray_info
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
-from Nickel_Audit.views import _na_latest_submission_qtys, _na_unique_completed_rows
+from Nickel_Audit.views import _na_latest_submission_qtys, _na_partial_accept_child_maps, _na_unique_completed_rows
 
 logger = logging.getLogger(__name__)
 
@@ -131,15 +131,32 @@ def _na_completed_source_lot_ids(allowed_color_ids):
 
 
 def _active_audit_zone_pick_rows(queryset, completed_source_lots):
+    rows = list(queryset)
+    partial_parent_lots, partial_child_meta = _na_partial_accept_child_maps(rows)
     active_rows = []
     seen_source_lots = set()
     input_count = 0
     direct_submission_excluded = 0
+    partial_parent_excluded = 0
     completed_source_excluded = 0
     duplicate_source_excluded = 0
 
-    for jig_unload_obj in queryset:
+    for jig_unload_obj in rows:
         input_count += 1
+        lot_id = str(jig_unload_obj.lot_id or '').strip()
+        if lot_id in partial_parent_lots and lot_id not in partial_child_meta:
+            partial_parent_excluded += 1
+            logger.info(
+                "[AUDIT_PICKTABLE_FILTER] zone=Z2 exclude lot=%s reason=partial_parent_child_visible",
+                lot_id,
+            )
+            continue
+
+        child_meta = partial_child_meta.get(lot_id)
+        if child_meta:
+            jig_unload_obj.nq_partial_parent_lot_id = child_meta.get('parent_lot_id') or ''
+            jig_unload_obj.nq_partial_accept_qty = child_meta.get('accepted_qty') or jig_unload_obj.total_case_qty
+
         source_lots = _source_lot_ids(jig_unload_obj)
         if getattr(jig_unload_obj, 'has_submission', False):
             direct_submission_excluded += 1
@@ -169,10 +186,11 @@ def _active_audit_zone_pick_rows(queryset, completed_source_lots):
         seen_source_lots.update(source_lots)
 
     logger.info(
-        "[AUDIT_PICKTABLE_FILTER] zone=Z2 input=%d output=%d direct_submission_excluded=%d completed_source_excluded=%d duplicate_source_excluded=%d completed_sources=%d",
+        "[AUDIT_PICKTABLE_FILTER] zone=Z2 input=%d output=%d direct_submission_excluded=%d partial_parent_excluded=%d completed_source_excluded=%d duplicate_source_excluded=%d completed_sources=%d",
         input_count,
         len(active_rows),
         direct_submission_excluded,
+        partial_parent_excluded,
         completed_source_excluded,
         duplicate_source_excluded,
         len(completed_source_lots),
@@ -219,11 +237,21 @@ class NA_Zone_PickTableView(APIView):
             NickelAudit_Submission.objects.filter(lot_id=OuterRef('lot_id'))
         )
 
+        is_nq_partial_accept_child_subquery = Exists(
+            NickelQC_PartialAcceptLot.objects.filter(new_lot_id=OuterRef('lot_id'))
+        )
+
+        nq_partial_parent_lot_subquery = NickelQC_PartialAcceptLot.objects.filter(
+            new_lot_id=OuterRef('lot_id')
+        ).values('parent_lot_id')[:1]
+
         queryset = queryset.annotate(
             has_draft=has_draft_subquery,
             draft_type=draft_type_subquery,
             brass_rejection_total_qty=brass_rejection_qty_subquery,
             has_submission=has_submission_subquery,
+            is_nq_partial_accept_child=is_nq_partial_accept_child_subquery,
+            nq_partial_parent_lot_id=Subquery(nq_partial_parent_lot_subquery),
         )
 
         queryset = queryset.filter(
@@ -238,6 +266,7 @@ class NA_Zone_PickTableView(APIView):
                 &
                 (
                     Q(nq_qc_accptance=True) |
+                    Q(is_nq_partial_accept_child=True) |
                     Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
                 )
             )
@@ -280,6 +309,7 @@ class NA_Zone_PickTableView(APIView):
                 'na_qc_rejection': jig_unload_obj.na_qc_rejection,
                 'na_qc_few_cases_accptance': jig_unload_obj.na_qc_few_cases_accptance,
                 'na_onhold_picking': jig_unload_obj.na_onhold_picking,
+                'na_draft': jig_unload_obj.na_draft,
                 'send_to_nickel_brass': jig_unload_obj.send_to_nickel_brass,
                 'nq_last_process_date_time': jig_unload_obj.nq_last_process_date_time,
                 'iqf_last_process_date_time': None,
@@ -290,6 +320,9 @@ class NA_Zone_PickTableView(APIView):
                 'has_draft': jig_unload_obj.has_draft,
                 'draft_type': jig_unload_obj.draft_type,
                 'brass_rejection_total_qty': jig_unload_obj.brass_rejection_total_qty,
+                'is_nq_partial_accept_child': bool(getattr(jig_unload_obj, 'is_nq_partial_accept_child', False)),
+                'nq_partial_parent_lot_id': getattr(jig_unload_obj, 'nq_partial_parent_lot_id', '') or '',
+                'nq_partial_accept_qty': getattr(jig_unload_obj, 'nq_partial_accept_qty', None) or jig_unload_obj.total_case_qty,
                 'plating_stk_no': jig_unload_obj.plating_stk_no or '',
                 'polishing_stk_no': jig_unload_obj.polish_stk_no or '',
                 'category': jig_unload_obj.category or '',

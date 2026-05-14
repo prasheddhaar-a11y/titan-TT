@@ -243,6 +243,64 @@ def _na_upsert_accepted_tray_store(lot_id, tray_id, qty, user):
     )
 
 
+def _na_list(value):
+    return value if isinstance(value, list) else []
+
+
+def _na_draft_zone_label(request):
+    return 'Zone 2' if 'zone_two' in (request.path or '').lower() else 'Zone 1'
+
+
+def _na_build_draft_snapshot(raw_draft_data, juat, request):
+    draft_data = dict(raw_draft_data) if isinstance(raw_draft_data, dict) else {}
+    total_qty = _na_int(draft_data.get('total_lot_qty', draft_data.get('total_qty', juat.nq_qc_accepted_qty or juat.total_case_qty or 0)))
+    rejected_qty = _na_int(draft_data.get('rejected_qty', 0))
+    accepted_qty = _na_int(draft_data.get('accepted_qty', max(total_qty - rejected_qty, 0)))
+    reason_qtys = _na_list(draft_data.get('reason_qtys'))
+    reject_trays = _na_list(draft_data.get('reject_trays'))
+    accept_trays = _na_list(draft_data.get('accept_trays'))
+    delink_trays = _na_list(draft_data.get('delink_trays'))
+    original_trays = _na_list(draft_data.get('original_trays'))
+
+    draft_data.update({
+        'isDraft': True,
+        'is_draft': True,
+        'status': 'Draft',
+        'module': 'Nickel Audit',
+        'zone': draft_data.get('zone') or _na_draft_zone_label(request),
+        'lot_id': juat.lot_id,
+        'batch_id': juat.unload_lot_id or juat.lot_id,
+        'plating_stk_no': draft_data.get('plating_stk_no') or juat.plating_stk_no or '',
+        'total_lot_qty': total_qty,
+        'total_qty': total_qty,
+        'rejected_qty': rejected_qty,
+        'accepted_qty': accepted_qty,
+        'remaining_qty': max(total_qty - rejected_qty, 0),
+        'reason_qtys': reason_qtys,
+        'reject_trays': reject_trays,
+        'accept_trays': accept_trays,
+        'delink_trays': delink_trays,
+        'original_trays': original_trays,
+        'reject_slots': _na_list(draft_data.get('reject_slots')),
+        'accept_slots': _na_list(draft_data.get('accept_slots')),
+        'delink_slots': _na_list(draft_data.get('delink_slots')),
+        'accept_auto_trays': _na_list(draft_data.get('accept_auto_trays')),
+        'auto_delink_tray_ids': _na_list(draft_data.get('auto_delink_tray_ids')),
+        'tray_counts': {
+            'original': len(original_trays),
+            'reject': len(reject_trays),
+            'accept': len(accept_trays),
+            'delink': len(delink_trays),
+        },
+    })
+    draft_data.setdefault('rejection_reasons', reason_qtys)
+    return draft_data
+
+
+def _na_clear_draft_state(lot_id):
+    Nickel_Audit_Draft_Store.objects.filter(lot_id=lot_id, draft_type='batch_rejection').delete()
+
+
 def _na_normalize_source_lot_id(raw_lot_id):
     lot_id = str(raw_lot_id or '').strip()
     if '-' in lot_id:
@@ -282,16 +340,56 @@ def _na_completed_source_lot_ids(allowed_color_ids):
     return completed_sources
 
 
+def _na_partial_accept_child_maps(rows):
+    lot_ids = [str(row.lot_id or '').strip() for row in rows if getattr(row, 'lot_id', None)]
+    visible_lot_ids = set(lot_ids)
+    if not visible_lot_ids:
+        return set(), {}
+
+    partial_rows = NickelQC_PartialAcceptLot.objects.filter(
+        Q(parent_lot_id__in=visible_lot_ids) | Q(new_lot_id__in=visible_lot_ids)
+    ).values('parent_lot_id', 'new_lot_id', 'accepted_qty')
+
+    parents_with_visible_child = set()
+    child_meta_by_lot = {}
+    for partial_row in partial_rows:
+        parent_lot_id = str(partial_row.get('parent_lot_id') or '').strip()
+        child_lot_id = str(partial_row.get('new_lot_id') or '').strip()
+        if child_lot_id and child_lot_id in visible_lot_ids:
+            if parent_lot_id:
+                parents_with_visible_child.add(parent_lot_id)
+            child_meta_by_lot[child_lot_id] = partial_row
+    return parents_with_visible_child, child_meta_by_lot
+
+
 def _na_active_pick_rows(queryset, completed_source_lots, zone_label):
+    rows = list(queryset)
+    partial_parent_lots, partial_child_meta = _na_partial_accept_child_maps(rows)
     active_rows = []
     seen_source_lots = set()
     input_count = 0
     direct_submission_excluded = 0
+    partial_parent_excluded = 0
     completed_source_excluded = 0
     duplicate_source_excluded = 0
 
-    for jig_unload_obj in queryset:
+    for jig_unload_obj in rows:
         input_count += 1
+        lot_id = str(jig_unload_obj.lot_id or '').strip()
+        if lot_id in partial_parent_lots and lot_id not in partial_child_meta:
+            partial_parent_excluded += 1
+            logger.info(
+                "[AUDIT_PICKTABLE_FILTER] zone=%s exclude lot=%s reason=partial_parent_child_visible",
+                zone_label,
+                lot_id,
+            )
+            continue
+
+        child_meta = partial_child_meta.get(lot_id)
+        if child_meta:
+            jig_unload_obj.nq_partial_parent_lot_id = child_meta.get('parent_lot_id') or ''
+            jig_unload_obj.nq_partial_accept_qty = child_meta.get('accepted_qty') or jig_unload_obj.total_case_qty
+
         source_lots = _na_source_lot_ids(jig_unload_obj)
         if getattr(jig_unload_obj, 'has_submission', False):
             direct_submission_excluded += 1
@@ -324,11 +422,12 @@ def _na_active_pick_rows(queryset, completed_source_lots, zone_label):
         seen_source_lots.update(source_lots)
 
     logger.info(
-        "[AUDIT_PICKTABLE_FILTER] zone=%s input=%d output=%d direct_submission_excluded=%d completed_source_excluded=%d duplicate_source_excluded=%d completed_sources=%d",
+        "[AUDIT_PICKTABLE_FILTER] zone=%s input=%d output=%d direct_submission_excluded=%d partial_parent_excluded=%d completed_source_excluded=%d duplicate_source_excluded=%d completed_sources=%d",
         zone_label,
         input_count,
         len(active_rows),
         direct_submission_excluded,
+        partial_parent_excluded,
         completed_source_excluded,
         duplicate_source_excluded,
         len(completed_source_lots),
@@ -382,12 +481,22 @@ class NA_PickTableView(APIView):
             NickelAudit_Submission.objects.filter(lot_id=OuterRef('lot_id'))
         )
 
+        is_nq_partial_accept_child_subquery = Exists(
+            NickelQC_PartialAcceptLot.objects.filter(new_lot_id=OuterRef('lot_id'))
+        )
+
+        nq_partial_parent_lot_subquery = NickelQC_PartialAcceptLot.objects.filter(
+            new_lot_id=OuterRef('lot_id')
+        ).values('parent_lot_id')[:1]
+
         # ✅ Annotate with additional fields
         queryset = queryset.annotate(
             has_draft=has_draft_subquery,
             draft_type=draft_type_subquery,
             brass_rejection_total_qty=brass_rejection_qty_subquery,
             has_submission=has_submission_subquery,
+            is_nq_partial_accept_child=is_nq_partial_accept_child_subquery,
+            nq_partial_parent_lot_id=Subquery(nq_partial_parent_lot_subquery),
         )
 
         # ✅ UPDATED: Filter logic using JigUnloadAfterTable fields
@@ -403,6 +512,7 @@ class NA_PickTableView(APIView):
                 &
                 (
                     Q(nq_qc_accptance=True) | 
+                    Q(is_nq_partial_accept_child=True) |
                     Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
                 )
             )
@@ -456,6 +566,7 @@ class NA_PickTableView(APIView):
                 'na_qc_rejection': jig_unload_obj.na_qc_rejection,
                 'na_qc_few_cases_accptance': jig_unload_obj.na_qc_few_cases_accptance,
                 'na_onhold_picking': jig_unload_obj.na_onhold_picking,
+                'na_draft': jig_unload_obj.na_draft,
                 'nq_draft': False,  # Not applicable
                 'send_to_nickel_brass': jig_unload_obj.send_to_nickel_brass,
                 'nq_last_process_date_time': jig_unload_obj.nq_last_process_date_time,
@@ -468,6 +579,9 @@ class NA_PickTableView(APIView):
                 'draft_type': jig_unload_obj.draft_type,
                 'brass_rejection_total_qty': jig_unload_obj.brass_rejection_total_qty,
                 'nq_qc_accptance': jig_unload_obj.nq_qc_accptance,
+                'is_nq_partial_accept_child': bool(getattr(jig_unload_obj, 'is_nq_partial_accept_child', False)),
+                'nq_partial_parent_lot_id': getattr(jig_unload_obj, 'nq_partial_parent_lot_id', '') or '',
+                'nq_partial_accept_qty': getattr(jig_unload_obj, 'nq_partial_accept_qty', None) or jig_unload_obj.total_case_qty,
                 # Additional fields from JigUnloadAfterTable
                 'plating_stk_no': jig_unload_obj.plating_stk_no or '',
                 'polishing_stk_no': jig_unload_obj.polish_stk_no or '',
@@ -910,26 +1024,29 @@ def na_action(request):
             logger.exception("[na_action FULL_ACCEPT] lot=%s", lot_id)
             return Response({'success': False, 'error': str(e)}, status=500)
     if action == 'SAVE_DRAFT':
-        draft_data = request.data.get('draft_data', {})
+        draft_data = _na_build_draft_snapshot(request.data.get('draft_data', {}), juat, request)
         with transaction.atomic():
             Nickel_Audit_Draft_Store.objects.update_or_create(
                 lot_id=lot_id,
+                draft_type='batch_rejection',
                 defaults={
                     'batch_id': juat.unload_lot_id or lot_id,
                     'user': request.user,
-                    'draft_type': 'batch_rejection',
                     'draft_data': draft_data,
                 },
             )
             juat.na_draft = True
-            juat.na_onhold_picking = True
-            juat.save(update_fields=['na_draft', 'na_onhold_picking'])
+            update_fields = ['na_draft']
+            if juat.na_onhold_picking and not juat.na_qc_rejection and not juat.na_qc_few_cases_accptance:
+                juat.na_onhold_picking = False
+                update_fields.append('na_onhold_picking')
+            juat.save(update_fields=update_fields)
         logger.info("[AUDIT_SUBMISSION] action=SAVE_DRAFT lot=%s user=%s", lot_id, request.user)
-        return Response({'success': True})
+        return Response({'success': True, 'isDraft': True, 'status': 'Draft', 'draft_data': draft_data})
     if action == 'GET_DRAFT':
-        draft = Nickel_Audit_Draft_Store.objects.filter(lot_id=lot_id).first()
+        draft = Nickel_Audit_Draft_Store.objects.filter(lot_id=lot_id, draft_type='batch_rejection').first()
         if draft:
-            return Response({'success': True, 'has_draft': True, 'draft_data': draft.draft_data})
+            return Response({'success': True, 'has_draft': True, 'isDraft': True, 'status': 'Draft', 'draft_data': _na_build_draft_snapshot(draft.draft_data, juat, request)})
         return Response({'success': True, 'has_draft': False, 'draft_data': {}})
     return Response({'success': False, 'error': f'Unknown action: {action}'}, status=400)
 
@@ -985,12 +1102,16 @@ def _na_do_full_accept(request, lot_id, juat):
         )
         juat.na_qc_accptance = True
         juat.na_qc_accepted_qty = total_qty
+        juat.na_draft = False
+        juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
         juat.save(update_fields=[
             'na_qc_accptance', 'na_qc_accepted_qty',
+            'na_draft', 'na_onhold_picking',
             'na_last_process_date_time', 'last_process_module',
         ])
+        _na_clear_draft_state(lot_id)
     logger.info("[AUDIT_ACCEPT_FLOW] action=FULL_ACCEPT lot=%s user=%s qty=%d trays=%d", lot_id, request.user, total_qty, len(trays))
     logger.info("[AUDIT_SUBMISSION] lot=%s submission=FULL_ACCEPT accepted=%d rejected=0", lot_id, total_qty)
     return Response({'success': True})
@@ -1147,14 +1268,18 @@ def _na_do_submit_reject(request, lot_id, juat):
         import django.utils.timezone as tz
         juat.na_qc_rejection = not is_partial
         juat.na_qc_few_cases_accptance = is_partial
+        juat.na_draft = False
+        juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
         if is_partial:
             juat.na_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
             'na_qc_rejection', 'na_qc_few_cases_accptance',
+            'na_draft', 'na_onhold_picking',
             'na_last_process_date_time', 'last_process_module', 'na_qc_accepted_qty',
         ])
+        _na_clear_draft_state(lot_id)
         submission_type = 'PARTIAL' if is_partial else 'FULL_REJECT'
         reason_data = {str(r.id): {'reason': r.rejection_reason} for r in reasons_qs}
         submission = NickelAudit_Submission.objects.create(
@@ -1266,12 +1391,16 @@ def _na_do_submit_accept(request, lot_id, juat):
         total_qty = juat.nq_qc_accepted_qty or juat.total_case_qty or 0
         juat.na_qc_accptance = True
         juat.na_qc_accepted_qty = total_qty
+        juat.na_draft = False
+        juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
         juat.save(update_fields=[
             'na_qc_accptance', 'na_qc_accepted_qty',
+            'na_draft', 'na_onhold_picking',
             'na_last_process_date_time', 'last_process_module',
         ])
+        _na_clear_draft_state(lot_id)
     logger.info("[AUDIT_ACCEPT_FLOW] action=SUBMIT_ACCEPT lot=%s user=%s trays=%d", lot_id, request.user, len(accept_trays))
     logger.info("[AUDIT_SUBMISSION] lot=%s submission=SUBMIT_ACCEPT accepted=%d", lot_id, juat.total_case_qty or 0)
     return Response({'success': True})

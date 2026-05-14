@@ -848,7 +848,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <img src="{% static 'assets/icons/bin.png' %}" alt="Delete Disabled" style="width: 20px; margin-right: 8px; height: auto; filter: grayscale(1) opacity(0.5);" />
                         </span>
                       {% endif %}
-                      {% if data.na_onhold_picking %}
+                      {% if data.na_onhold_picking or data.na_draft %}
                         <button type="button" class="btn btn-social-icon-text btn-twitter btn-accept-is"
                                 style="opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                 disabled>Accept</button>
@@ -956,7 +956,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         </div>
                         <div title="QC"
                           class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="width:25px;height:25px;background:{% if data.na_onhold_picking %}linear-gradient(to right, #0c8249 50%, #bdbdbd 50%){% elif data.na_qc_rejection or data.na_qc_acceptance or data.na_qc_few_cases_accptance %}#0c8249{% else %}#bdbdbd{% endif %};color:white;font-weight:bold;line-height:20px;text-align:center;padding-top:1px;padding-right:1px;">
+                          style="width:25px;height:25px;background:{% if data.na_onhold_picking or data.na_draft %}linear-gradient(to right, #0c8249 50%, #bdbdbd 50%){% elif data.na_qc_rejection or data.na_qc_acceptance or data.na_qc_few_cases_accptance %}#0c8249{% else %}#bdbdbd{% endif %};color:white;font-weight:bold;line-height:20px;text-align:center;padding-top:1px;padding-right:1px;">
                           QC
                         </div>
                       </div>
@@ -1716,6 +1716,9 @@ document.addEventListener("DOMContentLoaded", function() {
       state.pendingRestore = null;
       reasonsGrid.innerHTML = '<span style="color:#888;font-size:13px;">Loading...</span>';
       overlay.style.display = 'flex';
+      var initialRemarksInput = document.getElementById('naRejectRemarksInput');
+      if (initialRemarksInput) initialRemarksInput.value = '';
+      if (fullRejCb) fullRejCb.checked = false;
       Promise.all([
         post(API_BASE + 'action/', { action: 'GET_REASONS' }),
         post(API_BASE + 'action/', { action: 'GET_TRAYS', lot_id: state.lotId }),
@@ -1740,22 +1743,26 @@ document.addEventListener("DOMContentLoaded", function() {
         if (draftRes && draftRes.success && draftRes.has_draft && draftRes.draft_data) {
           var dd = draftRes.draft_data;
           state.pendingRestore = dd;
-          if (dd.remarks) {
-            var remarksInp = document.getElementById('naRejectRemarksInput');
-            if (remarksInp) remarksInp.value = dd.remarks;
-          }
+          state.totalQty = parseInt(dd.total_lot_qty || dd.total_qty || state.totalQty, 10) || state.totalQty;
+          state.platingStk = dd.plating_stk_no || state.platingStk;
+          document.getElementById('naRejectModalPlatingStk').textContent = state.platingStk;
+          document.getElementById('naRejectModalTotalQty').textContent = state.totalQty;
+          reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) { inp.max = state.totalQty; });
+          var remarksInp = document.getElementById('naRejectRemarksInput');
+          if (remarksInp) remarksInp.value = dd.remarks || '';
+          if (fullRejCb) fullRejCb.checked = !!dd.full_lot_rejection;
+          var totalRej = parseInt(dd.rejected_qty, 10) || 0;
           if (dd.reason_qtys && dd.reason_qtys.length > 0) {
             dd.reason_qtys.forEach(function (rq) {
               var inp = reasonsGrid.querySelector('[data-reason-id="' + rq.reason_id + '"]');
               if (inp) inp.value = rq.qty;
             });
-            var totalRej = 0;
-            dd.reason_qtys.forEach(function (rq) { totalRej += (rq.qty || 0); });
-            if (totalRej > 0 && totalRej <= state.totalQty) {
-              totalQtyDisp.textContent = totalRej;
-              remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
-              fetchAllocation(totalRej);
-            }
+            if (!totalRej) dd.reason_qtys.forEach(function (rq) { totalRej += (parseInt(rq.qty, 10) || 0); });
+          }
+          if (totalRej > 0 && totalRej <= state.totalQty) {
+            totalQtyDisp.textContent = totalRej;
+            remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
+            fetchAllocation(totalRej);
           }
         }
       }).catch(function () {
@@ -2058,25 +2065,31 @@ document.addEventListener("DOMContentLoaded", function() {
       if (state.pendingRestore) {
         var pd = state.pendingRestore;
         state.pendingRestore = null;
+        function restoreAcceptInputs() {
+          if (pd.accept_trays && pd.accept_trays.length > 0) {
+            var allAccInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
+            pd.accept_trays.forEach(function (at, i) {
+              if (allAccInputs[i] && at.tray_id) allAccInputs[i].value = at.tray_id;
+            });
+          }
+        }
         if (pd.reject_trays && pd.reject_trays.length > 0) {
           var allRejInputs = Array.from(rejectSlotsCont.querySelectorAll('.na-rej-tray-input'));
           pd.reject_trays.forEach(function (rt, i) {
             if (allRejInputs[i] && rt.tray_id) allRejInputs[i].value = rt.tray_id;
           });
         }
-        if (pd.accept_trays && pd.accept_trays.length > 0) {
-          var allAccInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
-          pd.accept_trays.forEach(function (at, i) {
-            if (allAccInputs[i] && at.tray_id) allAccInputs[i].value = at.tray_id;
-          });
-        }
+        restoreAcceptInputs();
         if (pd.delink_trays && pd.delink_trays.length > 0) {
-          pd.delink_trays.forEach(function (dt) {
+          var allDelinkInputs = Array.from(delinkList.querySelectorAll('.na-delink-tray-input'));
+          pd.delink_trays.forEach(function (dt, i) {
             var tid = (typeof dt === 'string' ? dt : dt.tray_id || '').trim().toUpperCase();
             var input = tid ? delinkList.querySelector('.na-delink-tray-input[data-expected-tray-id="' + tid + '"]') : null;
+            if (!input) input = allDelinkInputs[i];
             if (input) input.value = tid;
           });
           updateDelinkSection();
+          restoreAcceptInputs();
         }
       }
 
@@ -2223,8 +2236,8 @@ document.addEventListener("DOMContentLoaded", function() {
         errDiv.textContent = '';
         var reasonQtys = [];
         reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) {
-          var qty = parseInt(inp.value, 10) || 0;
-          if (qty > 0) reasonQtys.push({ reason_id: parseInt(inp.dataset.reasonId, 10), qty: qty });
+          var entered = inp.value.trim();
+          if (entered !== '') reasonQtys.push({ reason_id: parseInt(inp.dataset.reasonId, 10), qty: parseInt(entered, 10) || 0 });
         });
         var rejTrays = [];
         rejectSlotsCont.querySelectorAll('.na-rej-tray-input').forEach(function (inp) {
@@ -2250,6 +2263,29 @@ document.addEventListener("DOMContentLoaded", function() {
             accept_trays: accTrays,
             remarks: document.getElementById('naRejectRemarksInput').value.trim(),
             rejected_qty: getTotalRejectQty(),
+            accepted_qty: Math.max(state.totalQty - getTotalRejectQty(), 0),
+            total_lot_qty: state.totalQty,
+            plating_stk_no: state.platingStk,
+            original_trays: state.origTrays,
+            reject_slots: state.rejectSlots,
+            accept_slots: state.acceptSlots,
+            delink_slots: state.delinkSlots,
+            accept_auto_trays: state.acceptAutoTrays,
+            auto_delink_tray_ids: state.autoDelinkIds,
+            tray_capacity: state.trayCapacity,
+            tray_type: state.trayType,
+            rej_prefix: state.rejPrefix,
+            rej_cap: state.rejCap,
+            full_lot_rejection: !!(fullRejCb && fullRejCb.checked),
+            partial_selection: getTotalRejectQty() > 0 && getTotalRejectQty() < state.totalQty,
+            tray_counts: {
+              original: state.origTrays.length,
+              reject: rejTrays.length,
+              accept: accTrays.length,
+              delink: state.reuseTrays.length,
+            },
+            isDraft: true,
+            status: 'Draft',
           },
         }).then(function (data) {
           if (data.success) {

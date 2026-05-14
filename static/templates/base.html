@@ -170,17 +170,37 @@
          vertical-align: middle;
          font-weight: 700;
          }
-         /* Sidebar scroll fix: always allow vertical scroll, no cropping at bottom */
+         /* Sidebar scroll fix: keep the full menu visible between fixed header/footer */
          .sidebar {
          overflow-y: auto !important;
          overflow-x: hidden !important;
-         max-height: calc(100vh - 32px); /* 32px = footer height */
-         padding-bottom: 40px; /* Space for footer */
+         height: calc(100vh - 92px) !important; /* 60px header + 32px footer */
+         max-height: calc(100vh - 92px) !important;
+         padding-bottom: 18px;
+         box-sizing: border-box !important;
          z-index: 100 !important;
          position: relative;
          flex-wrap: nowrap;
          flex-direction: column;
-         margin-bottom: 110px !important;
+         margin-bottom: 0 !important;
+         }
+
+         @media (min-width: 760px) and (max-height: 900px) {
+         .sidebar .nav:not(.sub-menu) {
+         margin-top: 0.55rem !important;
+         }
+         .sidebar .nav:not(.sub-menu) > .nav-item {
+         margin-top: 0.08rem !important;
+         }
+         .sidebar .nav:not(.sub-menu) > .nav-item > .nav-link {
+         min-height: 34px !important;
+         padding-top: 0.42rem !important;
+         padding-bottom: 0.42rem !important;
+         }
+         .sidebar .nav .nav-item .nav-link .menu-title {
+         font-size: 13px !important;
+         line-height: 1.15 !important;
+         }
          }
          /* Force sidebar menu icons/titles to display in a single vertical column, never wrap */
          .sidebar .nav {

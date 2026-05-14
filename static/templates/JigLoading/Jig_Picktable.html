@@ -1999,6 +1999,7 @@ document.addEventListener('DOMContentLoaded', function () {
           tr.dataset.excessQty = row.excess_qty != null ? row.excess_qty : 0;
           tr.dataset.modelCode = row.model_code || '';
           tr.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
+          tr.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
           tr.dataset.topTray = row.is_top_tray ? 'true' : 'false';
 
           // 1. S.No
@@ -2018,6 +2019,8 @@ document.addEventListener('DOMContentLoaded', function () {
             cb.style.cssText = 'width:14px;height:14px;accent-color:#028084;cursor:pointer;pointer-events:auto;'; // Enable checkbox clicks only
             cb.dataset.rowIndex = idx;
             cb.dataset.trayId = row.tray_id || '';
+            cb.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
+            cb.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
             if (row.checked) { cb.checked = true; }
             if (row.locked) { cb.disabled = true; cb.classList.add('locked'); }
             if (row.selectable === false) { cb.disabled = true; }
@@ -2180,6 +2183,17 @@ document.addEventListener('DOMContentLoaded', function () {
         _updatePhaseMessage();
       }
 
+      function _copyRowScanContext(targetInput, sourceRow) {
+        if (!targetInput || !sourceRow) return;
+        var sourceInput = sourceRow.querySelector('.split-scan-input');
+        var sourceLotId = sourceRow.dataset.lotId || (sourceInput && sourceInput.dataset.lotId) || window.CURRENT_LOT_ID || '';
+        var sourceBatchId = sourceRow.dataset.batchId || (sourceInput && sourceInput.dataset.batchId) || window.CURRENT_BATCH_ID || '';
+        var sourceModelCode = sourceRow.dataset.modelCode || (sourceInput && sourceInput.dataset.modelCode) || '';
+        targetInput.dataset.lotId = sourceLotId;
+        targetInput.dataset.batchId = sourceBatchId;
+        if (sourceModelCode) targetInput.dataset.modelCode = sourceModelCode;
+      }
+
       // Phase message display
       function _updatePhaseMessage() {
         var msgEl = document.getElementById('jigPhaseMessage');
@@ -2229,6 +2243,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var topInp = document.getElementById('excessTopTrayScanInput');
           if (topInp && !topInp.readOnly) {
             topInp.value = trayId;
+            _copyRowScanContext(topInp, tr);
             _validateSplitScan(trayId, topInp, true);
           }
           _applyRowAllocation(tr, cb, trayId, 'top_tray');
@@ -2241,6 +2256,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var nextExcessInp = eBodyCB ? Array.from(eBodyCB.querySelectorAll('.split-scan-input')).find(function(i) { return !i.value.trim(); }) : null;
           if (nextExcessInp) {
             nextExcessInp.value = trayId;
+            _copyRowScanContext(nextExcessInp, tr);
             _validateSplitScan(trayId, nextExcessInp, true);
           }
           _applyRowAllocation(tr, cb, trayId, 'excess');
@@ -2289,6 +2305,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (excessVisible && !_topTaken && topInp && !topInp.readOnly) {
               _topTaken = true;
               topInp.value = trayId;
+              _copyRowScanContext(topInp, tr);
               _validateSplitScan(trayId, topInp, true);
               _applyRowAllocation(tr, cb, trayId, 'top_tray');
               return;
@@ -2298,6 +2315,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (excessVisible && _topTaken && _excessIdx < _excessAvail.length) {
               var eInp = _excessAvail[_excessIdx++];
               eInp.value = trayId;
+              _copyRowScanContext(eInp, tr);
               _validateSplitScan(trayId, eInp, true);
               _applyRowAllocation(tr, cb, trayId, 'excess');
               return;
@@ -2362,6 +2380,7 @@ document.addEventListener('DOMContentLoaded', function () {
             topTrayInput.dataset.panel = 'excess_top';
             topTrayInput.dataset.modelCode = topTray.model_code || '';
             topTrayInput.dataset.lotId = topTray.lot_id || '';
+            topTrayInput.dataset.batchId = topTray.batch_id || window.CURRENT_BATCH_ID || '';
             topTrayInput.placeholder = (topTray.model_code || '').replace(/\s*\[.*\]$/, '') || 'Scan / Type Top Tray ID';
             // Restore validated state OR reset to clean
             if (prevTopTrayVal) {
@@ -2439,7 +2458,7 @@ document.addEventListener('DOMContentLoaded', function () {
             inp.dataset.panel = 'excess';
             inp.dataset.autoTrayId = row.scan_tray_id || '';
             inp.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
-            inp.dataset.batchId = window.CURRENT_BATCH_ID || '';
+            inp.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
             inp.dataset.modelCode = row.model_code || '';
             inp.placeholder = (row.model_code || '').replace(/\s*\[.*\]$/, '') || 'Scan / Type Tray ID';
             inp.style.cursor = 'pointer';

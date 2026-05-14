@@ -1963,6 +1963,9 @@ document.addEventListener("DOMContentLoaded", function() {
       state.pendingRestore = null;
       reasonsGrid.innerHTML = '<span style="color:#888;font-size:13px;">Loading...</span>';
       overlay.style.display = 'flex';
+      var initialRemarksInput = document.getElementById('nqRejectRemarksInput');
+      if (initialRemarksInput) initialRemarksInput.value = '';
+      if (fullRejCb) fullRejCb.checked = false;
       Promise.all([
         post(API_BASE + 'action/', { action: 'GET_REASONS' }),
         post(API_BASE + 'action/', { action: 'GET_TRAYS', lot_id: state.lotId }),
@@ -1988,24 +1991,28 @@ document.addEventListener("DOMContentLoaded", function() {
         if (draftRes && draftRes.success && draftRes.has_draft && draftRes.draft_data) {
           var dd = draftRes.draft_data;
           state.pendingRestore = dd;
+          state.totalQty = parseInt(dd.total_lot_qty || dd.total_qty || state.totalQty, 10) || state.totalQty;
+          state.platingStk = dd.plating_stk_no || state.platingStk;
+          document.getElementById('nqRejectModalPlatingStk').textContent = state.platingStk;
+          document.getElementById('nqRejectModalTotalQty').textContent = state.totalQty;
+          reasonsGrid.querySelectorAll('.nq-reason-qty').forEach(function (inp) { inp.max = state.totalQty; });
           // Restore remarks
-          if (dd.remarks) {
-            var remarksInp = document.getElementById('nqRejectRemarksInput');
-            if (remarksInp) remarksInp.value = dd.remarks;
-          }
+          var remarksInp = document.getElementById('nqRejectRemarksInput');
+          if (remarksInp) remarksInp.value = dd.remarks || '';
+          if (fullRejCb) fullRejCb.checked = !!dd.full_lot_rejection;
           // Restore reason qty inputs
+          var totalRej = parseInt(dd.rejected_qty, 10) || 0;
           if (dd.reason_qtys && dd.reason_qtys.length > 0) {
             dd.reason_qtys.forEach(function (rq) {
               var inp = reasonsGrid.querySelector('[data-reason-id="' + rq.reason_id + '"]');
               if (inp) inp.value = rq.qty;
             });
-            var totalRej = 0;
-            dd.reason_qtys.forEach(function (rq) { totalRej += (rq.qty || 0); });
-            if (totalRej > 0 && totalRej <= state.totalQty) {
-              totalQtyDisp.textContent = totalRej;
-              remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
-              fetchAllocation(totalRej);
-            }
+            if (!totalRej) dd.reason_qtys.forEach(function (rq) { totalRej += (parseInt(rq.qty, 10) || 0); });
+          }
+          if (totalRej > 0 && totalRej <= state.totalQty) {
+            totalQtyDisp.textContent = totalRej;
+            remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
+            fetchAllocation(totalRej);
           }
         }
       }).catch(function () {
@@ -2318,6 +2325,14 @@ document.addEventListener("DOMContentLoaded", function() {
       if (state.pendingRestore) {
         var pd = state.pendingRestore;
         state.pendingRestore = null;
+        function restoreAcceptInputs() {
+          if (pd.accept_trays && pd.accept_trays.length > 0) {
+            var allAccInputsR = Array.from(acceptSlotsCont.querySelectorAll('.nq-acc-tray-input'));
+            pd.accept_trays.forEach(function (at, i) {
+              if (allAccInputsR[i] && at.tray_id) allAccInputsR[i].value = at.tray_id;
+            });
+          }
+        }
         // Restore reject trays
         if (pd.reject_trays && pd.reject_trays.length > 0) {
           var allRejInputs = Array.from(rejectSlotsCont.querySelectorAll('.nq-rej-tray-input'));
@@ -2326,19 +2341,17 @@ document.addEventListener("DOMContentLoaded", function() {
           });
         }
         // Restore accept trays
-        if (pd.accept_trays && pd.accept_trays.length > 0) {
-          var allAccInputsR = Array.from(acceptSlotsCont.querySelectorAll('.nq-acc-tray-input'));
-          pd.accept_trays.forEach(function (at, i) {
-            if (allAccInputsR[i] && at.tray_id) allAccInputsR[i].value = at.tray_id;
-          });
-        }
+        restoreAcceptInputs();
         if (pd.delink_trays && pd.delink_trays.length > 0) {
-          pd.delink_trays.forEach(function (dt) {
+          var allDelinkInputsR = Array.from(delinkList.querySelectorAll('.nq-delink-tray-input'));
+          pd.delink_trays.forEach(function (dt, i) {
             var tid = (typeof dt === 'string' ? dt : dt.tray_id || '').trim().toUpperCase();
             var input = tid ? delinkList.querySelector('.nq-delink-tray-input[data-expected-tray-id="' + tid + '"]') : null;
+            if (!input) input = allDelinkInputsR[i];
             if (input) input.value = tid;
           });
           updateDelinkSection();
+          restoreAcceptInputs();
         }
       }
 
@@ -2496,8 +2509,8 @@ document.addEventListener("DOMContentLoaded", function() {
         errDiv.textContent = '';
         var reasonQtys = [];
         reasonsGrid.querySelectorAll('.nq-reason-qty').forEach(function (inp) {
-          var qty = parseInt(inp.value, 10) || 0;
-          if (qty > 0) reasonQtys.push({ reason_id: parseInt(inp.dataset.reasonId, 10), qty: qty });
+          var entered = inp.value.trim();
+          if (entered !== '') reasonQtys.push({ reason_id: parseInt(inp.dataset.reasonId, 10), qty: parseInt(entered, 10) || 0 });
         });
         var rejTrays = [];
         rejectSlotsCont.querySelectorAll('.nq-rej-tray-input').forEach(function (inp) {
@@ -2521,6 +2534,29 @@ document.addEventListener("DOMContentLoaded", function() {
             accept_trays: accTrays,
             remarks: document.getElementById('nqRejectRemarksInput').value.trim(),
             rejected_qty: getTotalRejectQty(),
+            accepted_qty: Math.max(state.totalQty - getTotalRejectQty(), 0),
+            total_lot_qty: state.totalQty,
+            plating_stk_no: state.platingStk,
+            original_trays: state.origTrays,
+            reject_slots: state.rejectSlots,
+            accept_slots: state.acceptSlots,
+            delink_slots: state.delinkSlots,
+            accept_auto_trays: state.acceptAutoTrays,
+            auto_delink_tray_ids: state.autoDelinkIds,
+            tray_capacity: state.trayCapacity,
+            tray_type: state.trayType,
+            rej_prefix: state.rejPrefix,
+            rej_cap: state.rejCap,
+            full_lot_rejection: !!(fullRejCb && fullRejCb.checked),
+            partial_selection: getTotalRejectQty() > 0 && getTotalRejectQty() < state.totalQty,
+            tray_counts: {
+              original: state.origTrays.length,
+              reject: rejTrays.length,
+              accept: accTrays.length,
+              delink: state.reuseTrays.length,
+            },
+            isDraft: true,
+            status: 'Draft',
           },
         };
         draftBtn.disabled = true;
