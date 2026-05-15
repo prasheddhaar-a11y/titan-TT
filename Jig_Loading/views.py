@@ -3720,10 +3720,10 @@ class JigSaveAPI(APIView):
 			# Jig reuse validation — prevent using loaded/drafted jigs
 			cycle_info = get_next_jig_cycle(jig_id, lot_id)
 			
-			# CRITICAL: Block if jig has draft in ANY lot
-			if cycle_info['is_drafted']:
+			# Block only if jig is drafted by a DIFFERENT lot — same-lot draft → submit is allowed
+			if cycle_info['drafted_by_other_lot']:
 				return Response(
-					{'status': 'error', 'message': 'Drafted already'},
+					{'status': 'error', 'message': 'This Jig is currently drafted by another lot. Cannot submit.'},
 					status=status.HTTP_409_CONFLICT
 				)
 			

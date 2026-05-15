@@ -483,16 +483,67 @@
      color: #475569;
    }
    .uc-radio-opt input { accent-color: #028084; }
-   #userCategorySelect {
-     color: #6b7280;
-     font-size: 11px !important;
+   .uc-checkbox-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+     gap: 0.45rem 0.7rem;
+     padding: 0.55rem 0.6rem;
+     min-height: 42px;
+     border: 1px solid #d1d5db;
+     border-radius: 6px;
+     background: #fff;
    }
-   #userCategorySelect option {
-     color: #111827;
-     font-size: 11px;
+   .uc-checkbox-opt {
+     display: flex;
+     align-items: center;
+     gap: 0.45rem;
+     min-width: 0;
+     margin: 0;
+     color: #334155;
+     font-size: 0.82rem;
+     font-weight: 500;
+     line-height: 1.3;
+     cursor: pointer;
    }
-   #userCategorySelect option[disabled] {
-     color: #6b7280;
+   .uc-checkbox-opt input,
+   .module-check-tile input {
+     flex: 0 0 auto;
+     width: 1rem;
+     height: 1rem;
+     margin: 0;
+     accent-color: #028084;
+   }
+   .uc-checkbox-opt span,
+   .module-check-tile span {
+     min-width: 0;
+     overflow-wrap: anywhere;
+   }
+   .uc-checkbox-empty {
+     color: #64748b;
+     font-size: 0.82rem;
+   }
+   .module-check-tile {
+     display: flex;
+     align-items: flex-start;
+     gap: 0.45rem;
+     min-height: 36px;
+     margin-bottom: 0.2em;
+     padding: 0.48rem 0.55rem;
+     font-weight: 600;
+     line-height: 1.25;
+     border-radius: 8px;
+     box-shadow: 0 1px 2px #e0e7ef;
+     cursor: pointer;
+     user-select: none;
+     transition: background 0.2s, border-color 0.2s, color 0.2s;
+   }
+   .module-check-tile.selected,
+   .module-check-tile.locked {
+     color: #fff !important;
+   }
+   .module-check-tile.locked {
+     cursor: not-allowed;
+     opacity: 0.88;
    }
    @media (max-width: 1100px) {
      .uc-split { grid-template-columns: 1fr; }
@@ -1608,11 +1659,12 @@
                               </label>
                            </div>
                         </div>
-                        <div class="uc-fg">
-                           <label class="uc-label" for="userCategorySelect">User Category</label>
-                           <select class="uc-input" id="userCategorySelect" name="group">
-                              <option value="" disabled selected>Select category</option>
-                           </select>
+                        <div class="uc-fg span3">
+                          <label class="uc-label" id="userCategoryLabel">User Category</label>
+                          <input type="hidden" id="userCategorySelect" name="group" value="" />
+                          <div class="uc-checkbox-grid" id="userCategoryCheckboxGrid" role="group" aria-labelledby="userCategoryLabel">
+                            <span class="uc-checkbox-empty">Loading user categories...</span>
+                          </div>
                         </div>
                      </div>
                      <div class="uc-actions">
@@ -1646,7 +1698,7 @@
             <div class="mod-step-layout" id="module-provision-content">
                <!-- Left: available module pills -->
                <div class="mod-panel">
-                  <div class="mod-panel-label">Available Modules — drag to assign</div>
+                  <div class="mod-panel-label">Available Modules</div>
                   <div class="mod-panel-scroll">
                      <div id="moduleBtnGrid">
                         <!-- Module buttons injected here -->
@@ -1792,6 +1844,226 @@
      return cookieValue;
    }
 
+   window.userCategoryOptions = window.userCategoryOptions || [];
+   window.pendingUserCategoryIds = window.pendingUserCategoryIds || [];
+   window.fixedCategoryModuleMode = window.fixedCategoryModuleMode || false;
+
+   function normalizeIdArray(values) {
+     const rawValues = Array.isArray(values) ? values : [values];
+     const ids = [];
+     rawValues.forEach(value => {
+       if (value === null || value === undefined) return;
+       String(value).split(",").forEach(part => {
+         const id = part.trim();
+         if (id && !ids.includes(id)) ids.push(id);
+       });
+     });
+     return ids;
+   }
+
+   function updateUserCategoryLegacyInput(ids) {
+     const normalizedIds = normalizeIdArray(ids);
+     const legacyInput = document.getElementById("userCategorySelect");
+     if (!legacyInput) return;
+     legacyInput.value = normalizedIds[0] || "";
+     legacyInput.dataset.groupIds = normalizedIds.join(",");
+   }
+
+   function getSelectedUserCategoryIds() {
+     const checkedIds = Array.from(document.querySelectorAll(".user-category-checkbox:checked"))
+       .map(checkbox => checkbox.value);
+     if (checkedIds.length) return normalizeIdArray(checkedIds);
+
+     const legacyInput = document.getElementById("userCategorySelect");
+     if (!legacyInput) return [];
+     return normalizeIdArray(legacyInput.dataset.groupIds || legacyInput.value || "");
+   }
+
+   function getSelectedUserCategoryNames(groupIds) {
+     const selectedIds = normalizeIdArray(groupIds);
+     return (window.userCategoryOptions || [])
+       .filter(group => selectedIds.includes(String(group.id)))
+       .map(group => group.name);
+   }
+
+   function setSelectedUserCategoryIds(ids, options) {
+     const settings = Object.assign({ refreshModules: false }, options || {});
+     const normalizedIds = normalizeIdArray(ids);
+     window.pendingUserCategoryIds = normalizedIds;
+     document.querySelectorAll(".user-category-checkbox").forEach(checkbox => {
+       checkbox.checked = normalizedIds.includes(checkbox.value);
+     });
+     updateUserCategoryLegacyInput(normalizedIds);
+     if (settings.refreshModules && typeof refreshModulesForSelectedCategories === "function") {
+       refreshModulesForSelectedCategories();
+     }
+   }
+
+   function renderUserCategoryCheckboxes(groups) {
+     const grid = document.getElementById("userCategoryCheckboxGrid");
+     if (!grid) return;
+     grid.innerHTML = "";
+     if (!groups || !groups.length) {
+       const empty = document.createElement("span");
+       empty.className = "uc-checkbox-empty";
+       empty.textContent = "No user categories available";
+       grid.appendChild(empty);
+       updateUserCategoryLegacyInput([]);
+       return;
+     }
+
+     const selectedIds = window.pendingUserCategoryIds.length
+       ? normalizeIdArray(window.pendingUserCategoryIds)
+       : getSelectedUserCategoryIds();
+
+     groups.forEach(group => {
+       const label = document.createElement("label");
+       label.className = "uc-checkbox-opt";
+       label.title = group.name;
+
+       const checkbox = document.createElement("input");
+       checkbox.type = "checkbox";
+       checkbox.className = "user-category-checkbox";
+       checkbox.value = String(group.id);
+       checkbox.checked = selectedIds.includes(String(group.id));
+       checkbox.addEventListener("change", function () {
+         const currentIds = getSelectedUserCategoryIds();
+         window.pendingUserCategoryIds = currentIds;
+         updateUserCategoryLegacyInput(currentIds);
+         refreshModulesForSelectedCategories();
+       });
+
+       const name = document.createElement("span");
+       name.textContent = group.name;
+
+       label.appendChild(checkbox);
+       label.appendChild(name);
+       grid.appendChild(label);
+     });
+
+     updateUserCategoryLegacyInput(selectedIds);
+   }
+
+   async function loadUserCategoryCheckboxes() {
+     const response = await fetch("/adminportal/api/group-modules/", {
+       method: "GET",
+       headers: { "Accept": "application/json" },
+       credentials: "same-origin"
+     });
+     const groups = await response.json();
+     window.userCategoryOptions = Array.isArray(groups) ? groups : [];
+     renderUserCategoryCheckboxes(window.userCategoryOptions);
+     return window.userCategoryOptions;
+   }
+
+   function mergeModulePayloads(modules) {
+     const modulesByName = new Map();
+     modules.forEach(module => {
+       const normalized = typeof normalizeModulePayload === "function"
+         ? normalizeModulePayload(module)
+         : {
+             name: module.name,
+             headings: module.headings || [],
+             all_headings: module.all_headings || module.headings || [],
+             file_name: module.file_name || module.html_file || ""
+           };
+       if (!normalized.name) return;
+       if (!modulesByName.has(normalized.name)) {
+         modulesByName.set(normalized.name, {
+           name: normalized.name,
+           headings: [],
+           all_headings: [],
+           file_name: normalized.file_name || ""
+         });
+       }
+       const existing = modulesByName.get(normalized.name);
+       (normalized.headings || []).forEach(heading => {
+         if (!existing.headings.includes(heading)) existing.headings.push(heading);
+       });
+       (normalized.all_headings || normalized.headings || []).forEach(heading => {
+         if (!existing.all_headings.includes(heading)) existing.all_headings.push(heading);
+       });
+       if (!existing.file_name && normalized.file_name) existing.file_name = normalized.file_name;
+     });
+     return Array.from(modulesByName.values());
+   }
+
+   async function fetchModulesForCategoryIds(groupIds) {
+     const responses = await Promise.all(normalizeIdArray(groupIds).map(groupId => {
+       return fetch(`/adminportal/api/group-modules/${groupId}/`, {
+         method: "GET",
+         headers: { "Accept": "application/json" },
+         credentials: "same-origin"
+       })
+         .then(response => response.ok ? response.json() : null)
+         .catch(() => null);
+     }));
+     const modules = [];
+     responses.forEach(data => {
+       if (data && data.success && Array.isArray(data.modules)) {
+         modules.push(...data.modules);
+       }
+     });
+     return mergeModulePayloads(modules);
+   }
+
+   function setCategoryAutoInfo(groupIds, moduleCount) {
+     const infoBox = document.getElementById("category-auto-info");
+     if (!infoBox) return;
+     infoBox.textContent = "";
+     if (!moduleCount) {
+       infoBox.style.display = "none";
+       return;
+     }
+     const names = getSelectedUserCategoryNames(groupIds);
+     const title = document.createElement("span");
+     title.style.cssText = "color:#008080;font-weight:600;";
+     title.textContent = `Modules auto-assigned for ${names.join(", ") || "selected categories"}.`;
+     const detail = document.createElement("span");
+     detail.style.cssText = "color:#555;margin-left:0.5rem;";
+     detail.textContent = `${moduleCount} mapped module${moduleCount === 1 ? "" : "s"} selected.`;
+     infoBox.appendChild(title);
+     infoBox.appendChild(detail);
+     infoBox.style.display = "";
+   }
+
+   function setFixedCategoryModuleMode(isFixed) {
+     window.fixedCategoryModuleMode = !!isFixed;
+     const controls = [
+       document.getElementById("moduleTilesGrid"),
+       document.getElementById("moduleBtnGrid"),
+       document.getElementById("selectedModulesContainer")
+     ];
+     controls.forEach(control => {
+       if (control) control.style.pointerEvents = isFixed ? "none" : "";
+     });
+   }
+
+   async function refreshModulesForSelectedCategories() {
+     const groupIds = getSelectedUserCategoryIds();
+     if (!groupIds.length) {
+       setFixedCategoryModuleMode(false);
+       setCategoryAutoInfo([], 0);
+       window.droppedModules = [];
+       if (typeof renderModuleBtnGrid === "function") renderModuleBtnGrid();
+       if (typeof renderSelectedModulesContainer === "function") renderSelectedModulesContainer();
+       return;
+     }
+
+     const categoryModules = await fetchModulesForCategoryIds(groupIds);
+     if (categoryModules.length) {
+       window.droppedModules = categoryModules;
+       setFixedCategoryModuleMode(true);
+       setCategoryAutoInfo(groupIds, categoryModules.length);
+     } else {
+       if (window.fixedCategoryModuleMode) window.droppedModules = [];
+       setFixedCategoryModuleMode(false);
+       setCategoryAutoInfo(groupIds, 0);
+     }
+     if (typeof renderModuleBtnGrid === "function") renderModuleBtnGrid();
+     if (typeof renderSelectedModulesContainer === "function") renderSelectedModulesContainer();
+   }
+
    // ACtion - Edit Icon
 // In the editUser function, after populating the form fields, add this:
 
@@ -1818,9 +2090,8 @@ async function editUser(userId) {
     document.getElementById("passwordStrengthMsg").textContent = "";
     document.getElementById("passwordMatchIcon").style.display = "none";
 
-    // Set user category (group)
-    const catSelect = document.getElementById("userCategorySelect");
-    if (catSelect) catSelect.value = user.group_id || "";
+    // Set user categories (groups)
+    setSelectedUserCategoryIds(user.group_ids || (user.group_id ? [user.group_id] : []));
 
     // Set employment status
     if (user.employment_status === "Off-role") {
@@ -1859,6 +2130,7 @@ async function editUser(userId) {
 
     // Go to step 1 (user creation form)
     showStep(1);
+    await refreshModulesForSelectedCategories();
 
     // --- Auto-populate modules for this user ---
     // Fetch allowed modules for this user
@@ -1935,19 +2207,7 @@ async function assignModules(userId) {
      }
 
      function populateUserCategories() {
-       fetch("/adminportal/api/group-modules/")
-         .then(response => response.json())
-         .then(data => {
-           const userCategorySelect = document.getElementById("userCategorySelect");
-           if (!userCategorySelect) return;
-           userCategorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
-           data.forEach(group => {
-             const option = document.createElement("option");
-             option.value = group.id;
-             option.text = group.name;
-             userCategorySelect.appendChild(option);
-           });
-         })
+       loadUserCategoryCheckboxes()
          .catch(error => console.error("Error fetching user categories:", error));
      }
 
@@ -1959,13 +2219,13 @@ async function assignModules(userId) {
 form.addEventListener("submit", async function (e) {
   e.preventDefault();
 
-  const userCategory = document.getElementById("userCategorySelect").value;
+  const userCategories = getSelectedUserCategoryIds();
 
-  if (!userCategory) {
+  if (!userCategories.length) {
     Swal.fire({
       icon: 'error',
       title: 'Missing Field',
-      text: 'Please select a User Category.'
+      text: 'Please select at least one User Category.'
     });
     return;
   }
@@ -1979,7 +2239,8 @@ form.addEventListener("submit", async function (e) {
     confirmPassword: document.getElementById("confirmPassword").value,
     manager: document.getElementById("manager").value,
     employment_status: document.querySelector('input[name="employmentStatus"]:checked').value,
-    group: userCategory
+    group: userCategories[0],
+    group_ids: userCategories
   };
 
   // Show loading state on button
@@ -2303,16 +2564,8 @@ form.addEventListener("submit", async function (e) {
      document.getElementById("passwordStrengthMsg").textContent = "";
      document.getElementById("passwordMatchIcon").style.display = "none";
 
-     // Set user category
-     const catSelect = document.getElementById("userCategorySelect");
-     if (catSelect) {
-       for (const opt of catSelect.options) {
-         if (opt.text.trim() === (user.user_category || user.group_name || "")) {
-           catSelect.value = opt.value;
-           break;
-         }
-       }
-     }
+     // Set user categories
+     setSelectedUserCategoryIds(user.group_ids || (user.group_id ? [user.group_id] : []));
      // Set employment status
      if (user.employment_status === "Off-role") {
        document.getElementById("offRole").checked = true;
@@ -2675,13 +2928,11 @@ form.addEventListener("submit", async function (e) {
 document.getElementById("btn-module-save-next").onclick = async function () {
   // Use editingUserId if present, else latestCreatedUser
   const userId = window.editingUserId || (window.latestCreatedUser ? window.latestCreatedUser.id : null);
-  // const groupId = document.getElementById("userCategorySelect").value;
-  // safe read of group select (guard when element missing)
-  let groupEl = document.getElementById("userCategorySelect");
-  const groupId = groupEl ? groupEl.value : (document.querySelector('select[name="group"]') && document.querySelector('select[name="group"]').value) || null;
+  let groupIds = getSelectedUserCategoryIds();
+  let groupId = groupIds[0] || null;
  
-  // If groupId is missing but we have a userId, fetch user's group from backend (UserDetail API)
-  if (!groupId && userId) {
+  // If categories are missing in the UI but we have a userId, infer them from backend detail.
+  if (!groupIds.length && userId) {
     try {
       const resp = await fetch(`/adminportal/api/users/${userId}/`, {
         method: "GET",
@@ -2690,28 +2941,23 @@ document.getElementById("btn-module-save-next").onclick = async function () {
       });
       if (resp.ok) {
         const u = await resp.json();
-        // backend returns group_id in UserDetailAPIView.get
-        if (u && (u.group_id || u.group_id === 0)) {
-          groupId = u.group_id;
-          // update UI select if present
-          if (!groupEl) groupEl = document.getElementById("userCategorySelect");
-          if (groupEl && groupId) {
-            // set value (match string/int)
-            groupEl.value = String(groupId);
-          }
+        groupIds = normalizeIdArray(u.group_ids || (u.group_id ? [u.group_id] : []));
+        groupId = groupIds[0] || null;
+        if (groupIds.length) {
+          setSelectedUserCategoryIds(groupIds);
         }
       }
     } catch (err) {
-      console.warn("Could not fetch user detail to infer group:", err);
+      console.warn("Could not fetch user detail to infer categories:", err);
     }
   }
 
   
-  if (!userId || !groupId) {
+  if (!userId || !groupIds.length) {
     Swal.fire({
       icon: 'error',
       title: 'Missing Info',
-      text: 'Please create a user and select a user category before assigning modules.'
+      text: 'Please create a user and select at least one user category before assigning modules.'
     });
 
     return;
@@ -2737,6 +2983,7 @@ document.getElementById("btn-module-save-next").onclick = async function () {
       body: JSON.stringify({
         user_id: userId,
         group_id: groupId,
+        group_ids: groupIds,
         modules: droppedModules // [{name, headings}]
       })
     });
@@ -3615,6 +3862,12 @@ document.getElementById("btn-module-save-next").onclick = async function () {
       }
    }
 
+      function removeDroppedModule(modName) {
+        window.droppedModules = (window.droppedModules || []).filter((m) => m.name !== modName);
+        renderModuleBtnGrid();
+        renderSelectedModulesContainer();
+      }
+
    // Touch Drag Handler
    function enableTouchDrag(el, modName) {
       let ghost = null;
@@ -3683,34 +3936,12 @@ document.getElementById("btn-module-save-next").onclick = async function () {
    }
    function renderModuleBtnGrid() {
      const grid = document.getElementById("moduleBtnGrid");
+     if (!grid) return;
      grid.innerHTML = "";
-   
-     // Day Planning Module
+
      const dpModules = ["Data Upload", "DP Pick Table", "DP Complete Table"];
-     const dpColor = "#e0f2fe";
-     const dpBorder = "#38bdf8";
-   
-     // Recovery modules  ---
-     const recoveryModules = [
-       "Recovery Data Upload",
-       "Recovery Pick Table",
-       "Recovery Completed Table",
-     ];
-     const recoveryColors = ["#fce7f3"];
-     const recoveryBorders = ["#f472b6"];
-   
-     // Input Screening
-     const inputModules = [
-       "Input Pick Table",
-       "Input Completed Table",
-       "Input Accept Table",
-       "Input Reject Table",
-     ];
-     const inputBg = "rgb(220, 252, 231)";
-     const inputColor = "rgb(51, 65, 85)";
-     const inputBorder = "1.5px solid rgb(52, 211, 153)";
-   
-     // Brass QC
+     const recoveryModules = ["Recovery Data Upload", "Recovery Pick Table", "Recovery Completed Table"];
+     const inputModules = ["Input Pick Table", "Input Completed Table", "Input Accept Table", "Input Reject Table"];
      const brassIqfModules = [
        "Brass Qc Pick Table",
        "Brass Qc Completed Table",
@@ -3722,128 +3953,72 @@ document.getElementById("btn-module-save-next").onclick = async function () {
        "Brass Audit Complete Table",
        "Brass Audit Reject Table",
      ];
-     const brassIqfBg = "rgb(254, 243, 199)";
-     const brassIqfColor = "rgb(51, 65, 85)";
-     const brassIqfBorder = "1.5px solid rgb(251, 191, 36)";
-   
-     modulesList.forEach((mod, idx) => {
-       const btn = document.createElement("button");
-       btn.type = "button";
-       btn.textContent = mod.name;
-       btn.draggable = true;
-       btn.className = "btn btn-secondary btn-sm";
-   
-       /// DP modules
-       if (dpModules.includes(mod.name)) {
-         btn.style = `
-       margin-bottom:0.2em;
-       background:${dpColor};
-       color:#334155;
-       border:1.5px solid ${dpBorder};
-       font-weight:600;
-       border-radius:30px;
-       box-shadow:0 1px 2px #e0e7ef;
-       transition:background 0.2s;
-       cursor:grab;
-     `;
-       } else if (recoveryModules.includes(mod.name)) {
-         // All Recovery modules get the same color and border
-         btn.style = `
-         margin-bottom:0.2em;
-         background:${recoveryColors[0]};
-         color:#334155;
-         border:1.5px solid ${recoveryBorders[0]};
-         font-weight:600;
-         border-radius:30px;
-         box-shadow:0 1px 2px #e0e7ef;
-         transition:background 0.2s;
-         cursor:grab;
-       `;
-       } else if (inputModules.includes(mod.name)) {
-         btn.style = `
-         margin-bottom:0.2em;
-         background:${inputBg};
-         color:${inputColor};
-         border:${inputBorder};
-         font-weight:600;
-         border-radius:30px;
-         box-shadow:0 1px 2px #e0e7ef;
-         transition:background 0.2s;
-         cursor:grab;
-       `;
-       } else if (brassIqfModules.includes(mod.name)) {
-         btn.style = `
-     margin-bottom:0.2em;
-     background:${brassIqfBg};
-     color:${brassIqfColor};
-     border:${brassIqfBorder};
-     font-weight:600;
-     border-radius:30px;
-     box-shadow:0 1px 2px #e0e7ef;
-     transition:background 0.2s;
-     cursor:grab;
-   `;
-       } else {
-         // Default style for other modules
-         btn.style = `
-         margin-bottom:0.2em;
-         background:${pastelShades[idx % pastelShades.length]};
-         color:#334155;
-         border:1.5px solid ${borderShades[idx % borderShades.length]};
-         font-weight:600;
-         border-radius:30px;
-         box-shadow:0 1px 2px #e0e7ef;
-         transition:background 0.2s;
-         cursor:grab;
-       `;
-       }
-   
-       // --------------------------------------------
-   
-       btn.ondragstart = function (e) {
-         e.dataTransfer.setData("text/plain", mod.name);
-         setTimeout(() => btn.classList.add("dragging"), 0);
-       };
-       // Enable touch support
-       enableTouchDrag(btn, mod.name);
 
-       btn.ondragend = function () {
-         btn.classList.remove("dragging");
-       };
-       // Highlight if already dropped
-       // --- In the "already dropped" highlight block, update as below ---
-       // ...inside renderModuleBtnGrid, replace the highlight block with:
-   
-       if (droppedModules.find((m) => m.name === mod.name)) {
-         if (dpModules.includes(mod.name)) {
-           btn.style.background = "#2563eb";
-           btn.style.color = "#fff";
-           btn.style.border = `1.5px solid ${dpBorder}`;
-         } else if (recoveryModules.includes(mod.name)) {
-           btn.style.background = recoveryBorders[0];
-           btn.style.color = "#fff";
-           btn.style.border = `1.5px solid ${recoveryBorders[0]}`;
-         } else if (inputModules.includes(mod.name)) {
-           btn.style.background = "rgb(52, 211, 153)";
-           btn.style.color = "#fff";
-           btn.style.border = "1.5px solid rgb(52, 211, 153)";
-         } else if (brassIqfModules.includes(mod.name)) {
-           btn.style.background = "rgb(251, 191, 36)";
-           btn.style.color = "#fff";
-           btn.style.border = "1.5px solid rgb(251, 191, 36)";
-         } else {
-           btn.style.background = "#334155";
-           btn.style.color = "#fff";
-           btn.style.border = `1.5px solid ${
-             borderShades[idx % borderShades.length]
-           }`;
-         }
-   
-         btn.style.cursor = "not-allowed";
+     modulesList.forEach((mod, idx) => {
+       const isSelected = !!droppedModules.find((m) => m.name === mod.name);
+       const isLocked = !!window.fixedCategoryModuleMode;
+       const tile = document.createElement("label");
+       tile.className = `module-check-tile${isSelected ? " selected" : ""}${isLocked ? " locked" : ""}`;
+       tile.title = mod.name;
+       tile.draggable = !isLocked;
+
+       let baseBg = pastelShades[idx % pastelShades.length];
+       let selectedBg = "#334155";
+       let border = `1.5px solid ${borderShades[idx % borderShades.length]}`;
+       if (dpModules.includes(mod.name)) {
+         baseBg = "#e0f2fe";
+         selectedBg = "#2563eb";
+         border = "1.5px solid #38bdf8";
+       } else if (recoveryModules.includes(mod.name)) {
+         baseBg = "#fce7f3";
+         selectedBg = "#f472b6";
+         border = "1.5px solid #f472b6";
+       } else if (inputModules.includes(mod.name)) {
+         baseBg = "rgb(220, 252, 231)";
+         selectedBg = "rgb(52, 211, 153)";
+         border = "1.5px solid rgb(52, 211, 153)";
+       } else if (brassIqfModules.includes(mod.name)) {
+         baseBg = "rgb(254, 243, 199)";
+         selectedBg = "rgb(251, 191, 36)";
+         border = "1.5px solid rgb(251, 191, 36)";
        }
-       // ---------------------------------------------------------------
-   
-       grid.appendChild(btn);
+
+       tile.style.background = isSelected ? selectedBg : baseBg;
+       tile.style.color = isSelected ? "#fff" : "#334155";
+       tile.style.border = border;
+       tile.style.cursor = isLocked ? "not-allowed" : "pointer";
+
+       const checkbox = document.createElement("input");
+       checkbox.type = "checkbox";
+       checkbox.value = mod.name;
+       checkbox.checked = isSelected;
+       checkbox.disabled = isLocked;
+       checkbox.addEventListener("change", function () {
+         if (checkbox.checked) {
+           processModuleDrop(mod.name);
+         } else {
+           removeDroppedModule(mod.name);
+         }
+       });
+
+       const moduleName = document.createElement("span");
+       moduleName.textContent = mod.name;
+
+       tile.appendChild(checkbox);
+       tile.appendChild(moduleName);
+
+       if (!isLocked) {
+         tile.ondragstart = function (e) {
+           e.dataTransfer.setData("text/plain", mod.name);
+           setTimeout(() => tile.classList.add("dragging"), 0);
+         };
+         tile.ondragend = function () {
+           tile.classList.remove("dragging");
+         };
+         enableTouchDrag(tile, mod.name);
+       }
+
+       grid.appendChild(tile);
      });
    }
    renderModuleBtnGrid();
@@ -3859,7 +4034,7 @@ document.getElementById("btn-module-save-next").onclick = async function () {
    </div>
      <div id="dropZone"
        style="min-height:70px;padding:1.2em 0.5em;border:2px dashed #cbd5e1;border-radius:8px;background:#f8fafc;display:flex;flex-wrap:wrap;gap:1.2em;align-items:flex-start;width: 100%;">
-       <span id="dropZonePlaceholder" style="color:#94a3b8;font-size:1em;">Drag modules here to configure headings</span>
+      <span id="dropZonePlaceholder" style="color:#94a3b8;font-size:1em;">Selected modules will appear here</span>
      </div>
    `;
      const dropZone = document.getElementById("dropZone");
@@ -3897,9 +4072,7 @@ document.getElementById("btn-module-save-next").onclick = async function () {
        removeBtn.style =
          "position:absolute;top:7px;right:10px;background:none;border:none;color:#dc2626;font-size:1.2em;cursor:pointer;";
        removeBtn.onclick = function () {
-         droppedModules = droppedModules.filter((m) => m.name !== mod.name);
-         renderModuleBtnGrid();
-         renderSelectedModulesContainer();
+         removeDroppedModule(mod.name);
        };
        card.appendChild(removeBtn);
    
@@ -3991,8 +4164,14 @@ document.getElementById("btn-module-save-next").onclick = async function () {
     if (dept) dept.value = "";
     const role = document.getElementById("roleSelect");
     if (role) role.value = "";
-    const cat = document.getElementById("userCategorySelect");
-    if (cat) cat.value = "";
+    if (typeof setSelectedUserCategoryIds === "function") {
+      setSelectedUserCategoryIds([], { refreshModules: false });
+    } else {
+      const cat = document.getElementById("userCategorySelect");
+      if (cat) cat.value = "";
+    }
+    if (typeof setFixedCategoryModuleMode === "function") setFixedCategoryModuleMode(false);
+    if (typeof setCategoryAutoInfo === "function") setCategoryAutoInfo([], 0);
 
     // Clear module state
     droppedModules = [];
@@ -4195,63 +4374,9 @@ document.getElementById("btn-module-save-next").onclick = async function () {
    }
    
    function populateUserCategories() {
-       fetch("/adminportal/api/group-modules/")
-         .then(response => response.json())
-         .then(data => {
-           const userCategorySelect = document.getElementById("userCategorySelect");
-           if (!userCategorySelect) return;
-           userCategorySelect.innerHTML = '<option value="" disabled selected>Select User Category</option>';
-           data.forEach(group => {
-             const option = document.createElement("option");
-             option.value = group.id;
-             option.text = group.name;
-             userCategorySelect.appendChild(option);
-           });
-         });
+       loadUserCategoryCheckboxes();
      }
    
-   document.getElementById("userCategorySelect").addEventListener("change", function() {
-     const groupId = this.value;
-    const groupName = this.options[this.selectedIndex].text.trim();
-     if (!groupId) return;
-
-     fetch(`/adminportal/api/group-modules/${groupId}/`)
-       .then(res => res.json())
-       .then(data => {
-         if (data.success) {
-           droppedModules = data.modules.map(normalizeModulePayload);
-           renderModuleBtnGrid();
-           renderSelectedModulesContainer();
-           const isFixed = droppedModules.length > 0;
-
-           const infoBox = document.getElementById("category-auto-info");
-           const fixedCategoryControls = [
-             document.getElementById("moduleTilesGrid"),
-             document.getElementById("moduleBtnGrid"),
-             document.getElementById("selectedModulesContainer")
-           ];
-
-           if (isFixed) {
-             // Show info banner; make drag-drop tiles non-interactive
-             if (infoBox) {
-               infoBox.style.display = "";
-               infoBox.innerHTML =
-                 `<span style="color:#008080;font-weight:600;">✔ Modules auto-assigned for <em>${groupName}</em>.</span>
-                  <span style="color:#555;margin-left:0.5rem;">Access is restricted to the mapped module set. No manual selection required — just click <strong>Save & Next</strong>.</span>`;
-             }
-             fixedCategoryControls.forEach(control => {
-               if (control) control.style.pointerEvents = "none";
-             });
-           } else {
-             // Non-fixed category: allow full manual drag-drop
-             if (infoBox) infoBox.style.display = "none";
-             fixedCategoryControls.forEach(control => {
-               if (control) control.style.pointerEvents = "";
-             });
-           }
-         }
-       });
-   });
    // Only call after DOM is ready and dropdowns exist
    document.addEventListener("DOMContentLoaded", function () {
      populateUserCategories();

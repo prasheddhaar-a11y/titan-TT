@@ -12,6 +12,7 @@ import json
 import re
 import logging
 from .serializers import *
+from .utils import extract_table_headings_from_html
 import datetime
 from InputScreening import *
 from django.db import transaction
@@ -2335,6 +2336,89 @@ class RoleListAPIView(APIView):
         return Response(list(roles))
 
 
+def _normalize_group_ids_from_payload(data):
+    """Accept legacy single group payloads and new multi-select group payloads."""
+    if not data:
+        return []
+
+    def get_values(key):
+        if hasattr(data, 'getlist'):
+            values = [value for value in data.getlist(key) if value not in (None, '')]
+            if values:
+                return values
+
+        value = data.get(key)
+        if value in (None, ''):
+            return []
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return []
+            if value.startswith('['):
+                try:
+                    parsed_value = json.loads(value)
+                    if isinstance(parsed_value, list):
+                        return parsed_value
+                except Exception:
+                    pass
+            return [item.strip() for item in value.split(',') if item.strip()]
+        if isinstance(value, (list, tuple, set)):
+            return list(value)
+        return [value]
+
+    raw_group_ids = []
+    for key in ('group_ids', 'groups', 'group'):
+        raw_group_ids = get_values(key)
+        if raw_group_ids:
+            break
+
+    group_ids = []
+    seen_ids = set()
+    for raw_group_id in raw_group_ids:
+        try:
+            group_id = int(raw_group_id)
+        except (TypeError, ValueError):
+            continue
+        if group_id in seen_ids:
+            continue
+        seen_ids.add(group_id)
+        group_ids.append(group_id)
+    return group_ids
+
+
+def _apply_user_groups(user, group_ids, apply_admin_flags=False):
+    """Replace user categories with the selected, valid groups without duplicates."""
+    if not group_ids:
+        return []
+
+    groups_by_id = Group.objects.filter(id__in=group_ids).in_bulk()
+    selected_groups = [groups_by_id[group_id] for group_id in group_ids if group_id in groups_by_id]
+    if not selected_groups:
+        return []
+
+    user.groups.set(selected_groups)
+    if apply_admin_flags and any(group.name.lower() == 'admin' for group in selected_groups):
+        user.is_active = True
+        user.is_staff = True
+        user.is_superuser = True
+    return selected_groups
+
+
+def _serialize_user_groups(user):
+    prefetched_groups = getattr(user, '_prefetched_objects_cache', {}).get('groups')
+    if prefetched_groups is not None:
+        groups = sorted(prefetched_groups, key=lambda group: group.name.lower())
+    else:
+        groups = list(user.groups.all().order_by('name'))
+    return {
+        'group_id': groups[0].id if groups else '',
+        'group_ids': [group.id for group in groups],
+        'group_names': [group.name for group in groups],
+        'groups': [{'id': group.id, 'name': group.name} for group in groups],
+        'user_category': ', '.join(group.name for group in groups),
+    }
+
+
 # Class for User Creation API - Fixed
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2349,7 +2433,7 @@ class UserCreateAPIView(APIView):
         password = data.get('password')
         department_id = data.get('department')
         role_id = data.get('role')
-        group_id = data.get('group')
+        group_ids = _normalize_group_ids_from_payload(data)
         username = (data.get('username') or email or f"{(first_name or '').strip()}.{(last_name or '').strip()}").lower()
 
         try:
@@ -2369,16 +2453,10 @@ class UserCreateAPIView(APIView):
                         user.set_password(password)
                     user.save()
 
-                    # Update group if provided
-                    if group_id:
-                        try:
-                            grp = Group.objects.get(id=group_id)
-                            user.groups.clear()
-                            user.groups.add(grp)
-                            if not sync_user_module_provisions_from_group(user):
-                                invalidate_user_modules_cache(user.id)
-                        except Group.DoesNotExist:
-                            pass
+                    selected_groups = _apply_user_groups(user, group_ids)
+                    if selected_groups:
+                        if not sync_user_module_provisions_from_group(user):
+                            invalidate_user_modules_cache(user.id)
 
                     # Ensure profile exists, then update
                     profile = getattr(user, 'userprofile', None)
@@ -2410,19 +2488,11 @@ class UserCreateAPIView(APIView):
                 user.first_name = first_name or ""
                 user.last_name = last_name or ""
 
-                # Attach group and preserve original Admin flag behaviour on creation
-                if group_id:
-                    try:
-                        group = Group.objects.get(id=group_id)
-                        user.groups.add(group)
-                        if group.name.lower() == "admin":
-                            user.is_active = True
-                            user.is_staff = True
-                            user.is_superuser = True
-                        if not sync_user_module_provisions_from_group(user):
-                            invalidate_user_modules_cache(user.id)
-                    except Group.DoesNotExist:
-                        pass
+                # Attach groups and preserve original Admin flag behaviour on creation
+                selected_groups = _apply_user_groups(user, group_ids, apply_admin_flags=True)
+                if selected_groups:
+                    if not sync_user_module_provisions_from_group(user):
+                        invalidate_user_modules_cache(user.id)
 
                 user.save()
 
@@ -2483,7 +2553,7 @@ def create_user(request):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserListAPIView(APIView):
     def get(self, request):
-        users = User.objects.all().order_by('id')
+        users = User.objects.prefetch_related('groups', 'module_provisions').all().order_by('id')
         paginator = Paginator(users, 8)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
@@ -2497,7 +2567,7 @@ class UserListAPIView(APIView):
                 employment_status = profile.employment_status
             except Exception:
                 department = role = manager = employment_status = ""
-            module_access = UserModuleProvision.objects.filter(user=user)
+            module_access = user.module_provisions.all()
             modules = [
                 {
                     "name": access.module_name,
@@ -2505,6 +2575,7 @@ class UserListAPIView(APIView):
                 }
                 for access in module_access
             ]
+            group_data = _serialize_user_groups(user)
             created = user.date_joined.strftime("%Y-%m-%d %H:%M")
             user_list.append({
                 "id": user.id,
@@ -2513,7 +2584,9 @@ class UserListAPIView(APIView):
                 "last_name": user.last_name,
                 "email": user.email,
                 "department": department,
-                "user_category": user.groups.first().name if user.groups.exists() else "",
+                "user_category": group_data['user_category'],
+                "user_categories": group_data['groups'],
+                "group_ids": group_data['group_ids'],
                 "role": role,
                 "manager": manager,
                 "employment_status": employment_status,
@@ -2596,13 +2669,22 @@ def user_allowed_modules(request):
                 return Response({'success': True, 'message': 'Modules auto-assigned from user category.'})
 
             UserModuleProvision.objects.filter(user=user).delete()
-            # Example: in your API view for saving user module provisions
+            seen_module_names = set()
             for mod in modules:
+                if not isinstance(mod, dict):
+                    continue
+                module_name = (mod.get('name') or '').strip()
+                if not module_name or module_name in seen_module_names:
+                    continue
+                seen_module_names.add(module_name)
+                headings = mod.get('headings', [])
+                if not isinstance(headings, list):
+                    headings = []
                 UserModuleProvision.objects.update_or_create(
                     user=user,
-                    module_name=mod['name'],
+                    module_name=module_name,
                     defaults={
-                        'headings': mod['headings'],
+                        'headings': headings,
                         'file_name': mod.get('file_name', '')
                     }
                 )
@@ -2681,7 +2763,7 @@ class UserDetailAPIView(APIView):
         try:
             user = User.objects.get(id=user_id)
             profile = getattr(user, 'userprofile', None)
-            group = user.groups.first()
+            group_data = _serialize_user_groups(user)
             return Response({
                 "id": user.id,
                 "username": user.username,
@@ -2692,7 +2774,10 @@ class UserDetailAPIView(APIView):
                 "role_id": profile.role.id if profile and profile.role else "",
                 "manager": profile.manager if profile else "",
                 "employment_status": profile.employment_status if profile else "",
-                "group_id": group.id if group else "",
+                "group_id": group_data['group_id'],
+                "group_ids": group_data['group_ids'],
+                "group_names": group_data['group_names'],
+                "groups": group_data['groups'],
             })
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=404)
@@ -2727,15 +2812,10 @@ class UserDetailAPIView(APIView):
                 profile.employment_status = data.get('employment_status', profile.employment_status)
                 profile.save()
 
-            group_id = data.get('group')
-            if group_id:
-
-                group = Group.objects.filter(id=group_id).first()
-                if group:
-                    user.groups.clear()
-                    user.groups.add(group)
-                    if not sync_user_module_provisions_from_group(user):
-                        invalidate_user_modules_cache(user.id)
+            selected_groups = _apply_user_groups(user, _normalize_group_ids_from_payload(data))
+            if selected_groups:
+                if not sync_user_module_provisions_from_group(user):
+                    invalidate_user_modules_cache(user.id)
 
             return Response({'success': True, 'message': 'User updated successfully.'})
         except User.DoesNotExist:

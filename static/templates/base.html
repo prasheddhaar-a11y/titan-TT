@@ -176,14 +176,28 @@
          overflow-x: hidden !important;
          height: calc(100vh - 92px) !important; /* 60px header + 32px footer */
          max-height: calc(100vh - 92px) !important;
-         padding-bottom: 18px;
+         padding-bottom: 20px !important; /* extra space so last expanded submenu (Spider Spindle) is fully scrollable into view */
          box-sizing: border-box !important;
          z-index: 100 !important;
          position: relative;
          flex-wrap: nowrap;
          flex-direction: column;
          margin-bottom: 0 !important;
+         scrollbar-width: thin;
          }
+         /* Ensure the last nav item (Spider Spindle) and its expanded submenu can never be clipped */
+         .sidebar > .nav,
+         .sidebar .nav.flex-column {
+         padding-bottom: 80px !important;
+         }
+         .sidebar .nav-item:last-child .collapse.show,
+         .sidebar .nav-item:last-child .sub-menu {
+         margin-bottom: 40px !important;
+         }
+         /* Visible custom scrollbar so users know the sidebar is scrollable */
+         .sidebar::-webkit-scrollbar { width: 6px; }
+         .sidebar::-webkit-scrollbar-thumb { background: rgba(2,128,132,0.35); border-radius: 3px; }
+         .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(2,128,132,0.6); }
 
          @media (min-width: 760px) and (max-height: 900px) {
          .sidebar .nav:not(.sub-menu) {
@@ -1010,25 +1024,30 @@
             <span class="icon-menu"></span>
             </button>
 
-            <ul class="navbar-nav navbar-nav-right" style="gap: 8px; align-items: center;">
+            <ul class="navbar-nav navbar-nav-right" style="gap:6px;align-items:center;">
+               <style>
+                 .nb-btn{height:36px!important;padding:0 14px!important;gap:8px!important;display:inline-flex!important;align-items:center!important;border:none!important;border-radius:8px!important;transition:all .2s ease!important;cursor:pointer;white-space:nowrap;line-height:1;text-decoration:none;}
+                 .nb-btn small{font-size:12px!important;font-weight:600!important;margin:0!important;line-height:1!important;}
+                 .nb-btn .nb-icon{width:18px;height:18px;object-fit:contain;flex-shrink:0;}
+                 .nb-btn-teal{background:rgba(255,255,255,.08)!important;box-shadow:0 2px 8px rgba(2,128,128,.35)!important;color:#025254!important;}
+                 .nb-btn-teal small{color:#025254!important;}
+                 .nb-btn-teal:hover{background:rgba(2,128,132,.1)!important;}
+                 .nb-btn-warm{background:linear-gradient(135deg,#FFF5E1 0%,#FFD384 55%,#FFB6C1 100%)!important;box-shadow:0 2px 6px rgba(255,182,193,.4)!important;color:#8B4513!important;}
+                 .nb-btn-warm small{color:#8B4513!important;}
+                 .nb-btn-warm:hover{box-shadow:0 4px 12px rgba(255,182,193,.55)!important;}
+                 .nb-btn:active{transform:scale(.97)!important;}
+               </style>
 
-               
                <!-- ✅ GLOBAL SCAN BUTTON -->
                <li class="nav-item position-relative">
-                  <button id="globalScanBtn" class="nav-link btn d-flex flex-row align-items-center" 
+                  <button id="globalScanBtn" class="nav-link btn nb-btn nb-btn-teal"
                       title="Global Tray Scan"
                       data-shortcut-title-code="picktable_scan"
-                      data-shortcut-title-template="{label} ({key})"
-                          style="gap:10px;padding:8px 16px;
-                                 background: rgb(255 255 255 / 6%);
-                                 border:none;
-                                 border-radius:10px;
-                                 box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;
-                                 transition:all 0.3s ease;color:#025254;">
-                     <img src="{% static 'assets/icons/scanner.png' %}" alt="Scan" 
-                          style="width:20px;height:20px;object-fit:contain;vertical-align:middle;"
+                      data-shortcut-title-template="{label} ({key})">
+                     <img src="{% static 'assets/icons/53.png' %}" alt="Scan"
+                          class="nb-icon"
                           onerror="this.onerror=null; this.outerHTML='';" />
-                     <small data-shortcut-template-code="picktable_scan" data-shortcut-template="Scan ({key})" style="font-size:13px;color:#025254 !important;font-weight:700;margin:0;">Scan</small>
+                     <small data-shortcut-template-code="picktable_scan" data-shortcut-template="Scan ({key})">Scan</small>
                   </button>
                   <!-- Inline scan status box -->
                   <div id="globalScanStatus" 
@@ -1059,45 +1078,27 @@
                
                <!-- ✅ SHORTCUTS BUTTON -->
                <li class="nav-item">
-                  <button id="shortcutsBtn" class="nav-link btn d-flex flex-row align-items-center" title="Keyboard Shortcuts (⌨️)" style="gap:8px;padding:7px 12px;background:linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;cursor:pointer;transition:all 0.3s;border-radius:8px;box-shadow:0 2px 6px rgba(255,182,193,0.25);">
-                     <img src="{% static 'assets/icons/6.png' %}" style="width:23px !important;height:23px!important;object-fit:contain;transition:all 0.3s;" alt="Shortcuts Icon">
-                     <small style="font-size:12px;color:#8B4513;font-weight:600;margin:0;transition:all 0.3s;">Shortcuts</small>
+                  <button id="shortcutsBtn" class="nav-link btn nb-btn nb-btn-warm" title="Keyboard Shortcuts (⌨️)">
+                     <img src="{% static 'assets/icons/6.png' %}" class="nb-icon" alt="Shortcuts Icon" />
+                     <small>Shortcuts</small>
                   </button>
-                  <style>
-                    #shortcutsBtn {
-                      background: linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;
-                    }
-                    #shortcutsBtn:hover {
-                      background: linear-gradient(135deg, #FFF5E1 0%, #FFD384 50%, #FFB6C1 100%) !important;
-                      box-shadow: 0 4px 12px rgba(255,182,193,0.4) !important;
-                    }
-                    #globalScanBtn:hover {
-                      background: transparent !important;
-                    }
-                    #barcodeStatus:hover,
-                    #settingsDropdown:hover,
-                    #profileDropdown:hover {
-                      background: rgba(2,128,132,0.06) !important;
-                    }
-                    #shortcutsBtn:active {
-                      transform: scale(0.98);
-                    }
-                  </style>
                </li>
                
                <!-- ✅ TRAY SCAN BUTTON -->
                <li class="nav-item">
-                  <a class="nav-link btn d-flex flex-row align-items-center" id="barcodeStatus" href="#" style="gap:8px;padding:6px 10px;margin-right: 0px;transition:all 0.3s;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;color:#025254;">
-                     <img src="{% static 'assets/gif/barcode.gif' %}" alt="Barcode" class="barcode-icon" style="height:25px !important;width:auto;" />
-                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">Tray Scan</small>
+                  <a class="nav-link btn nb-btn nb-btn-teal" id="barcodeStatus" href="#">
+                     <img src="{% static 'assets/icons/50.png' %}" alt="Barcode"
+                          class="barcode-icon" style="height:20px!important;width:auto!important;" />
+                     <small>Tray Scan</small>
                   </a>
                </li>
                
                <!-- ✅ SETTINGS DROPDOWN -->
                <li class="nav-item dropdown">
-                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" id="settingsDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;transition:all 0.3s;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;color:#025254;">
-                     <img src="{% static 'assets/icons/3.png' %}" alt="Settings" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;" />
-                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">Settings</small>
+                  <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" id="settingsDropdown"
+                     href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                     <img src="{% static 'assets/icons/49.png' %}" alt="Settings" class="nb-icon" />
+                     <small>Settings</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -1123,9 +1124,10 @@
 
                <!-- ✅ PROFILE DROPDOWN -->
                <li class="nav-item nav-profile dropdown">
-                  <a class="nav-link btn btn-outline dropdown-toggle d-flex flex-row align-items-center" href="#" data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false" style="gap:8px;padding:7px 10px;background: rgb(255 255 255 / 6%) !important;border:none;border-radius:10px;box-shadow: rgb(2 128 128 / 52%) 0px 2px 10px;transition:all 0.3s;color:#025254;">
-                     <img src="{% static 'assets/icons/5.png' %}" alt="Profile" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;" />
-                     <small style="font-size:12px;color:#025254;font-weight:600;margin:0;">{{ request.user.username }}</small>
+                  <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" href="#"
+                     data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false">
+                     <img src="{% static 'assets/icons/52.png' %}" alt="Profile" class="nb-icon" />
+                     <small>{{ request.user.username }}</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -1812,8 +1814,8 @@
       {% if is_admin or 'JUL Main Table' in allowed_modules or 'JUL Completed' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#jig-unloading-zone1" aria-expanded="false" aria-controls="jig-unloading-zone1">
-         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone 1" />
-         <span class="menu-title">Jig Unloading Zone 1</span>
+         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone I" />
+         <span class="menu-title">Jig Unloading Zone I</span>
          <i class="menu-arrow"></i>
          </a>
          <div class="collapse" id="jig-unloading-zone1">
@@ -1832,21 +1834,21 @@
          </div>
       </li>
       {% endif %}
-      {% if is_admin or 'JUL Main Table Zone 2' in allowed_modules or 'JUL Completed Zone 2' in allowed_modules %}
+      {% if is_admin or 'JUL Main Table Zone II' in allowed_modules or 'JUL Completed Zone II' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#jig-unloading-zone2" aria-expanded="false" aria-controls="jig-unloading-zone2">
-         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone 2" />
-         <span class="menu-title">Jig Unloading Zone 2</span>
+         <img src="{% static 'assets/icons/29.png' %}" class="menu-icon" alt="Jig Unloading Zone II" />
+         <span class="menu-title">Jig Unloading Zone II</span>
          <i class="menu-arrow"></i>
          </a>
          <div class="collapse" id="jig-unloading-zone2">
             <ul class="nav flex-column sub-menu">
-               {% if is_admin or 'JUL Main Table Zone 2' in allowed_modules %}
+               {% if is_admin or 'JUL Main Table Zone II' in allowed_modules %}
                <li class="nav-item">
                   <a class="nav-link" href="{% url 'JU_Zone_MainTable' %}">JUL Main Table</a>
                </li>
                {% endif %}
-               {% if is_admin or 'JUL Completed Zone 2' in allowed_modules %}
+               {% if is_admin or 'JUL Completed Zone II' in allowed_modules %}
                <li class="nav-item">
                   <a class="nav-link" href="{% url 'JU_Zone_Completedtable' %}">JUL Completed</a>
                </li>
@@ -1860,7 +1862,7 @@
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickel-inspection" aria-expanded="false" aria-controls="nickel-inspection">
          <img src="{% static 'assets/icons/39.png' %}" class="menu-icon" alt="Nickel Wiping" />
-         <span class="menu-title">Nickel Wiping</span>
+         <span class="menu-title">Nickel Wiping Zone I</span>
          <i class="menu-arrow"></i>
          </a>
          <div class="collapse" id="nickel-inspection">
@@ -1902,8 +1904,8 @@
       {% if is_admin or 'NA Pick Table' in allowed_modules or 'NA Completed' in allowed_modules %}
       <li class="nav-item">
          <a class="nav-link" data-bs-toggle="collapse" href="#nickelAuditMenu" aria-expanded="false" aria-controls="nickelAuditMenu">
-         <img src="{% static 'assets/icons/40.png' %}" class="menu-icon" alt="Nickel Audit Zone 1" />
-         <span class="menu-title">Nickel Audit Zone 1</span>
+         <img src="{% static 'assets/icons/40.png' %}" class="menu-icon" alt="Nickel Audit Zone I" />
+         <span class="menu-title">Nickel Audit Zone I</span>
          <i class="menu-arrow"></i>
          </a>
          <div class="collapse" id="nickelAuditMenu">
@@ -2768,6 +2770,29 @@
            }
            
            console.log('Active menu setup complete. Found:', activeMenuFound); // Debug log
+
+           // ===== Auto-scroll sidebar so an expanded submenu (esp. last items like Spider Spindle) is fully visible =====
+           try {
+             const sidebarEl = document.querySelector('.sidebar');
+             if (sidebarEl) {
+               document.querySelectorAll('.sidebar .collapse').forEach(function(coll){
+                 coll.addEventListener('shown.bs.collapse', function(){
+                   const li = coll.closest('.nav-item');
+                   if (!li) return;
+                   const liRect = li.getBoundingClientRect();
+                   const collRect = coll.getBoundingClientRect();
+                   const sbRect = sidebarEl.getBoundingClientRect();
+                   const itemBottom = collRect.bottom;
+                   if (itemBottom > sbRect.bottom - 10) {
+                     const delta = itemBottom - sbRect.bottom + 40;
+                     sidebarEl.scrollBy({ top: delta, behavior: 'smooth' });
+                   } else if (liRect.top < sbRect.top) {
+                     sidebarEl.scrollBy({ top: liRect.top - sbRect.top - 10, behavior: 'smooth' });
+                   }
+                 });
+               });
+             }
+           } catch(e) { /* no-op */ }
          });
       </script>
       <!--  Show the global loading spinner -->
@@ -2934,7 +2959,7 @@
   function setInfo(icon, text, color) {
     if (scanInfoIcon) {
       if (icon === 'scanner') {
-        const src = scanInfoIcon.getAttribute('data-scanner-src') || '/static/assets/icons/scanner.png';
+        const src = scanInfoIcon.getAttribute('data-scanner-src') || '/static/assets/icons/53.png';
         scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
       } else {
         scanInfoIcon.textContent = icon;
