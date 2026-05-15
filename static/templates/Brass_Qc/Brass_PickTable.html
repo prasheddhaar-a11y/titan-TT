@@ -867,6 +867,15 @@ tr.row-inactive td.action-td {
 .btn-reject-is[style*="pointer-events: none"] {
   opacity: 0.5 !important;
 }
+
+.slot-scan-input:focus,
+.slot-edit-input:focus,
+.delink-scan-input:focus {
+  outline: 2px solid #028084 !important;
+  box-shadow: 0 0 0 3px rgba(2, 128, 132, 0.18) !important;
+  background: #ffffff !important;
+  cursor: text !important;
+}
 /* ====================================================
    END UNIFIED BRASS QC ACTION BUTTON THEME
    ==================================================== */
@@ -2493,6 +2502,45 @@ document.addEventListener('DOMContentLoaded', function() {
       return d.innerHTML;
     }
 
+    function normalizeTrayId(trayId) {
+      return (trayId || '').trim().toUpperCase();
+    }
+
+    function setAcceptSectionEnabled(enabled) {
+      acceptSlotsContainer.parentElement.style.opacity = enabled ? '1' : '0.3';
+      acceptSlotsContainer.parentElement.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+
+    function isAcceptSectionEnabled() {
+      return acceptSlotsContainer.parentElement.style.pointerEvents !== 'none';
+    }
+
+    function focusTrayInput(input) {
+      if (!input) return false;
+      setTimeout(function() {
+        if (!document.body.contains(input)) return;
+        input.focus();
+        input.select();
+        if (typeof input.scrollIntoView === 'function') {
+          input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }, 0);
+      return true;
+    }
+
+    function focusNextAvailableTrayInput() {
+      setTimeout(function() {
+        var nextInput = rejectSlotsContainer.querySelector('.slot-scan-input');
+        if (!nextInput && delinkSection.style.display !== 'none') {
+          nextInput = delinkListContainer.querySelector('.delink-scan-input');
+        }
+        if (!nextInput && isAcceptSectionEnabled()) {
+          nextInput = acceptSlotsContainer.querySelector('.slot-scan-input');
+        }
+        focusTrayInput(nextInput);
+      }, 0);
+    }
+
     // ── Close / Cancel ──
     function closeModal() {
       overlay.style.display = 'none';
@@ -2715,8 +2763,13 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           // Map accept tray IDs by slot index
           if (draft.accept_slots) {
+            var activeDraftIds = {};
+            _trayData.forEach(function(t) { activeDraftIds[normalizeTrayId(t.tray_id)] = true; });
             draft.accept_slots.forEach(function(ds, idx) {
-              if (idx < _acceptSlots.length && ds.tray_id) _acceptSlots[idx].tray_id = ds.tray_id;
+              var draftAcceptId = normalizeTrayId(ds.tray_id);
+              if (idx < _acceptSlots.length && draftAcceptId && activeDraftIds[draftAcceptId]) {
+                _acceptSlots[idx].tray_id = draftAcceptId;
+              }
             });
           }
           // Restore delink slots
@@ -2741,8 +2794,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
         renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
         // Gray out accept until reject + delink phases complete
-        acceptSlotsContainer.parentElement.style.opacity = '0.3';
-        acceptSlotsContainer.parentElement.style.pointerEvents = 'none';
+        setAcceptSectionEnabled(false);
         delinkSection.style.display = 'none';
         updateSummary();
         allocationSection.style.display = '';
@@ -2776,18 +2828,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function isAssigned(trayId) {
+      var targetId = normalizeTrayId(trayId);
       var found = false;
-      _acceptSlots.forEach(function(s) { if (s.tray_id === trayId) found = true; });
-      _rejectSlots.forEach(function(s) { if (s.tray_id === trayId) found = true; });
-      _delinkSlots.forEach(function(s) { if (s.tray_id === trayId) found = true; });
+      _acceptSlots.forEach(function(s) { if (normalizeTrayId(s.tray_id) === targetId) found = true; });
+      _rejectSlots.forEach(function(s) { if (normalizeTrayId(s.tray_id) === targetId) found = true; });
+      _delinkSlots.forEach(function(s) { if (normalizeTrayId(s.tray_id) === targetId) found = true; });
       return found;
     }
 
     // ── Assign tray to next empty slot ──
     // Order: reject → delink → accept (top only)
     function assignTrayToNextEmptySlot(trayId, qty) {
+      trayId = normalizeTrayId(trayId);
       var originalIds = {};
-      _trayData.forEach(function(t) { originalIds[t.tray_id] = true; });
+      _trayData.forEach(function(t) { originalIds[normalizeTrayId(t.tray_id)] = true; });
       var isOriginal = !!originalIds[trayId];
       errorDiv.textContent = '';
 
@@ -2796,7 +2850,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (emptyReject.length > 0) {
         if (isOriginal) {
           var originalsInReject = _rejectSlots.filter(function(s) {
-            return s.tray_id && originalIds[s.tray_id];
+            return s.tray_id && originalIds[normalizeTrayId(s.tray_id)];
           }).length;
           if (originalsInReject >= _reuseCount) {
             errorDiv.textContent = 'Reuse limit reached (' + _reuseCount + '). Scan a new tray for reject.';
@@ -2809,6 +2863,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
             renderOriginalTrays();
             checkPhaseTransition();
+            focusNextAvailableTrayInput();
             return;
           }
         }
@@ -2827,6 +2882,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderDelinkSlots();
             renderOriginalTrays();
             checkPhaseTransition();
+            focusNextAvailableTrayInput();
             return;
           }
         }
@@ -2835,11 +2891,16 @@ document.addEventListener('DOMContentLoaded', function() {
       // Phase 3: Fill accept top slot only, then auto-fill non-top
       for (var k = 0; k < _acceptSlots.length; k++) {
         if (_acceptSlots[k].is_top && !_acceptSlots[k].tray_id) {
+          if (!isOriginal) {
+            errorDiv.textContent = 'Accept trays must be current lot tray IDs only.';
+            return;
+          }
           _acceptSlots[k].tray_id = trayId;
           autoFillAcceptNonTop();
           renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
           renderOriginalTrays();
           updateSummary();
+          focusNextAvailableTrayInput();
           return;
         }
       }
@@ -2848,28 +2909,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Phase transition: reject → delink → accept ──
     function checkPhaseTransition() {
       var originalIds = {};
-      _trayData.forEach(function(t) { originalIds[t.tray_id] = true; });
+      _trayData.forEach(function(t) { originalIds[normalizeTrayId(t.tray_id)] = true; });
 
       var emptyReject = _rejectSlots.filter(function(s) { return !s.tray_id; }).length;
       if (emptyReject > 0) {
         // Still in reject phase
-        acceptSlotsContainer.parentElement.style.opacity = '0.3';
-        acceptSlotsContainer.parentElement.style.pointerEvents = 'none';
+        setAcceptSectionEnabled(false);
         delinkSection.style.display = 'none';
         _delinkSlots = [];
         _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
         renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
         updateSummary();
+        focusNextAvailableTrayInput();
         return;
       }
 
       // All reject filled — compute delink needed
       var originalsInReject = {};
       _rejectSlots.forEach(function(s) {
-        if (s.tray_id && originalIds[s.tray_id]) originalsInReject[s.tray_id] = true;
+        var rejectTrayId = normalizeTrayId(s.tray_id);
+        if (rejectTrayId && originalIds[rejectTrayId]) originalsInReject[rejectTrayId] = true;
       });
       var remainingOriginals = _trayData.filter(function(t) {
-        return !originalsInReject[t.tray_id];
+        return !originalsInReject[normalizeTrayId(t.tray_id)];
       });
       var delinkNeeded = (_reuseCount > 0) ? Math.max(0, remainingOriginals.length - _acceptSlots.length) : 0;
 
@@ -2886,11 +2948,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var emptyDelink = _delinkSlots.filter(function(s) { return !s.tray_id; }).length;
         if (emptyDelink > 0) {
-          acceptSlotsContainer.parentElement.style.opacity = '0.3';
-          acceptSlotsContainer.parentElement.style.pointerEvents = 'none';
+          setAcceptSectionEnabled(false);
           _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
           renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
           updateSummary();
+          focusNextAvailableTrayInput();
           return;
         }
       } else {
@@ -2901,8 +2963,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Delink complete — enable accept section but do NOT auto-fill yet.
       // Non-top auto-fill happens only after user scans/picks the top accept tray.
-      acceptSlotsContainer.parentElement.style.opacity = '1';
-      acceptSlotsContainer.parentElement.style.pointerEvents = 'auto';
+      setAcceptSectionEnabled(true);
 
       // If top accept already filled, trigger auto-fill now
       var topFilled = _acceptSlots.some(function(s) { return s.is_top && s.tray_id; });
@@ -2915,22 +2976,25 @@ document.addEventListener('DOMContentLoaded', function() {
       renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
       renderOriginalTrays();
       updateSummary();
+      focusNextAvailableTrayInput();
     }
 
     // ── Auto-fill accept non-top slots from remaining originals ──
     function autoFillAcceptNonTop() {
       var originalIds = {};
-      _trayData.forEach(function(t) { originalIds[t.tray_id] = true; });
+      _trayData.forEach(function(t) { originalIds[normalizeTrayId(t.tray_id)] = true; });
 
       var originalsInReject = {};
       _rejectSlots.forEach(function(s) {
-        if (s.tray_id && originalIds[s.tray_id]) originalsInReject[s.tray_id] = true;
+        var rejectTrayId = normalizeTrayId(s.tray_id);
+        if (rejectTrayId && originalIds[rejectTrayId]) originalsInReject[rejectTrayId] = true;
       });
       var delinkedIds = {};
-      _delinkSlots.forEach(function(s) { if (s.tray_id) delinkedIds[s.tray_id] = true; });
+      _delinkSlots.forEach(function(s) { if (s.tray_id) delinkedIds[normalizeTrayId(s.tray_id)] = true; });
 
       var availableForAccept = _trayData.filter(function(t) {
-        return !originalsInReject[t.tray_id] && !delinkedIds[t.tray_id];
+        var currentTrayId = normalizeTrayId(t.tray_id);
+        return !originalsInReject[currentTrayId] && !delinkedIds[currentTrayId];
       });
       availableForAccept.sort(function(a, b) {
         if (a.is_top && !b.is_top) return -1;
@@ -2942,8 +3006,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var nonTopAvailable = availableForAccept.filter(function(t) {
         // Exclude the tray already used as the top accept slot
         var topTrayId = null;
-        _acceptSlots.forEach(function(s) { if (s.is_top && s.tray_id) topTrayId = s.tray_id; });
-        return t.tray_id !== topTrayId;
+        _acceptSlots.forEach(function(s) { if (s.is_top && s.tray_id) topTrayId = normalizeTrayId(s.tray_id); });
+        return normalizeTrayId(t.tray_id) !== topTrayId;
       });
 
       var autoIdx = 0;
@@ -2976,7 +3040,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '</div></td>';
         } else {
           html += '<td style="padding:3px 6px; border:1px solid #ffe0b2;">' +
-            '<input type="text" class="delink-scan-input" data-idx="' + idx + '" placeholder="Pick or scan original tray to delink" ' +
+            '<input type="text" class="delink-scan-input" data-idx="' + idx + '" placeholder="Pick or scan original tray to delink" maxlength="9" ' +
             'style="width:100%; padding:3px 6px; border:1px solid #ffe0b2; border-radius:3px; font-size:12px; box-sizing:border-box; background:#fffaf0;" autocomplete="off" />' +
             '</td>';
         }
@@ -3001,11 +3065,12 @@ document.addEventListener('DOMContentLoaded', function() {
         inp.addEventListener('keydown', function(e) {
           if (e.key !== 'Enter') return;
           e.preventDefault();
-          var val = this.value.trim();
+          var val = normalizeTrayId(this.value);
+          this.value = val;
           if (!val) return;
           var idx = parseInt(this.getAttribute('data-idx'), 10);
           var oIds = {};
-          _trayData.forEach(function(t) { oIds[t.tray_id] = true; });
+          _trayData.forEach(function(t) { oIds[normalizeTrayId(t.tray_id)] = true; });
           if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; this.select(); return; }
           if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; this.select(); return; }
           errorDiv.textContent = '';
@@ -3013,28 +3078,12 @@ document.addEventListener('DOMContentLoaded', function() {
           renderDelinkSlots();
           renderOriginalTrays();
           checkPhaseTransition();
-          // Focus next available scan input across delink → accept
-          var nextDelink = delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextDelink) nextDelink.focus();
+          focusNextAvailableTrayInput();
         });
         inp.addEventListener('input', function() {
-          var val = this.value.trim();
-          if (val.length < 9) return;
-          var idx = parseInt(this.getAttribute('data-idx'), 10);
-          var oIds = {};
-          _trayData.forEach(function(t) { oIds[t.tray_id] = true; });
-          if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; this.select(); return; }
-          if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; this.select(); return; }
-          errorDiv.textContent = '';
-          _delinkSlots[idx].tray_id = val;
-          renderDelinkSlots();
-          renderOriginalTrays();
-          checkPhaseTransition();
-          // Focus next available scan input across delink → accept
-          var nextDelink2 = delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextDelink2) nextDelink2.focus();
+          // Normalize to uppercase only — Enter key handles assignment
+          var val = normalizeTrayId(this.value);
+          if (val !== this.value) this.value = val;
         });
       });
     }
@@ -3049,7 +3098,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Build original tray lookup
       var originalIds = {};
-      _trayData.forEach(function(t) { originalIds[t.tray_id] = true; });
+      _trayData.forEach(function(t) { originalIds[normalizeTrayId(t.tray_id)] = true; });
 
       var borderClr = '#e0e0e0';
       var headBg = type === 'accept' ? '#e8f5e9' : '#ffebee';
@@ -3077,11 +3126,12 @@ document.addEventListener('DOMContentLoaded', function() {
               ' <span style="background:#e8f5e9; color:#388e3c; padding:1px 6px; border-radius:8px; font-size:10px;">Auto</span></td>';
           } else {
           // Render as editable input so user can correct/re-scan
-          var newBadge = !originalIds[slot.tray_id] ? ' <span style="background:#e3f2fd; color:#1565c0; padding:1px 6px; border-radius:8px; font-size:10px; flex-shrink:0;">New</span>' : '';
-          var reusedBadge = originalIds[slot.tray_id] ? ' <span style="background:#fff3e0; color:#e65100; padding:1px 6px; border-radius:8px; font-size:10px; flex-shrink:0;">Reused</span>' : '';
+          var isCurrentLotTray = !!originalIds[normalizeTrayId(slot.tray_id)];
+          var newBadge = type !== 'accept' && !isCurrentLotTray ? ' <span style="background:#e3f2fd; color:#1565c0; padding:1px 6px; border-radius:8px; font-size:10px; flex-shrink:0;">New</span>' : '';
+          var reusedBadge = isCurrentLotTray ? ' <span style="background:#fff3e0; color:#e65100; padding:1px 6px; border-radius:8px; font-size:10px; flex-shrink:0;">Reused</span>' : '';
           html += '<td style="padding:3px 6px; border:1px solid ' + borderClr + ';">' +
             '<div style="display:flex; align-items:center; gap:4px;">' +
-            '<input type="text" class="slot-edit-input" data-idx="' + idx + '" data-type="' + type + '" value="' + escHtml(slot.tray_id) + '" ' +
+            '<input type="text" class="slot-edit-input" data-idx="' + idx + '" data-type="' + type + '" value="' + escHtml(slot.tray_id) + '" maxlength="9" ' +
             'style="flex:1; padding:3px 6px; border:1px solid #aed6c9; border-radius:3px; font-size:12px; background:#f0faf8; box-sizing:border-box; min-width:80px;" autocomplete="off" />' +
             newBadge + reusedBadge +
             '<button type="button" class="slot-clear-btn" data-idx="' + idx + '" data-type="' + type + '" style="background:none; border:none; color:#d32f2f; cursor:pointer; font-size:13px; padding:0 3px; flex-shrink:0;" title="Clear">&times;</button>' +
@@ -3090,7 +3140,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         } else {
           html += '<td style="padding:3px 6px; border:1px solid ' + borderClr + ';">' +
-            '<input type="text" class="slot-scan-input" data-idx="' + idx + '" data-type="' + type + '" placeholder="Scan Tray ID" ' +
+            '<input type="text" class="slot-scan-input" data-idx="' + idx + '" data-type="' + type + '" placeholder="Scan Tray ID" maxlength="9" ' +
             'style="width:100%; padding:3px 6px; border:1px solid #ddd; border-radius:3px; font-size:12px; box-sizing:border-box;" autocomplete="off" />' +
             '<span class="slot-scan-error" style="font-size:10px; display:none; margin-top:2px;"></span></td>';
         }
@@ -3132,18 +3182,18 @@ document.addEventListener('DOMContentLoaded', function() {
       // ── Helper: build original tray ID map ──
       function getOriginalIds() {
         var m = {};
-        _trayData.forEach(function(t) { m[t.tray_id] = true; });
+        _trayData.forEach(function(t) { m[normalizeTrayId(t.tray_id)] = true; });
         return m;
       }
 
       // ── Helper: validate a new (non-original) tray ID against the backend ──
-      async function validateTrayIdDB(trayId, errSpan) {
+      async function validateTrayIdDB(trayId, errSpan, slotType) {
         var normId = (trayId || '').trim().toUpperCase();  // ERR4 fix: always send uppercase
         try {
           var resp = await fetch('/brass_qc/api/action/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ action: 'VALIDATE_TRAY', tray_id: normId, lot_id: _lotId })
+            body: JSON.stringify({ action: 'VALIDATE_TRAY', tray_id: normId, lot_id: _lotId, slot_type: slotType || '' })
           });
           var result = await resp.json();
           if (!result.valid) {
@@ -3178,20 +3228,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (isAssigned(scannedId)) {
             if (errSpan) { errSpan.textContent = 'Already assigned to another slot'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+            this.select();
+            return;
+          }
+
+          // ERR2: Accept slots only allow existing lot trays — block new tray scans
+          if (slotType === 'accept' && !getOriginalIds()[scannedId]) {
+            if (errSpan) { errSpan.textContent = 'Only existing lot tray IDs can be scanned here.'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+            this.select();
             return;
           }
 
           // Validate against DB — skip for original trays of this lot
           if (!getOriginalIds()[scannedId]) {
-            var ok = await validateTrayIdDB(scannedId, errSpan);
-            if (!ok) return;
+            var ok = await validateTrayIdDB(scannedId, errSpan, slotType);
+            if (!ok) { this.select(); return; }
           }
-
-          // Enforce reuse limit for original trays in reject slots
           if (slotType === 'reject' && getOriginalIds()[scannedId]) {
             var originalsInReject = _rejectSlots.filter(function(s) { return s.tray_id && getOriginalIds()[s.tray_id]; }).length;
             if (originalsInReject >= _reuseCount) {
               if (errSpan) { errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+              this.select();
               return;
             }
           }
@@ -3209,82 +3266,15 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSummary();
           }
 
-          // ✅ ERR1 FIX: After DOM rebuild, find FIRST EMPTY scan input and focus it
+          // ✅ ERR1 FIX: After DOM rebuild, focus the next available phase slot
           this.value = '';  // Clear current field
-          console.log('🔍 [ERR1] Tray scanned:', scannedId, '| Type:', slotType, '| Now finding next empty slot...');
-          
-          // Search order: current type → delink → accept → reject
-          var allSlots = document.querySelectorAll('.slot-scan-input');
-          var nextEmptySlot = null;
-          
-          for (var i = 0; i < allSlots.length; i++) {
-            if (!allSlots[i].value || allSlots[i].value.trim() === '') {
-              nextEmptySlot = allSlots[i];
-              console.log('✅ [ERR1] Found empty slot:', allSlots[i]);
-              break;
-            }
-          }
-          
-          if (nextEmptySlot) {
-            console.log('✅ [ERR1] Focusing next empty input field');
-            nextEmptySlot.focus();
-            nextEmptySlot.select();
-          } else {
-            console.log('⚠️ [ERR1] No empty scan slots found - all filled');
-          }
+          focusNextAvailableTrayInput();
         });
 
-        // Auto-trigger at 9 chars — valid moves next, invalid selects for retype
-        inp.addEventListener('input', async function() {
-          var val = this.value.trim().toUpperCase();  // ERR4 fix: normalize to uppercase
-          if (val !== this.value) this.value = val;  // update field to show uppercase
-          if (val.length < 9) return;
-          var errSpan = this.closest('td').querySelector('.slot-scan-error');
-          var idx2 = parseInt(this.getAttribute('data-idx'), 10);
-          var slotType2 = this.getAttribute('data-type');
-          var targetSlots2 = slotType2 === 'accept' ? _acceptSlots : _rejectSlots;
-          var targetContainer2 = slotType2 === 'accept' ? acceptSlotsContainer : rejectSlotsContainer;
-
-          if (isAssigned(val)) {
-            if (errSpan) { errSpan.textContent = 'Already assigned'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-            this.select();
-            return;
-          }
-
-          // Validate against DB — skip for original trays
-          if (!getOriginalIds()[val]) {
-            var ok2 = await validateTrayIdDB(val, errSpan);
-            if (!ok2) { this.select(); return; }
-          }
-
-          // Enforce reuse limit for original trays in reject slots
-          if (slotType2 === 'reject' && getOriginalIds()[val]) {
-            var originalsInReject2 = _rejectSlots.filter(function(s) { return s.tray_id && getOriginalIds()[s.tray_id]; }).length;
-            if (originalsInReject2 >= _reuseCount) {
-              if (errSpan) { errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-              this.select();
-              return;
-            }
-          }
-
-          if (errSpan) errSpan.style.display = 'none';
-          targetSlots2[idx2].tray_id = val;
-          if (slotType2 === 'accept' && targetSlots2[idx2].is_top) {
-            autoFillAcceptNonTop();
-          }
-          renderSlots(targetContainer2, targetSlots2, slotType2);
-          renderOriginalTrays();
-          if (slotType2 === 'reject') {
-            checkPhaseTransition();
-          } else {
-            updateSummary();
-          }
-
-          // Focus next available scan input across reject → delink → accept
-          var nextInput2 = targetContainer2.querySelector('.slot-scan-input') ||
-            delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextInput2) nextInput2.focus();
+        // Normalize to uppercase only — Enter key handles all assignment (no auto-trigger at 9 chars)
+        inp.addEventListener('input', function() {
+          var val = this.value.trim().toUpperCase();
+          if (val !== this.value) this.value = val;
         });
       });
 
@@ -3322,14 +3312,19 @@ document.addEventListener('DOMContentLoaded', function() {
               return;
             }
           }
+          // ERR2: Accept slots only allow existing lot trays
+          if (slotType === 'accept' && !getOriginalIds()[val]) {
+            errSpan.textContent = 'Only existing lot tray IDs can be used here.';
+            errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+            return;
+          }
           // DB validation for new trays
           if (!getOriginalIds()[val]) {
             errSpan.textContent = 'Checking\u2026';
             errSpan.style.display = 'block'; errSpan.style.color = '#888';
-            var ok = await validateTrayIdDB(val, null);
+            var ok = await validateTrayIdDB(val, errSpan, slotType);
             if (!ok) {
-              errSpan.textContent = 'Invalid tray ID';
-              errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+              return;
             } else {
               errSpan.textContent = '\u2713 Valid';
               errSpan.style.display = 'block'; errSpan.style.color = '#2e7d32';
@@ -3392,9 +3387,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
 
+          // ERR2: Accept slots only allow existing lot trays
+          if (slotType === 'accept' && !getOriginalIds()[newVal]) {
+            if (errSpan) { errSpan.textContent = 'Only existing lot tray IDs can be used here.'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+            this.select();
+            return;
+          }
           // Validate against DB — skip for original trays
           if (!getOriginalIds()[newVal]) {
-            var ok = await validateTrayIdDB(newVal, errSpan);
+            var ok = await validateTrayIdDB(newVal, errSpan, slotType);
             if (!ok) { this.select(); return; }
           }
 
@@ -3427,8 +3428,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSummary();
           }
           // Move cursor to next empty scan input after successful edit
-          var nextScan = targetContainer.querySelector('.slot-scan-input');
-          if (nextScan) nextScan.focus();
+          focusNextAvailableTrayInput();
         });
       });
     }
@@ -3472,8 +3472,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
         renderOriginalTrays();
         // Reset phases
-        acceptSlotsContainer.parentElement.style.opacity = '0.3';
-        acceptSlotsContainer.parentElement.style.pointerEvents = 'none';
+        setAcceptSectionEnabled(false);
         delinkSection.style.display = 'none';
         
         // Clear rejection reasons qty as well
@@ -3845,6 +3844,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Only process if this is a Brass QC module
     if (module !== 'Brass QC' && module !== 'Brass_QC') {
       console.log('[Brass QC] Scan event not for this module, ignoring');
+      return;
+    }
+    
+    // ✅ ERR1 FIX: If the rejection modal is already open, do NOT re-initialize it.
+    // A scan inside the modal fires globalScan:success which would click the reject button
+    // again, resetting all reason qty inputs and tray slot assignments.
+    const rejectOverlay = document.getElementById('brassRejectModalOverlay');
+    if (rejectOverlay && rejectOverlay.style.display === 'flex') {
+      console.log('[Brass QC] Rejection modal already open — skipping auto-open to preserve inputs');
       return;
     }
     

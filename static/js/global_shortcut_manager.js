@@ -17,6 +17,10 @@
         '.overlay-modal',
         '.swal2-container',
         '.flag-modal-backdrop[aria-hidden="false"]',
+        '.tray-scan-modal.open',
+        '.tray-scan-modal-DayPlanning.open',
+        '#trayScanModal.open',
+        '#trayScanModal_DayPlanning.open',
         '[role="dialog"]',
         '.barcode-modal'
     ].join(', ');
@@ -347,6 +351,9 @@
     function installKeyboardHandler() {
         document.addEventListener('keydown', function (event) {
             var normalizedKey = normalizeEventKey(event);
+            if (shouldDeferToInputScreeningScan(event, normalizedKey)) {
+                return;
+            }
             var candidates = shortcutsByKey.get(normalizedKey) || [];
             if (!candidates.length) {
                 return;
@@ -371,6 +378,21 @@
                 }
             }
         }, true);
+    }
+
+    function shouldDeferToInputScreeningScan(event, normalizedKey) {
+        if (normalizedKey !== 'Enter') {
+            return false;
+        }
+        var rejectModal = document.getElementById('isRejectModal');
+        if (rejectModal && rejectModal.classList.contains('open') && isVisibleElement(rejectModal, true)) {
+            return true;
+        }
+        var trayVerificationModal = document.getElementById('trayVerificationModal');
+        if (trayVerificationModal && isVisibleElement(trayVerificationModal, true)) {
+            return true;
+        }
+        return false;
     }
 
     function executeShortcut(config, event, normalizedKey) {
@@ -498,10 +520,17 @@
     }
 
     function executePendingAction() {
+        var modalRoot = getTopModalRoot();
+        if (modalRoot && pendingElement && !modalRoot.contains(pendingElement)) {
+            pendingElement = null;
+        }
         if (pendingElement && isVisibleElement(pendingElement) && !isDisabledElement(pendingElement)) {
             var elementToClick = pendingElement;
             pendingElement = null;
             return clickElement(elementToClick);
+        }
+        if (modalRoot && activeRow && !modalRoot.contains(activeRow)) {
+            return false;
         }
         if (activeRow && lastTargetSelector) {
             var activeElement = findElementInRow(activeRow, lastTargetSelector);

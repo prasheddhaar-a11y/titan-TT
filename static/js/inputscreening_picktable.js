@@ -916,6 +916,23 @@ document.addEventListener("DOMContentLoaded", function () {
     "background:#f0fdf7;color:#1ba878;border:1px solid #c8f0e0;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;";
   const UNVERIFIED_BADGE_STYLE =
     "background:#fff5f0;color:#d67d3a;border:1px solid #fde8d0;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;";
+  var tvmScanInFlight = false;
+  var tvmPendingTrayId = "";
+
+  function tvmFocusScanInput(selectText) {
+    const input = document.getElementById("tvm-scan-input");
+    if (!input) return;
+    setTimeout(function () {
+      input.focus();
+      if (selectText) {
+        try { input.select(); } catch (e) {}
+        try { input.setSelectionRange(0, input.value.length); } catch (e2) {}
+      } else {
+        try { input.setSelectionRange(0, 0); } catch (e3) {}
+      }
+    }, 60);
+  }
+
   // ─── Running info banner — updates the inner text span ────────────────────
   function tvmSetRunningInfo(text) {
     const textEl = document.getElementById("tvm-running-info-text");
@@ -1490,10 +1507,10 @@ document.addEventListener("DOMContentLoaded", function () {
           Swal.fire({
             icon: "success",
             title: "All Verified!",
-            text: "All " + unverifiedTrays.length + " trays have been verified.",
+            text: "Refreshing the page before Accept / Reject.",
             timer: 2000,
             showConfirmButton: false,
-          });
+          }).then(function () { window.location.reload(); });
         }
         tvmSetActivity("success", "Verify All completed ✓");
         tvmLoadTrays(lotId); // Reload to refresh status
@@ -1667,6 +1684,10 @@ document.addEventListener("DOMContentLoaded", function () {
   function tvmVerifyScan(trayId) {
     const lotId = window._tvmCurrentLotId;
     if (!lotId || !trayId) return Promise.resolve(null);
+    trayId = tvmFormatTrayId(trayId);
+    if (tvmScanInFlight) return Promise.resolve(null);
+    tvmScanInFlight = true;
+    tvmPendingTrayId = trayId;
     document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
       detail: { status: "verifying", tray_id: trayId, lot_id: lotId }
     }));
@@ -1684,8 +1705,10 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .then(function (data) {
         const input = document.getElementById("tvm-scan-input");
-        input.value = "";
+        tvmScanInFlight = false;
+        tvmPendingTrayId = "";
         if (data.success) {
+          if (input) input.value = "";
           // ── success ──────────────────────────────────────────────────────
           tvmSetActivity(
             "success",
@@ -1734,15 +1757,19 @@ document.addEventListener("DOMContentLoaded", function () {
               undoBtn.title = "All trays verified - cannot undo";
             }
             // ── Show auto-dismissing success alert ────────────────────────
-            Swal.fire({
-              icon: "success",
-              title: "All trays are verified",
-              text: "Accept and Reject are now enabled.",
-              timer: 2500,
-              timerProgressBar: true,
-              showConfirmButton: false,
-              allowOutsideClick: false,
-            });
+            if (typeof Swal !== "undefined") {
+              Swal.fire({
+                icon: "success",
+                title: "All trays are verified",
+                text: "Refreshing the page before Accept / Reject.",
+                timer: 2500,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+              }).then(function () { window.location.reload(); });
+            } else {
+              window.location.reload();
+            }
             setTimeout(function () {
               tvmSetActivity(
                 "success",
@@ -1750,10 +1777,6 @@ document.addEventListener("DOMContentLoaded", function () {
               );
               tvmSetRunningInfo("Status: All Complete ✅");
             }, 300);
-            // ── Auto-close modal after alert timer ─────────────────────────
-            setTimeout(function () {
-              tvmClose();
-            }, 2600);
           } else {
             setTimeout(function () {
               tvmSetActivity(
@@ -1766,6 +1789,7 @@ document.addEventListener("DOMContentLoaded", function () {
           // ── failure ───────────────────────────────────────────────────────
           const status = data.status || "error";
           if (status === "already_verified") {
+            if (input) input.value = trayId;
             // Already verified in current lot - show warning, NOT invalid
             tvmSetActivity("info", data.message || "Already Verified ⚠�?");
             // Scroll to that tray and highlight it
@@ -1777,12 +1801,13 @@ document.addEventListener("DOMContentLoaded", function () {
             }));
             // Auto-select input for already verified trays
             setTimeout(function () {
-              input.select();
+              tvmFocusScanInput(true);
             }, 500);
             setTimeout(function () {
               tvmSetActivity("wait", "Waiting for tray scan…");
             }, 2000);
           } else {
+            if (input) input.value = trayId;
             // Tray belongs to another lot or not found - show as invalid
             tvmSetActivity("error", data.message || "Invalid Tray ID �?�");
             // Update running info with invalid scan
@@ -1799,27 +1824,25 @@ document.addEventListener("DOMContentLoaded", function () {
             }, 450);
             // Auto-select input on error so next scan replaces it
             setTimeout(function () {
-              input.select();
+              tvmFocusScanInput(true);
             }, 500);
             setTimeout(function () {
               tvmSetActivity("wait", "Waiting for tray scan…");
             }, 2800);
           }
         }
-        setTimeout(function () {
-          input.focus();
-        }, 60);
+        tvmFocusScanInput(false);
       })
       .catch(function () {
+        tvmScanInFlight = false;
+        tvmPendingTrayId = "";
         tvmSetActivity("error", "Network error �?�");
         document.dispatchEvent(new CustomEvent("inputScreening:globalScanVerification", {
           detail: { status: "not_in_lot", tray_id: trayId, lot_id: lotId }
         }));
         const input = document.getElementById("tvm-scan-input");
-        input.value = "";
-        setTimeout(function () {
-          input.focus();
-        }, 60);
+        if (input) input.value = trayId;
+        tvmFocusScanInput(true);
         setTimeout(function () {
           tvmSetActivity("wait", "Waiting for tray scan…");
         }, 2200);
@@ -2005,8 +2028,11 @@ document.addEventListener("DOMContentLoaded", function () {
     scanInput.addEventListener("focus", function () {
       this.style.borderColor = "#028084";
       this.style.boxShadow = "0 0 0 4px rgba(2,128,132,.12)";
-      this.value = "";
-      this.setSelectionRange(0, 0);
+      if (this.value) {
+        this.select();
+      } else {
+        this.setSelectionRange(0, 0);
+      }
     });
     scanInput.addEventListener("blur", function () {
       this.style.borderColor = "#d0dfe1";
@@ -2032,10 +2058,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // ERR 2: Enter key to verify
     scanInput.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
         const val = this.value.trim();
         if (val) {
           const formatted = tvmFormatTrayId(val);
           tvmVerifyScan(formatted);
+        } else {
+          tvmFocusScanInput(false);
         }
       }
     });

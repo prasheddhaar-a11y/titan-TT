@@ -58,6 +58,7 @@ from .services.lot_service import generate_lot_id
 from .services.submission_service import handle_submission
 from .services.validators import (
     is_input_screening_delink_only_tray,
+    validate_accept_tray_current_lot,
     validate_tray_not_rejected_in_is,
 )
 
@@ -1091,14 +1092,13 @@ def brass_qc_action(request):
     elif action == 'VALIDATE_TRAY':
         tray_id = request.data.get('tray_id', '').strip().upper()  # ✅ FIX: Convert to uppercase
         lot_id = request.data.get('lot_id', '').strip()
+        slot_type = request.data.get('slot_type', '').strip().lower()
         if not tray_id:
             return JsonResponse({"valid": False, "error": "tray_id is required"}, status=400)
-        
-        is_rejected_error = validate_tray_not_rejected_in_is(tray_id)
-        if is_rejected_error:
-            return JsonResponse({"valid": False, "error": is_rejected_error, "selected_tray_id": tray_id, "auto_selected": True})
-        if is_input_screening_delink_only_tray(tray_id):
-            release_tray_for_reuse(tray_id)
+        if not lot_id:
+            return JsonResponse({"valid": False, "error": "lot_id is required", "selected_tray_id": tray_id}, status=400)
+        if slot_type and slot_type not in ('accept', 'reject', 'delink'):
+            return JsonResponse({"valid": False, "error": "Invalid slot_type", "selected_tray_id": tray_id}, status=400)
         
         # ═══ TRAY TYPE COMPATIBILITY CHECK ═══
         # Get lot's model tray_type requirement
@@ -1123,6 +1123,27 @@ def brass_qc_action(request):
                 model_category = None
         except TotalStockModel.DoesNotExist:
             return JsonResponse({"valid": False, "error": "Lot not found", "selected_tray_id": tray_id}, status=404)
+
+        if slot_type == 'accept':
+            tray_data, _source, _total_qty = resolve_lot_trays(lot_id)
+            active_trays = [
+                t for t in tray_data
+                if not t.get('is_delinked') and not t.get('is_rejected')
+            ]
+            accept_error = validate_accept_tray_current_lot(tray_id, active_trays)
+            if accept_error:
+                return JsonResponse({
+                    "valid": False,
+                    "error": accept_error,
+                    "selected_tray_id": tray_id,
+                    "auto_selected": True,
+                })
+
+        is_rejected_error = validate_tray_not_rejected_in_is(tray_id)
+        if is_rejected_error:
+            return JsonResponse({"valid": False, "error": is_rejected_error, "selected_tray_id": tray_id, "auto_selected": True})
+        if slot_type != 'accept' and is_input_screening_delink_only_tray(tray_id):
+            release_tray_for_reuse(tray_id)
         
         # Check TrayId master table after any reusable-delink repair above.
         tray = TrayId.objects.filter(tray_id=tray_id).first()

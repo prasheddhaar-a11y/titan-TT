@@ -413,6 +413,11 @@
   border-color: #028084;
   box-shadow: 0 0 0 2px rgba(2, 128, 132, 0.12);
 }
+.isrm-scan-input.isrm-auto-focused {
+  border-color: #028084;
+  background: #f8fefe;
+  box-shadow: 0 0 0 3px rgba(2, 128, 132, 0.18);
+}
 .isrm-scan-input::placeholder { color: #b8c3c4; font-weight: 600; text-transform: none; }
 .isrm-scan-input:disabled { background: #f3f5f5; color: #999; cursor: not-allowed; }
 

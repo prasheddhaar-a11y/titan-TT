@@ -31,6 +31,18 @@ def _safe_int(value):
         return 0
 
 
+def validate_accept_tray_current_lot(tray_id, active_trays):
+    tid = _norm_tray_id(tray_id)
+    active_ids = {
+        _norm_tray_id(tray.get("tray_id"))
+        for tray in active_trays
+        if tray.get("tray_id")
+    }
+    if tid not in active_ids:
+        return f"Accept tray '{tid}' must be one of this lot's current tray IDs"
+    return None
+
+
 def _iter_snapshot_reject_lots(tray_id):
     tid = _norm_tray_id(tray_id)
     base_qs = IS_PartialRejectLot.objects.exclude(trays_snapshot__isnull=True).only("trays_snapshot")
@@ -188,14 +200,21 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
     if not tray_actions:
         return [], [], "tray_actions required for PROCESS action"
 
-    active_tray_map = {t["tray_id"]: t for t in active_trays}
+    active_tray_map = {
+        _norm_tray_id(t.get("tray_id")): t
+        for t in active_trays
+        if t.get("tray_id")
+    }
     accepted_trays = []
     rejected_trays = []
 
     for ta in tray_actions:
-        tid = ta.get("tray_id")
+        tid = _norm_tray_id(ta.get("tray_id"))
         ta_action = ta.get("action")
         is_top = bool(ta.get("is_top", False))
+
+        if not tid:
+            return [], [], "Tray ID is required for every tray action"
 
         if ta_action not in ("ACCEPT", "REJECT", "DELINK"):
             return [], [], f"Invalid tray action '{ta_action}' for tray {tid}"
@@ -203,6 +222,8 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
         tray_match = active_tray_map.get(tid)
 
         if not tray_match:
+            if ta_action == "ACCEPT":
+                return [], [], validate_accept_tray_current_lot(tid, active_trays)
             if ta_action == "REJECT":
                 # New tray (not in this lot) scanned into a reject slot — validate master
                 if not TrayId.objects.filter(tray_id=tid).exists():

@@ -74,6 +74,28 @@
   }
   function clearStatus() { setStatus("info", ""); }
 
+  function focusAndRevealInput(input, selectText) {
+    if (!input) return false;
+    window.setTimeout(function () {
+      if (!document.body.contains(input) || input.disabled) return;
+      input.focus();
+      input.classList.add("isrm-auto-focused");
+      window.setTimeout(function () {
+        if (input.classList) input.classList.remove("isrm-auto-focused");
+      }, 900);
+      if (selectText) {
+        try { input.select(); } catch (e) {}
+        try { input.setSelectionRange(0, input.value.length); } catch (e2) {}
+      }
+      try {
+        input.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      } catch (e3) {
+        input.scrollIntoView(false);
+      }
+    }, 30);
+    return true;
+  }
+
   // ── Fix 9: Live insight chip ──────────────────────────────────────────────
   function setInsight(kind, msg) {
     var box = $("isrm-insight");
@@ -671,8 +693,13 @@
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation();
         var v = (this.value || "").trim().toUpperCase();
-        if (v) attemptScan(this, slotType, v);
+        if (v) {
+          attemptScan(this, slotType, v);
+        } else {
+          focusAndRevealInput(this, false);
+        }
       }
     });
     input.addEventListener("blur", function () {
@@ -682,21 +709,26 @@
   }
 
   function attemptScan(input, slotType, trayId) {
+    trayId = (trayId || "").trim().toUpperCase();
+    if (!trayId || input.getAttribute("data-scan-pending") === "1") return;
     // Let backend handle all validation - removed frontend accept-slot restriction
     // to give users flexibility in tray selection
     if (slotType === "accept" && !rejectStepDone()) {
       setStatus("error", "Please complete reject scans first.");
       setInsight("error", "Reject scans incomplete.");
-      input.value = ""; input.classList.add("invalid");
+      input.classList.add("invalid");
+      focusAndRevealInput(input, true);
       return;
     }
     if (slotType === "delink" && !rejectStepDone()) {
       setStatus("error", "Please complete reject scans first.");
       setInsight("error", "Reject scans incomplete.");
-      input.value = ""; input.classList.add("invalid");
+      input.classList.add("invalid");
+      focusAndRevealInput(input, true);
       return;
     }
     setInsight("busy", "Validating " + trayId + " (" + slotType + ")…");
+    input.setAttribute("data-scan-pending", "1");
     input.disabled = true;
     var capturedEpoch = state.scanEpoch;
     // ERR 2 FIX: Pass slot index and current tray ID to exclude from duplicate check
@@ -712,14 +744,14 @@
     }
     validateScan(slotType, trayId, currentTrayId, function (res) {
       input.disabled = false;
+      input.removeAttribute("data-scan-pending");
       if (state.scanEpoch !== capturedEpoch) return;
       if (!res.valid) {
         setStatus("error", res.reason || "Invalid tray.");
         setInsight("error", trayId + " invalid: " + (res.reason || "rejected"));
         // Fix 4: keep selection on the invalid input so user can retype
         input.classList.add("invalid");
-        input.focus();
-        try { input.setSelectionRange(0, input.value.length); } catch (e) {}
+        focusAndRevealInput(input, true);
         return;
       }
       handleValidScan(slotType, input, res);
@@ -761,19 +793,7 @@
           
           // Focus and scroll the target input into view
           if (targetInput && !targetInput.value) {
-            targetInput.focus();
-            // Smooth scroll to element with padding
-            var scrollContainer = document.getElementById("isrm-body");
-            if (scrollContainer) {
-              var rect = targetInput.getBoundingClientRect();
-              var containerRect = scrollContainer.getBoundingClientRect();
-              var scrollTop = scrollContainer.scrollTop;
-              var offset = rect.top - containerRect.top + scrollTop;
-              scrollContainer.scrollTo({
-                top: Math.max(0, offset - 100),
-                behavior: "smooth"
-              });
-            }
+            focusAndRevealInput(targetInput, false);
             setInsight("info", targetMsg);
           }
         }, 100);
@@ -799,7 +819,7 @@
         setInsight("error", res.tray_id + " already delinked – no duplicates allowed.");
         input.classList.add("invalid");
         input.value = "";
-        input.focus();
+        focusAndRevealInput(input, false);
         return;
       }
       state.delinkScans.push({
@@ -829,7 +849,10 @@
       var nodes = document.querySelectorAll(selectors[i]);
       for (var j = 0; j < nodes.length; j++) {
         var n = nodes[j];
-        if (!n.readOnly && !n.disabled && !n.value) { n.focus(); return; }
+        if (!n.readOnly && !n.disabled && !n.value) {
+          focusAndRevealInput(n, false);
+          return;
+        }
       }
     }
   }
@@ -1414,6 +1437,25 @@
 
   // ── Wire-up ────────────────────────────────────────────────
   document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("keydown", function (e) {
+      var modal = $("isRejectModal");
+      if (!modal || !modal.classList.contains("open") || e.key !== "Enter") return;
+      if (e.target && e.target.closest && e.target.closest(".swal2-container, .isrm-scan-input")) return;
+      var pendingInput = modal.querySelector('.isrm-scan-input[data-scan-pending="1"]');
+      if (pendingInput) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        return;
+      }
+      var scanInput = modal.querySelector(".isrm-scan-input:not([readonly]):not([disabled])");
+      if (!scanInput) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      focusAndRevealInput(scanInput, false);
+    }, true);
+
     document.addEventListener("click", function (e) {
       var btn = e.target.closest(".btn-reject-is");
       if (!btn) return;

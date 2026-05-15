@@ -882,6 +882,29 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 #trayScanDetails.table-grid::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+#traySlotExceededInfo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 32px;
+  margin: 6px 0 8px;
+  padding: 7px 12px;
+  border: 1px solid #f0c36a;
+  border-radius: 6px;
+  background: #fff8e1;
+  color: #8a5a00;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.tray-verify-checkbox.tray-scan-focus-pulse {
+  outline: 2px solid rgba(2, 128, 132, 0.55);
+  outline-offset: 3px;
+}
  
  
 .tray-scan-modal.open {
@@ -1426,6 +1449,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       </div>
     </div>
 
+              <div id="traySlotExceededInfo" role="status" aria-live="polite">Tray slot exceeded</div>
+
               <!-- trayScanDetails will be a scrollable 3-column grid with headers and unlimited rows -->
               <div id="trayScanDetails" class="table-grid">
                 <!-- Headers -->
@@ -1866,8 +1891,9 @@ document.addEventListener("DOMContentLoaded", function () {
             }
           }
           if (!focused && inputs.length > 0) {
-            inputs[0].focus();
-            console.log("🎯 [SCANNER] All inputs filled, focused first input");
+            showTraySlotExceededInfo('Tray slot exceeded');
+            focused = true;
+            console.log("🎯 [SCANNER] All inputs filled, moved to verification checkbox");
           }
           focusTries++;
           if (focused || focusTries > 10) {
@@ -2292,13 +2318,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // All slots are filled - warn user instead of overwriting
         console.log("⚠️ [DRAFT] All slots are filled - cannot add more tray IDs");
         scanStatus.style.color = "#dc3545";
-        scanStatus.textContent = "All tray slots filled!";
-        
-        // Still focus on the last input for user awareness
-        const lastInput = trayIdInputs[trayIdInputs.length - 1];
-        if (lastInput) {
-          lastInput.focus();
-        }
+        scanStatus.textContent = "Tray slot exceeded";
+        showTraySlotExceededInfo('Tray slot exceeded');
         
         // Reset scanner status after warning
         setTimeout(() => {
@@ -2760,16 +2781,6 @@ function reattachAllEventListenersAfterRebuild() {
               input.style.backgroundColor = '#ffebee';
               input.focus();
               input.select();
-                      const nextInput = allInputs[idx + 1];
-                      if (nextInput) {
-                          nextInput.focus();
-                          nextInput.select();
-                      }
-                  } else {
-                      input.focus();
-                      input.select();
-                  }
-              }, 50);
           }
       });
   });
@@ -2964,6 +2975,7 @@ document.addEventListener("DOMContentLoaded", function () {
     detailsDiv.addEventListener("input", function (e) {
       // Only update when tray ID fields change, not quantity fields automatically
       if (e.target.matches('input[type="text"]')) {
+        hideTraySlotExceededInfo();
         updateTrayScanSummary();
         updateUIElements();
       }
@@ -3031,7 +3043,11 @@ function autoFocusFirstTrayInput() {
       return;
     }
   }
-  // If no empty inputs, don't focus
+  if (areTraySlotsCompletelyFilled()) {
+    moveToTrayVerifyCheckbox();
+    console.log('🎯 All tray slots filled - moved focus to verification checkbox');
+    return;
+  }
   console.log('🎯 No empty tray ID inputs to focus');
 }
 
@@ -3069,8 +3085,104 @@ function focusNextEmptyTrayInput(currentInput) {
       return;
     }
   }
-  // If no next empty, don't focus
+  if (areTraySlotsCompletelyFilled()) {
+    moveToTrayVerifyCheckbox();
+  }
 }
+
+function getEditableTrayIdInputs() {
+  const detailsDiv = document.getElementById("trayScanDetails");
+  return detailsDiv ? Array.from(detailsDiv.querySelectorAll('.tray-id-input:not([readonly])')) : [];
+}
+
+function areTraySlotsCompletelyFilled() {
+  const trayIdInputs = getEditableTrayIdInputs();
+  return trayIdInputs.length > 0 && trayIdInputs.every(input => input.value.trim() !== '');
+}
+
+function getTraySlotExceededInfo() {
+  return document.getElementById('traySlotExceededInfo');
+}
+
+function hideTraySlotExceededInfo() {
+  const info = getTraySlotExceededInfo();
+  if (info) {
+    info.style.display = 'none';
+  }
+}
+
+function showTraySlotExceededInfo(message) {
+  const info = getTraySlotExceededInfo();
+  if (info) {
+    info.textContent = message || 'Tray slot exceeded';
+    info.style.display = 'flex';
+  }
+  moveToTrayVerifyCheckbox();
+}
+
+function moveToTrayVerifyCheckbox() {
+  const detailsDiv = document.getElementById("trayScanDetails");
+  if (!detailsDiv) return;
+
+  const verifyCheckbox = detailsDiv.querySelector('.tray-verify-checkbox');
+  if (!verifyCheckbox) return;
+
+  try {
+    detailsDiv.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    detailsDiv.scrollTop = 0;
+  }
+
+  window.setTimeout(() => {
+    verifyCheckbox.focus({ preventScroll: true });
+    verifyCheckbox.classList.add('tray-scan-focus-pulse');
+    window.setTimeout(() => {
+      verifyCheckbox.classList.remove('tray-scan-focus-pulse');
+    }, 1400);
+  }, 120);
+}
+
+document.addEventListener('keydown', function(e) {
+  const modal = document.getElementById('trayScanModal');
+  if (!modal || !modal.classList.contains('open')) return;
+  if (!areTraySlotsCompletelyFilled()) return;
+
+  const target = e.target;
+  const isTrayInput = target && target.classList && target.classList.contains('tray-id-input');
+  if (isTrayInput) return;
+
+  const isVerifyCheckbox = target && target.classList && target.classList.contains('tray-verify-checkbox');
+  const isModalActionButton = target && target.closest && target.closest('.tray-scan-modal-buttons, #topTrayScanSection');
+  const isPrintable = e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+  const isScannerTerminator = e.key === 'Enter';
+  window.dpOverflowScanBuffer = window.dpOverflowScanBuffer || '';
+
+  if (isVerifyCheckbox && !window.dpOverflowScanBuffer && (e.key === 'Enter' || e.key === ' ')) {
+    return;
+  }
+
+  if (isModalActionButton && !window.dpOverflowScanBuffer && e.key === 'Enter') {
+    return;
+  }
+
+  if (!isPrintable && !isScannerTerminator) return;
+
+  e.preventDefault();
+  e.stopImmediatePropagation();
+
+  if (isPrintable) {
+    window.dpOverflowScanBuffer += e.key;
+  }
+  window.clearTimeout(window.dpOverflowScanTimer);
+  window.dpOverflowScanTimer = window.setTimeout(() => {
+    window.dpOverflowScanBuffer = '';
+  }, 500);
+
+  if (isScannerTerminator || window.dpOverflowScanBuffer.length >= 4) {
+    window.dpOverflowScanBuffer = '';
+    showTraySlotExceededInfo('Tray slot exceeded');
+  }
+}, true);
 
 // ✅ ENHANCED: Function to create backup of original data (call this when modal first opens)
 function createBackupOriginalData() {
@@ -4358,6 +4470,7 @@ function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQty
       input.addEventListener('input', function() {
         // ✅ Convert to uppercase and store as uppercase
         this.value = this.value.toUpperCase();
+        hideTraySlotExceededInfo();
         
         // ✅ NEW: Uncheck checkbox when any tray ID is modified or cleared
         const verifyCheckbox = detailsDiv.querySelector('.tray-verify-checkbox');
@@ -4512,6 +4625,7 @@ function attachEnhancedEventListeners() {
         // ✅ NEW: Add global tray validation on input change
         input.addEventListener('input', function() {
             const trayId = this.value.trim().toUpperCase();
+          hideTraySlotExceededInfo();
             
             // Clear ALL existing validation messages first
             const existingErrors = this.parentElement.querySelectorAll('.global-tray-warning, .tray-id-error');
@@ -4664,8 +4778,10 @@ if (verifyCheckbox) {
 }
 // ===== MODIFIED MAIN TRAY SCAN HANDLER =====
 
-trayScanLinks.forEach((link) => {
-    link.addEventListener("click", async (event) => {
+document.addEventListener("click", async function(event) {
+  const eventTarget = event.target;
+  const link = eventTarget && eventTarget.closest ? eventTarget.closest(".tray-scan-btn") : null;
+    if (!link) return;
         event.preventDefault();
 
         // Get tray scan status from the clicked link
@@ -4678,11 +4794,12 @@ trayScanLinks.forEach((link) => {
             console.log('✅ Redo button visible for all rows (including drafted rows)');
         }
         
-        window.currentTrayScanBatchId = event.target.getAttribute("data-batch-id");
+        window.currentTrayScanBatchId = link.getAttribute("data-batch-id");
         clearTrayVerificationMessage();
+        hideTraySlotExceededInfo();
         const needsTopTrayScan = link.getAttribute('data-needs-top-tray-scan') === 'true';
 
-        const row = event.target.closest("tr");
+        const row = link.closest("tr");
         if (!row) return;
         document.querySelectorAll("tbody tr").forEach((row) => {
             row.classList.remove("highlighted-tray-scan");
@@ -4690,14 +4807,14 @@ trayScanLinks.forEach((link) => {
         row.classList.add("highlighted-tray-scan");
 
         // Get dynamic data from the clicked row
-        const batchId = event.target.getAttribute("data-batch-id");
-        const modelNo = event.target.getAttribute("data-model-no");
-        const platingStkNo = event.target.getAttribute("data-plating-stk-no");
-        const noOfTrays = parseInt(event.target.getAttribute("data-no-of-trays")) || 0;
-        const trayCapacity = parseInt(event.target.getAttribute("data-tray-capacity")) || 12; 
-        const topTrayQtyVerified = event.target.getAttribute("data-top-tray-qty-verified") === "True";
-        const draftSaved = event.target.getAttribute("data-draft-saved") === "True";
-        const movedToDPicker = event.target.getAttribute("data-moved-to-d-picker") === "True";
+        const batchId = link.getAttribute("data-batch-id");
+        const modelNo = link.getAttribute("data-model-no");
+        const platingStkNo = link.getAttribute("data-plating-stk-no");
+        const noOfTrays = parseInt(link.getAttribute("data-no-of-trays")) || 0;
+        const trayCapacity = parseInt(link.getAttribute("data-tray-capacity")) || 12; 
+        const topTrayQtyVerified = link.getAttribute("data-top-tray-qty-verified") === "True";
+        const draftSaved = link.getAttribute("data-draft-saved") === "True";
+        const movedToDPicker = link.getAttribute("data-moved-to-d-picker") === "True";
         
         // NEW: Store current modal configuration for use by enhanced functions
         window.currentModalConfig = {
@@ -4790,7 +4907,7 @@ trayScanLinks.forEach((link) => {
         }
 
         const modalTrayQty = document.getElementById("modalTrayQty");
-        const totalBatchQty = event.target.getAttribute("data-total-batch-quantity");
+        const totalBatchQty = link.getAttribute("data-total-batch-quantity");
         if (modalTrayQty && totalBatchQty) {
             modalTrayQty.textContent = totalBatchQty;
         }
@@ -4902,7 +5019,7 @@ trayScanLinks.forEach((link) => {
             autoFocusFirstTrayInput();
         }, 100);
 
-        const isReleased = event.target.getAttribute("data-moved-to-d-picker") === "True";
+        const isReleased = link.getAttribute("data-moved-to-d-picker") === "True";
         
         if (isReleased) {
             detailsDiv.querySelectorAll('input').forEach(inp => inp.setAttribute('readonly', 'readonly'));
@@ -4969,6 +5086,7 @@ trayScanLinks.forEach((link) => {
             const trayQtyInputs = detailsDiv.querySelectorAll('input[type="number"]');
 
             console.log(`🔄 Clearing ${trayIdInputs.length} tray IDs and ${trayQtyInputs.length} quantities`);
+            hideTraySlotExceededInfo();
 
             // Clear all tray IDs
             trayIdInputs.forEach((input, index) => {
@@ -5081,6 +5199,7 @@ trayScanLinks.forEach((link) => {
             const trayIdInputs = detailsDiv.querySelectorAll('input[type="text"]:not([readonly])');
             trayIdInputs.forEach((input, idx, allInputs) => {
                 input.addEventListener('input', function () {
+                  hideTraySlotExceededInfo();
                     let prevError = input.parentNode.querySelector('.tray-id-error');
                     if (prevError) prevError.remove();
 
@@ -5894,7 +6013,6 @@ trayScanLinks.forEach((link) => {
                 buttonElement.style.opacity = '0.5';
             }
         }
-    });
 });
 
 
@@ -5904,6 +6022,7 @@ console.log('✅ Enhanced tray scan modal with dynamic row management loaded');
     closeBtn.addEventListener("click", () => {
         modal.classList.remove("open");
         clearTrayVerificationMessage();
+      hideTraySlotExceededInfo();
     });
 
     
@@ -5912,6 +6031,7 @@ console.log('✅ Enhanced tray scan modal with dynamic row management loaded');
         cancelBtn.addEventListener("click", function () {
             modal.classList.remove("open");
             clearTrayVerificationMessage();
+          hideTraySlotExceededInfo();
         });
     }
 });
