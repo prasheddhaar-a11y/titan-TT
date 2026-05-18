@@ -3496,11 +3496,11 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
 .tray-id-input {
   background: #f9fafb !important;  /* Default fallback color */
 }
-.tray-id-input.model-bg-1 { background: #e2fbff !important; }   /* Primary model (cyan) */
-.tray-id-input.model-bg-2 { background: #fff4e6 !important; }   /* Secondary model (orange) */
-.tray-id-input.model-bg-3 { background: #fff9c4 !important; }   /* Third model (yellow) */
-.tray-id-input.model-bg-4 { background: #e1bee7 !important; }   /* Fourth model (purple) */
-.tray-id-input.model-bg-5 { background: #c8e6c9 !important; }   /* Fifth model (green) */
+.tray-id-input.model-bg-1 { background: #e8f3f4 !important; }
+.tray-id-input.model-bg-2 { background: #edf1fb !important; }
+.tray-id-input.model-bg-3 { background: #eef6f0 !important; }
+.tray-id-input.model-bg-4 { background: #f3edf4 !important; }
+.tray-id-input.model-bg-5 { background: #f4f1e8 !important; }
 
 /* Validated state colors with model backgrounds */
 
@@ -3541,24 +3541,24 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
 }
 /* Per-model card colors — match delink tray backgrounds */
 .model-card.model-color-1 {
-  background: linear-gradient(160deg, #fff 60%, #e2fbff 100%);
-  border-color: rgba(2,128,132,0.3);
+  background: linear-gradient(160deg, #fff 62%, #e8f3f4 100%);
+  border-color: rgba(88, 132, 137, 0.28);
 }
 .model-card.model-color-2 {
-  background: linear-gradient(160deg, #fff 60%, #fff4e6 100%);
-  border-color: rgba(230,126,34,0.3);
+  background: linear-gradient(160deg, #fff 62%, #edf1fb 100%);
+  border-color: rgba(101, 119, 172, 0.26);
 }
 .model-card.model-color-3 {
-  background: linear-gradient(160deg, #fff 60%, #e1bee7 100%);
-  border-color: rgba(180,160,0,0.3);
+  background: linear-gradient(160deg, #fff 62%, #eef6f0 100%);
+  border-color: rgba(92, 139, 107, 0.26);
 }
 .model-card.model-color-4 {
-  background: linear-gradient(160deg, #fff 60%, #fff9c4 100%);
-  border-color: rgba(120,50,150,0.3);
+  background: linear-gradient(160deg, #fff 62%, #f3edf4 100%);
+  border-color: rgba(139, 105, 141, 0.24);
 }
 .model-card.model-color-5 {
-  background: linear-gradient(160deg, #fff 60%, #c8e6c9 100%);
-  border-color: rgba(40,130,60,0.3);
+  background: linear-gradient(160deg, #fff 62%, #f4f1e8 100%);
+  border-color: rgba(141, 126, 84, 0.24);
 }
 /* Role badge (tiny icon top-right) */
 .model-card[data-role="primary"]::before {
@@ -6294,16 +6294,16 @@ tr[data-jig-hold-lot="false"] .hold-remark-icon:not(.has-reason) {
 #delinkPanelTable tbody tr.delink-row-scanned { background: #d4edda; }
 #delinkPanelTable tbody tr.delink-row-disabled { background: #f1f3f5; opacity: 0.7; }
 /* Multi-model row colors in delink panel */
-#delinkPanelTable tbody tr.model-bg-1 { background: #e2fbff; }
-#delinkPanelTable tbody tr.model-bg-2 { background: #fff4e6; }
-#delinkPanelTable tbody tr.model-bg-3 { background: #fff9c4; }
-#delinkPanelTable tbody tr.model-bg-4 { background: #e1bee7; }
-#delinkPanelTable tbody tr.model-bg-5 { background: #c8e6c9; }
-#delinkPanelTable tbody tr.model-bg-1.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #e2fbff); }
-#delinkPanelTable tbody tr.model-bg-2.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #fff4e6); }
-#delinkPanelTable tbody tr.model-bg-3.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #fff9c4); }
-#delinkPanelTable tbody tr.model-bg-4.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #e1bee7); }
-#delinkPanelTable tbody tr.model-bg-5.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #c8e6c9); }
+#delinkPanelTable tbody tr.model-bg-1 { background: #e8f3f4; }
+#delinkPanelTable tbody tr.model-bg-2 { background: #edf1fb; }
+#delinkPanelTable tbody tr.model-bg-3 { background: #eef6f0; }
+#delinkPanelTable tbody tr.model-bg-4 { background: #f3edf4; }
+#delinkPanelTable tbody tr.model-bg-5 { background: #f4f1e8; }
+#delinkPanelTable tbody tr.model-bg-1.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #e8f3f4); }
+#delinkPanelTable tbody tr.model-bg-2.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #edf1fb); }
+#delinkPanelTable tbody tr.model-bg-3.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #eef6f0); }
+#delinkPanelTable tbody tr.model-bg-4.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #f3edf4); }
+#delinkPanelTable tbody tr.model-bg-5.delink-row-scanned { background: linear-gradient(135deg, #d4edda, #f4f1e8); }
 /* Allocation status badge styles */
 .unified-status-badge.status-delinked { background: #d4edda; color: #155724; border: 1px solid #28a745; }
 .unified-status-badge.status-top-tray { background: #d0f0f2; color: #014d4e; border: 1px solid #028084; }

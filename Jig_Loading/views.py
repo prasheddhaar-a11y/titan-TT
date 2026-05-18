@@ -233,26 +233,24 @@ class JigView(TemplateView):
 			_t1 = _time.time()
 			print(f"[JIG PERF] base_qs built: {_t1 - _t0:.3f}s")
 			# Exclude lots already SUBMITTED in JigCompleted (they move to Completed table).
-			# Drafted lots stay visible in pick table with "Draft" / "Partial Draft" status.
-			# For Add Model popup (exclude_lot_id present, NOT merge_model), also exclude drafted lots.
-			# When merge_model=1, the primary lot MUST stay visible so its button can be clicked.
+			# In Add Model flow, exclude other drafts but never use the current draft's
+			# stale multi_model_allocation to hide a model the user has just removed.
 			try:
 				is_merge_return = bool(self.request.GET.get('merge_model'))
 				is_add_model_popup = bool(exclude_lot_raw) and not is_merge_return
-				# Exclude rows whose PSN is already on the jig (catches same-PSN lots that differ by lot_id)
+				# Exclude exact selected lots by lot_id only. Same/ditto PSN lots are valid
+				# Add Model candidates when another accepted lot exists for the same model.
 				if is_add_model_popup and selected_model_psns:
-					base_qs = base_qs.exclude(batch_id__plating_stk_no__in=selected_model_psns)
-					print(f'[JIG PICK] PSN exclusion applied: {selected_model_psns}')
-				exclude_statuses = ['submitted', 'draft'] if is_add_model_popup else ['submitted']
-				# Get all lot_ids in one DB-level query (no Python loop)
+					print(f'[JIG PICK] Same/ditto PSNs allowed in Add Model flow: {selected_model_psns}')
+				# Submitted lots are permanently consumed.
 				exclude_lot_ids = set(
 					JigCompleted.objects.filter(
-						draft_status__in=exclude_statuses
+						draft_status='submitted'
 					).values_list('lot_id', flat=True)
 				)
-				# For multi-model, also exclude secondary lot IDs (JSON field — must iterate, limited)
+				# For submitted multi-model records, also exclude secondary lot IDs.
 				for rec in JigCompleted.objects.filter(
-					draft_status__in=exclude_statuses,
+					draft_status='submitted',
 					is_multi_model=True,
 					multi_model_allocation__isnull=False
 				).only('multi_model_allocation')[:100]:
@@ -261,19 +259,34 @@ class JigView(TemplateView):
 							mlot = m.get('lot_id', '') if isinstance(m, dict) else ''
 							if mlot:
 								exclude_lot_ids.add(mlot)
+				if is_add_model_popup:
+					other_drafts = JigCompleted.objects.filter(draft_status='draft')
+					if primary_lot:
+						other_drafts = other_drafts.exclude(lot_id=primary_lot)
+					exclude_lot_ids.update(other_drafts.values_list('lot_id', flat=True))
+					for rec in other_drafts.filter(
+						is_multi_model=True,
+						multi_model_allocation__isnull=False
+					).only('multi_model_allocation')[:100]:
+						if rec.multi_model_allocation:
+							for m in rec.multi_model_allocation:
+								mlot = m.get('lot_id', '') if isinstance(m, dict) else ''
+								if mlot:
+									exclude_lot_ids.add(mlot)
 				if exclude_lot_ids:
 					base_qs = base_qs.exclude(lot_id__in=list(exclude_lot_ids))
 			except Exception:
 				logging.exception("[JIG PICK] Failed to exclude submitted/draft lots")
 			_t2 = _time.time()
 			print(f"[JIG PERF] exclude lots: {_t2 - _t1:.3f}s")
-			# ===== MICRO-GROUP FILTER (DB-driven, Add Model flow only) =====
-			# When primary_lot_id + exclude_lot_id present, restrict pick table to same micro group.
+			# ===== ADD MODEL ELIGIBILITY FILTER (DB-driven, Add Model flow only) =====
+			# When primary_lot_id + exclude_lot_id present, restrict pick table to
+			# backend-approved PSNs: same micro group plus same/ditto model rows.
 			# eligible_psns_for_filter is set here and reused by the excess lot loop below.
 			eligible_psns_for_filter = None  # None = no filter active; [] = filter active but empty
 			if primary_lot and is_add_model_popup:
 				try:
-					from Jig_Loading.models import ModelMicroGroup
+					from Jig_Loading.model_combination_validator import resolve_add_model_eligible_psns
 
 					# Resolve primary PSN from request first, then backend sources.
 					primary_psn = (self.request.GET.get('primary_psn', '') or '').strip()
@@ -294,32 +307,18 @@ class JigView(TemplateView):
 						base_qs = base_qs.none()
 						eligible_psns_for_filter = []
 					else:
-						# Directly query ModelMicroGroup — single source of truth, no helper wrappers.
-						group_entry = ModelMicroGroup.objects.filter(plating_stk_no=primary_psn, is_active=True).first()
-						group_name = group_entry.group_name if group_entry else None
-						print(f'[JIG PICK] Add-model filter: group_name={group_name!r}')
+						eligible_psns, invalid_selected = resolve_add_model_eligible_psns(primary_psn, selected_model_psns)
+						print(f'[JIG PICK] Add-model filter: eligible_psns={eligible_psns}, invalid_selected={invalid_selected}')
 
-						if not group_entry:
-							print(f'[JIG PICK] Add-model filter: No micro-group for primary_psn={primary_psn!r} — showing no rows')
+						if invalid_selected or not eligible_psns:
 							base_qs = base_qs.none()
 							eligible_psns_for_filter = []
 						else:
-							# Fetch ALL active models in this group (including the primary itself).
-							eligible_psns = list(
-								ModelMicroGroup.objects.filter(group_name=group_name, is_active=True)
-								.values_list('plating_stk_no', flat=True)
-							)
-							print(f'[JIG PICK] Add-model filter: eligible_psns={eligible_psns}')
-
-							if not eligible_psns:
-								base_qs = base_qs.none()
-								eligible_psns_for_filter = []
-							else:
-								base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
-								eligible_psns_for_filter = eligible_psns
-								print(f'[JIG PICK] Add-model filter applied: base_qs count={base_qs.count()}')
+							base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
+							eligible_psns_for_filter = eligible_psns
+							print(f'[JIG PICK] Add-model filter applied: base_qs count={base_qs.count()}')
 				except Exception:
-					logging.exception("[JIG PICK] Failed to apply micro-group filter")
+					logging.exception("[JIG PICK] Failed to apply Add Model eligibility filter")
 			# Apply ordering — no slice limit in Add Model mode (show all eligible)
 			_slice = None if (primary_lot and is_add_model_popup) else 10
 			qs = base_qs.only(
@@ -508,15 +507,14 @@ class JigView(TemplateView):
 					if exclude_list and real_excess_lot_id in set(exclude_list):
 						continue
 
-					# In Add Model mode, only show excess lots from the same micro group.
+					# In Add Model mode, only show excess lots from backend-approved PSNs.
 					excess_psn_val = (excess_model_name or jc.plating_stock_num or '').strip().split(' [')[0]
 					if eligible_psns_for_filter is not None:
 						if excess_psn_val not in eligible_psns_for_filter:
 							continue
 
-					# Skip excess lots whose PSN is already selected (primary + added models)
-					if is_add_model_popup and selected_model_psns and excess_psn_val in selected_model_psns:
-						continue
+					# Exact selected lots are excluded by lot_id above. Same/ditto PSNs remain eligible
+					# so Add Model can show available excess partial-draft lots for the same model.
 
 					excess_data = {
 						'batch_id': jc.batch_id,
@@ -2554,7 +2552,7 @@ def aggregate_multi_model_trays(primary_lot_id, secondary_lots):
 	return all_trays
 
 
-def validate_tray_for_scan(tray_id, lot_id, already_scanned_ids=None, allow_reuse_delink=False, allow_new_half_filled=False):
+def validate_tray_for_scan(tray_id, lot_id, already_scanned_ids=None, allow_reuse_delink=False, allow_new_half_filled=False, strict_excess_lot=False):
 	"""Validate a tray ID for scanning.
 	Returns: (is_valid, tray_qty, validation_status, message)
 	Falls back to BrassAuditTrayId and BrassTrayId if not found in JigLoadTrayId.
@@ -2565,7 +2563,13 @@ def validate_tray_for_scan(tray_id, lot_id, already_scanned_ids=None, allow_reus
 		return False, 0, 'duplicate', 'Tray already scanned'
 	try:
 		# Priority 0: ExcessLotTray (for EX-* excess lots)
-		if lot_id and lot_id.startswith('EX-'):
+		is_registered_excess_lot = False
+		if lot_id:
+			try:
+				is_registered_excess_lot = lot_id.startswith('EX-') or ExcessLotRecord.objects.filter(new_lot_id=lot_id).exists()
+			except Exception:
+				is_registered_excess_lot = lot_id.startswith('EX-')
+		if is_registered_excess_lot:
 			try:
 				excess_tray = ExcessLotTray.objects.filter(tray_id=tray_id, lot_id=lot_id).first()
 				if excess_tray:
@@ -2574,6 +2578,8 @@ def validate_tray_for_scan(tray_id, lot_id, already_scanned_ids=None, allow_reus
 					return True, tray_qty, 'success', 'Tray validated'
 			except Exception:
 				pass
+			if strict_excess_lot:
+				return False, 0, 'invalid_tray', 'Tray does not belong to this excess lot/model'
 
 		# Priority 1: JigLoadTrayId
 		tray = JigLoadTrayId.objects.filter(tray_id=tray_id, lot_id=lot_id).first()
@@ -3096,6 +3102,7 @@ class JigLoadUpdateAPI(APIView):
 		secondary_lots = payload.get('secondary_lots', [])
 		primary_lot_id = payload.get('primary_lot_id', lot_id)
 		primary_batch_id = payload.get('primary_batch_id', batch_id)
+		scan_panel = str(payload.get('scan_panel', 'delink') or 'delink').strip().lower()
 
 		if isinstance(multi_model_flag, str):
 			multi_model_flag = multi_model_flag.lower() in ('1', 'true', 'yes', 'on')
@@ -3122,9 +3129,15 @@ class JigLoadUpdateAPI(APIView):
 			allow_new_half_filled = bool(payload.get('allow_new_half_filled', False))
 			already_scanned = set(s.get('tray_id', '') for s in scanned_trays if s.get('tray_id'))
 			candidate_lot_ids = []
-			for candidate in [lot_id, primary_lot_id] + [sec.get('lot_id') for sec in secondary_lots if isinstance(sec, dict)]:
-				if candidate and candidate not in candidate_lot_ids:
-					candidate_lot_ids.append(candidate)
+			if scan_panel in ('excess', 'excess_top'):
+				# Excess/top panel rows carry the exact source lot. Do not search other
+				# models, or a tray from another model can be accepted accidentally.
+				if lot_id:
+					candidate_lot_ids.append(lot_id)
+			else:
+				for candidate in [lot_id, primary_lot_id] + [sec.get('lot_id') for sec in secondary_lots if isinstance(sec, dict)]:
+					if candidate and candidate not in candidate_lot_ids:
+						candidate_lot_ids.append(candidate)
 
 			is_valid = False
 			tray_qty = 0
@@ -3138,12 +3151,15 @@ class JigLoadUpdateAPI(APIView):
 					already_scanned,
 					allow_reuse_delink=allow_reuse_delink,
 					allow_new_half_filled=allow_new_half_filled,
+					strict_excess_lot=scan_panel in ('excess', 'excess_top'),
 				)
 				if is_valid:
 					validated_lot_id = candidate_lot_id
 					break
 				if validation_status != 'invalid_tray':
 					break
+			if not is_valid and scan_panel in ('excess', 'excess_top') and validation_status == 'invalid_tray':
+				message = 'Tray does not belong to this excess lot/model'
 			if is_valid and validated_lot_id != lot_id:
 				logging.info(f'[UPDATE_MM_SCAN_CONTEXT] tray={tray_id} posted_lot={lot_id} validated_lot={validated_lot_id}')
 			scan_result = {
@@ -3200,7 +3216,6 @@ class JigLoadUpdateAPI(APIView):
 		# STRICT RULE: loaded_cases_qty = DELINK-panel scans ONLY (not excess/top-tray scans).
 		# Frontend sends delink_scanned_trays (delink panel only) and scan_panel to distinguish.
 		delink_scanned_trays_payload = payload.get('delink_scanned_trays', None)
-		scan_panel = payload.get('scan_panel', 'delink')
 		if delink_scanned_trays_payload is not None:
 			# Use explicit delink-only scan list
 			delink_only_ids = set(s.get('tray_id', '') for s in delink_scanned_trays_payload if s.get('tray_id'))
@@ -4566,25 +4581,15 @@ class LotFetchAPI(APIView):
 	def _handle_add_model_mode(self, request, primary_lot_id, primary_batch_id):
 		"""Return lots available for Add Model with dynamically computed available_qty."""
 
-		# 1. Get the CURRENT draft's multi_model_allocation to find actively allocated lots
+		# 1. Exclude only the lots currently selected by the active Add Model UI.
+		# Do not read the current draft's stored allocation here; it may contain a
+		# model the user has removed before reopening the filter.
 		allocated_lot_ids = set()
 		if primary_lot_id:
-			try:
-				draft = JigCompleted.objects.filter(
-					lot_id=primary_lot_id,
-					draft_status__in=['draft', 'active'],
-				).first()
-				if draft and draft.is_multi_model and draft.multi_model_allocation:
-					for m in draft.multi_model_allocation:
-						if isinstance(m, dict):
-							mlot = m.get('lot_id', '')
-							if mlot:
-								allocated_lot_ids.add(mlot)
-				# Also add the primary lot itself
-				allocated_lot_ids.add(primary_lot_id)
-			except Exception:
-				logging.exception('[LOT_FETCH] Failed to read draft multi_model_allocation')
-				allocated_lot_ids.add(primary_lot_id)
+			allocated_lot_ids.add(primary_lot_id)
+		selected_lot_raw = request.GET.get('selected_lot_ids', '') or request.GET.get('exclude_lot_id', '')
+		for selected_lot_id in [x.strip() for x in selected_lot_raw.split(',') if x.strip()]:
+			allocated_lot_ids.add(selected_lot_id)
 
 		# 2. Get lots already SUBMITTED (permanently consumed — exclude from results)
 		submitted_lot_ids = set()
@@ -4621,11 +4626,11 @@ class LotFetchAPI(APIView):
 			logging.exception('[LOT_FETCH] Failed to read other drafts')
 
 		# 4. Fetch brass-audit-accepted lots, excluding submitted + other drafts + already allocated
-		#    and restricting to primary model's micro group (SSOT).
+		#    and restricting to backend-approved Add Model PSNs (micro group + same/ditto).
 		exclude_ids = submitted_lot_ids | other_draft_lot_ids | allocated_lot_ids
 		try:
 			from django.db.models import Q as _Q
-			from Jig_Loading.models import ModelMicroGroup
+			from Jig_Loading.model_combination_validator import resolve_add_model_eligible_psns
 
 			primary_psn = ''
 			if primary_lot_id:
@@ -4637,9 +4642,9 @@ class LotFetchAPI(APIView):
 
 			eligible_psns = []
 			if primary_psn:
-				eligible_psns = ModelMicroGroup.get_eligible_models(primary_psn, exclude_psns=[primary_psn])
-				eligible_psns.append(primary_psn)
-				eligible_psns = list(set([psn for psn in eligible_psns if psn]))
+				eligible_psns, invalid_selected = resolve_add_model_eligible_psns(primary_psn, [primary_psn])
+				if invalid_selected:
+					eligible_psns = []
 			base_qs = TotalStockModel.objects.filter(
 				_Q(brass_audit_accptance=True) |
 				_Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
@@ -4648,7 +4653,7 @@ class LotFetchAPI(APIView):
 				if eligible_psns:
 					base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
 				else:
-					# Add-mode should fail-closed when micro-group mapping is missing.
+					# Add-mode fails closed only when no backend-approved PSN can be resolved.
 					base_qs = base_qs.none()
 			if exclude_ids:
 				base_qs = base_qs.exclude(lot_id__in=list(exclude_ids))

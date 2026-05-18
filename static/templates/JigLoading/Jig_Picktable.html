@@ -2128,12 +2128,24 @@ document.addEventListener('DOMContentLoaded', function () {
             var allocCb = tr.querySelector('.delink-row-checkbox');
             var allocInp = tr.querySelector('.split-scan-input');
             if (allocCb) { allocCb.checked = true; allocCb.disabled = true; allocCb.classList.add('locked'); }
-            if (alloc.type === 'top_tray') {
+            if (alloc.type === 'delink') {
+              tr.classList.remove('delink-row-disabled');
+              tr.classList.add('delink-row-scanned');
+              if (allocInp) {
+                allocInp.value = row.scan_tray_id || row.tray_id || '';
+                allocInp.classList.add('validated');
+                allocInp.readOnly = true;
+                allocInp.style.background = '#d4edda';
+                allocInp.style.borderColor = '#28a745';
+              }
+              var stCell = tr.cells[tr.cells.length - 1];
+              if (stCell) stCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#d4edda;color:#155724;border:1px solid #28a745;">Delinked</span>';
+            } else if (alloc.type === 'top_tray') {
               tr.classList.add('delink-row-disabled');
               tr.title = 'Allocated as top tray';
               if (allocInp && !allocInp.classList.contains('validated')) { allocInp.disabled = true; allocInp.style.opacity = '0.5'; allocInp.title = 'Allocated as top tray'; }
               var stCell = tr.cells[tr.cells.length - 1];
-              if (stCell) stCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified to Top Tray</span>';
+              if (stCell) stCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified for Top Tray</span>';
             } else if (alloc.type === 'excess') {
               tr.classList.add('delink-row-disabled');
               tr.title = 'Allocated as excess tray';
@@ -2172,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', function () {
           tr.classList.add('delink-row-disabled');
           tr.title = 'Allocated as top tray';
           if (dInp && !dInp.classList.contains('validated')) { dInp.disabled = true; dInp.style.opacity = '0.5'; dInp.title = 'Allocated as top tray'; }
-          if (lastCell) lastCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified to Top Tray</span>';
+          if (lastCell) lastCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified for Top Tray</span>';
         } else if (type === 'excess') {
           tr.classList.add('delink-row-disabled');
           tr.title = 'Allocated as excess tray';
@@ -2189,6 +2201,15 @@ document.addEventListener('DOMContentLoaded', function () {
         var sourceLotId = sourceRow.dataset.lotId || (sourceInput && sourceInput.dataset.lotId) || window.CURRENT_LOT_ID || '';
         var sourceBatchId = sourceRow.dataset.batchId || (sourceInput && sourceInput.dataset.batchId) || window.CURRENT_BATCH_ID || '';
         var sourceModelCode = sourceRow.dataset.modelCode || (sourceInput && sourceInput.dataset.modelCode) || '';
+
+        var targetPanel = targetInput.dataset.panel || '';
+        if (targetPanel === 'excess' || targetPanel === 'excess_top') {
+          targetInput.dataset.sourceLotId = sourceLotId;
+          targetInput.dataset.sourceBatchId = sourceBatchId;
+          if (sourceModelCode) targetInput.dataset.sourceModelCode = sourceModelCode;
+          return;
+        }
+
         targetInput.dataset.lotId = sourceLotId;
         targetInput.dataset.batchId = sourceBatchId;
         if (sourceModelCode) targetInput.dataset.modelCode = sourceModelCode;
@@ -2266,7 +2287,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Phase = delink
         var inp = tr.querySelector('.split-scan-input');
-        if (inp && !inp.classList.contains('validated') && !inp.value.trim()) {
+        if (inp && !inp.classList.contains('validated')) {
           inp.value = trayId;
           inp.style.background = '#f0fff4';
           _validateSplitScan(trayId, inp, false);
@@ -2323,7 +2344,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Route 3: Delink
             var inp = tr.querySelector('.split-scan-input');
-            if (inp && !inp.classList.contains('validated') && !inp.value.trim()) {
+            if (inp && !inp.classList.contains('validated')) {
               inp.value = trayId;
               inp.style.background = '#f0fff4';
               _validateSplitScan(trayId, inp, false);
@@ -2643,10 +2664,10 @@ document.addEventListener('DOMContentLoaded', function () {
             scanInp.style.opacity = '0.6';
             scanInp.title = 'Allocated as top tray';
           }
-          // Add "Verified to Top Tray" status badge to last cell
+          // Add "Verified for Top Tray" status badge to last cell
           var lastCell = tr.cells[tr.cells.length - 1];
           if (lastCell) {
-            lastCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified to Top Tray</span>';
+            lastCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Verified for Top Tray</span>';
           }
         }
         if (!window._trayAllocations) window._trayAllocations = {};
@@ -2910,9 +2931,17 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.classList.remove('validated');
         _showSplitScanMsg(inputEl, data.message || 'Invalid', false);
         // Rollback allocation on validation failure (e.g. cross-model tray rejected)
+        if (trayId) {
+          _undoTrayAllocation(trayId);
+        }
         if (isExcess && trayId) {
           inputEl.value = '';
-          _undoTrayAllocation(trayId);
+          if (scanPanel === 'excess_top') {
+            var topCbFail = document.getElementById('excessTopTrayCheckbox');
+            if (topCbFail) { topCbFail.checked = false; topCbFail.disabled = false; topCbFail.classList.remove('locked'); }
+            var topStatusFail = document.getElementById('excessTopTrayStatus');
+            if (topStatusFail) topStatusFail.innerHTML = '';
+          }
         }
         // err4: Auto-select invalid input so user can re-type
         try { inputEl.select(); } catch(e) {}
@@ -2922,9 +2951,17 @@ document.addEventListener('DOMContentLoaded', function () {
       inputEl.classList.add('error-input');
       _showSplitScanMsg(inputEl, 'Error', false);
       // Rollback allocation on error
+      if (trayId) {
+        _undoTrayAllocation(trayId);
+      }
       if (isExcess && trayId) {
         inputEl.value = '';
-        _undoTrayAllocation(trayId);
+        if (scanPanel === 'excess_top') {
+          var topCbError = document.getElementById('excessTopTrayCheckbox');
+          if (topCbError) { topCbError.checked = false; topCbError.disabled = false; topCbError.classList.remove('locked'); }
+          var topStatusError = document.getElementById('excessTopTrayStatus');
+          if (topStatusError) topStatusError.innerHTML = '';
+        }
       }
       // err4: Auto-select on error so user can re-type
       try { inputEl.select(); } catch(e) {}
@@ -3432,6 +3469,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Preserve merge flow data BEFORE resetting state (Add Model sets these before triggering click)
   const _savedPendingSecondaryLots = window._pendingSecondaryLots;
   const _savedPendingSecondaryLot = window._pendingSecondaryLot;
+  const _hasExplicitModelSelection = Array.isArray(_savedPendingSecondaryLots) || !!(_savedPendingSecondaryLot && _savedPendingSecondaryLot.lot_id);
 
   // STRICT: Fresh session — no memory from previous lot
   window.currentBrokenHooks = 0;
@@ -3443,6 +3481,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // STRICT: Clear ALL multi-model and stale state from previous lot session
   window._pendingSecondaryLots = null;
   window._pendingSecondaryLot = null;
+  window._addModelSelectionOverride = _hasExplicitModelSelection;
   window._currentSecondaryLots = [];
   window._lastMultiModelAllocation = [];
   window._lastHalfFilledTrayInfo = {};
@@ -3460,7 +3499,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (typeof window.disableBH === 'function') window.disableBH();
 
   // Restore merge flow data (Add Model → pick table → return sets these before triggering click)
-  if (_savedPendingSecondaryLots && _savedPendingSecondaryLots.length > 0) {
+  if (Array.isArray(_savedPendingSecondaryLots)) {
     window._pendingSecondaryLots = _savedPendingSecondaryLots;
     console.log('[MERGE_RESTORE] Restored', _savedPendingSecondaryLots.length, 'pending secondary lots after reset');
   }
@@ -6313,30 +6352,30 @@ document.addEventListener('DOMContentLoaded', function () {
   } catch (e) { /* ignore */ }
 
   const params = new URLSearchParams(window.location.search);
-  const isAddModel = params.has('exclude_lot_id') || params.has('primary_lot_id') || params.has('primary_lot');
-  if (!isAddModel) return;
+  const isReturnToModal = params.get('merge_model') === '1' || params.get('return_to_modal') === '1';
+  const isAddModel = !isReturnToModal && (params.has('exclude_lot_id') || params.has('primary_lot_id') || params.has('primary_lot'));
+  if (!isAddModel && !isReturnToModal) return;
 
+  if (isAddModel) {
   // Reveal per-row checkbox (keeps table structure intact)
   document.querySelectorAll('.add-model-checkbox').forEach(cb => cb.style.display = 'inline-block');
 
-  // ✅ BUG FIX #1: Add Cancel/Exit button to return to plain pick table
+  // Add Cancel/Exit button to return to the Add Jig modal without adding a model
   try {
     var exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.className = 'btn btn-secondary';
     exitBtn.style.cssText = 'margin-left:12px; padding:6px 18px; font-size:13px; font-weight:600; border-radius:50px; background:#ff4747; color:#fff; border:none; cursor:pointer;';
     exitBtn.innerHTML = 'Cancel';
-    exitBtn.title = 'Return to pick table without adding a model';
+    exitBtn.title = 'Return to Add Jig without adding a model';
     exitBtn.addEventListener('click', function() {
       var primary = params.get('primary_lot_id') || params.get('primary_lot') || params.get('exclude_lot_id') || '';
       var primaryBatch = params.get('primary_batch_id') || params.get('primary_batch') || '';
-      // Go to plain pick table — do NOT use merge_model=1 (that reopens the modal).
-      // Pass highlight params so the previously-selected row gets highlighted on return.
-      var returnUrl = '/jig_loading/JigView/';
-      if (primary) {
-        returnUrl += '?highlight_lot_id=' + encodeURIComponent(primary);
-        if (primaryBatch) returnUrl += '&highlight_batch_id=' + encodeURIComponent(primaryBatch);
-      }
+      var returnParams = new URLSearchParams();
+      if (primary) returnParams.set('primary_lot_id', primary);
+      if (primaryBatch) returnParams.set('primary_batch_id', primaryBatch);
+      returnParams.set('return_to_modal', '1');
+      var returnUrl = '/jig_loading/JigView/?' + returnParams.toString();
       window.location.href = returnUrl;
     });
     var headerArea = document.querySelector('.d-flex.align-items-center.gap-2.mb-4');
@@ -6370,6 +6409,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (raw) existingLots = JSON.parse(raw);
             if (!Array.isArray(existingLots)) existingLots = [];
           } catch(e) { existingLots = []; }
+          existingLots = existingLots.filter(function(lot) {
+            return (lot && (lot.lot_id || lot.stock_lot_id || '')) !== selectedLot.lot_id;
+          });
           existingLots.push(selectedLot);
           sessionStorage.setItem('secondary_lots', JSON.stringify(existingLots));
           console.log('[MM] Models List Updated:', existingLots.length, 'secondary models');
@@ -6393,12 +6435,16 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   });
+  }
 
-  // If we arrived with merge_model=1, find primary button and trigger init (+ secondary via window._pendingSecondaryLot)
+  // If we arrived with merge_model=1 or return_to_modal=1, reopen Add Jig for the primary lot.
   (function handleMergeFlow() {
     try {
-      if (params.get('merge_model') !== '1') return;
-      console.log('[MERGE_FLOW] merge_model=1 detected');
+      const isMergeReturn = params.get('merge_model') === '1';
+      const isModalReturn = params.get('return_to_modal') === '1';
+      const shouldOpenAddJig = isMergeReturn || isModalReturn;
+      if (!shouldOpenAddJig) return;
+      console.log('[MERGE_FLOW] reopen Add Jig detected');
 
       const primaryLot = params.get('primary_lot_id') || params.get('primary_lot') || '';
       const primaryBatch = params.get('primary_batch_id') || params.get('primary_batch') || '';
@@ -6417,20 +6463,22 @@ document.addEventListener('DOMContentLoaded', function () {
       // Read secondary lots array from sessionStorage (supports N models)
       try {
         const secArrayRaw = sessionStorage.getItem('secondary_lots');
-        if (secArrayRaw) {
+        if (secArrayRaw !== null) {
           const parsedArray = JSON.parse(secArrayRaw);
-          if (Array.isArray(parsedArray) && parsedArray.length > 0) {
+          if (Array.isArray(parsedArray)) {
             window._pendingSecondaryLots = parsedArray;
+            window._addModelSelectionOverride = true;
             console.log('[MERGE_FLOW] Secondary lots found:', parsedArray.length);
           }
         }
         // Fallback: single secondary_lot (backward compat)
-        if (!window._pendingSecondaryLots || !window._pendingSecondaryLots.length) {
+        if (!Array.isArray(window._pendingSecondaryLots)) {
           const secRaw = sessionStorage.getItem('secondary_lot') || localStorage.getItem('secondary_lot');
           if (secRaw) {
             const parsedSec = JSON.parse(secRaw);
             if (parsedSec && parsedSec.lot_id) {
               window._pendingSecondaryLots = [parsedSec];
+              window._addModelSelectionOverride = true;
               console.log('[MERGE_FLOW] Secondary lot (single) found:', parsedSec.lot_id);
             }
           }
@@ -6444,6 +6492,7 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('merge_model');
+        cleanUrl.searchParams.delete('return_to_modal');
         window.history.replaceState({}, '', cleanUrl.toString());
       } catch (e) {}
 
@@ -7644,6 +7693,13 @@ if (window.jQuery) {
           jigInput.value = data.jig_id;
           jigInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
+      }
+
+      if (window._addModelSelectionOverride) {
+        console.log('[DRAFT_RESTORE] Add Model selection override active — keeping current model composition');
+        window._isDraftRestoring = false;
+        if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
+        return;
       }
 
       // ===== Restore form fields from draft snapshot =====
