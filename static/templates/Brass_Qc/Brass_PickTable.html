@@ -2699,7 +2699,22 @@ document.addEventListener('DOMContentLoaded', function() {
       reasonsGrid.appendChild(buildCol(col2, half));
 
       reasonsGrid.querySelectorAll('.reject-qty-input').forEach(function(inp) {
-        inp.addEventListener('input', updateTotals);
+        inp.addEventListener('input', function() {
+          // ERR 2 FIX: Reject qty changed — immediately wipe all scan slot assignments
+          // so the user cannot submit stale tray data against a new allocation plan.
+          _rejectSlots.forEach(function(s) { s.tray_id = null; });
+          _acceptSlots.forEach(function(s) { s.tray_id = null; });
+          _delinkSlots = [];
+          if (_rejectSlots.length) {
+            renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
+            renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
+          }
+          renderDelinkSlots();
+          delinkSection.style.display = 'none';
+          setAcceptSectionEnabled(false);
+          renderOriginalTrays();
+          updateTotals();
+        });
       });
     }
 
@@ -3080,10 +3095,14 @@ document.addEventListener('DOMContentLoaded', function() {
           checkPhaseTransition();
           focusNextAvailableTrayInput();
         });
+        // ERR 1 / ERR 3 FIX: Auto-trigger Enter at 9 chars so scanner input
+        // (no Enter key) completes the delink slot and advances focus.
         inp.addEventListener('input', function() {
-          // Normalize to uppercase only — Enter key handles assignment
           var val = normalizeTrayId(this.value);
           if (val !== this.value) this.value = val;
+          if (val.length === 9) {
+            this.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: false }));
+          }
         });
       });
     }
@@ -3271,67 +3290,28 @@ document.addEventListener('DOMContentLoaded', function() {
           focusNextAvailableTrayInput();
         });
 
-        // Normalize to uppercase only — Enter key handles all assignment (no auto-trigger at 9 chars)
+        // ERR 1 FIX: Normalize to uppercase and auto-trigger Enter at 9 chars so
+        // scanner input (which never presses Enter) validates and moves focus.
         inp.addEventListener('input', function() {
           var val = this.value.trim().toUpperCase();
           if (val !== this.value) this.value = val;
+          if (val.length === 9) {
+            this.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: false }));
+          }
         });
       });
 
-      // ── Edit input (filled slot): real-time validation on input ──
+      // ── Edit input (filled slot): normalize + auto-trigger Enter at 9 chars ──
+      // ERR 1 FIX: Replace the old async live-validation handler with a simpler one
+      // that dispatches a synthetic Enter at 9 chars. This lets scanner input (no
+      // Enter key) commit the edit and move focus via the existing Enter handler.
+      // The Enter handler still runs full validation and shows error messages.
       container.querySelectorAll('.slot-edit-input').forEach(function(inp) {
-        inp.addEventListener('input', async function() {
-          var val = this.value.trim().toUpperCase();  // ERR4 fix: normalize to uppercase
+        inp.addEventListener('input', function() {
+          var val = this.value.trim().toUpperCase();
           if (this.value !== val) { var pos = this.selectionStart; this.value = val; this.setSelectionRange(pos, pos); }
-          var errSpan = this.closest('td').querySelector('.slot-scan-error');
-          if (!errSpan) return;
-          if (!val) { errSpan.style.display = 'none'; return; }
-          if (val.length < 9) { errSpan.style.display = 'none'; return; }
-          var idx = parseInt(this.getAttribute('data-idx'), 10);
-          var slotType = this.getAttribute('data-type');
-          var targetSlots = slotType === 'accept' ? _acceptSlots : _rejectSlots;
-          var originalVal = targetSlots[idx].tray_id;
-          if (val === originalVal) { errSpan.style.display = 'none'; return; }
-          // Check duplicate
-          targetSlots[idx].tray_id = null;
-          var isDup = isAssigned(val);
-          targetSlots[idx].tray_id = originalVal;
-          if (isDup) {
-            errSpan.textContent = 'Already assigned to another slot';
-            errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
-            return;
-          }
-          // Reuse limit for reject
-          if (slotType === 'reject' && getOriginalIds()[val]) {
-            targetSlots[idx].tray_id = null;
-            var originalsNow = _rejectSlots.filter(function(s) { return s.tray_id && getOriginalIds()[s.tray_id]; }).length;
-            targetSlots[idx].tray_id = originalVal;
-            if (originalsNow >= _reuseCount) {
-              errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')';
-              errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
-              return;
-            }
-          }
-          // ERR2: Accept slots only allow existing lot trays
-          if (slotType === 'accept' && !getOriginalIds()[val]) {
-            errSpan.textContent = 'Only existing lot tray IDs can be used here.';
-            errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
-            return;
-          }
-          // DB validation for new trays
-          if (!getOriginalIds()[val]) {
-            errSpan.textContent = 'Checking\u2026';
-            errSpan.style.display = 'block'; errSpan.style.color = '#888';
-            var ok = await validateTrayIdDB(val, errSpan, slotType);
-            if (!ok) {
-              return;
-            } else {
-              errSpan.textContent = '\u2713 Valid';
-              errSpan.style.display = 'block'; errSpan.style.color = '#2e7d32';
-            }
-          } else {
-            errSpan.textContent = '\u2713 Valid';
-            errSpan.style.display = 'block'; errSpan.style.color = '#2e7d32';
+          if (val.length === 9) {
+            this.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: false }));
           }
         });
       });

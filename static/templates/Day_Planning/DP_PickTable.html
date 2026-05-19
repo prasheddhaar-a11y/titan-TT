@@ -1524,7 +1524,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       </div>
     </div>
 
-              <div id="traySlotExceededInfo" role="status" aria-live="polite">Tray slot exceeded</div>
+              <div id="traySlotExceededInfo" role="status" aria-live="polite">All Trays are Scanned</div>
 
               <!-- trayScanDetails will be a scrollable 3-column grid with headers and unlimited rows -->
               <div id="trayScanDetails" class="table-grid">
@@ -1966,7 +1966,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
           }
           if (!focused && inputs.length > 0) {
-            showTraySlotExceededInfo('Tray slot exceeded');
+            showTraySlotExceededInfo('All Trays are Scanned');
             focused = true;
             console.log("🎯 [SCANNER] All inputs filled, moved to verification checkbox");
           }
@@ -2393,8 +2393,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // All slots are filled - warn user instead of overwriting
         console.log("⚠️ [DRAFT] All slots are filled - cannot add more tray IDs");
         scanStatus.style.color = "#dc3545";
-        scanStatus.textContent = "Tray slot exceeded";
-        showTraySlotExceededInfo('Tray slot exceeded');
+        scanStatus.textContent = "All Trays are Scanned";
+        showTraySlotExceededInfo('All Trays are Scanned');
         
         // Reset scanner status after warning
         setTimeout(() => {
@@ -3189,7 +3189,7 @@ function hideTraySlotExceededInfo() {
 function showTraySlotExceededInfo(message) {
   const info = getTraySlotExceededInfo();
   if (info) {
-    info.textContent = message || 'Tray slot exceeded';
+    info.textContent = message || 'All Trays are Scanned';
     info.style.display = 'flex';
   }
   moveToTrayVerifyCheckbox();
@@ -3255,7 +3255,7 @@ document.addEventListener('keydown', function(e) {
 
   if (isScannerTerminator || window.dpOverflowScanBuffer.length >= 4) {
     window.dpOverflowScanBuffer = '';
-    showTraySlotExceededInfo('Tray slot exceeded');
+    showTraySlotExceededInfo('All Trays are Scanned');
   }
 }, true);
 

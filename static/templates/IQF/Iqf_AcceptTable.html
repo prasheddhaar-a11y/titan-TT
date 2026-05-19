@@ -1,5 +1,5 @@
 {% extends "base.html" %} 
-\{% load static %} 
+{% load static %}
 {% block content %} 
 {% load stock_filters %}
 <style>
@@ -227,12 +227,12 @@
     max-width: 110px;
   } /* Version */
   #order-listing th:nth-child(9) {
-    min-width: 80px;
-    max-width: 80px;
+    min-width: 115px;
+    max-width: 115px;
   } /* Tray Cate-Capacity */
   #order-listing th:nth-child(10) {
-    min-width: 90px;
-    max-width: 100px;
+    min-width: 105px;
+    max-width: 110px;
   } /* Source */
   #order-listing th:nth-child(11) {
     min-width: 100px;
@@ -1175,7 +1175,6 @@
         </div>
       </div>
     </div>
-  </div>
   <!-- Image Slider Modal (popup) -->
   <div id="imageSliderModal" class="image-slider-modal">
     <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
@@ -1196,16 +1195,6 @@
       <button class="next" id="nextBtn">&#10095;</button>
     </div>
   </div>
-  <!-- Image Slider Modal -->
-  <div id="imageSliderModal" class="image-slider-modal">
-    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
-    <div class="slider" id="slider">
-      <button class="prev" id="prevBtn">&#8592;</button>
-      <div class="slides"></div>
-      <button class="next" id="nextBtn">&#8594;</button>
-    </div>
-  </div>
-
             
   {% block script %}
 

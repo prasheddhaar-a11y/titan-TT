@@ -298,8 +298,18 @@
       inp.addEventListener("input", function () {
         clampQty(this);
         updateTotals();
+        // Reject qty changed → any previously scanned tray assignments are now
+        // stale (slot count / allocation may differ). Clear all scan arrays and
+        // re-render immediately so the user never sees or submits stale data.
+        state.rejectScans = state.rejectSlots.map(function () { return null; });
+        state.acceptScans = state.acceptSlots.map(function () { return null; });
+        state.delinkScans = [];
+        renderRejectRows();
+        renderAcceptRows();
+        renderDelinkSection();
+        renderActivePills();
         scheduleSlotPlan();
-        setInsight("busy", "Updating allocation…");
+        setInsight("busy", "Qty changed — scan slots cleared. Updating allocation…");
       });
     });
   }
@@ -512,19 +522,17 @@
     // Err2 fix: tap a filled (readonly) reject input to enable editing
     c.querySelectorAll(".isrm-reject-scan[readonly]").forEach(function (inp) {
       inp.addEventListener("click", function () {
-        // Enable in-place editing: remove readonly and show edit cursor
+        // Enable in-place editing: remove readonly and attach full scan handlers
+        // so typing 9 chars auto-validates and moves focus (err 1 fix).
+        // select() ensures the old 9-char value is highlighted so a scanner or
+        // manual keystroke replaces it immediately (maxlength=9 would block
+        // insertion if the old text were not selected).
         this.removeAttribute("readonly");
         this.style.cursor = "text";
+        attachScanHandlers(this, "reject");
         this.focus();
-        setInsight("info", "Editing reject slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Press Enter or clear to continue.");
-      });
-      // Re-attach scan handlers when readonly is removed via editing
-      inp.addEventListener("blur", function () {
-        // When user finishes editing, validate and apply changes
-        var v = (this.value || "").trim().toUpperCase();
-        if (v.length === TRAY_ID_LEN) {
-          attemptScan(this, "reject", v);
-        }
+        try { this.select(); } catch (e) {}
+        setInsight("info", "Editing reject slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Scan or type new tray ID to replace.");
       });
     });
   }
@@ -573,19 +581,17 @@
     // Allow editing filled (readonly) accept inputs instead of just clearing
     c.querySelectorAll(".isrm-accept-scan[readonly]").forEach(function (inp) {
       inp.addEventListener("click", function () {
-        // Enable in-place editing: remove readonly and show edit cursor
+        // Enable in-place editing: remove readonly and attach full scan handlers
+        // so typing 9 chars auto-validates and moves focus (err 1 fix).
+        // select() ensures the old 9-char value is highlighted so a scanner or
+        // manual keystroke replaces it immediately (maxlength=9 would block
+        // insertion if the old text were not selected).
         this.removeAttribute("readonly");
         this.style.cursor = "text";
+        attachScanHandlers(this, "accept");
         this.focus();
-        setInsight("info", "Editing accept slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Press Enter or clear to continue.");
-      });
-      // Re-attach scan handlers when readonly is removed via editing
-      inp.addEventListener("blur", function () {
-        // When user finishes editing, validate and apply changes
-        var v = (this.value || "").trim().toUpperCase();
-        if (v.length === TRAY_ID_LEN) {
-          attemptScan(this, "accept", v);
-        }
+        try { this.select(); } catch (e) {}
+        setInsight("info", "Editing accept slot " + (parseInt(this.getAttribute("data-slot-idx"), 10) + 1) + ". Scan or type new tray ID to replace.");
       });
     });
   }

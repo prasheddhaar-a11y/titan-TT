@@ -1145,15 +1145,27 @@
     opacity: 1;
     pointer-events: auto;
   }
+
+  .content-wrapper > .row,
+  .content-wrapper > .row > .col-12,
+  .content-wrapper .card,
+  .content-wrapper .card-body,
+  .content-wrapper .table-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
 </style>
 
 <div class="content-wrapper">
+  <div class="row">
       <div class="col-12 grid-margin stretch-card">
         <div class="card">
           <div class="card-body" style="padding-bottom:12px;">
             <h5 class="text-left mt-0 mb-4" style="font-weight:700;">Jig Loading Completed Table</h5>
         
-          <!-- 🔥 NEW: Date Filter Section -->
+          <!--  NEW: Date Filter Section -->
           <div class="calendar-bar">
             <div class="date-input-group">
               <label for="from-date-simple" style="font-weight: 600; color: #028084; margin-right: 8px;">From Date:</label>
@@ -1187,7 +1199,7 @@
 
           <input type="hidden" id="from-date" value="{{ from_date }}" />
           <input type="hidden" id="to-date" value="{{ to_date }}" />
-          <!-- 🔥 END: Date Filter Section -->
+          <!--  END: Date Filter Section -->
           
          
             <!-- Table Section -->
@@ -1209,6 +1221,9 @@
                     <th>
                       Plating Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Jig ID<i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Action <i class="fa fa-filter" aria-hidden="true"></i>
@@ -1251,9 +1266,6 @@
                     <th>
                       Jig Type<br> Capacity 
                       <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
-                    <th>
-                      Jig ID<i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Remarks <i class="fa fa-filter" aria-hidden="true"></i>
@@ -1310,6 +1322,10 @@
                       {% else %}
                         <span style="color: #dc3545; font-weight: 600">Empty</span>
                       {% endif %}
+                    </td>
+                    <!-- Jig ID -->
+                    <td>
+                      {{jig.jig_qr_id}}
                     </td>
                     <!-- Action -->
                     <td>
@@ -1412,10 +1428,6 @@
                     <!-- Jig Type Capacity -->
                     <td>
                       {{jig.jig_type}}-{{jig.jig_capacity}}
-                    </td>
-                    <!-- Jig ID -->
-                    <td>
-                      {{jig.jig_qr_id}}
                     </td>
                     <!-- Remarks -->
                     <td>
@@ -1573,8 +1585,6 @@
                   </div>
                 </div>
               </div>
-              
-            </div>
             
            
 
@@ -1622,6 +1632,7 @@
       </div>
     </div>
   </div>
+</div>
   <!-- Image Slider Modal (popup) -->
   <div id="imageSliderModal" class="image-slider-modal">
     <span id="closeImageSliderModal" class="modal-close-Jig">&times;</span>
@@ -1849,7 +1860,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<!-- 🔥 NEW: Date Filter JavaScript for Jig Loading Completed Table -->
+<!--  NEW: Date Filter JavaScript for Jig Loading Completed Table -->
   <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function() {
       console.log('🔄 Initializing HTML5 date filtering for Jig Loading Completed Table...');

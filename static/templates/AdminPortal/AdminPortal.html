@@ -1368,21 +1368,23 @@
    }
    }
 
-   /* ===== AdminPortal UI refactor overrides (compact + no crop + page scroll) ===== */
+   /* ===== AdminPortal UI refactor overrides (compact + bounded inner scroll) ===== */
    html,
    body {
-     overflow-y: auto !important;
+     overflow-y: hidden !important;
      height: 100%;
    }
 
    .main {
-     overflow-y: scroll !important;
-     overflow-x: hidden;
+     height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+     max-height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+     min-height: 0 !important;
+     overflow-y: auto !important;
+     overflow-x: hidden !important;
      scrollbar-width: auto !important;
      -ms-overflow-style: auto !important;
-     padding-bottom: 10.1rem;
-     max-height: none !important;
-     min-height: 100vh;
+     padding: 0.45rem 0 0.75rem !important;
+     box-sizing: border-box;
    }
 
    .main::-webkit-scrollbar {
@@ -1828,7 +1830,6 @@
             </div>
          </div>
       </div>
-   </div>
    </div>
 </main>
 <!-- Edit User Modal -->

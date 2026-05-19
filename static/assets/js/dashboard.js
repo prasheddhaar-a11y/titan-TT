@@ -267,28 +267,30 @@ $.fn.dataTable.ext.errMode = 'none';
       });
     }
 
-    if ($.cookie('skydash-pro-banner')!="true") {
-      var proBanner = document.querySelector('#proBanner');
-      var navbar = document.querySelector('.navbar');
-      if (proBanner) proBanner.classList.add('d-flex');
-      if (navbar) navbar.classList.remove('fixed-top');
+    var proBanner = document.querySelector('#proBanner');
+    var navbar = document.querySelector('.navbar');
+    var pageBody = document.querySelector('.page-body-wrapper');
+
+    if (proBanner) {
+      if ($.cookie('skydash-pro-banner') != "true") {
+        proBanner.classList.add('d-flex');
+        if (navbar) navbar.classList.remove('fixed-top');
+      }
+      else {
+        proBanner.classList.add('d-none');
+        if (navbar) navbar.classList.add('fixed-top');
+      }
     }
-    else {
-      var proBanner = document.querySelector('#proBanner');
-      var navbar = document.querySelector('.navbar');
-      if (proBanner) proBanner.classList.add('d-none');
-      if (navbar) navbar.classList.add('fixed-top');
+    else if (navbar) {
+      navbar.classList.add('fixed-top');
     }
     
     if ($( ".navbar" ).hasClass( "fixed-top" )) {
-      var pageBody = document.querySelector('.page-body-wrapper');
-      var navbar = document.querySelector('.navbar');
       if (pageBody) pageBody.classList.remove('pt-0');
       if (navbar) navbar.classList.remove('pt-5');
+      if (navbar) navbar.classList.remove('mt-3');
     }
-    else {
-      var pageBody = document.querySelector('.page-body-wrapper');
-      var navbar = document.querySelector('.navbar');
+    else if (proBanner) {
       if (pageBody) pageBody.classList.add('pt-0');
       if (navbar) navbar.classList.add('pt-5');
       if (navbar) navbar.classList.add('mt-3');

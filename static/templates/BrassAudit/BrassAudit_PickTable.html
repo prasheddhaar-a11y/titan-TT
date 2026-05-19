@@ -3140,10 +3140,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
 
-      // ── Edit input (filled slot): real-time validation on input ──
+      // ── Edit input (filled slot): validate + auto-commit at 9 chars (scanner & manual) ──
       container.querySelectorAll('.slot-edit-input').forEach(function(inp) {
         inp.addEventListener('input', async function() {
-          var val = this.value.trim();
+          var val = this.value.trim().toUpperCase();
+          if (this.value !== val) { var pos = this.selectionStart; this.value = val; this.setSelectionRange(pos, pos); }
           var errSpan = this.closest('td').querySelector('.slot-scan-error');
           if (!errSpan) return;
           if (!val) { errSpan.style.display = 'none'; return; }
@@ -3151,6 +3152,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var idx = parseInt(this.getAttribute('data-idx'), 10);
           var slotType = this.getAttribute('data-type');
           var targetSlots = slotType === 'accept' ? _acceptSlots : _rejectSlots;
+          var targetContainer = slotType === 'accept' ? acceptSlotsContainer : rejectSlotsContainer;
           var originalVal = targetSlots[idx].tray_id;
           if (val === originalVal) { errSpan.style.display = 'none'; return; }
           // Check duplicate
@@ -3174,6 +3176,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           }
           // DB validation for new trays
+          var isValid = false;
           if (!getOriginalIds()[val]) {
             errSpan.textContent = 'Checking\u2026';
             errSpan.style.display = 'block'; errSpan.style.color = '#888';
@@ -3182,12 +3185,34 @@ document.addEventListener('DOMContentLoaded', function() {
               errSpan.textContent = 'Invalid tray ID';
               errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
             } else {
-              errSpan.textContent = '\u2713 Valid';
-              errSpan.style.display = 'block'; errSpan.style.color = '#2e7d32';
+              isValid = true;
             }
           } else {
+            isValid = true;
+          }
+          if (isValid) {
             errSpan.textContent = '\u2713 Valid';
             errSpan.style.display = 'block'; errSpan.style.color = '#2e7d32';
+            // Commit the replacement and advance focus (scanner & keyboard path)
+            targetSlots[idx].tray_id = val;
+            if (slotType === 'reject') {
+              _delinkSlots = [];
+              _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+            }
+            if (slotType === 'accept' && targetSlots[idx].is_top) {
+              autoFillAcceptNonTop();
+            }
+            renderSlots(targetContainer, targetSlots, slotType);
+            renderOriginalTrays();
+            if (slotType === 'reject') {
+              checkPhaseTransition();
+            } else {
+              updateSummary();
+            }
+            var nextScan = targetContainer.querySelector('.slot-scan-input') ||
+              delinkListContainer.querySelector('.delink-scan-input') ||
+              acceptSlotsContainer.querySelector('.slot-scan-input');
+            if (nextScan) nextScan.focus();
           }
         });
       });
@@ -3276,8 +3301,10 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             updateSummary();
           }
-          // Move cursor to next empty scan input after successful edit
-          var nextScan = targetContainer.querySelector('.slot-scan-input');
+          // Focus next available input across reject → delink → accept
+          var nextScan = targetContainer.querySelector('.slot-scan-input') ||
+            delinkListContainer.querySelector('.delink-scan-input') ||
+            acceptSlotsContainer.querySelector('.slot-scan-input');
           if (nextScan) nextScan.focus();
         });
       });

@@ -91,13 +91,6 @@
          box-shadow: 0 4px 16px rgba(0,0,0,0.25);
          transform: none !important;
          }
-         /* Position the tooltip vertically aligned with the icon */
-         body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon[data-tooltip]:hover,
-         body.sidebar-icon-only .sidebar .nav .nav-item i[data-tooltip]:hover,
-         body.sidebar-icon-only .sidebar .nav .nav-item .fa[data-tooltip]:hover,
-         body.sidebar-icon-only .sidebar .nav .nav-item .ti[data-tooltip]:hover {
-         /* Custom property to help JS position the tooltip if needed */
-         }
          /* Custom PNG icons for menu - 16px sizing */
          .sidebar .nav .nav-item .menu-icon img,
          .sidebar .nav .nav-item img.menu-icon {
@@ -440,17 +433,15 @@
          footer.footer {
          font-weight: 400 !important; /* Normal weight */
          }
-         /* Fixed footer at the bottom of the viewport */
+         /* Footer base styling; layout placement is handled by the main panel flex rules below */
          footer.footer {
-         position: fixed;
-         left: 0;
-         bottom: 0;
+         position: static;
          width: 100%;
          z-index: 100;
          background: #f5f7ff;
          box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.05);
-         height: 32px;
-         line-height: 32px;
+         height: var(--ttt-footer-height, 32px);
+         line-height: var(--ttt-footer-height, 32px);
          font-size: 13px;
          padding: 0 10px;
          text-align: center; /* Center the copyright */
@@ -552,6 +543,17 @@
           justify-content: center !important;
           }
 
+          .main-panel {
+          min-height: calc(100vh - 73px) !important;
+          height: auto !important;
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 1 auto !important;
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          }
+
           footer.footer {
           position: static !important;
           left: auto !important;
@@ -559,8 +561,14 @@
           width: 100% !important;
           max-width: 100% !important;
           height: var(--ttt-footer-height) !important;
+          line-height: var(--ttt-footer-height) !important;
+          margin-top: auto !important;
+          padding: 0 10px !important;
           flex: 0 0 auto !important;
           z-index: 1 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
           }
 
           body.sidebar-icon-only footer.footer {
@@ -1121,7 +1129,143 @@
       <!-- endinject -->
       <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">
-      <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">   </head>
+      <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+      <style nonce="{{ csp_nonce }}">
+        :root {
+          --ttt-navbar-height: 60px;
+          --ttt-sidebar-width: 250px;
+          --ttt-sidebar-collapsed-width: 70px;
+        }
+
+        html,
+        body {
+          height: auto !important;
+          min-height: 100% !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+        }
+
+        body {
+          min-height: 100vh !important;
+        }
+
+        .container-scroller {
+          min-height: 100vh !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+
+        .container-scroller > .navbar {
+          position: fixed !important;
+          top: 0 !important;
+          right: 0 !important;
+          left: 0 !important;
+          margin: 0 !important;
+          padding-top: 0 !important;
+          z-index: 1030 !important;
+        }
+
+        .container-scroller > .page-body-wrapper {
+          min-height: calc(100vh - var(--ttt-navbar-height)) !important;
+          height: auto !important;
+          box-sizing: border-box !important;
+          overflow: visible !important;
+          align-items: stretch !important;
+          display: flex !important;
+          flex-direction: row !important;
+          padding-top: var(--ttt-navbar-height) !important;
+          width: 100% !important;
+        }
+
+        .container-scroller > .page-body-wrapper > .sidebar.sidebar-offcanvas {
+          flex: 0 0 var(--ttt-sidebar-width) !important;
+          width: var(--ttt-sidebar-width) !important;
+          min-width: var(--ttt-sidebar-width) !important;
+          max-width: var(--ttt-sidebar-width) !important;
+          height: calc(100vh - var(--ttt-navbar-height) - var(--ttt-footer-height, 32px)) !important;
+          max-height: calc(100vh - var(--ttt-navbar-height) - var(--ttt-footer-height, 32px)) !important;
+          position: sticky !important;
+          top: var(--ttt-navbar-height) !important;
+          right: auto !important;
+          left: auto !important;
+          bottom: auto !important;
+          transform: none !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          margin: 0 !important;
+          z-index: 120 !important;
+        }
+
+        .container-scroller > .page-body-wrapper > .main-panel {
+          flex: 1 1 calc(100% - var(--ttt-sidebar-width)) !important;
+          width: calc(100% - var(--ttt-sidebar-width)) !important;
+          min-width: 0 !important;
+          max-width: calc(100% - var(--ttt-sidebar-width)) !important;
+          min-height: calc(100vh - var(--ttt-navbar-height)) !important;
+          height: auto !important;
+          display: flex !important;
+          flex-direction: column !important;
+          overflow: visible !important;
+          margin-top: 0 !important;
+        }
+
+        body.sidebar-icon-only .container-scroller > .page-body-wrapper > .sidebar.sidebar-offcanvas {
+          flex-basis: var(--ttt-sidebar-collapsed-width) !important;
+          width: var(--ttt-sidebar-collapsed-width) !important;
+          min-width: var(--ttt-sidebar-collapsed-width) !important;
+          max-width: var(--ttt-sidebar-collapsed-width) !important;
+        }
+
+        body.sidebar-icon-only .container-scroller > .page-body-wrapper > .main-panel {
+          flex-basis: calc(100% - var(--ttt-sidebar-collapsed-width)) !important;
+          width: calc(100% - var(--ttt-sidebar-collapsed-width)) !important;
+          max-width: calc(100% - var(--ttt-sidebar-collapsed-width)) !important;
+        }
+
+        .container-scroller > .page-body-wrapper > .main-panel > footer.footer {
+          position: static !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: var(--ttt-footer-height, 32px) !important;
+          min-height: var(--ttt-footer-height, 32px) !important;
+          line-height: var(--ttt-footer-height, 32px) !important;
+          margin-top: auto !important;
+          padding: 0 10px !important;
+          flex: 0 0 var(--ttt-footer-height, 32px) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          z-index: 1 !important;
+        }
+
+        @media (max-width: 679.98px) {
+          .container-scroller > .page-body-wrapper > .sidebar.sidebar-offcanvas {
+            position: fixed !important;
+            top: var(--ttt-navbar-height) !important;
+            right: calc(var(--ttt-sidebar-width) * -1) !important;
+            left: auto !important;
+            flex-basis: var(--ttt-sidebar-width) !important;
+            height: calc(100vh - var(--ttt-navbar-height)) !important;
+            max-height: calc(100vh - var(--ttt-navbar-height)) !important;
+            z-index: 1040 !important;
+          }
+
+          .container-scroller > .page-body-wrapper > .sidebar.sidebar-offcanvas.active {
+            right: 0 !important;
+          }
+
+          .container-scroller > .page-body-wrapper > .main-panel,
+          body.sidebar-icon-only .container-scroller > .page-body-wrapper > .main-panel {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      </style>
+   </head>
    <body>
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
@@ -2122,7 +2266,7 @@
    </ul>
 </nav>
   
-      <div class="main-panel" style="margin-top: 13px !important;">
+      <div class="main-panel">
          {% block page_title %}{% endblock %}
          {% block content %}{% endblock %}
         <footer class="footer">
@@ -2273,7 +2417,7 @@
                       <h5 style="margin:0 0 4px 0; font-weight:800; color:#025254; font-size:18px; letter-spacing:-0.5px;">Keyboard Shortcuts</h5>
                         <p style="margin:0; font-size:12px; color:#888; font-weight:500;">Quick reference guide</p>
                      </div>
-                    <button id="shortcutsClose" style="background:none; border:none; color:#ccc; font-size:28px; cursor:pointer; padding:0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; hover-color:#999;">&times;</button>
+                    <button id="shortcutsClose" style="background:none; border:none; color:#ccc; font-size:28px; cursor:pointer; padding:0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; transition:all 0.2s;">&times;</button>
                   </div>
                   
                   <!-- Shortcuts Grid -->
