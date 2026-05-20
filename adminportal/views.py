@@ -2434,7 +2434,7 @@ class UserCreateAPIView(APIView):
         department_id = data.get('department')
         role_id = data.get('role')
         group_ids = _normalize_group_ids_from_payload(data)
-        username = (data.get('username') or email or f"{(first_name or '').strip()}.{(last_name or '').strip()}").lower()
+        username = (data.get('username') or email or f"{(first_name or '').strip()}.{(last_name or '').strip()}").strip()
 
         try:
             with transaction.atomic():
