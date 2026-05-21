@@ -28,7 +28,12 @@ SECRET_KEY = 'django-insecure-gjye57-rx)^o3)f$ix_jy#802*56@oljtx1zrpo6_$-hzvb#mv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    "192.168.1.2",
+    "localhost",
+    "127.0.0.1",
+    ".devtunnels.ms",
+]
 
 # Required for Django 4.0+ CSRF Origin validation.
 # Extend this list with production hostname/IP when deploying.

@@ -56,7 +56,7 @@ def _verification_row_ui(verified: int, total: int) -> Dict[str, Any]:
         "verification_state": verification_state,
         "process_q_state": process_q_state,
         "lot_status_label": lot_status_label,
-        "current_stage_label": "Day Planning to Inputscreening" if all_verified else "",
+        "current_stage_label": "Input Screening" if all_verified else "",
         "actions_enabled": all_verified,
     }
 

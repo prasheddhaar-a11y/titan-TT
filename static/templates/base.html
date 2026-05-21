@@ -271,35 +271,23 @@
          background: linear-gradient(90deg,#e6f7f6,#f7fffe) !important;
          box-shadow: 0 1px 6px rgba(2,128,132,0.06) !important;
          }
-         /* Start of global font handling for tablet device */
+         /* Tablet typography is token-driven; avoid universal font-size overrides. */
          @media (min-width: 800px) and (max-width: 1300px) and (min-height: 600px) and (max-height: 900px) and (orientation: landscape) {
          html, body {
-         font-size: 20px !important;
-         }
-         *, *::before, *::after {
-         font-size: 20px !important;
+         font-size: var(--ttt-font-size-body, 14px) !important;
          }
          input, select, textarea, button {
-         font-size: 20px !important;
+         font-size: var(--ttt-font-size-control, 14px) !important;
          }
-         th, td {
-         font-size: 20px !important;
-         }
-         }
-         /* GLOBAL font-size override for tablets (landscape) */
-         @media (min-width: 800px) and (max-width: 1300px) and (min-height: 600px) and (max-height: 900px) and (orientation: landscape) {
-         html, body, *, *::before, *::after,
-         #order-listing th, #order-listing td {
-         font-size: 20px !important;
-         }
-         }
-         @media (min-width: 800px) and (max-width: 1300px) and (min-height: 600px) and (max-height: 900px) and (orientation: landscape) {
          #order-listing th,
-         #order-listing td {
-         font-size: 20px !important;
+         #order-listing td,
+         .table th,
+         .table td,
+         table.dataTable th,
+         table.dataTable td {
+         font-size: var(--ttt-font-size-table, 17px) !important;
          }
          }
-         /* End of global font handling for tablet device */
          .pagination-wrapper {
          position: relative; /* Ensure it stays in the flow of the document */
          background: #f5f7ff; /* Optional: Background color */
@@ -1265,6 +1253,7 @@
           }
         }
       </style>
+      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}">
    </head>
    <body>
       <!--Global Buffering -->
@@ -1910,130 +1899,8 @@
             </ul>
          </div>
       </li>
-      {% endif %}
-      <!-- Recovery Onboard-->
-      {% if is_admin or 'Recovery Data Upload' in allowed_modules or 'Recovery Pick Table' in allowed_modules or 'Recovery Completed Table' in allowed_modules %}
-      <li class="nav-item">
-         <a class="nav-link" data-bs-toggle="collapse" href="#recovery-onboard" aria-expanded="false" aria-controls="recovery-onboard">
-         <img src="{% static 'assets/icons/24.png' %}" class="menu-icon" data-tooltip="Recovery Day Planning" alt="Recovery Onboard" />
-         <span class="menu-title">Recovery Onboard</span>
-         <i class="menu-arrow"></i>
-         </a>
-         <div class="collapse" id="recovery-onboard">
-            <ul class="nav flex-column sub-menu">
-               {% if is_admin or 'Recovery Data Upload' in allowed_modules %}
-               <li class="nav-item"> <a class="nav-link" href="{% url 'rec_bulk_upload' %}">Recovery Data Upload</a></li>
-               {% endif %}
-               {% if is_admin or 'Recovery Pick Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_dp_pick_table' %}"
-                     >Recovery Pick Table</a
-                     >
-               </li>
-               {% endif %}
-               {% if is_admin or 'Recovery Completed Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_dp_completed_table' %}"
-                     >Recovery Completed Table</a
-                     >
-               </li>
-               {% endif %}
-            </ul>
-         </div>
-      </li>
-      {% endif %}
-      <!-- Module - R-Input Screening -->
-      {% if is_admin or 'R-Pick Table' in allowed_modules or 'R-Completed Table' in allowed_modules or 'R-Accept Table' in allowed_modules or 'R-Reject Table' in allowed_modules %}
-      <li class="nav-item">
-         <a class="nav-link" data-bs-toggle="collapse" href="#recovery-IP" aria-expanded="false" aria-controls="recovery-IP">
-         <i class="ti-bar-chart menu-icon"  data-tooltip="Input Screening"></i>
-         <span class="menu-title">R-Input Screening</span>
-         <i class="menu-arrow"></i>
-         </a>
-         <div class="collapse" id="recovery-IP">
-            <ul class="nav flex-column sub-menu">
-               {% if is_admin or 'R-Pick Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_IS_PickTable' %}">Pick Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Completed Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_IS_Completed_Table' %}">Completed Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Accept Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_IS_AcceptTable' %}">Accept Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Reject Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'rec_IS_RejectTable' %}">Reject Table</a>
-               </li>
-               {% endif %}
-            </ul>
-         </div>
-      </li>
-      {% endif %}
-      <!-- R-Brass Qc Menu -->
-      {% if is_admin or 'R-Brass Qc Pick Table' in allowed_modules or 'R-Brass Qc Completed Table' in allowed_modules or 'R-IQF Pick Table' in allowed_modules or 'R-IQF Accept Table' in allowed_modules or 'R-IQF Reject Table' in allowed_modules or 'R-IQF Completed Table' in allowed_modules or 'R-Brass Audit Pick Table' in allowed_modules or 'R-Brass Audit Reject Table' in allowed_modules or 'R-Brass Audit Complete Table' in allowed_modules %}
-      <li class="nav-item">
-         <a class="nav-link" data-bs-toggle="collapse" href="#recovery-BQ" aria-expanded="false" aria-controls="recovery-BQ">
-         <img src="{% static 'assets/icons/26.png' %}" class="menu-icon" alt="R-Brass QC" />
-         <span class="menu-title">R-Brass QC</span>
-         <i class="menu-arrow"></i>
-         </a>
-         <div class="collapse" id="recovery-BQ">
-            <ul class="nav flex-column sub-menu">
-               {% if is_admin or 'R-Brass Qc Pick Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'RecoveryBrassPickTableView' %}">R-Brass Qc Pick Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Brass Qc Completed Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'RecoveryBrassCompletedView' %}">R-Brass Qc Completed Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-IQF Pick Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_iqf_picktable' %}">R-IQF Pick Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-IQF Accept Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_iqf_accept_table' %}">R-IQF Accept Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-IQF Reject Table' in allowed_modules %}
-               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'recovery_iqf_rejection_table' %}">R-IQF Reject Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-IQF Completed Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_iqf_completed_table' %}">R-IQF Completed Table</a>
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Brass Audit Pick Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_brass_audit_picktable' %}">R-Brass Audit Pick Table</a>                
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Brass Audit Reject Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_brass_audit_rejection' %}">R-Brass Audit Reject Table</a>                
-               </li>
-               {% endif %}
-               {% if is_admin or 'R-Brass Audit Complete Table' in allowed_modules %}
-               <li class="nav-item"> 
-                  <a class="nav-link" href="{% url 'recovery_brass_audit_completed' %}">R-Brass Audit Complete Table</a>                
-               </li>
-               {% endif %}
-            </ul>
-         </div>
-      </li>
+      
+
       {% endif %}
       <!-- Jig Loading Menu -->
       {% if is_admin or 'Jig Pick Table' in allowed_modules or 'Jig Completed Table' in allowed_modules %}

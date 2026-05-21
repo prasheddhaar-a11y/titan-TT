@@ -35716,7 +35716,7 @@ div.tagsinput span.tag a {
     color: #b9b8ee;
     padding: 0.7rem 1rem;
     position: relative;
-    font-size: 20px !important;
+    font-size: var(--ttt-font-size-tablet) !important;
     line-height: 1;
     height: auto;
     border-top: 0;

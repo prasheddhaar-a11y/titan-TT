@@ -3034,17 +3034,22 @@ class DPCompletedTableView(APIView):
         from_date_str = request.GET.get('from_date')
         to_date_str = request.GET.get('to_date')
 
-        # Calculate date range
-        if from_date_str and to_date_str:
+        default_from_date = min_created_at.astimezone(tz).date() if min_created_at else yesterday
+        default_to_date = max_created_at.astimezone(tz).date() if max_created_at else today
+        date_filter_applied = bool(from_date_str and to_date_str)
+
+        # Calculate date range. Without an explicit search, show all completed lots.
+        if date_filter_applied:
             try:
                 from_date = _dt.datetime.strptime(from_date_str, '%Y-%m-%d').date()
                 to_date = _dt.datetime.strptime(to_date_str, '%Y-%m-%d').date()
             except ValueError:
-                from_date = yesterday
-                to_date = today
+                from_date = default_from_date
+                to_date = default_to_date
+                date_filter_applied = False
         else:
-            from_date = yesterday
-            to_date = today
+            from_date = default_from_date
+            to_date = default_to_date
 
         # Convert dates to datetime objects for filtering (include full day)
         from_datetime = timezone.make_aware(_dt.datetime.combine(from_date, _dt.datetime.min.time()))
@@ -3075,18 +3080,9 @@ class DPCompletedTableView(APIView):
             batch_id=OuterRef('pk'),
         ).values('draft_tray_verify')[:1]
 
-        # --- Filter by created_at in TotalStockModel ---
-        # Get batch_ids where created_at is in range
-        batch_ids_in_range = list(
-            TotalStockModel.objects.filter(
-                created_at__range=(from_datetime, to_datetime)
-            ).values_list('batch_id__batch_id', flat=True)
-        )
-
         queryset = ModelMasterCreation.objects.filter(
             total_batch_quantity__gt=0,
             Moved_to_D_Picker=True,
-            batch_id__in=batch_ids_in_range
         ).annotate(
             last_process_module=Subquery(last_process_module_subquery),
             next_process_module=Subquery(next_process_module_subquery),
@@ -3096,7 +3092,15 @@ class DPCompletedTableView(APIView):
             few_cases_accepted_Ip_stock=Subquery(few_cases_accepted_Ip_stock_subquery),
             rejected_ip_stock=Subquery(rejected_ip_stock_subquery),
             draft_tray_verify=Subquery(draft_tray_verify_subquery),
-        ).order_by('-created_at')
+        )
+
+        if date_filter_applied:
+            batch_ids_in_range = TotalStockModel.objects.filter(
+                created_at__range=(from_datetime, to_datetime)
+            ).values_list('batch_id__batch_id', flat=True)
+            queryset = queryset.filter(batch_id__in=batch_ids_in_range)
+
+        queryset = queryset.order_by('-created_at')
 
         # Pagination
         page_number = request.GET.get('page', 1)
@@ -3181,7 +3185,7 @@ class DPCompletedTableView(APIView):
             'user': user,
             'from_date': from_date.strftime('%Y-%m-%d'),  # 🔥 NEW: Pass dates to template
             'to_date': to_date.strftime('%Y-%m-%d'),      # 🔥 NEW: Pass dates to template
-            'date_filter_applied': bool(from_date_str and to_date_str),  # 🔥 NEW: Flag to show if custom dates used
+            'date_filter_applied': date_filter_applied,
         }
         return Response(context, template_name=self.template_name)
     

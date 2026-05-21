@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %} {% load static %} {% block content %}
+{% extends "base.html" %} {% load static %} {% block content %}
 {% load stock_filters %} 
 
 <style>
@@ -7,10 +7,10 @@
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
 *{
-  font-size: 20px !important; /* Increase font size for better readability */
+  font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
 }
 
-:root { --app-font-size: 20px; }
+:root { --app-font-size: var(--ttt-font-size-tablet); }
 
 .model-image-tooltip{
   transform: translateX(-25%) !important;

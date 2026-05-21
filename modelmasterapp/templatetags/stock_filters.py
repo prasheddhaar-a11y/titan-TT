@@ -150,6 +150,17 @@ def tray_full_name(tray_type):
     return tray_type
 
 
+@register.filter
+def display_stage_label(value):
+    if not value:
+        return "N/A"
+    label = str(value).strip()
+    normalized = label.replace(" ", "").lower()
+    if normalized == "dayplanningtoinputscreening":
+        return "Input Screening"
+    return label
+
+
 # Canonical set of module names shown to users
 _VALID_MODULE_NAMES = {
     'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',

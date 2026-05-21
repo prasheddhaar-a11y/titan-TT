@@ -523,10 +523,10 @@
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
 *{
-  font-size: 20px !important; /* Increase font size for better readability */
+  font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
 }
 
-:root { --app-font-size: 20px; }
+:root { --app-font-size: var(--ttt-font-size-tablet); }
 .rounded-circle{
   padding: 17px !important;
 }
@@ -1158,7 +1158,7 @@
   }
   
   #modalLotQty, #modalMissingQty, #modalPhysicalQty {
-    font-size: 20px !important;
+    font-size: var(--ttt-font-size-tablet) !important;
   }
   
   #draftButton, #proceedButton, #cancelButton {

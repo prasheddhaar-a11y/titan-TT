@@ -1387,7 +1387,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var actionsEnabled = rowUi.actions_enabled !== undefined ? !!rowUi.actions_enabled : complete;
     var qState = rowUi.process_q_state || (complete ? "complete" : partial ? "partial" : "pending");
     var lotStatusLabel = rowUi.lot_status_label || (partial ? "Draft" : "Yet to Start");
-    var currentStageLabel = rowUi.current_stage_label || (complete ? "Day Planning to Inputscreening" : "");
+    var currentStageLabel = rowUi.current_stage_label || (complete ? "Input Screening" : "");
 
     tvmFindPickTableRows(lotId).forEach(function (row) {
       row.setAttribute("data-all-trays-verified", complete ? "true" : "false");
@@ -1415,7 +1415,7 @@ document.addEventListener("DOMContentLoaded", function () {
         verification_state: enable ? "all_verified" : "not_started",
         process_q_state: enable ? "complete" : "pending",
         lot_status_label: "Yet to Start",
-        current_stage_label: enable ? "Day Planning to Inputscreening" : "",
+        current_stage_label: enable ? "Input Screening" : "",
         actions_enabled: !!enable,
       },
     });

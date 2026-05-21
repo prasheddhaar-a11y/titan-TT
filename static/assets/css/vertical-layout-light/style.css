@@ -34143,7 +34143,7 @@ table.dataTable tbody td.select-checkbox:after {
   border-radius: 10px;
 }
 .swal2-modal .swal2-title {
-  font-size: 20px !important;
+  font-size: var(--ttt-font-size-tablet) !important;
   line-height: 1;
   font-weight: 600;
   color: #1f1f1f;
@@ -35719,7 +35719,7 @@ div.tagsinput span.tag a {
     color: #b9b8ee;
     padding: 0.7rem 1rem;
     position: relative;
-    font-size: 20px !important;
+    font-size: var(--ttt-font-size-tablet) !important;
     line-height: 1;
     height: auto;
     border-top: 0;

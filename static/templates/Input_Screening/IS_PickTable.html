@@ -44,7 +44,7 @@
                            Plating <br> Stk No
                            <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
-                        <th>
+                        <th class="action-column">
                            Action <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
                         <th>
@@ -169,7 +169,7 @@
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.created_at|date:"h:i A" }}</span>
                         </td>
                         <!-- Plating Stk No Column -->
-                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <td class="action-column{% if data.ip_hold_lot %} row-inactive-blur{% endif %}">
                         <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
                            {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                            <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
@@ -196,7 +196,7 @@
                         </span>
                         </td>
                         <!-- Action Column -->
-                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
+                        <td class="action-column{% if data.ip_hold_lot %} row-inactive-blur{% endif %}">
                         <!-- âœ… Always show delete button for admin users, regardless of processing status -->
                         {% if is_admin%}
                         <a href="#" class="delete-batch-btn" title="Delete" data-batch-id="{{ data.batch_id }}" data-stock-lot-id="{{ data.stock_lot_id }}">
@@ -350,7 +350,7 @@
                         <td data-current-stage-cell {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
                       <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
-                        {{ data.last_process_module|default:"N/A" }}
+                        {{ data.last_process_module|display_stage_label }}
                       </div>
                         </td>
                         <!-- Tray Cate-Capacity Column -->

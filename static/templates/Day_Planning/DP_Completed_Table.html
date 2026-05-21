@@ -15,10 +15,10 @@
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
 *{
-  font-size: 20px !important; /* Increase font size for better readability */
+  font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
 }
 
-:root { --app-font-size: 20px; }
+:root { --app-font-size: var(--ttt-font-size-tablet); }
 
 .model-image-tooltip{
   transform: translateX(-25%) !important;
@@ -587,9 +587,337 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     grid-template-columns: 30px 1fr 70px 90px !important;
   }
 }
+
+/* Day Planning completed table final layout overrides */
+.dp-table-page {
+  --dp-table-font-size: 13px;
+  --dp-table-header-font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+  max-height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding-top: 0.75rem !important;
+  padding-bottom: 0 !important;
+}
+
+.dp-table-page > .col-12.grid-margin.stretch-card,
+.dp-table-page .card,
+.dp-table-page .card-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dp-table-page > .col-12.grid-margin.stretch-card,
+.dp-table-page .card {
+  margin-bottom: 0 !important;
+}
+
+.dp-table-page .card-body {
+  flex-direction: column;
+  padding-bottom: 0.5rem !important;
+  overflow: hidden !important;
+}
+
+.dp-table-page .calendar-bar,
+.dp-table-page .pagination-wrapper,
+.dp-table-page h4 {
+  flex: 0 0 auto;
+}
+
+.dp-table-page .pagination-wrapper {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 4px 0 0 !important;
+  margin-top: 0.35rem !important;
+  background: #f5f7ff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 4 !important;
+}
+
+.dp-table-page .table-responsive {
+  flex: 1 1 0 !important;
+  width: 100%;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+  margin-bottom: 0 !important;
+}
+
+.dp-table-page #order-listing {
+  table-layout: fixed !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  margin-bottom: 0 !important;
+}
+
+.dp-table-page #order-listing th,
+.dp-table-page #order-listing td {
+  box-sizing: border-box !important;
+  height: auto !important;
+  padding: 7px 8px !important;
+  font-size: var(--dp-table-font-size) !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.dp-table-page #order-listing thead th {
+  height: 40px !important;
+  padding: 7px 22px 7px 8px !important;
+  font-size: var(--dp-table-header-font-size) !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+}
+
+.dp-table-page #order-listing tbody tr {
+  height: 48px !important;
+}
+
+.dp-table-page #order-listing th .fa-filter,
+.dp-table-page #order-listing .header-icons {
+  right: 6px !important;
+  font-size: 10px !important;
+}
+
+.dp-table-page .tray-scan-status-circle.dp-status-complete {
+  background: #0c8249 !important;
+}
+
+.dp-table-page .tray-scan-status-circle.dp-status-pending {
+  background: #c3c2c2 !important;
+}
+
+.dp-completed-table-page #order-listing th:nth-child(1),
+.dp-completed-table-page #order-listing td:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  background: #f7fafd !important;
+}
+
+.dp-completed-table-page #order-listing th:nth-child(2),
+.dp-completed-table-page #order-listing td:nth-child(2) {
+  position: sticky !important;
+  left: 70px !important;
+  width: 118px !important;
+  min-width: 118px !important;
+  max-width: 118px !important;
+  background: #f7fafd !important;
+}
+
+.dp-completed-table-page #order-listing th:nth-child(3),
+.dp-completed-table-page #order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 188px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  background: #f7fafd !important;
+}
+
+.dp-completed-table-page #order-listing thead th:nth-child(-n+3) {
+  background: #028084 !important;
+  color: #e5fcff !important;
+  z-index: 45 !important;
+}
+
+.dp-completed-table-page #order-listing tbody td:nth-child(-n+3) {
+  background: #f7fafd !important;
+  z-index: 25 !important;
+}
+
+.dp-completed-table-page #order-listing th:nth-child(4),
+.dp-completed-table-page #order-listing td:nth-child(4) { width: 115px !important; min-width: 115px !important; max-width: 115px !important; overflow: visible !important; text-overflow: clip !important; }
+.dp-completed-table-page #order-listing th:nth-child(5),
+.dp-completed-table-page #order-listing td:nth-child(5) { width: 92px !important; min-width: 92px !important; max-width: 92px !important; }
+.dp-completed-table-page #order-listing th:nth-child(6),
+.dp-completed-table-page #order-listing td:nth-child(6) { width: 96px !important; min-width: 96px !important; max-width: 96px !important; }
+.dp-completed-table-page #order-listing th:nth-child(7),
+.dp-completed-table-page #order-listing td:nth-child(7) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
+.dp-completed-table-page #order-listing th:nth-child(8),
+.dp-completed-table-page #order-listing td:nth-child(8) { width: 118px !important; min-width: 118px !important; max-width: 118px !important; }
+.dp-completed-table-page #order-listing th:nth-child(9),
+.dp-completed-table-page #order-listing td:nth-child(9) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
+.dp-completed-table-page #order-listing th:nth-child(10),
+.dp-completed-table-page #order-listing td:nth-child(10) { width: 158px !important; min-width: 158px !important; max-width: 158px !important; }
+.dp-completed-table-page #order-listing th:nth-child(11),
+.dp-completed-table-page #order-listing td:nth-child(11) { width: 132px !important; min-width: 132px !important; max-width: 132px !important; }
+.dp-completed-table-page #order-listing th:nth-child(12),
+.dp-completed-table-page #order-listing td:nth-child(12) { width: 105px !important; min-width: 105px !important; max-width: 105px !important; }
+.dp-completed-table-page #order-listing th:nth-child(13),
+.dp-completed-table-page #order-listing td:nth-child(13) { width: 122px !important; min-width: 122px !important; max-width: 122px !important; }
+.dp-completed-table-page #order-listing th:nth-child(14),
+.dp-completed-table-page #order-listing td:nth-child(14) { width: 128px !important; min-width: 128px !important; max-width: 128px !important; }
+.dp-completed-table-page #order-listing th:nth-child(15),
+.dp-completed-table-page #order-listing td:nth-child(15) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
+.dp-completed-table-page #order-listing th:nth-child(16),
+.dp-completed-table-page #order-listing td:nth-child(16) { width: 115px !important; min-width: 115px !important; max-width: 115px !important; }
+.dp-completed-table-page #order-listing th:nth-child(17),
+.dp-completed-table-page #order-listing td:nth-child(17) { width: 104px !important; min-width: 104px !important; max-width: 104px !important; }
+
+.dp-completed-table-page #order-listing td:nth-child(10),
+.dp-completed-table-page #order-listing td:nth-child(10) * {
+  white-space: nowrap !important;
+}
+
+.dp-completed-table-page #order-listing td:nth-child(10) .rounded-pill {
+  min-width: 118px;
+}
+
+@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px),
+       (min-width: 760px) and (max-width: 1024px) {
+  .dp-table-page {
+    --dp-table-font-size: 14px;
+    --dp-table-header-font-size: 14px;
+    height: calc(100dvh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+    max-height: calc(100dvh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+    padding: 0.5rem 0.75rem 0 !important;
+  }
+
+  .dp-table-page .card-body {
+    gap: 0.35rem;
+    padding: 0.75rem 0.75rem 0.35rem !important;
+  }
+
+  .dp-table-page #order-listing,
+  .dp-table-page #order-listing *,
+  .dp-table-page #order-listing th,
+  .dp-table-page #order-listing td,
+  .dp-table-page #order-listing th *,
+  .dp-table-page #order-listing td * {
+    font-size: var(--dp-table-font-size) !important;
+  }
+
+  .dp-table-page h4,
+  .dp-table-page .calendar-bar,
+  .dp-table-page .calendar-bar label,
+  .dp-table-page .calendar-bar input,
+  .dp-table-page .calendar-bar button {
+    font-size: var(--dp-table-header-font-size) !important;
+    line-height: 1.2 !important;
+  }
+
+  .dp-table-page .calendar-bar {
+    gap: 0.75rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  .dp-table-page .table-responsive {
+    flex: 1 1 0 !important;
+    max-height: none !important;
+  }
+
+  .dp-table-page .pagination-wrapper {
+    flex: 0 0 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    margin-top: 0.25rem !important;
+    overflow: hidden !important;
+  }
+
+  .dp-table-page .pagination {
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .dp-table-page .pagination li a,
+  .dp-table-page .pagination li span {
+    min-width: 30px !important;
+    height: 30px !important;
+    padding: 0 9px !important;
+    font-size: var(--dp-table-font-size) !important;
+    line-height: 30px !important;
+  }
+
+  .dp-table-page #order-listing th,
+  .dp-table-page #order-listing td {
+    font-size: var(--dp-table-font-size) !important;
+    line-height: 1.15 !important;
+    padding: 6px 8px !important;
+  }
+
+  .dp-table-page #order-listing thead th:nth-child(2),
+  .dp-table-page #order-listing tbody td:nth-child(2),
+  .dp-table-page #order-listing tbody td:nth-child(2) span {
+    font-size: var(--dp-table-font-size) !important;
+    line-height: 1.15 !important;
+  }
+
+  .dp-table-page #order-listing thead th {
+    height: 38px !important;
+    font-size: var(--dp-table-header-font-size) !important;
+    line-height: 1.15 !important;
+  }
+
+  .dp-table-page #order-listing tbody tr {
+    height: 42px !important;
+  }
+
+  .dp-completed-table-page #order-listing th:nth-child(4),
+  .dp-completed-table-page #order-listing td:nth-child(4) {
+    width: 110px !important;
+    min-width: 110px !important;
+    max-width: 110px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+
+  .dp-completed-table-page #order-listing td:nth-child(4) > * {
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .dp-completed-table-page #order-listing td:nth-child(4) img {
+    width: 18px !important;
+    max-height: 18px !important;
+    margin-right: 4px !important;
+  }
+
+  .dp-table-page #order-listing th .fa-filter,
+  .dp-table-page #order-listing .header-icons,
+  .dp-table-page #order-listing .header-icons *,
+  .dp-table-page #order-listing .sort-icon {
+    font-size: var(--dp-table-font-size) !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dp-table-page {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .dp-table-page .table-responsive {
+    max-height: calc(100vh - 220px);
+  }
+}
 </style>
  
-<div class="content-wrapper">
+<div class="content-wrapper dp-table-page dp-completed-table-page">
       <div class="col-12 grid-margin stretch-card">
         <div class="card">
           <div class="card-body" style="padding-bottom:12px;">
@@ -630,7 +958,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
             <input type="hidden" id="from-date" value="{{ from_date }}" />
             <input type="hidden" id="to-date" value="{{ to_date }}" />
 
-                        <div class="table-responsive" style="overflow: scroll !important;">
+                        <div class="table-responsive">
 
             <table id="order-listing" class="table">
              <thead>
@@ -833,8 +1161,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                   <!-- Process Status -->
                   <td>
                     <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Tray Scan"
-                      class="tray-scan-status-circle"
-                      style="background: {% if row.Moved_to_D_Picker %}#0c8249{% else %}#c3c2c2{% endif %}; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                      class="tray-scan-status-circle {% if row.Moved_to_D_Picker %}dp-status-complete{% else %}dp-status-pending{% endif %}"
+                      style="color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
                       T
                     </div>
                   </td>
