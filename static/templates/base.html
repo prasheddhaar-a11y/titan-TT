@@ -6,59 +6,7 @@
       window.TTT_DB_SHORTCUTS_ENABLED = true;
     </script>
       <style>
-/* Tablet / large-touch override: force sidebar width to 280px */
-@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px),
-       (min-width: 760px) and (max-width: 1024px) {
-  html body #sidebar,
-  html body nav.sidebar,
-  html body .sidebar.sidebar-offcanvas,
-  html body .sidebar {
-    width: 280px !important;
-    min-width: 280px !important;
-    max-width: 280px !important;
-  }
-  
-}
-/* Tablet: when sidebar is minimized (icon-only) keep it narrow and hide titles */
-@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px),
-       (min-width: 760px) and (max-width: 1024px) {
-  body.sidebar-icon-only #sidebar,
-  body.sidebar-icon-only nav.sidebar,
-  body.sidebar-icon-only .sidebar.sidebar-offcanvas,
-  body.sidebar-icon-only .sidebar {
-    width: 65px !important;
-    min-width: 65px !important;
-    max-width: 65px !important;
-    transition: width 180ms ease-in-out !important;
-    overflow: visible !important;
-  }
-
-  /* hide menu titles to keep compact look on tablet when minimized */
-  body.sidebar-icon-only .sidebar .nav .nav-item .menu-title {
-    display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* center icons in minimized sidebar */
-  body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon,
-  body.sidebar-icon-only .sidebar .nav .nav-item i,
-  body.sidebar-icon-only .sidebar .nav .nav-item .fa,
-  body.sidebar-icon-only .sidebar .nav .nav-item .ti {
-    margin-left: 0 !important;
-    display: inline-flex !important;
-    justify-content: center !important;
-    width: 100% !important;
-  }
-
-  /* ensure tooltip positions slightly outside the compact sidebar */
-  body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon[data-tooltip]:hover::after,
-  body.sidebar-icon-only .sidebar .nav .nav-item i[data-tooltip]:hover::after,
-  body.sidebar-icon-only .sidebar .nav .nav-item .fa[data-tooltip]:hover::after {
-    left: 84px !important; /* a bit wider than compact width */
-  }
-}
+/* Sidebar responsive rules are defined in ttt-responsive-system.css */
          /*Global Grid Lines */
          #order-listing th,
          #order-listing td {
@@ -564,7 +512,7 @@
           width: 100% !important;
           }
 
-          @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px),
+          @media (pointer: coarse) and (min-width: 680px) and (max-width: 1280px),
             (min-width: 760px) and (max-width: 1024px) {
           footer.footer {
           left: auto !important;
@@ -4523,6 +4471,7 @@
 </script>
 
 <!-- DB-backed global keyboard shortcut manager -->
+<script nonce="{{ csp_nonce }}" src="{% static 'assets/js/ttt-responsive-system.js' %}"></script>
 <script nonce="{{ csp_nonce }}" src="{% static 'js/global_shortcut_manager.js' %}"></script>
 
    </body>

@@ -965,6 +965,67 @@ class IS_SaveIPRemarkAPI(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# REJECTION DETAILS — FETCH REASONS + QTY FOR A REJECTED LOT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class IS_GetRejectionDetailsAPI(APIView):
+    """GET: Return rejection reasons and quantities for a rejected lot.
+
+    Query params:
+        lot_id (required) — the parent lot ID (stock_lot_id)
+
+    Response:
+        {"success": true, "reasons": [{"reason": "...", "qty": N}, ...]}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        lot_id = (request.GET.get("lot_id") or "").strip()
+        if not lot_id:
+            return Response({"success": False, "error": "Missing lot_id."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from .models import IS_PartialRejectLot, IP_Rejection_ReasonStore
+
+            reasons: list = []
+
+            # ── New-style: IS_PartialRejectLot (partial reject via v2 flow) ──
+            reject_lot = IS_PartialRejectLot.objects.filter(parent_lot_id=lot_id).order_by("-created_at").first()
+            if reject_lot and reject_lot.rejection_reasons:
+                for rid, detail in reject_lot.rejection_reasons.items():
+                    qty = detail.get("qty", 0)
+                    if qty:
+                        reasons.append({
+                            "reason": detail.get("reason", rid),
+                            "qty": qty,
+                        })
+
+            # ── Old-style: IP_Rejection_ReasonStore (full/batch reject) ──
+            if not reasons:
+                reason_store = IP_Rejection_ReasonStore.objects.filter(lot_id=lot_id).order_by("-id").first()
+                if reason_store:
+                    if reason_store.batch_rejection:
+                        reasons.append({
+                            "reason": "Lot Rejection",
+                            "qty": reason_store.total_rejection_quantity,
+                            "lot_rejected_comment": reason_store.lot_rejected_comment or "",
+                        })
+                    else:
+                        from .models import IP_Rejected_TrayScan
+                        for scan in IP_Rejected_TrayScan.objects.filter(lot_id=lot_id):
+                            reasons.append({
+                                "reason": scan.rejection_reason.rejection_reason if scan.rejection_reason else "Unknown",
+                                "qty": scan.rejected_tray_quantity,
+                            })
+
+            return Response({"success": True, "reasons": reasons})
+
+        except Exception as exc:
+            logger.exception("IS_GetRejectionDetailsAPI error for lot_id=%s", lot_id)
+            return Response({"success": False, "error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DELETE BATCH — ADMIN ONLY: HARD DELETE A BATCH FROM IS PICK TABLE
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -85,15 +85,38 @@
       cursor: not-allowed !important;
     }
 
+    #order-listing th.action-column,
+    #order-listing td.action-column,
+    #order-listing th:nth-child(4),
+    #order-listing td:nth-child(4) {
+      min-width: var(--ttt-table-action-min-width, 22rem) !important;
+      width: var(--ttt-table-action-min-width, 22rem) !important;
+      max-width: none !important;
+      white-space: nowrap !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+    }
+
+    #order-listing td.action-column,
+    #order-listing tbody td:nth-child(4) {
+      display: table-cell !important;
+    }
+
+    #order-listing td.action-column > *,
+    #order-listing tbody td:nth-child(4) > * {
+      white-space: nowrap !important;
+      flex-shrink: 0 !important;
+    }
+
 /* ========== Tablet override — paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
 *{
-  font-size: 20px !important; /* Increase font size for better readability */
+  font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
 }
 
-:root { --app-font-size: 20px; }
+:root { --app-font-size: var(--ttt-font-size-tablet); }
 
 .model-image-tooltip{
   transform: translateX(-25%) !important;
@@ -207,7 +230,8 @@
   }
 
   /* Other columns (fit remaining space) */
-  #order-listing th:nth-child(4)  { min-width: 135px !important; max-width: 135px !important; }
+  #order-listing th:nth-child(4),
+  #order-listing td:nth-child(4)  { min-width: var(--ttt-table-action-min-width, 22rem) !important; width: var(--ttt-table-action-min-width, 22rem) !important; max-width: none !important; overflow: visible !important; }
   #order-listing th:nth-child(5)  { min-width: 115px !important; max-width: 115px !important; }
   #order-listing th:nth-child(6)  { min-width: 135px !important; max-width: 135px !important; }
   #order-listing th:nth-child(7)  { min-width: 105px !important; max-width: 105px !important; }

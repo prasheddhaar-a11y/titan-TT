@@ -1334,14 +1334,17 @@ def finalize_submission_v2(
         }
         for slot, a in zip(reject_slots, reject_assignments)
     ]
+    # TOP is position-based: the FIRST accept slot (index 0) is always the top
+    # tray. The original top_tray flag on the scanned tray ID is irrelevant
+    # after shuffled allocation — position determines TOP.
     accept_alloc = [
         {
             "tray_id": _norm(a["tray_id"]),
             "qty": slot["qty"],
             "source": a.get("_source", "existing"),
-            "top_tray": a.get("_top_tray", False),
+            "top_tray": idx == 0,
         }
-        for slot, a in zip(accept_slots, accept_assignments)
+        for idx, (slot, a) in enumerate(zip(accept_slots, accept_assignments))
     ]
 
     if not validate_reason_single_tray_rule(reject_alloc):

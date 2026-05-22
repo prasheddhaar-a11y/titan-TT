@@ -2649,6 +2649,32 @@ document.addEventListener('DOMContentLoaded', function() {
       return found;
     }
 
+    function focusTrayInput(input) {
+      if (!input) return;
+      setTimeout(function() {
+        try { input.focus(); } catch (e) {}
+        try { input.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }); } catch (e) {}
+        var oldShadow = input.style.boxShadow;
+        input.style.boxShadow = '0 0 0 3px rgba(2,128,132,0.28)';
+        setTimeout(function() { input.style.boxShadow = oldShadow || ''; }, 800);
+      }, 0);
+    }
+
+    function selectInvalidTrayInput(input) {
+      if (!input) return;
+      setTimeout(function() {
+        try { input.focus(); input.select(); } catch (e) {}
+        try { input.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }); } catch (e) {}
+      }, 0);
+    }
+
+    function focusNextTrayInput() {
+      var nextInput = rejectSlotsContainer.querySelector('.slot-scan-input') ||
+        delinkListContainer.querySelector('.delink-scan-input') ||
+        acceptSlotsContainer.querySelector('.slot-scan-input');
+      focusTrayInput(nextInput);
+    }
+
     // ── Assign tray to next empty slot ──
     // Order: reject → delink → accept (top only)
     function assignTrayToNextEmptySlot(trayId, qty) {
@@ -2675,6 +2701,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
             renderOriginalTrays();
             checkPhaseTransition();
+            focusNextTrayInput();
             return;
           }
         }
@@ -2693,6 +2720,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderDelinkSlots();
             renderOriginalTrays();
             checkPhaseTransition();
+            focusNextTrayInput();
             return;
           }
         }
@@ -2706,6 +2734,7 @@ document.addEventListener('DOMContentLoaded', function() {
           renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
           renderOriginalTrays();
           updateSummary();
+          focusNextTrayInput();
           return;
         }
       }
@@ -2843,7 +2872,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           html += '<td style="padding:3px 6px; border:1px solid #ffe0b2;">' +
             '<input type="text" class="delink-scan-input" data-idx="' + idx + '" placeholder="Pick or scan original tray to delink" ' +
-            'style="width:100%; padding:3px 6px; border:1px solid #ffe0b2; border-radius:3px; font-size:12px; box-sizing:border-box; background:#fffaf0;" autocomplete="off" />' +
+            'style="width:100%; padding:3px 6px; border:1px solid #ffe0b2; border-radius:3px; font-size:12px; box-sizing:border-box; background:#fffaf0;" autocomplete="off" maxlength="9" />' +
             '</td>';
         }
         html += '</tr>';
@@ -2867,40 +2896,37 @@ document.addEventListener('DOMContentLoaded', function() {
         inp.addEventListener('keydown', function(e) {
           if (e.key !== 'Enter') return;
           e.preventDefault();
-          var val = this.value.trim();
+          var val = this.value.trim().toUpperCase().substring(0, 9);
+          this.value = val;
           if (!val) return;
           var idx = parseInt(this.getAttribute('data-idx'), 10);
           var oIds = {};
           _trayData.forEach(function(t) { oIds[t.tray_id] = true; });
-          if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; this.select(); return; }
-          if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; this.select(); return; }
+          if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; selectInvalidTrayInput(this); return; }
+          if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; selectInvalidTrayInput(this); return; }
           errorDiv.textContent = '';
           _delinkSlots[idx].tray_id = val;
           renderDelinkSlots();
           renderOriginalTrays();
           checkPhaseTransition();
-          // Focus next available scan input across delink → accept
-          var nextDelink = delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextDelink) nextDelink.focus();
+          focusNextTrayInput();
         });
         inp.addEventListener('input', function() {
-          var val = this.value.trim();
+          var val = this.value.trim().toUpperCase();
+          if (val.length > 9) val = val.substring(0, 9);
+          this.value = val;
           if (val.length < 9) return;
           var idx = parseInt(this.getAttribute('data-idx'), 10);
           var oIds = {};
           _trayData.forEach(function(t) { oIds[t.tray_id] = true; });
-          if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; this.select(); return; }
-          if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; this.select(); return; }
+          if (!oIds[val]) { errorDiv.textContent = 'Only original trays can be delinked.'; selectInvalidTrayInput(this); return; }
+          if (isAssigned(val)) { errorDiv.textContent = 'This tray is already assigned.'; selectInvalidTrayInput(this); return; }
           errorDiv.textContent = '';
           _delinkSlots[idx].tray_id = val;
           renderDelinkSlots();
           renderOriginalTrays();
           checkPhaseTransition();
-          // Focus next available scan input across delink → accept
-          var nextDelink2 = delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextDelink2) nextDelink2.focus();
+          focusNextTrayInput();
         });
       });
     }
@@ -2948,7 +2974,7 @@ document.addEventListener('DOMContentLoaded', function() {
           html += '<td style="padding:3px 6px; border:1px solid ' + borderClr + ';">' +
             '<div style="display:flex; align-items:center; gap:4px;">' +
             '<input type="text" class="slot-edit-input" data-idx="' + idx + '" data-type="' + type + '" value="' + escHtml(slot.tray_id) + '" ' +
-            'style="flex:1; padding:3px 6px; border:1px solid #aed6c9; border-radius:3px; font-size:12px; background:#f0faf8; box-sizing:border-box; min-width:80px;" autocomplete="off" />' +
+            'style="flex:1; padding:3px 6px; border:1px solid #aed6c9; border-radius:3px; font-size:12px; background:#f0faf8; box-sizing:border-box; min-width:80px;" autocomplete="off" maxlength="9" />' +
             newBadge + reusedBadge +
             '<button type="button" class="slot-clear-btn" data-idx="' + idx + '" data-type="' + type + '" style="background:none; border:none; color:#d32f2f; cursor:pointer; font-size:13px; padding:0 3px; flex-shrink:0;" title="Clear">&times;</button>' +
             '</div>' +
@@ -2957,7 +2983,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           html += '<td style="padding:3px 6px; border:1px solid ' + borderClr + ';">' +
             '<input type="text" class="slot-scan-input" data-idx="' + idx + '" data-type="' + type + '" placeholder="Scan Tray ID" ' +
-            'style="width:100%; padding:3px 6px; border:1px solid #ddd; border-radius:3px; font-size:12px; box-sizing:border-box;" autocomplete="off" />' +
+            'style="width:100%; padding:3px 6px; border:1px solid #ddd; border-radius:3px; font-size:12px; box-sizing:border-box;" autocomplete="off" maxlength="9" />' +
             '<span class="slot-scan-error" style="font-size:10px; display:none; margin-top:2px;"></span></td>';
         }
 
@@ -3049,13 +3075,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (isAssigned(scannedId)) {
             if (errSpan) { errSpan.textContent = 'Already assigned to another slot'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+            selectInvalidTrayInput(this);
             return;
           }
 
           // Validate against DB — skip for original trays of this lot
           if (!getOriginalIds()[scannedId]) {
             var ok = await validateTrayIdDB(scannedId, errSpan);
-            if (!ok) return;
+            if (!ok) { selectInvalidTrayInput(this); return; }
           }
 
           // Enforce reuse limit for original trays in reject slots
@@ -3063,6 +3090,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var originalsInReject = _rejectSlots.filter(function(s) { return s.tray_id && getOriginalIds()[s.tray_id]; }).length;
             if (originalsInReject >= _reuseCount) {
               if (errSpan) { errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
+              selectInvalidTrayInput(this);
               return;
             }
           }
@@ -3079,12 +3107,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             updateSummary();
           }
-
-          // Focus next available scan input across reject → delink → accept
-          var nextInput = targetContainer.querySelector('.slot-scan-input') ||
-            delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextInput) nextInput.focus();
+          focusNextTrayInput();
         });
 
         // Auto-trigger at 9 chars — valid moves next, invalid selects for retype
@@ -3099,14 +3122,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (isAssigned(val)) {
             if (errSpan) { errSpan.textContent = 'Already assigned'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-            this.select();
+            selectInvalidTrayInput(this);
             return;
           }
 
           // Validate against DB — skip for original trays
           if (!getOriginalIds()[val]) {
             var ok2 = await validateTrayIdDB(val, errSpan);
-            if (!ok2) { this.select(); return; }
+            if (!ok2) { selectInvalidTrayInput(this); return; }
           }
 
           // Enforce reuse limit for original trays in reject slots
@@ -3114,7 +3137,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var originalsInReject2 = _rejectSlots.filter(function(s) { return s.tray_id && getOriginalIds()[s.tray_id]; }).length;
             if (originalsInReject2 >= _reuseCount) {
               if (errSpan) { errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-              this.select();
+              selectInvalidTrayInput(this);
               return;
             }
           }
@@ -3131,12 +3154,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             updateSummary();
           }
-
-          // Focus next available scan input across reject → delink → accept
-          var nextInput2 = targetContainer2.querySelector('.slot-scan-input') ||
-            delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextInput2) nextInput2.focus();
+          focusNextTrayInput();
         });
       });
 
@@ -3162,6 +3180,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (isDup) {
             errSpan.textContent = 'Already assigned to another slot';
             errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+            selectInvalidTrayInput(this);
             return;
           }
           // Reuse limit for reject
@@ -3172,6 +3191,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (originalsNow >= _reuseCount) {
               errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')';
               errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+              selectInvalidTrayInput(this);
               return;
             }
           }
@@ -3184,6 +3204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!ok) {
               errSpan.textContent = 'Invalid tray ID';
               errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+              selectInvalidTrayInput(this);
             } else {
               isValid = true;
             }
@@ -3209,10 +3230,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
               updateSummary();
             }
-            var nextScan = targetContainer.querySelector('.slot-scan-input') ||
-              delinkListContainer.querySelector('.delink-scan-input') ||
-              acceptSlotsContainer.querySelector('.slot-scan-input');
-            if (nextScan) nextScan.focus();
+            focusNextTrayInput();
           }
         });
       });
@@ -3263,14 +3281,14 @@ document.addEventListener('DOMContentLoaded', function() {
           targetSlots[idx].tray_id = originalVal; // restore
           if (isDup) {
             if (errSpan) { errSpan.textContent = 'Already assigned to another slot'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-            this.select();
+            selectInvalidTrayInput(this);
             return;
           }
 
           // Validate against DB — skip for original trays
           if (!getOriginalIds()[newVal]) {
             var ok = await validateTrayIdDB(newVal, errSpan);
-            if (!ok) { this.select(); return; }
+            if (!ok) { selectInvalidTrayInput(this); return; }
           }
 
           // Enforce reuse limit for original trays in reject slots
@@ -3280,7 +3298,7 @@ document.addEventListener('DOMContentLoaded', function() {
             targetSlots[idx].tray_id = originalVal;
             if (originalsInRejectEdit >= _reuseCount) {
               if (errSpan) { errSpan.textContent = 'Reuse limit reached (' + _reuseCount + ')'; errSpan.style.display = 'block'; errSpan.style.color = '#c62828'; }
-              this.select();
+              selectInvalidTrayInput(this);
               return;
             }
           }
@@ -3301,11 +3319,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             updateSummary();
           }
-          // Focus next available input across reject → delink → accept
-          var nextScan = targetContainer.querySelector('.slot-scan-input') ||
-            delinkListContainer.querySelector('.delink-scan-input') ||
-            acceptSlotsContainer.querySelector('.slot-scan-input');
-          if (nextScan) nextScan.focus();
+          focusNextTrayInput();
         });
       });
     }

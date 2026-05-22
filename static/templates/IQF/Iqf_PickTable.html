@@ -2541,6 +2541,7 @@
         <textarea id="iqfAuditNotes" placeholder="Add remark here..." maxlength="500"></textarea>
       </div>
       <div class="iqf-footer-actions">
+        <button id="iqfClearBtn" type="button" class="iqf-modal-btn cancel">Clear</button>
         <button id="iqfDraftBtn" class="iqf-modal-btn draft">Save Draft</button>
         <button id="iqfProceedBtn" class="iqf-modal-btn proceed">Proceed</button>
         <button id="iqfCancelBtn" class="iqf-modal-btn cancel">Close</button>
@@ -2688,7 +2689,7 @@
 
     if(isActive){
       // Disable all rejection qty inputs — no manual edits allowed
-      inputs.forEach(function(inp){ inp.disabled = true; inp.value = ''; inp.style.opacity = '0.5'; });
+      inputs.forEach(function(inp){ inp.setAttribute('data-lot-rejection-prev-disabled', inp.disabled ? 'true' : 'false'); inp.disabled = true; inp.value = ''; inp.style.opacity = '0.5'; });
       // Update header badges: IQF Total = lot qty, Accepted = 0
       if(totalEl) totalEl.textContent = rwQty || 0;
       if(accEl) accEl.textContent = '0';
@@ -2702,7 +2703,14 @@
       console.log('[LOT REJECTION UI] Activated — inputs disabled, qty=' + rwQty);
     } else {
       // Re-enable all rejection qty inputs
-      inputs.forEach(function(inp){ inp.disabled = false; inp.style.opacity = '1'; });
+      inputs.forEach(function(inp){
+        var prevDisabled = inp.getAttribute('data-lot-rejection-prev-disabled');
+        if(prevDisabled !== null){
+          inp.disabled = prevDisabled === 'true';
+          inp.removeAttribute('data-lot-rejection-prev-disabled');
+        }
+        inp.style.opacity = inp.disabled ? '0.5' : '1';
+      });
       // Re-enable buttons
       if(draftBtn){ draftBtn.disabled = false; draftBtn.style.opacity = '1'; }
       if(proceedBtn){ proceedBtn.disabled = false; proceedBtn.style.opacity = '1'; }
@@ -3210,6 +3218,125 @@
   // ── Expose submitAudit globally so delink modal confirm can call it in PARTIAL mode ──
   window._iqfSubmitAuditFn = submitAudit;
 
+  function resetExistingTrayCards(){
+    document.querySelectorAll('.iqf-existing-tray-card').forEach(function(card){
+      var origBorder = card.getAttribute('data-original-border') || '#e0e0e0';
+      var origBg = card.getAttribute('data-original-bg') || '#fff';
+      card.classList.remove('iqf-tray-used');
+      card.style.borderColor = origBorder;
+      card.style.background = origBg;
+      card.style.cursor = 'pointer';
+      card.style.opacity = '1';
+      card.style.boxShadow = 'none';
+    });
+  }
+
+  function resetRenderedTrayInputs(){
+    var acceptSection = document.getElementById('iqf-accepted-tray-section');
+    if(acceptSection) acceptSection.style.display = 'none';
+    var acceptTbody = document.getElementById('iqf-accepted-tray-slots-body');
+    if(acceptTbody) acceptTbody.innerHTML = '';
+    var wrapper = document.getElementById('iqf-tray-columns-wrapper');
+    if(wrapper) wrapper.style.display = 'none';
+    var rejectTbody = document.getElementById('iqf-reject-tbody');
+    if(rejectTbody) rejectTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#bbb; font-size:11px; padding:10px;">Enter rejection quantities above to see distribution</td></tr>';
+    var delinkSection = document.getElementById('iqf-delink-section');
+    if(delinkSection) delinkSection.style.display = 'none';
+    var delinkList = document.getElementById('iqf-delink-list');
+    if(delinkList) delinkList.innerHTML = '';
+    var rejBadge = document.getElementById('iqfRejScannedBadge');
+    if(rejBadge){ rejBadge.style.display = 'none'; rejBadge.textContent = 'Scanned: 0/0'; }
+    var reuseBadge = document.getElementById('iqfReusableBadge');
+    if(reuseBadge) reuseBadge.style.display = 'none';
+    var reuseErr = document.getElementById('iqf-reuse-error');
+    if(reuseErr) reuseErr.style.display = 'none';
+    document.getElementById('iqfSummaryAcceptCount') && (document.getElementById('iqfSummaryAcceptCount').textContent = 0);
+    document.getElementById('iqfSummaryRejectCount') && (document.getElementById('iqfSummaryRejectCount').textContent = 0);
+    document.getElementById('iqfSummaryDelinkCount') && (document.getElementById('iqfSummaryDelinkCount').textContent = 0);
+    window._iqfUsedExistingCount = 0;
+    window._iqfRejectSlotsRendered = false;
+    window._iqfLastRenderedRejTotal = 0;
+    window._iqfDraftAcceptedTrays = [];
+    window._iqfDraftRejectedTrays = [];
+    resetExistingTrayCards();
+  }
+
+  function clearAuditManualInputs(lotId){
+    var grid = document.getElementById('rejection-grid-2col');
+    var inputs = grid ? grid.querySelectorAll('.rejection-qty-input') : [];
+    var items = [];
+    inputs.forEach(function(inp){
+      var rid = inp.getAttribute('data-reason-id') || null;
+      items.push({ reason_id: rid, iqf_qty: 0 });
+      inp.value = '';
+      inp.classList.remove('input-error');
+    });
+
+    var rwEl = document.getElementById('modalRwQty');
+    var rwQty = rwEl ? parseInt(rwEl.textContent || '0', 10) : 0;
+    document.getElementById('modalIqfTotal') && (document.getElementById('modalIqfTotal').textContent = 0);
+    document.getElementById('modalAcceptedQty') && (document.getElementById('modalAcceptedQty').textContent = rwQty || 0);
+    document.getElementById('iqfSummaryTotalQty') && (document.getElementById('iqfSummaryTotalQty').textContent = rwQty || 0);
+    document.getElementById('iqfSummaryAcceptQty') && (document.getElementById('iqfSummaryAcceptQty').textContent = rwQty || 0);
+    document.getElementById('iqfSummaryRejectQty') && (document.getElementById('iqfSummaryRejectQty').textContent = 0);
+    var summary = document.getElementById('iqf-summary-badges');
+    if(summary) summary.style.display = 'none';
+
+    var errEl = document.getElementById('modalErrorMsg');
+    if(errEl) errEl.remove();
+    var remarkEl = document.getElementById('iqfAuditNotes');
+    if(remarkEl){
+      remarkEl.value = '';
+      remarkEl.style.border = '';
+      remarkEl.style.boxShadow = '';
+      remarkEl.setAttribute('placeholder', 'Add remark here...');
+    }
+
+    var batchRejCb = document.getElementById('batchRejection');
+    if(batchRejCb && batchRejCb.checked){
+      batchRejCb.checked = false;
+      _applyLotRejectionUI(false, rwQty);
+    }
+
+    resetRenderedTrayInputs();
+
+    var clearBtn = document.getElementById('iqfClearBtn');
+    if(clearBtn) clearBtn.disabled = true;
+    fetch('/iqf/iqf_submit_audit/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken') || ''
+      },
+      body: JSON.stringify({ lot_id: lotId, action: 'draft', items: items, accepted_trays: [], rejected_trays: [], remark: '' })
+    }).then(function(res){
+      return res.json().catch(function(){ return { success: false, error: 'Invalid server response' }; });
+    }).then(function(json){
+      if(!json || !json.success){
+        var errMsg = (json && json.error) || 'Failed to clear draft values';
+        if(typeof Swal !== 'undefined'){
+          Swal.fire({ icon: 'error', title: 'Clear failed', text: errMsg });
+        } else {
+          console.warn(errMsg);
+        }
+        return;
+      }
+      document.getElementById('modalRwQty') && (document.getElementById('modalRwQty').textContent = json.rw_qty || rwQty || 0);
+      document.getElementById('modalAcceptedQty') && (document.getElementById('modalAcceptedQty').textContent = json.rw_qty || rwQty || 0);
+      if(typeof Swal !== 'undefined'){
+        Swal.fire({ icon: 'success', title: 'Cleared', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
+      }
+    }).catch(function(err){
+      console.error('[IQF CLEAR] Failed', err);
+      if(typeof Swal !== 'undefined'){
+        Swal.fire({ icon: 'error', title: 'Clear failed', text: 'Network error' });
+      }
+    }).finally(function(){
+      if(clearBtn) clearBtn.disabled = false;
+    });
+  }
+
   // Click handlers
   document.addEventListener('click', function(e){
     var btn = e.target.closest('.tray-scan-btn');
@@ -3257,6 +3384,12 @@
       if(!_currentAuditLotId){ console.error('[IQF BUG] No lot_id stored for draft'); return; }
       console.log('[IQF DRAFT] Submitting for lot_id=' + _currentAuditLotId);
       submitAudit(_currentAuditLotId, 'draft');
+    }
+
+    if(e.target && e.target.id === 'iqfClearBtn'){
+      if(!_currentAuditLotId){ console.error('[IQF CLEAR] No lot_id stored'); return; }
+      console.log('[IQF CLEAR] Clearing manual inputs for lot_id=' + _currentAuditLotId);
+      clearAuditManualInputs(_currentAuditLotId);
     }
 
     if(e.target && e.target.id === 'iqfProceedBtn'){
@@ -3851,7 +3984,7 @@ document.addEventListener('click', function(evt){
         // ✅ After all accept slots rendered: auto-focus first empty slot
         var _allRendered = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
         for(var _ai = 0; _ai < _allRendered.length; _ai++){
-          if(!_allRendered[_ai].value.trim()){ try{ _allRendered[_ai].focus(); }catch(e){} break; }
+          if(!_allRendered[_ai].value.trim()){ _iqfFocusAndRevealInput(_allRendered[_ai], false); break; }
         }
 
         console.log('[IQF TRAY SLOTS] Rendered ' + slots.length + ' slots, accepted=' + acceptedQty + ', max_reuse=' + maxReuse);
@@ -3911,6 +4044,51 @@ document.addEventListener('click', function(evt){
     var _reuseErrRst = document.getElementById('iqf-reuse-error');
     if(_reuseErrRst){ _reuseErrRst.style.display = 'none'; }
   };
+
+  function _iqfFocusAndRevealInput(input, selectText){
+    if(!input) return;
+    setTimeout(function(){
+      try{ input.focus(); if(selectText) input.select(); }catch(e){}
+      try{ input.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' }); }catch(e){}
+      var oldShadow = input.style.boxShadow;
+      input.style.boxShadow = '0 0 0 3px rgba(2,128,132,0.28)';
+      setTimeout(function(){ input.style.boxShadow = oldShadow || ''; }, 800);
+    }, 0);
+  }
+
+  function _iqfSelectInvalidInput(input){
+    _iqfFocusAndRevealInput(input, true);
+  }
+
+  function _iqfFirstEmptyAcceptInput(){
+    var inputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+    for(var i = 0; i < inputs.length; i++){
+      if(!inputs[i].value.trim()) return inputs[i];
+    }
+    return null;
+  }
+
+  function _iqfFirstEmptyRejectInput(){
+    var inputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
+    for(var i = 0; i < inputs.length; i++){
+      if(!inputs[i].value.trim() && !inputs[i].classList.contains('rej-scan-valid')) return inputs[i];
+    }
+    return null;
+  }
+
+  function _iqfFocusNextAcceptOrReject(){
+    var acceptInput = _iqfFirstEmptyAcceptInput();
+    if(acceptInput){ _iqfFocusAndRevealInput(acceptInput, false); return 'accept'; }
+    var rejectInput = _iqfFirstEmptyRejectInput();
+    if(rejectInput){ _iqfFocusAndRevealInput(rejectInput, false); return 'reject'; }
+    return '';
+  }
+
+  function _iqfFocusNextRejectInput(){
+    var rejectInput = _iqfFirstEmptyRejectInput();
+    if(rejectInput){ _iqfFocusAndRevealInput(rejectInput, false); return true; }
+    return false;
+  }
 
   // ✅ ERR1 FIX: Handle "Use Existing" checkbox
   // ✅ NEW: Tap-to-fill handler for existing tray cards
@@ -4008,18 +4186,9 @@ document.addEventListener('click', function(evt){
     window._iqfComputeRejectAllocation();
     
     // Auto-focus next empty slot; if none, show "accept complete" toast and scroll to reject
-    var _tapFoundNext = false;
-    for(var k = 0; k < allInputs.length; k++){
-      if(!allInputs[k].value.trim()){
-        try{ allInputs[k].focus(); }catch(e){}
-        _tapFoundNext = true;
-        break;
-      }
-    }
-    if(!_tapFoundNext){
+    var _tapNextTarget = _iqfFocusNextAcceptOrReject();
+    if(_tapNextTarget !== 'accept'){
       // All accept slots filled via tap — auto-focus first empty reject input
-      var _firstEmptyRejTap = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
-      if(_firstEmptyRejTap){ try{ _firstEmptyRejTap.focus(); }catch(e){} }
       if(typeof Swal !== 'undefined'){
         Swal.fire({ icon: 'success', title: 'Accept Complete', text: 'Now scan Reject trays', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
       }
@@ -4095,7 +4264,7 @@ document.addEventListener('click', function(evt){
     if(acceptedIds.indexOf(val) > -1){
       inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
       if(statusEl){ statusEl.textContent = 'In Accept'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; }
-      setTimeout(function(){ inp.value = ''; inp.classList.remove('rej-scan-invalid'); inp.style.borderColor = ''; inp.style.background = ''; if(statusEl){ statusEl.textContent = 'Scan Required'; statusEl.style.color = '#888'; } try{ inp.focus(); }catch(ee){} }, 1500);
+      _iqfSelectInvalidInput(inp);
       return;
     }
 
@@ -4107,7 +4276,7 @@ document.addEventListener('click', function(evt){
     if(otherRejIds.indexOf(val) > -1){
       inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
       if(statusEl){ statusEl.textContent = 'Duplicate'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; }
-      setTimeout(function(){ inp.value = ''; inp.classList.remove('rej-scan-invalid'); inp.style.borderColor = ''; inp.style.background = ''; if(statusEl){ statusEl.textContent = 'Scan Required'; statusEl.style.color = '#888'; } try{ inp.focus(); }catch(ee){} }, 1500);
+      _iqfSelectInvalidInput(inp);
       return;
     }
 
@@ -4121,12 +4290,7 @@ document.addEventListener('click', function(evt){
     var _rb = document.getElementById('iqfRejScannedBadge');
     if(_rb) _rb.textContent = 'Scanned: ' + _rDone + '/' + _rTotal;
 
-    // Auto-focus next empty reject slot
-    var _allRejInputs = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input');
-    var _foundNextRej = false;
-    for(var _rk = 0; _rk < _allRejInputs.length; _rk++){
-      if(!_allRejInputs[_rk].value.trim()){ try{ _allRejInputs[_rk].focus(); }catch(ee){} _foundNextRej = true; break; }
-    }
+    var _foundNextRej = _iqfFocusNextRejectInput();
 
     // Update delink section
     _iqfUpdateDelinkFromReject();
@@ -4318,8 +4482,7 @@ document.addEventListener('click', function(evt){
     var _accFullDone = _allAccScanned.length > 0;
     _allAccScanned.forEach(function(i){ if(!i.classList.contains('scan-valid') && !i.classList.contains('scan-delink')) _accFullDone = false; });
     if(_accFullDone){
-      var _firstRejIn = rejectTbody.querySelector('.rej-scan-input');
-      if(_firstRejIn){ try{ _firstRejIn.focus(); }catch(ee){} }
+      _iqfFocusAndRevealInput(rejectTbody.querySelector('.rej-scan-input'), false);
     }
 
     // Delink hidden until reject complete
@@ -4692,6 +4855,7 @@ document.addEventListener('click', function(evt){
         if(!data || !data.success){
           inp.classList.add('scan-invalid');
           if(statusEl){ statusEl.textContent = 'Error'; statusEl.className = 'tray-scan-status status-invalid'; }
+          _iqfSelectInvalidInput(inp);
           return;
         }
 
@@ -4706,15 +4870,9 @@ document.addEventListener('click', function(evt){
           // ✅ Recompute reject allocation
           window._iqfComputeRejectAllocation();
           // Auto-move cursor to next empty scan input; if all filled, scroll to reject
-          var _allScanInputs = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
-          var _foundNext = false;
-          for(var _k = 0; _k < _allScanInputs.length; _k++){
-            if(!_allScanInputs[_k].value.trim()){ try{ _allScanInputs[_k].focus(); }catch(e){} _foundNext = true; break; }
-          }
-          if(!_foundNext){
+          var _nextTarget = _iqfFocusNextAcceptOrReject();
+          if(_nextTarget !== 'accept'){
             // All accept slots filled — auto-focus first empty reject input
-            var _firstEmptyRej1 = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
-            if(_firstEmptyRej1){ try{ _firstEmptyRej1.focus(); }catch(e){} }
             if(typeof Swal !== 'undefined'){
               Swal.fire({ icon:'success', title:'Accept Complete', text:'Now scan Reject trays', toast:true, position:'top-end', timer:2500, showConfirmButton:false });
             }
@@ -4724,7 +4882,7 @@ document.addEventListener('click', function(evt){
         } else if(st === 'no_reuse'){
           inp.classList.add('scan-invalid');
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-invalid'; }
-          try{ inp.value = ''; inp.focus(); }catch(e){}
+          _iqfSelectInvalidInput(inp);
         } else if(st === 'delink'){
           inp.classList.add('scan-delink');
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-delink'; }
@@ -4733,15 +4891,9 @@ document.addEventListener('click', function(evt){
           // ✅ Recompute reject allocation
           window._iqfComputeRejectAllocation();
           // Auto-move cursor to next empty scan input; if all filled, scroll to reject
-          var _allScanInputs2 = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
-          var _foundNext2 = false;
-          for(var _k2 = 0; _k2 < _allScanInputs2.length; _k2++){
-            if(!_allScanInputs2[_k2].value.trim()){ try{ _allScanInputs2[_k2].focus(); }catch(e){} _foundNext2 = true; break; }
-          }
-          if(!_foundNext2){
+          var _nextTarget2 = _iqfFocusNextAcceptOrReject();
+          if(_nextTarget2 !== 'accept'){
             // All accept slots filled — auto-focus first empty reject input
-            var _firstEmptyRej2 = document.querySelector('#iqf-reject-tbody .rej-scan-input:not(.rej-scan-valid)');
-            if(_firstEmptyRej2){ try{ _firstEmptyRej2.focus(); }catch(e){} }
             if(typeof Swal !== 'undefined'){
               Swal.fire({ icon:'success', title:'Accept Complete', text:'Now scan Reject trays', toast:true, position:'top-end', timer:2500, showConfirmButton:false });
             }
@@ -4752,13 +4904,14 @@ document.addEventListener('click', function(evt){
           // invalid_format or any other — clear input and stay for re-entry
           inp.classList.add('scan-invalid');
           if(statusEl){ statusEl.textContent = msg; statusEl.className = 'tray-scan-status status-invalid'; }
-          try{ inp.value = ''; inp.focus(); }catch(e){}
+          _iqfSelectInvalidInput(inp);
         }
       })
       .catch(function(err){
         console.error('[TRAY VALIDATE] fetch failed', err);
         inp.classList.add('scan-invalid');
         if(statusEl){ statusEl.textContent = 'Error'; statusEl.className = 'tray-scan-status status-invalid'; }
+        _iqfSelectInvalidInput(inp);
       });
   };
 

@@ -10,6 +10,7 @@ from .views import (
     IS_FullAcceptAPI,
     IS_FullRejectAPI,
     IS_GetDPTraysAPI,
+    IS_GetRejectionDetailsAPI,
     IS_PartialSubmitAPI,
     IS_PartialSubmitV2API,
     IS_PickTable,
@@ -117,7 +118,14 @@ urlpatterns = [
         'save_ip_remark/',
         IS_SaveIPRemarkAPI.as_view(),
         name='IS_SaveIPRemarkAPI',
-    ),    # ── Admin: hard-delete a batch from IS pick table ─────────────────────
+    ),
+    # ── Rejection details for Reject Table popup ─────────────────────────
+    path(
+        'get_rejection_details/',
+        IS_GetRejectionDetailsAPI.as_view(),
+        name='IS_GetRejectionDetailsAPI',
+    ),
+    # ── Admin: hard-delete a batch from IS pick table ─────────────────────
     path(
         'ip_delete_batch/',
         IS_DeleteBatchAPI.as_view(),

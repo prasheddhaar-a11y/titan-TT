@@ -553,7 +553,8 @@
         sourceBadge = scan.source === "free" || scan.source === "new_free"
           ? '<span class="isrm-badge new">FREE</span>'
           : '<span class="isrm-badge existing">EXISTING</span>';
-        if (scan.top) topBadge = '<span class="isrm-badge top">TOP</span>';
+        // TOP is position-based: slot 0 is always the top tray regardless of original tray flag
+        if (i === 0) topBadge = '<span class="isrm-badge top">TOP</span>';
       }
       return '<div class="isrm-alloc-row ' + (filled ? "filled" : "") + '" data-slot-idx="' + i + '">' +
         '<span class="isrm-alloc-num">' + (i + 1) + '</span>' +

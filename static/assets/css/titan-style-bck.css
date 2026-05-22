@@ -1449,7 +1449,7 @@ footer {
   .tray-scan-status-circle {
     width: 30px !important;
     height: 30px !important;
-    font-size: 20px !important;
+    font-size: var(--ttt-font-size-tablet) !important;
     min-width: 40px !important;
     min-height: 40px !important;
     max-width: 40px !important;
@@ -4757,11 +4757,11 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
   /* --- Tablet: freeze first 3 columns consistently with desktop --- */
   @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
     * {
-      font-size: 20px !important; /* Increase font size for better readability */
+      font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
     }
 
     :root {
-      --app-font-size: 20px;
+      --app-font-size: var(--ttt-font-size-tablet);
     }
     .rounded-circle {
       padding: 17px !important;

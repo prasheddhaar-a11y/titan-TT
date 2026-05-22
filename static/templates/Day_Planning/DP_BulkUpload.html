@@ -56,39 +56,12 @@
     transform: none;
   }
     /* Font size 13px for table and form elements on laptop/PC only (not tablet) */
-  @media (min-width: 1301px) {
-    .data-table th,
-    .data-table td,
-    .cell-input,
-    .simple-dropdown,
-    .table-header h2,
-    .card-header h1,
-    .btn,
-    .form-control,
-    .file-upload-area p,
-    .file-name,
-    .file-size,
-    .remove-file,
-    .data-count {
-      font-size: 13px !important;
-      
-    }
-  }
+  
     .table-header h2 {
     margin-bottom: -20px !important; /* Reduce space below heading */
     padding-bottom: 0 !important;
   }
-  @media (min-width: 900px) and (max-width: 1300px) {
-  .table-actions .btn {
-        min-width: 100px !important;
-        padding: 10px !important;
-        font-size: 17px !important;
-  }
-  #add-model-btn {
-    padding: 10px !important;
-    font-size: 17px !important;
-  }
-}
+  
 .data-count {
   display: inline-block;
   margin-left: 18px;
@@ -107,18 +80,7 @@
 }
   /* Count display styling - no longer needed at bottom */
   
-  @media (max-width: 480px) {
-    .table-actions .data-count {
-      position: relative;
-      top: 0;
-      margin-bottom: 10px;
-      transform: none;
-    }
-    
-    .table-actions .data-count::before {
-      display: none;
-    }
-  }
+  
     
       /* Sticky submit/cancel buttons - moved to table header */
     .table-actions {
@@ -193,26 +155,9 @@
     
     
     /* Responsive adjustments - no longer needed for header buttons */
-    @media (max-width: 768px) {
-      .table-actions .btn {
-        padding: 0.4rem 0.7rem !important;
-        font-size: 0.7rem !important;
-      }
-    }
     
-    @media (max-width: 480px) {
-      .table-actions {
-        flex-direction: row !important;
-        gap: 0.3rem !important;
-      }
-      
-      .table-actions .btn {
-        width: auto !important;
-        min-width: auto !important;
-        padding: 0.4rem 0.6rem !important;
-        font-size: 0.65rem !important;
-      }
-    }
+    
+    
     :root {
       --clr-primary: #126a83;      /* Teal */
       --clr-secondary: #023E4D;    /* Deep Navy */
@@ -652,11 +597,7 @@
   }
   
   /* Responsive table heights for different screen sizes */
-  @media (min-width: 2200px) {
-    .table-container {
-      max-height: 650px; 
-    }
-  }
+  
     .data-table {
       width: 100%;
       min-width: 600px;
@@ -815,39 +756,13 @@
     .header-content {
       padding: 1rem 1rem; /* Adjust as needed */
     }
-    @media (max-width: 425px) {
-    .card-header h1{
-      font-size: 12px !important;
-    }
-    .btn-outline{
-      padding: 0.5rem 0.5rem !important;
-      font-size: 10px !important;
-      font-weight: 600 !important;
-    }
-    }
+    
     /* Responsive adjustments */
-    @media (max-width: 426px){
-      .file-upload-area p {
-      font-size: 12px !important;
-      }
-    }
-    @media (max-width: 426px) {
-    .card-header h1{
-      font-size: 12px !important;
-    }
-    .btn-outline{
-      padding: 0.5rem 0.5rem !important;
-      font-size: 10px !important;
-      font-weight: 600 !important;
-    }
-    }
+    
+    
 
   
-  @media screen and (min-width: 770px) and (max-width: 1024px) {
-    .table-container {
-      padding-bottom: 0 !important;
-    }
-  }
+  
 
  /* Top Buttons style */
  .content-wrapper, .card, .card-body {

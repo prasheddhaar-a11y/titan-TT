@@ -8,13 +8,15 @@
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
 *{
-  font-size: 20px !important; /* Increase font size for better readability */
-} 
+  font-size: var(--ttt-font-size-tablet) !important; /* Increase font size for better readability */
+}
 
-:root { --app-font-size: 20px; }
+:root { --app-font-size: var(--ttt-font-size-tablet); }
+
 .rounded-circle{
   padding: 17px !important;
 }
+
 .model-image-tooltip{
   transform: translateX(-25%) !important;
   top: 45% !important;
@@ -138,7 +140,7 @@
   #order-listing th:nth-child(12) { min-width: 120px !important; max-width: 120px !important; }
   #order-listing th:nth-child(13) { min-width: 140px !important; max-width: 150px !important; }
   #order-listing th:nth-child(14) { min-width: 130px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(15) { min-width: 110px !important; max-width: 100px !important; }
+  #order-listing th:nth-child(15) { min-width: 110px !important; max-width: 110px !important; }
   #order-listing th:nth-child(16) { min-width: 120px !important; max-width: 150px !important; }
   #order-listing th:nth-child(17) { min-width: 130px !important; max-width: 130px !important; }
   #order-listing th:nth-child(18) { min-width: 130px !important; max-width: 130px !important; }
@@ -156,6 +158,12 @@
   #order-listing th[hidden],
   #order-listing td[hidden] {
     display: none !important;
+  }
+}
+
+    @media (min-width: 1245px) { /* HP Laptop */
+  .table-responsive {
+    max-height: 330px !important;
   }
 }
   /* Make the table header sticky */
@@ -482,6 +490,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   margin-top: 10px;
   border: 1px solid #ddd;
 }
+ 
 
 #trayScanDetails.table-grid::-webkit-scrollbar {
   width: 8px;
@@ -552,19 +561,57 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   }
 }
 </style>
-
+ 
 <div class="content-wrapper">
-  <div class="row">
-    <div class="col-12 grid-margin stretch-card">
-      <div class="card">
-       <div class="card-body" style="padding-bottom:12px;">
-          <h5 class="text-left mt-0 mb-4" style="font-weight:700;">Input Screening Accepted Table</h5>
+      <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+          <div class="card-body" style="padding-bottom:12px;">
+          <h4 class="text-left mt-0 mb-3" style="font-size: 16px; font-weight: 600">
+            Input Screening Completed Table
+          </h4>          
+          <!-- 🔥 NEW: Date Filter Section -->
+          <div class="calendar-bar">
+            <div class="date-input-group">
+              <label for="from-date-simple" style="font-weight: 600; color: #028084; margin-right: 8px;">From Date:</label>
+              <input type="date" id="from-date-simple" name="from_date" 
+                     value="{{ from_date }}" 
+                     max="{{ 'now'|date:'Y-m-d' }}"
+                     style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; font-size: 14px; color: #028084; font-weight: 600;">
+            </div>
+            
+            <div class="date-input-group">
+              <label for="to-date-simple" style="font-weight: 600; color: #028084; margin-right: 8px;">To Date:</label>
+              <input type="date" id="to-date-simple" name="to_date" 
+                     value="{{ to_date }}" 
+                     max="{{ 'now'|date:'Y-m-d' }}"
+                     style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; font-size: 14px; color: #028084; font-weight: 600;">
+            </div>
+            
+            <button id="search-date-range-simple" type="button" style="background: #028084; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+              <i class="fa fa-search"></i> Search
+            </button>
+            
+            <button id="clear-date-filter-simple" type="button" style="background: #6c757d; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; margin-left: 10px;">
+              <i class="fa fa-times"></i> Clear Filter
+            </button>
+                      <!-- Filter Active indicator - positioned above table -->
+<div id="filterActiveIndicator" style="display: none; margin: 10px 0;">
+  <span style="font-size: 12px; color: #fff; font-weight: 600; background: #28a745; padding: 5px 12px; border-radius: 15px; border: 1px solid #1e7e34; display: inline-block;">Filter Active</span>
+</div>
+          </div>
+
+
+          <input type="hidden" id="from-date" value="{{ from_date }}" />
+          <input type="hidden" id="to-date" value="{{ to_date }}" />
+          <!-- 🔥 END: Date Filter Section -->
+          
+         
             <!-- Table Section -->
-            <div class="table-responsive">
+            <div class="table-responsive" style="overflow: scroll !important; max-height:330px !important;">
               <table id="order-listing" class="table">
                 <thead>
-                  <tr>
-                    <th>
+                    <tr>
+                      <th>
                       S.No <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -579,7 +626,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Action <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      LOT Qty
+                      Lot Qty
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -590,7 +637,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Process <br>Status
+                      Reject Qty
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Process <br> Status
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -606,19 +657,19 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Polishing <br>Stock No
+                      Polishing <br> Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Plating <br>Color
+                      Plating Color
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                    <th>
+                     <th>
                       Category
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
-                      Polish <br>Finish
+                      Polish Finish
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -640,101 +691,100 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       data-ip-onhold-picking="{{ data.ip_onhold_picking }}"
                       data-stock-lot-id="{{ data.stock_lot_id }}">
 
-                     <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
-                    <td>{{ data.last_process_date_time|date:"Y-m-d" }}<br>
-                        <span style="display:inline-block; margin-top:4px;">{{ data.last_process_date_time|date:"h:i A" }}</span>
-                    </td>
-                      <!-- Plating Stk No - Mouse Hover Image -->
-                      <td>
-                        <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
-                          {{  data.plating_stk_no|highlight_plating_color|safe_html }}
-                          <div class="model-image-tooltip" style="position: absolute; left: 50%; top: 90%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s;">
-                            <button class="info-btn">Info</button>
-                            <button class="close-btn">Close</button>
-                            <!-- Image gallery section -->
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                              <!-- Hide scroll buttons since only one image is shown -->
-                              <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                                <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                              </div>
-                            </div>
-                            <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
-                          </div>
-                        </span>
-                      </td>
+                     <td>{{ page_obj.start_index|add:forloop.counter0 }}
 
+                    </td>                 
+                        <td>
+                        {{ data.last_process_date_time|date:"d-M-y"  }}<br>
+                        <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.last_process_date_time|date:"h:i A" }}</span>
+                        </td>
+                      <!-- Plating stk cell- hover info and close btn  -->
                     <td>
-<!-- Status Display -->
+                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                        {{ data.plating_stk_no|highlight_plating_color|safe_html }}
+                        <div class="model-image-tooltip" style="position: absolute; left: 50%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
+                          
+                          <!-- Header with Info and Close buttons -->
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <button class="info-btn" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
+                              Info
+                            </button>
+                            <button class="close-btn" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
+                              Close
+                            </button>
+                          </div>
+                          
+                          <!-- Image gallery section -->
+                          <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Hide scroll buttons since only one image is shown -->
+                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
+                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                            </div>
+                          </div>
+                        </div>
+                      </span>
+                    </td>
+<td>
+  <!-- Status Display -->
   {% if data.accepted_Ip_stock %}
-    <span class="status-badge accepted" style="background-color: #66bb6a; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+    <span class="status-badge accepted" style="background-color: #66bb6a; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
       <i class="fa fa-check-circle"></i>Accepted
     </span>
   {% elif data.rejected_ip_stock %}
-    <span class="status-badge rejected" style="background-color: #e57373; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+    <span class="status-badge rejected" style="background-color: #e57373; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
       <i class="fa fa-times-circle"></i>Rejected
     </span>
   {% elif data.few_cases_accepted_Ip_stock %}
-    <span class="status-badge partial-rejected" style="background-color: #7edd83; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
-      <i class="fa fa-adjust"></i>Partial Accepted
+    <span class="status-badge partial-rejected" style="background-color: #fb9393; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+      <i class="fa fa-adjust"></i>Partial Rejected
     </span>
   {% endif %}
-  <a href="#" title="View" class="text-primary tray-scan-btn-BQ-view tray-scan-btn-Jig" style="text-decoration: underline"
-     data-table-type="accept" data-stock-lot-id="{{ data.stock_lot_id|default:'' }}" data-batch-id="{{ data.batch_id }}"
-     data-model-no="{{ data.plating_stk_no }}" data-no-of-trays="{{ data.no_of_trays }}"
-     data-tray-capacity="{{ data.tray_capacity|default:'0' }}" data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
-     data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}" data-accepted-ip-stock="{{ data.accepted_Ip_stock|yesno:'true,false' }}"
-     data-rejected-ip-stock="{{ data.rejected_ip_stock|yesno:'true,false' }}" data-model-image="{{ data.model_images.0|default:'' }}"
-     data-few-cases-accepted-ip-stock="{{ data.few_cases_accepted_Ip_stock|yesno:'true,false' }}"
-     data-total-batch-quantity="{{ data.display_accepted_qty }}">
+  <a href="#" title="View" class="text-primary tray-scan-btn-Jig" style="text-decoration: underline; margin-left: 8px;"
+    data-stock-lot-id="{{ data.stock_lot_id }}" data-batch-id="{{ data.batch_id }}" data-model-no="{{ data.plating_stk_no }}"
+    data-no-of-trays="{{ data.no_of_trays }}" data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
+    data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}" data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
+    data-accepted-ip-stock="{{ data.accepted_Ip_stock|yesno:'true,false' }}" data-rejected-ip-stock="{{ data.rejected_ip_stock|yesno:'true,false' }}"
+    data-model-image="{{ data.model_images.0|default:'' }}" data-few-cases-accepted-ip-stock="{{ data.few_cases_accepted_Ip_stock|yesno:'true,false' }}"
+    data-total-batch-quantity="{{ data.total_stock }}">
     <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
   </a>
 </td>
                     <td>
                       <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.total_stock }}</span>
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-      
-                      </span>
                     </td>
                     <td>{{data.no_of_trays}}</td>
                     <td>{{ data.display_accepted_qty|default:0 }}</td>
+                    <td>{{ data.ip_rejection_total_qty|default:0 }}</td>
                     <td>
                       <div class="d-flex">
                         <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quantity"
                           class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="width: 20px; height: 20px; background-color: #0c8249; color: white; font-weight: 500; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
+                          style="width: 20px; height: 20px; background-color: #0c8249; color: white; font-weight: bold; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
                           Q
                         </div>
-                        <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Screening"
+                        <div data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Status"
                           class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="width: 20px; height: 20px; background-color: {% if data.rejected_ip_stock or data.accepted_Ip_stock or data.few_cases_accepted_Ip_stock %}#0c8249{% else %}#bdbdbd{% endif %}; color: white; font-weight: 500; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
+                          style="width: 20px; height: 20px; background-color: {% if data.rejected_ip_stock or data.accepted_Ip_stock or data.few_cases_accepted_Ip_stock %}#0c8249{% else %}#bdbdbd{% endif %}; color: white; font-weight: bold; line-height: 20px; text-align: center; padding-top: 1px; padding-right: 1px;">
                           S
                         </div>
                       </div>
                     </td>
                     <td>
                       {% if data.brass_qc_accepted_qty_verified %}
-                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                            style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Released
-                        </div>
-
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill" style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">Released</div>
                       {% else %}
-                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                            style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Yet to release
-                      </div>
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill" style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">Yet to release</div>
                       {% endif %}
                     </td>
                     <td>
-                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                           style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
+                      <div class="d-inline-block px-3 fw-semibold text-center rounded-pill" style="border: 1px solid #d1edf3; background-color: #d1edf3; color: #033b5d; font-size: 13px; white-space: nowrap; padding: 5px;">
                         {{ data.last_process_module|default:"N/A" }}
                       </div>
                     </td>
                     <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
                     <td>{{data.polishing_stk_no}}</td>
                     <td>{{ data.plating_color }}</td>
-                    <td>{{ data.category}}</td>
+                    <td>{{ data.category }}</td>
                     <td>{{data.polish_finish}}</td>
                     <td>{{data.location__location_name}}</td>
                     <td>
@@ -744,7 +794,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     <span class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: default;">
       <img src="{% static 'assets/icons/rec.png' %}" alt="Audio Remark" style="width: 20px; height: 20px;" />
       <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-        
         <span style="font-size: 12px; color: #333;">Audio remark available</span>
       </div>
     </span>
@@ -760,7 +809,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
         style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;" />
       <div class="remark-tooltip" style="position: absolute; top: 110%; left: 50%; transform: translateX(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
-        
         <div style="font-size: 12px; color: #333;">{{ data.IP_pick_remarks }}</div>
       </div>
     </span>
@@ -770,6 +818,21 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     </span>
   {% endif %}
 
+  <!-- Lot Rejection Remark Info Icon -->
+  {% if data.lot_rejected_comment %}
+    <i class="fa fa-info-circle lot-rej-info"
+      style="color:#d32f2f; font-size:15px; cursor:pointer; margin-left:5px; vertical-align:middle;"
+      tabindex="0"
+      data-lot-comment="{{ data.lot_rejected_comment|default:''|escape }}"
+      data-lot-id="{{ data.stock_lot_id }}"
+      onclick="showRejectionRemarksModalCompleted('{{ data.stock_lot_id }}')"
+      onkeypress="if(event.key==='Enter') showRejectionRemarksModalCompleted('{{ data.stock_lot_id }}')"></i>
+  {% else %}
+    <i class="fa fa-info-circle"
+      style="color:#bdbdbd; font-size:15px; cursor:not-allowed; opacity:0.5; margin-left:5px; vertical-align:middle;"
+      title="No lot rejection remarks"></i>
+  {% endif %}
+
 </td>
                    
                   </tr>
@@ -777,172 +840,115 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               
                 </tbody>
               </table>
-
-              
+<div
+  id="trayScanModal_DayPlanning"
+  class="tray-scan-modal-DayPlanning"
+  style="display:none"
+>
+  <div class="tray-scan-modal-DayPlanning-content">
+    <span id="closeTrayScanModal_DayPlanning" class="tray-scan-close-readonly">&times;</span>
+   
+    <div class="modal-top-header" style="display: flex; align-items: center; gap: 20px; padding-bottom: 10px;">
+      <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
+        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
+        <!-- Model No and Lot Qty in same line -->
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: bold; color: #666;">Model No:</span>
+              <h6 id="modalModelNo_DayPlanning" style="margin: 0; color: #028084; font-weight: bold;">(Fetch Dynamically)</h6>
             </div>
-            
-           
-         
-
-          <div id="trayScanModal_DayPlanning" class="tray-scan-modal-DayPlanning" style="display:none">
-            <div class="tray-scan-modal-DayPlanning-content">
-                <span id="closeTrayScanModal_DayPlanning" class="tray-scan-close-readonly">&times;</span>
-                
-                <div class="modal-top-header">
-                    <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
-                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiNFNUU1RTUiLz4KPHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9zdmc+Cg==" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
-                        
-                        <!-- Model No and Lot Qty in same line -->
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: bold; color: #666;">Model No:</span>
-                                    <h6 id="modalModelNo_DayPlanning" style="margin: 0; color: #028084; font-weight: bold;">SAMPLE-123</h6>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: bold; color: #666;">Lot Qty:</span>
-                                    <h6 id="modalLotQty_DayPlanning" style="margin: 0; color: #e67e22; font-weight: bold;">(Fetch Dynamically)</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-         <h5 style="text-align: center; margin: 0; flex: 1; font-weight: 600; color:#595959">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: bold; color: #666;">Lot Qty:</span>
+              <h6 id="modalLotQty_DayPlanning" style="margin: 0; color: #e67e22; font-weight: bold;">(Fetch Dynamically)</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+      <h5 style="text-align: center; margin: 0; flex: 1; font-weight: 600; color:#595959">
         Input Screening - Tray Scan 
       </h5>
-                    <button id="trayValidateBtn" type="button">
-                        Tray Validate
-                    </button>
-                    <input id="trayValidateInput" type="text" placeholder="Enter validation info..." />
-                    <span id="trayScanRedoBtn" style="display: inline-block; text-align: center; line-height: 20px;">↻</span>
-                </div>
-                <div id="trayErrorMessage">
-                    <span id="trayErrorText">Sample error message</span>
-                </div>
-                <div id="trayScanDetails_DayPlanning">
-                    <table class="table table-bordered table-sm">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Tray ID</th>
-                                <th>Tray Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="top-tray-row">
-                                <td>1 (Top Tray)</td>
-                                <td><input type="text" class="form-control" value="TRAY-001" readonly /></td>
-                                <td><input type="number" class="form-control" value="25" readonly /></td>
-                            </tr>
-                            <tr>
-                                <td>2</td>
-                                <td><input type="text" class="form-control" value="TRAY-002" readonly /></td>
-                                <td><input type="number" class="form-control" value="30" readonly /></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-          <!-- Pagination Section -->
-             <div class="pagination-wrapper">
-              <nav aria-label="Page navigation">
-                                <ul class="pagination justify-content-end mb-0">
-                  {# Previous button #}
-                  {% if page_obj.has_previous %}
-                    <li>
-                      <a href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                        <span aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
-                      </a>
-                    </li>
-                  {% else %}
-                    <li class="disabled">
-                      <span aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
-                    </li>
-                  {% endif %}
-                
-                  {# Always show first page #}
-                  {% if page_obj.number > 3 %}
-                    <li><a href="?page=1">1</a></li>
-                    {% if page_obj.number > 4 %}
-                      <li class="disabled"><span>…</span></li>
-                    {% endif %}
-                  {% endif %}
-                
-                  {# Show pages around current page #}
-                  {% for num in page_obj.paginator.page_range %}
-                    {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
-                      {% if num == page_obj.number %}
-                        <li class="active"><span>{{ num }}</span></li>
-                      {% else %}
-                        <li><a href="?page={{ num }}">{{ num }}</a></li>
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                
-                  {# Show ellipsis and last page if needed #}
-                  {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
-                    {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
-                      <li class="disabled"><span>…</span></li>
-                    {% endif %}
-                    <li><a href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a></li>
-                  {% endif %}
-                
-                  {# Next button #}
-                  {% if page_obj.has_next %}
-                    <li>
-                      <a href="?page={{ page_obj.next_page_number }}" aria-label="Next">
-                        <span aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
-                      </a>
-                    </li>
-                  {% else %}
-                    <li class="disabled">
-                      <span aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
-                    </li>
-                  {% endif %}
-                </ul>
-              </nav>
-            </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- Image Slider Modal (popup) -->
-  <div id="imageSliderModal" class="image-slider-modal">
-    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
-    <h3>Visual Aid</h3>
-    <div class="slider" id="slider">
-      <div class="slides" id="slidesContainer">
-        <div class="slide active">
-          <img src="{% static 'assets/images/carousel/banner_1.jpg' %}" alt="Slide 1">
-        </div>
-        <div class="slide">
-          <img src="{% static 'assets/images/carousel/banner_2.jpg' %}" alt="Slide 2">
-        </div>
-        <div class="slide">
-          <img src="{% static 'assets/images/carousel/banner_3.jpg' %}" alt="Slide 3">
-        </div>
-      </div>
-      <button class="prev" id="prevBtn">&#10094;</button>
-      <button class="next" id="nextBtn">&#10095;</button>
-    </div>
-  </div>
-  <!-- Image Slider Modal -->
-  <div id="imageSliderModal" class="image-slider-modal">
-    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
-    <div class="slider" id="slider">
-      <button class="prev" id="prevBtn">&#8592;</button>
-      <div class="slides"></div>
-      <button class="next" id="nextBtn">&#8594;</button>
-    </div>
-  </div>
 
-            
-  {% block script %}
-
+      <input id="trayValidateInput" type="text" placeholder="Enter validation info..." style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" />
+      
+    </div>
+    <div id="trayErrorMessage" style="display: none; background-color: #ffebee; border: 1px solid #f44336; color: #c62828; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; text-align: center;">
+      <span id="trayErrorText"></span>
+    </div>
+    <div id="trayScanDetails_DayPlanning" class="table-grid">
+      <!-- Headers and dynamic content will be injected here -->
+    </div>
+  </div>
+</div>
+<!-- pagination section with this (preserves date filters) -->
+<div class="pagination-wrapper">
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-end mb-0">
+      {# Previous button #}
+      {% if page_obj.has_previous %}
+        <li>
+          <a href="?page={{ page_obj.previous_page_number }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" aria-label="Previous">
+            <span aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
+          </a>
+        </li>
+      {% else %}
+        <li class="disabled">
+          <span aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
+        </li>
+      {% endif %}
     
+      {# Always show first page #}
+      {% if page_obj.number > 3 %}
+        <li><a href="?page=1{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">1</a></li>
+        {% if page_obj.number > 4 %}
+          <li class="disabled"><span>…</span></li>
+        {% endif %}
+      {% endif %}
+    
+      {# Show pages around current page #}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+          {% if num == page_obj.number %}
+            <li class="active"><span>{{ num }}</span></li>
+          {% else %}
+            <li><a href="?page={{ num }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">{{ num }}</a></li>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    
+      {# Show ellipsis and last page if needed #}
+      {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+        {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+          <li class="disabled"><span>…</span></li>
+        {% endif %}
+        <li><a href="?page={{ page_obj.paginator.num_pages }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">{{ page_obj.paginator.num_pages }}</a></li>
+      {% endif %}
+    
+      {# Next button #}
+      {% if page_obj.has_next %}
+        <li>
+          <a href="?page={{ page_obj.next_page_number }}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}" aria-label="Next">
+            <span aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
+          </a>
+        </li>
+      {% else %}
+        <li class="disabled">
+          <span aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+        </div>
+      </div>
+      </div>
+      </div>
+ 
+  
+
+  
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
   const redoBtn = document.getElementById("trayScanRedoBtn");
@@ -1097,36 +1103,22 @@ document.addEventListener("DOMContentLoaded", function () {
     return lastBtn ? lastBtn.getAttribute('data-batch-id') : '';
   }
 
-function getCurrentStockStatus() {
-  const lastBtn = document.querySelector('.tray-scan-btn-Jig[data-batch-id]');
-  if (!lastBtn) {
+  function getCurrentStockStatus() {
+    // Get stock status from the last clicked button
+    const lastBtn = document.querySelector('.tray-scan-btn-Jig[data-batch-id]');
+    if (lastBtn) {
+      return {
+        accepted_ip_stock: lastBtn.getAttribute('data-accepted-ip-stock') === 'true',
+        rejected_ip_stock: lastBtn.getAttribute('data-rejected-ip-stock') === 'true',
+        few_cases_accepted_ip_stock: lastBtn.getAttribute('data-few-cases-accepted-ip-stock') === 'true'
+      };
+    }
     return {
       accepted_ip_stock: false,
       rejected_ip_stock: false,
       few_cases_accepted_ip_stock: false
     };
   }
-
-  // 🔒 Detect Accept Table
-  const tableType = lastBtn.getAttribute('data-table-type');
-
-  if (tableType === 'accept') {
-    // ✅ FORCE Accept Table behavior
-    return {
-      accepted_ip_stock: true,
-      rejected_ip_stock: false,
-      few_cases_accepted_ip_stock: false
-    };
-  }
-
-  // Default behavior (Completed / Partial / Reject tables)
-  return {
-    accepted_ip_stock: lastBtn.getAttribute('data-accepted-ip-stock') === 'true',
-    rejected_ip_stock: lastBtn.getAttribute('data-rejected-ip-stock') === 'true',
-    few_cases_accepted_ip_stock:
-      lastBtn.getAttribute('data-few-cases-accepted-ip-stock') === 'true'
-  };
-}
 
   function showError(message) {
     console.log("🚨 Showing Input Screening error:", message);
@@ -1373,7 +1365,6 @@ function getCurrentStockStatus() {
 });
 </script>
 
-    <!-- Script for opening Day Planning - Tray Scan modal with read-only view while hitting view.png -->
 
 <script nonce="{{ csp_nonce }}">
 // Updated script - Keep existing structure, only add SHORTAGE entries
@@ -1398,10 +1389,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const trayCapacity = link.getAttribute('data-tray-capacity') || "";
       const totalBatchQuantity = link.getAttribute('data-total-batch-quantity') || "0";
 
-      // Get stock status data - FORCE for Accept Table
-      const acceptedIpStock = true;
-      const rejectedIpStock = false;
-      const fewCasesAcceptedIpStock = false;
+      // Get stock status data
+      const acceptedIpStock = link.getAttribute('data-accepted-ip-stock') === 'true';
+      const rejectedIpStock = link.getAttribute('data-rejected-ip-stock') === 'true';
+      const fewCasesAcceptedIpStock = link.getAttribute('data-few-cases-accepted-ip-stock') === 'true';
 
       // Set model number in modal
       if (modalModelNo && modelNo) {
@@ -1421,7 +1412,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // ✅ NEW: Dynamic per-child-lot panel rendering from IS submission record
-      const PANEL_MODE = 'accept'; // Accept table → show only accept lots
+      const PANEL_MODE = 'both'; // Completed table → show both accept + reject lots
       let result = null;
       let traysData = [];
       let rejectionSummary = {};
@@ -1440,7 +1431,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const rows = trays.map((t, i) => {
           const top = t.top_tray ? '<span style="background:#0288d1;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">TOP</span>' : '';
           const reason = t.reason_text ? `<span style="background:#b71c1c;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">${_esc(t.reason_text)}</span>` : '';
-          const _srcLabel = t.source === 'reused' ? 'Delinked' : t.source;
+          // ✅ FIX: Distinguish between reused reject trays (qty>0) and delinked trays (qty=0)
+          let _srcLabel = t.source;
+          if (t.source === 'reused') {
+            _srcLabel = (t.qty === 0) ? 'Delinked' : 'Reused';
+          } else if (t.source === 'new') {
+            _srcLabel = 'new';
+          }
           const src = _srcLabel ? `<span style="color:#666;font-size:10px;margin-left:6px;">(${_esc(_srcLabel)})</span>` : '';
           return `<tr><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:center;">${i+1}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;font-family:monospace;">${_esc(t.tray_id)}${top}${reason}${src}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;">${_esc(t.qty)}</td></tr>`;
         }).join('');
@@ -1449,19 +1446,50 @@ document.addEventListener("DOMContentLoaded", function () {
       function _renderAcceptPanel(al, isFullAccept) {
         const typeLabel = isFullAccept ? 'FULL ACCEPT' : 'PARTIAL ACCEPT';
         const typeBg = isFullAccept ? '#1b5e20' : '#2e7d32';
-        return `<div style="border:1px solid #c8e6c9;background:#f1f8e9;border-radius:6px;padding:10px;margin-bottom:10px;">
+        return `<div style="border:1px solid #c8e6c9;background:#f1f8e9;border-radius:6px;padding:10px;margin-bottom:10px;font-weight:300;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;">${typeLabel}</span>
-              <span style="font-family:monospace;color:#00695c;font-weight:bold;">${_esc(al.new_lot_id)}</span>
+              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;">${typeLabel}</span>
+              <span style="font-family:monospace;color:#00695c;font-weight:400;">${_esc(al.new_lot_id)}</span>
             </div>
-            <div style="font-size:11px;color:#555;">${_esc(al.created_at || '')}</div>
+            <div style="font-size:11px;color:#888;">${_esc(al.created_at || '')}</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
-            <div><strong>Accepted Qty:</strong> <span style="color:#2e7d32;font-weight:bold;">${_esc(al.accepted_qty)}</span></div>
-            <div><strong>Accept Trays Count:</strong> ${_esc(al.accept_trays_count)}</div>
+            <div><span style="font-weight:500;color:#666;">Accepted Qty:</span> <span style="color:#2e7d32;font-weight:600;">${_esc(al.accepted_qty)}</span></div>
+            <div><span style="font-weight:500;color:#666;">Accept Trays Count:</span> ${_esc(al.accept_trays_count)}</div>
           </div>
-          <div style="margin-top:6px;"><strong style="font-size:12px;">Trays Snapshot:</strong>${_renderTraySnapshot(al.trays || [])}</div>
+          <div style="margin-top:6px;"><span style="font-size:12px;font-weight:500;color:#666;">Trays Snapshot:</span>${_renderTraySnapshot(al.trays || [])}</div>
+        </div>`;
+      }
+      function _renderRejectPanel(rl, isFullReject) {
+        const typeLabel = isFullReject ? 'FULL REJECT' : 'PARTIAL REJECT';
+        const typeBg = isFullReject ? '#b71c1c' : '#c62828';
+        const reasons = rl.rejection_reasons || {};
+        const reasonChips = Object.keys(reasons).map(k => {
+          const r = reasons[k] || {};
+          if (r.is_shortage) {
+            return `<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;font-weight:500;">Shortage = ${_esc(r.qty)}</span>`;
+          }
+          return `<span style="background:#ffcdd2;color:#b71c1c;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;font-weight:400;">${_esc(r.reason || k)}: ${_esc(r.qty)}</span>`;
+        }).join('') || '<span style="color:#999;font-size:11px;font-weight:300;">None</span>';
+        const delinkList = (rl.delinked_tray_ids || []).map(t => `<span style="font-family:monospace;background:#eceff1;padding:1px 6px;border-radius:6px;margin-right:4px;font-size:11px;font-weight:400;">${_esc(t)}</span>`).join('') || '<span style="color:#999;font-size:11px;font-weight:300;">None</span>';
+        return `<div style="border:1px solid #ffcdd2;background:#ffebee;border-radius:6px;padding:10px;margin-bottom:10px;font-weight:300;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;">${typeLabel}</span>
+              <span style="font-family:monospace;color:#b71c1c;font-weight:400;">${_esc(rl.new_lot_id)}</span>
+            </div>
+            <div style="font-size:11px;color:#888;">${_esc(rl.created_at || '')}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
+            <div><span style="font-weight:500;color:#666;">Rejected Qty:</span> <span style="color:#c62828;font-weight:600;">${_esc(rl.rejected_qty)}</span></div>
+            
+            <div><span style="font-weight:500;color:#666;">Delink Count:</span> ${_esc(rl.delink_count)}</div>
+            <div style="grid-column:1/-1;"><span style="font-weight:500;color:#666;">Reasons:</span> ${reasonChips}</div>
+          </div>
+          <div style="margin-top:6px;font-size:12px;"><span style="font-weight:500;color:#666;">Delinked Trays:</span> ${delinkList}</div>
+          <div style="margin-top:6px;"><span style="font-size:12px;font-weight:500;color:#666;">Trays Snapshot:</span>${_renderTraySnapshot(rl.trays || [])}</div>
+          ${rl.remarks ? `<div style="margin-top:6px;font-size:12px;"><span style="font-weight:500;color:#666;">Remarks:</span> ${_esc(rl.remarks)}</div>` : ''}
         </div>`;
       }
       function buildTableHTML() {
@@ -1469,15 +1497,20 @@ document.addEventListener("DOMContentLoaded", function () {
           return '<div style="padding:20px;text-align:center;color:#c62828;font-size:13px;">No submitted detail available for this lot.</div>';
         }
         const isFullAccept = !!(result.is_full_accept);
+        const isFullReject = !!(result.is_full_reject);
         let html = '<div style="padding:8px;">';
-        (result.accept_lots || []).forEach(al => { html += _renderAcceptPanel(al, isFullAccept); });
-        if (!result.accept_lots || !result.accept_lots.length) {
-          html += '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">No accept lot data found.</div>';
-        }
+        const showAccept = (PANEL_MODE === 'accept' || PANEL_MODE === 'both');
+        const showReject = (PANEL_MODE === 'reject' || PANEL_MODE === 'both');
+        if (showAccept) (result.accept_lots || []).forEach(al => { html += _renderAcceptPanel(al, isFullAccept); });
+        if (showReject) (result.reject_lots || []).forEach(rl => { html += _renderRejectPanel(rl, isFullReject); });
+        const empty = (showAccept && (!result.accept_lots || !result.accept_lots.length)) &&
+                      (showReject && (!result.reject_lots || !result.reject_lots.length));
+        if (empty) html += '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">No lot data found.</div>';
         html += '</div>';
         return html;
       }
-
+      // legacy local vars retained for any downstream listeners
+      
       // Show panels
       // Remove table-grid class so CSS rule `> div { display:none !important; }` does not hide our panel divs
       detailsDiv.classList.remove('table-grid');
@@ -1509,6 +1542,185 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+
+
+  <!-- Image Slider Modal (popup) -->
+  <div id="imageSliderModal" class="image-slider-modal">
+    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
+    <h3>Visual Aid</h3>
+    <div class="slider" id="slider">
+      <div class="slides" id="slidesContainer">
+        <div class="slide active">
+          <img src="{% static 'assets/images/carousel/banner_1.jpg' %}" alt="Slide 1">
+        </div>
+        <div class="slide">
+          <img src="{% static 'assets/images/carousel/banner_2.jpg' %}" alt="Slide 2">
+        </div>
+        <div class="slide">
+          <img src="{% static 'assets/images/carousel/banner_3.jpg' %}" alt="Slide 3">
+        </div>
+      </div>
+      <button class="prev" id="prevBtn">&#10094;</button>
+      <button class="next" id="nextBtn">&#10095;</button>
+    </div>
+  </div>
+  <!-- Image Slider Modal -->
+  <div id="imageSliderModal" class="image-slider-modal">
+    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
+    <div class="slider" id="slider">
+      <button class="prev" id="prevBtn">&#8592;</button>
+      <div class="slides"></div>
+      <button class="next" id="nextBtn">&#8594;</button>
+    </div>
+  </div>
+  {% block script %}
+
+  <!-- Lot Rejection Remarks Modal -->
+  <div id="lotRejectionRemarksModalCompleted" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.3); position:relative;">
+      <button onclick="document.getElementById('lotRejectionRemarksModalCompleted').style.display='none';"
+        style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:20px; cursor:pointer; color:#555;">&times;</button>
+      <h5 style="margin:0 0 16px; color:#d32f2f; font-weight:700; font-size:15px;">
+        <i class="fa fa-info-circle" style="margin-right:6px;"></i>Lot Rejection Remarks
+      </h5>
+      <div id="lotRejectionRemarksContentCompleted" style="font-size:13px; color:#333; line-height:1.6; word-break:break-word;">
+        Loading...
+      </div>
+    </div>
+  </div>
+
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+  console.log('Initializing date filtering with simple indicators...');
+  
+  const fromInput = document.getElementById('from-date-simple');
+  const toInput = document.getElementById('to-date-simple');
+  const searchBtn = document.getElementById('search-date-range-simple');
+  const clearBtn = document.getElementById('clear-date-filter-simple');
+  const filterIndicator = document.getElementById('filterActiveIndicator');
+  
+  // Check if we're in filter mode by looking at URL parameters, not input values
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasFromDateParam = urlParams.has('from_date') && urlParams.get('from_date');
+  const hasToDateParam = urlParams.has('to_date') && urlParams.get('to_date');
+  const isFilterMode = hasFromDateParam && hasToDateParam;
+  
+  // Show "Filter Active" text ONLY if actual URL filter parameters exist
+  if (isFilterMode && filterIndicator) {
+    filterIndicator.style.display = 'block';
+    console.log('Filter mode detected - showing indicator');
+  } else {
+    if (filterIndicator) {
+      filterIndicator.style.display = 'none';
+    }
+    console.log('No filter mode - hiding indicator');
+  }
+  
+  // Set default dates function (fixed to prevent cache issues)
+  function setDefaultDates() {
+    const today = new Date();
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(today.getDate() - 2);
+    
+    const formatDate = (date) => {
+      return date.getFullYear() + '-' + 
+             String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+             String(date.getDate()).padStart(2, '0');
+    };
+    
+    // Only set defaults if inputs are completely empty and we're not in filter mode
+    if (fromInput && !fromInput.value && !isFilterMode) {
+      fromInput.value = formatDate(twoDaysAgo);
+    }
+    
+    if (toInput && !toInput.value && !isFilterMode) {
+      toInput.value = formatDate(today);
+    }
+  }
+  
+  // Call default dates only if not in filter mode
+  if (!isFilterMode) {
+    setDefaultDates();
+  }
+  
+  // Date validation
+  if (fromInput && toInput) {
+    fromInput.addEventListener('change', function() {
+      if (toInput.value && fromInput.value > toInput.value) {
+        toInput.value = fromInput.value;
+      }
+      toInput.min = fromInput.value;
+    });
+    
+    toInput.addEventListener('change', function() {
+      if (fromInput.value && toInput.value < fromInput.value) {
+        fromInput.value = toInput.value;
+      }
+      fromInput.max = toInput.value;
+    });
+  }
+  
+  // Search functionality
+  if (searchBtn) {
+    searchBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const fromDate = fromInput ? fromInput.value : '';
+      const toDate = toInput ? toInput.value : '';
+      
+      if (!fromDate || !toDate) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Date Selection Required',
+            text: 'Please select both start and end dates.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          alert('Please select both start and end dates.');
+        }
+        return;
+      }
+      
+      if (new Date(fromDate) > new Date(toDate)) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Invalid Date Range',
+            text: 'Start date must be before or equal to end date.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          alert('Start date must be before or equal to end date.');
+        }
+        return;
+      }
+      
+      const currentUrl = window.location.href.split('?')[0];
+      const newUrl = `${currentUrl}?from_date=${fromDate}&to_date=${toDate}`;
+      window.location.href = newUrl;
+    });
+  }
+  
+  // Clear functionality (Fix 3 - prevents cache/flickering issues)
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Immediately redirect to clean URL without date parameters
+      // This prevents any intermediate state or cache issues
+      const currentUrl = window.location.href.split('?')[0];
+      window.location.href = currentUrl;
+    });
+  }
+  
+  console.log('Date filtering initialization complete');
+});
+</script>
+            
   <!-- Table Sorting Script -->
   <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
@@ -1538,8 +1750,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   </script>
-
- <!-- Script for Text Remarks (unchanged) -->
+  <!-- Script for Text Remarks (unchanged) -->
   <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
       var triggers = document.querySelectorAll(".remark-tooltip-trigger");
@@ -1592,7 +1803,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   </script>
-
   <!-- Image Slider Script -->
   <!-- Script for Model / Stock No - Image Mouse Hover -->
 <script nonce="{{ csp_nonce }}">
@@ -1652,20 +1862,26 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
-      tooltip.querySelector('.img-scroll-left').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (currentIndex > 0) {
-          currentIndex--;
-          showImages(currentIndex);
-        }
-      });
-      tooltip.querySelector('.img-scroll-right').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (currentIndex < images.length - 3) {
-          currentIndex++;
-          showImages(currentIndex);
-        }
-      });
+      var scrollLeft = tooltip.querySelector('.img-scroll-left');
+      if (scrollLeft) {
+        scrollLeft.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (currentIndex > 0) {
+            currentIndex--;
+            showImages(currentIndex);
+          }
+        });
+      }
+      var scrollRight = tooltip.querySelector('.img-scroll-right');
+      if (scrollRight) {
+        scrollRight.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (currentIndex < images.length - 3) {
+            currentIndex++;
+            showImages(currentIndex);
+          }
+        });
+      }
 
       // Add click event to images for modal slider
       images.forEach(function(img, idx) {
@@ -1725,7 +1941,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 </script>
-
 <!-- Active table row highlight -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function() {
@@ -2021,6 +2236,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+
 <!-- // --- Child Screen Lock Feature ---
 // When child screen (tray scan modal) is open, only allow scroll and Eye icon (view) access on parent.
 // All other actions (edit, delete, filter, etc.) are blocked visually and functionally.
@@ -2109,6 +2325,117 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
   });
+</script>
+
+<script nonce="{{ csp_nonce }}">
+// Disable future dates for From Date input
+document.addEventListener('DOMContentLoaded', function() {
+  const today = new Date().toISOString().split('T')[0];
+  const fromDateInput = document.getElementById('from-date-simple');
+  if (fromDateInput) {
+    fromDateInput.setAttribute('max', today);
+    fromDateInput.addEventListener('change', function() {
+      if (this.value > today) {
+        this.value = today;
+        alert('Future dates are not allowed. Date has been set to today.');
+      }
+    });
+  }
+});
+</script>
+
+<script nonce="{{ csp_nonce }}">
+// ✅ Lot Rejection Remarks Modal for IS_Completed_Table
+function showRejectionRemarksModalCompleted(lotId) {
+  console.log('✅ [showRejectionRemarksModalCompleted] lotId:', lotId);
+  const modal = document.getElementById('lotRejectionRemarksModalCompleted');
+  const content = document.getElementById('lotRejectionRemarksContentCompleted');
+  if (!modal || !content) return;
+
+  content.innerHTML = 'Loading...';
+  modal.style.display = 'flex';
+
+  fetch(`/inputscreening/get_rejection_remarks/?lot_id=${encodeURIComponent(lotId)}`)
+    .then(r => r.json())
+    .then(data => {
+      const remarks = data.rejection_remarks || [];
+      console.log('✅ [showRejectionRemarksModalCompleted] remarks:', remarks);
+      if (remarks.length === 0) {
+        content.innerHTML = '<span style="color:#888; font-style:italic;">No rejection remarks found.</span>';
+        return;
+      }
+      // Show lot rejection remark prominently
+      let html = '';
+      remarks.forEach(item => {
+        if (item.reason === 'Lot Rejection' || item.lot_rejected_comment) {
+          const remark = item.lot_rejected_comment || item.reason || '';
+          html += `<div style="background:#fff3f3; border-left:4px solid #d32f2f; padding:10px 14px; border-radius:4px; margin-bottom:8px;">
+            <div style="font-weight:600; color:#d32f2f; font-size:12px;">Lot Rejection</div>
+            <div style="margin-top:4px; color:#333;">${remark}</div>
+            ${item.qty ? `<div style="margin-top:4px; font-size:12px; color:#666;">Qty: ${item.qty}</div>` : ''}
+          </div>`;
+        } else {
+          html += `<div style="padding:6px 0; border-bottom:1px solid #eee; font-size:13px;">
+            <strong>${item.reason || ''}</strong>${item.qty ? ` — ${item.qty}` : ''}
+          </div>`;
+        }
+      });
+      content.innerHTML = html || '<span style="color:#888; font-style:italic;">No lot rejection remarks.</span>';
+    })
+    .catch(err => {
+      console.error('❌ [showRejectionRemarksModalCompleted] Error:', err);
+      content.innerHTML = '<span style="color:#d32f2f;">Error loading remarks.</span>';
+    });
+}
+
+// Close modal when clicking backdrop
+document.getElementById('lotRejectionRemarksModalCompleted').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
+
+<script nonce="{{ csp_nonce }}">
+// Hover tooltip for lot rejection info icons in Completed Table
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.lot-rej-info').forEach(function(icon) {
+    let tooltipEl = null;
+    function createTooltip(text) {
+      tooltipEl = document.createElement('div');
+      tooltipEl.className = 'lot-rej-tooltip';
+      tooltipEl.style.position = 'absolute';
+      tooltipEl.style.background = '#fff';
+      tooltipEl.style.border = '1px solid #ddd';
+      tooltipEl.style.padding = '8px 10px';
+      tooltipEl.style.borderRadius = '6px';
+      tooltipEl.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+      tooltipEl.style.zIndex = 20000;
+      tooltipEl.style.maxWidth = '360px';
+      tooltipEl.style.fontSize = '13px';
+      tooltipEl.textContent = text;
+      document.body.appendChild(tooltipEl);
+      return tooltipEl;
+    }
+    function showTooltip() {
+      const text = icon.getAttribute('data-lot-comment') || icon.getAttribute('title') || 'No remarks';
+      createTooltip(text);
+      const rect = icon.getBoundingClientRect();
+      const top = window.scrollY + rect.top - (tooltipEl.offsetHeight || 44) - 8;
+      const left = window.scrollX + rect.left + (rect.width / 2) - (tooltipEl.offsetWidth / 2);
+      tooltipEl.style.top = (top > 8 ? top : window.scrollY + rect.bottom + 8) + 'px';
+      tooltipEl.style.left = (Math.max(8, left)) + 'px';
+    }
+    function hideTooltip() {
+      if (tooltipEl && tooltipEl.parentNode) {
+        tooltipEl.parentNode.removeChild(tooltipEl);
+        tooltipEl = null;
+      }
+    }
+    icon.addEventListener('mouseenter', showTooltip);
+    icon.addEventListener('mouseleave', hideTooltip);
+    icon.addEventListener('focus', showTooltip);
+    icon.addEventListener('blur', hideTooltip);
+  });
+});
 </script>
 
 <script nonce="{{ csp_nonce }}" src="{% static 'js/inputscreening_shortcuts.js' %}" defer></script>
