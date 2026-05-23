@@ -120,7 +120,8 @@ def get_picktable_base_queryset():
 def get_completed_base_queryset(from_datetime, to_datetime):
     """
     Returns annotated + filtered queryset for Brass QC completed table.
-    Excludes child lots created by PARTIAL splits.
+    Excludes child lots created by PARTIAL splits UNLESS the child was later
+    re-processed at Brass QC (re-entry lots have their own completed submission).
     """
     brass_rejection_qty_subquery = Brass_QC_Rejection_ReasonStore.objects.filter(
         lot_id=OuterRef('lot_id')
@@ -132,6 +133,15 @@ def get_completed_base_queryset(from_datetime, to_datetime):
         Q(transition_lot_id=OuterRef('lot_id'))   # FULL_REJECT transition child
     )
     child_exists = Exists(child_split_subquery)
+
+    # Re-entry lots: child lots that were later re-submitted at Brass QC themselves.
+    # These should appear in the completed table despite being a historical child.
+    own_submission_subquery = Exists(
+        Brass_QC_Submission.objects.filter(
+            lot_id=OuterRef('lot_id'),
+            is_completed=True,
+        )
+    )
 
     # Dynamic stage: for PARTIAL split parents, follow the accepted child lot's live stage
     child_accept_stage_subquery = TotalStockModel.objects.filter(
@@ -161,13 +171,17 @@ def get_completed_base_queryset(from_datetime, to_datetime):
     ).annotate(
         brass_rejection_qty=brass_rejection_qty_subquery,
         child_split=child_exists,
+        has_own_submission=own_submission_subquery,
         child_accept_stage=child_accept_stage_subquery,
         child_brass_audit_active=child_brass_audit_active_subquery,
     ).filter(
         Q(brass_qc_accptance=True) |
         Q(brass_qc_rejection=True) |
         Q(brass_qc_few_cases_accptance=True, brass_onhold_picking=False)
-    ).filter(child_split=False)
+    ).filter(
+        # Show non-child lots OR re-entry lots that were re-processed at BQ
+        Q(child_split=False) | Q(has_own_submission=True)
+    )
 
     return queryset
 

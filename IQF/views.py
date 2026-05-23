@@ -11,6 +11,7 @@ from Brass_QC.models import *
 from BrassAudit.models import *
 from InputScreening.models import *
 from DayPlanning.models import *
+from modelmasterapp.models import TrayId
 from .models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -56,6 +57,94 @@ def generate_new_lot_id():
             # small sleep to allow clock to advance and retry
             time.sleep(0.001)
             attempt = 0
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(value or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _resolve_tray_type_capacity_from_trays(tray_ids, lot_ids=None, fallback_type='', fallback_capacity=0):
+    """Resolve tray type/capacity from actual tray records, with batch as last fallback."""
+    clean_tray_ids = [str(tid or '').strip().upper() for tid in tray_ids if str(tid or '').strip()]
+    clean_lot_ids = [str(lid or '').strip() for lid in (lot_ids or []) if str(lid or '').strip()]
+
+    if clean_tray_ids:
+        iqf_qs = IQFTrayId.objects.filter(tray_id__in=clean_tray_ids)
+        if clean_lot_ids:
+            iqf_qs = iqf_qs.filter(lot_id__in=clean_lot_ids)
+        iqf_meta = (
+            iqf_qs.exclude(tray_type__isnull=True).exclude(tray_type='')
+            .exclude(tray_capacity__isnull=True).exclude(tray_capacity=0)
+            .values('tray_type', 'tray_capacity')
+            .first()
+        )
+        if iqf_meta:
+            return iqf_meta.get('tray_type') or fallback_type, iqf_meta.get('tray_capacity') or fallback_capacity
+
+        master_meta = (
+            TrayId.objects.filter(tray_id__in=clean_tray_ids)
+            .exclude(tray_type__isnull=True).exclude(tray_type='')
+            .exclude(tray_capacity__isnull=True).exclude(tray_capacity=0)
+            .values('tray_type', 'tray_capacity')
+            .first()
+        )
+        if master_meta:
+            return master_meta.get('tray_type') or fallback_type, master_meta.get('tray_capacity') or fallback_capacity
+
+        brass_meta = (
+            BrassTrayId.objects.filter(tray_id__in=clean_tray_ids)
+            .exclude(tray_type__isnull=True).exclude(tray_type='')
+            .exclude(tray_capacity__isnull=True).exclude(tray_capacity=0)
+            .values('tray_type', 'tray_capacity')
+            .first()
+        )
+        if brass_meta:
+            return brass_meta.get('tray_type') or fallback_type, brass_meta.get('tray_capacity') or fallback_capacity
+
+    return fallback_type, fallback_capacity
+
+
+def _build_iqf_rejection_details(raw_items, fallback_lot_id=None, fallback_total=None):
+    """Build stored IQF rejection detail rows from submitted/draft reason quantities."""
+    source_items = raw_items or []
+    if not source_items and fallback_lot_id:
+        draft = IQF_Draft_Store.objects.filter(
+            lot_id=fallback_lot_id,
+            draft_type='batch_rejection',
+        ).order_by('-updated_at').first()
+        if draft and isinstance(draft.draft_data, dict):
+            source_items = draft.draft_data.get('items') or []
+
+    details = []
+    reason_ids = []
+    for item in source_items:
+        reason_id = _safe_int(item.get('reason_id'), None)
+        qty = _safe_int(item.get('iqf_qty'), 0)
+        if not reason_id or qty <= 0:
+            continue
+        reason_obj = IQF_Rejection_Table.objects.filter(id=reason_id).first()
+        details.append({
+            'reason_id': reason_id,
+            'reason_text': reason_obj.rejection_reason if reason_obj else '',
+            'iqf_qty': qty,
+        })
+        reason_ids.append(reason_id)
+
+    if not details and fallback_lot_id and fallback_total:
+        store = IQF_Rejection_ReasonStore.objects.filter(lot_id=fallback_lot_id).order_by('-id').first()
+        if store:
+            for reason_obj in store.rejection_reason.all():
+                details.append({
+                    'reason_id': reason_obj.id,
+                    'reason_text': str(reason_obj.rejection_reason),
+                    'iqf_qty': fallback_total,
+                })
+                reason_ids.append(reason_obj.id)
+
+    return details, reason_ids
 
 
 def build_ui_state(data):
@@ -1591,6 +1680,7 @@ def iqf_submit_audit(request):
                 ts.iqf_acceptance = True
                 ts.iqf_rejection = False
                 ts.iqf_few_cases_acceptance = False
+                ts.iqf_onhold_picking = False
                 ts.send_brass_qc = True  # push lot to Brass QC
                 ts.next_process_module = 'Brass QC'  # ✅ LOCK: downstream reads from IQF_Submitted
                 ts.last_process_date_time = timezone.now()  # ✅ FIX: ensure lot sorts to top of Brass QC pick table
@@ -1604,11 +1694,14 @@ def iqf_submit_audit(request):
                 ts.brass_accepted_tray_scan_status = False
                 ts.brass_physical_qty = 0
                 ts.brass_missing_qty = 0
+                ts.brass_audit_rejection = False
             elif submission_type == IQF_Submitted.SUB_FULL_REJECT:
                 ts.iqf_rejection = True
                 ts.iqf_acceptance = False
                 ts.iqf_few_cases_acceptance = False
+                ts.iqf_onhold_picking = False
                 ts.send_brass_qc = False  # nothing to send
+                ts.brass_audit_rejection = False
             else:  # PARTIAL — parent consumed, children created immediately
                 ts.iqf_few_cases_acceptance = True
                 ts.iqf_onhold_picking = False
@@ -2226,6 +2319,16 @@ class IQFRejectionTableView(APIView):
                     status_label = sub.submission_type
 
                 delink_lot_id = partial_reject_lot_map.get(sub.lot_id, sub.lot_id)
+                reject_tray_ids = [
+                    t.get('tray_id', '') for t in reject_trays
+                    if int(t.get('qty', 0) or 0) > 0
+                ]
+                tray_type, tray_capacity = _resolve_tray_type_capacity_from_trays(
+                    reject_tray_ids,
+                    lot_ids=[sub.lot_id, delink_lot_id],
+                    fallback_type=batch.tray_type or '',
+                    fallback_capacity=batch.tray_capacity or 0,
+                )
 
                 master_data.append({
                     'batch_id': batch.batch_id,
@@ -2237,8 +2340,8 @@ class IQFRejectionTableView(APIView):
                     'plating_color': batch.plating_color or '',
                     'polish_finish': batch.polish_finish or '',
                     'location__location_name': batch.location.location_name if batch.location else '',
-                    'tray_type': batch.tray_type or '',
-                    'tray_capacity': batch.tray_capacity or 0,
+                    'tray_type': tray_type,
+                    'tray_capacity': tray_capacity,
                     'no_of_trays': no_of_trays,
                     'iqf_rejection_total_qty': sub.rejected_qty,
                     'brass_rejection_total_qty': sub.iqf_incoming_qty,
@@ -2349,12 +2452,14 @@ def iqf_verify_trays_confirm(request):
         ts.brass_accepted_tray_scan_status = False
         ts.brass_physical_qty = 0
         ts.brass_missing_qty = 0
+        ts.brass_audit_rejection = False
         ts.save(update_fields=[
             'iqf_few_cases_acceptance', 'iqf_onhold_picking',
             'send_brass_qc', 'send_brass_audit_to_iqf', 'iqf_accepted_qty_verified', 'next_process_module',
             'brass_qc_accepted_qty_verified', 'brass_qc_accptance', 'brass_qc_rejection',
             'brass_qc_few_cases_accptance', 'brass_draft', 'brass_onhold_picking',
             'brass_accepted_tray_scan_status', 'brass_physical_qty', 'brass_missing_qty',
+            'brass_audit_rejection',
         ])
         print(f'[IQF VERIFY CONFIRM] lot={lot_id} finalized: few_cases=True, onhold=False, send_brass_qc=True, send_brass_audit_to_iqf=False')
 
@@ -3046,6 +3151,7 @@ def iqf_accept_delink_modal(request):
         rej_total_str = str(payload.get('iqf_rejection_total', '0'))
         accepted_tray_ids = payload.get('accepted_tray_ids') or []
         delinked_tray_ids = payload.get('delinked_tray_ids') or []
+        submitted_items = payload.get('items') or []
         remark = (payload.get('remark') or '').strip()
 
     if not lot_id:
@@ -3413,16 +3519,11 @@ def iqf_accept_delink_modal(request):
                                 'error': f'Reject tray total ({rej_total_check}) does not match rejected qty ({rejected_qty}). Tray allocation error.',
                             }, status=400)
 
-                        # Resolve existing rejection reason store (may exist from draft audit)
-                        rej_reason_store_parent = IQF_Rejection_ReasonStore.objects.filter(lot_id=lot_id).order_by('-id').first()
-                        _new_rejection_details = []
-                        if rej_reason_store_parent:
-                            for _reason_obj in rej_reason_store_parent.rejection_reason.all():
-                                _new_rejection_details.append({
-                                    'reason_id': _reason_obj.id,
-                                    'reason_text': str(_reason_obj.rejection_reason),
-                                    'iqf_qty': rejected_qty,
-                                })
+                        _new_rejection_details, _reason_ids_for_store = _build_iqf_rejection_details(
+                            submitted_items,
+                            fallback_lot_id=lot_id,
+                            fallback_total=rejected_qty,
+                        )
 
                         # Generate child lot IDs
                         accepted_lot_id = generate_new_lot_id()
@@ -3521,8 +3622,10 @@ def iqf_accept_delink_modal(request):
                             total_rejection_quantity=rejected_qty,
                             batch_rejection=False,
                         )
-                        if rej_reason_store_parent:
-                            _rej_child_store.rejection_reason.set(rej_reason_store_parent.rejection_reason.all())
+                        if _reason_ids_for_store:
+                            _rej_child_store.rejection_reason.set(
+                                IQF_Rejection_Table.objects.filter(id__in=_reason_ids_for_store)
+                            )
                         print(f'[DELINK CONFIRM NEW] Reject child: lot={rejected_lot_id}, qty={rejected_qty}, trays={len(reject_allocation)}')
 
                         # Create IQF_Submitted for parent lot
@@ -3643,6 +3746,7 @@ def iqf_accept_delink_modal(request):
                     ts.iqf_onhold_picking = False
                     ts.send_brass_qc = True
                     ts.send_brass_audit_to_iqf = False
+                    ts.brass_audit_rejection = False
                     ts.iqf_accepted_qty_verified = False
                     ts.next_process_module = 'Brass QC'
                     # ✅ FIX: Reset Brass QC fields for fresh cycle when lot returns from IQF
@@ -3657,7 +3761,8 @@ def iqf_accept_delink_modal(request):
                     ts.brass_missing_qty = 0
                     ts.save(update_fields=[
                         'iqf_few_cases_acceptance', 'iqf_onhold_picking',
-                        'send_brass_qc', 'send_brass_audit_to_iqf', 'iqf_accepted_qty_verified', 'next_process_module',
+                        'send_brass_qc', 'send_brass_audit_to_iqf', 'brass_audit_rejection',
+                        'iqf_accepted_qty_verified', 'next_process_module',
                         'brass_qc_accepted_qty_verified', 'brass_qc_accptance', 'brass_qc_rejection',
                         'brass_qc_few_cases_accptance', 'brass_draft', 'brass_onhold_picking',
                         'brass_accepted_tray_scan_status', 'brass_physical_qty', 'brass_missing_qty',
@@ -3885,12 +3990,13 @@ def iqf_lot_rejection(request):
                 ts.iqf_after_rejection_qty = rejected_qty
                 ts.last_process_module = 'IQF'
                 ts.send_brass_audit_to_iqf = False
+                ts.brass_audit_rejection = False
                 ts.send_brass_qc = False
                 ts.iqf_last_process_date_time = timezone.now()
                 ts.save(update_fields=[
                     'iqf_rejection', 'iqf_acceptance', 'iqf_few_cases_acceptance',
                     'iqf_onhold_picking', 'iqf_accepted_qty', 'iqf_after_rejection_qty',
-                    'last_process_module', 'send_brass_audit_to_iqf', 'send_brass_qc',
+                    'last_process_module', 'send_brass_audit_to_iqf', 'brass_audit_rejection', 'send_brass_qc',
                     'iqf_last_process_date_time',
                 ])
 

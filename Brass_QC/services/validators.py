@@ -248,7 +248,8 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
             return [], [], f"Tray {tid} not found in lot"
 
         if ta_action == "ACCEPT":
-            accepted_trays.append({"tray_id": tid, "qty": tray_match["qty"], "is_top": is_top})
+            slot_qty = int(ta.get("qty") or tray_match["qty"])
+            accepted_trays.append({"tray_id": tid, "qty": slot_qty, "is_top": is_top})
 
         elif ta_action == "REJECT":
             slot_qty = int(ta.get("qty") or tray_match["qty"])

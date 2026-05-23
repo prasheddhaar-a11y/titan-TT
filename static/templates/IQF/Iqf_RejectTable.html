@@ -672,11 +672,160 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     grid-template-columns: 30px 1fr 70px 90px !important;
   }
 }
+
+/* IQF Reject Page layout — mirrors DP Completed Table .dp-table-page pattern */
+.iqf-reject-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+  max-height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+}
+
+.iqf-reject-page > .row,
+.iqf-reject-page > .row > .col-12.grid-margin.stretch-card,
+.iqf-reject-page .card,
+.iqf-reject-page .card-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.iqf-reject-page > .row {
+  margin: 0 !important;
+}
+
+.iqf-reject-page > .row > .col-12.grid-margin.stretch-card,
+.iqf-reject-page .card {
+  margin-bottom: 0 !important;
+}
+
+.iqf-reject-page .card-body {
+  flex-direction: column;
+  padding-bottom: 0.5rem !important;
+  overflow: hidden !important;
+}
+
+.iqf-reject-page h5.text-left,
+.iqf-reject-page .pagination-wrapper {
+  flex: 0 0 auto;
+}
+
+.iqf-reject-page .pagination-wrapper {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 4px 0 0 !important;
+  margin-top: 0.35rem !important;
+  background: #f5f7ff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 4 !important;
+}
+
+.iqf-reject-page .table-responsive {
+  flex: 1 1 0 !important;
+  width: 100%;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+  margin-bottom: 0 !important;
+}
+
+#rejectionPopupModal {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(360px, calc(100vh - 120px)) !important;
+  width: min(380px, calc(100vw - 32px)) !important;
+  min-width: 320px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+#rejectionPopupModal .iqf-rejection-popup-header {
+  position: relative;
+  padding: 10px 42px 8px 14px !important;
+  border-bottom: 1px solid #ececec;
+}
+
+#closeRejectionPopup {
+  position: absolute !important;
+  top: 8px !important;
+  right: 10px !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+#rejectionPopupModal .iqf-rejection-popup-body {
+  max-height: 286px;
+  overflow-y: auto;
+  padding: 8px 12px 10px !important;
+}
+
+#rejectionPopupModal .rejection-table th,
+#rejectionPopupModal .rejection-table td {
+  padding: 7px 9px !important;
+  font-size: 12px !important;
+}
+
+#imageSliderModal {
+  width: min(460px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  max-height: calc(100vh - 96px) !important;
+  padding: 12px !important;
+  overflow: hidden !important;
+}
+
+#imageSliderModal h3 {
+  margin: 0 28px 10px 0 !important;
+  font-size: 16px !important;
+}
+
+#imageSliderModal .slider,
+#imageSliderModal .slide img {
+  height: 220px !important;
+}
+
+#imageSliderModal .slide img {
+  object-fit: cover !important;
+}
+
+@media (max-width: 600px) {
+  #rejectionPopupModal {
+    width: calc(100vw - 24px) !important;
+    min-width: 0 !important;
+  }
+
+  #imageSliderModal {
+    top: 16px !important;
+    right: 12px !important;
+    width: calc(100vw - 24px) !important;
+  }
+
+  #imageSliderModal .slider,
+  #imageSliderModal .slide img {
+    height: 180px !important;
+  }
+}
 </style>
-<div class="content-wrapper" style="margin-top: -30px !important;">
-  <br>
-  <br>
-  
+<div class="content-wrapper iqf-reject-page">
   <div class="row">
     <div class="col-12 grid-margin stretch-card">
       <div class="card">
@@ -759,6 +908,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
                   <tr class="highlighted-tray-scan"
                     data-lot-id="{{ data.delink_lot_id|default:data.stock_lot_id }}"
+                    data-submission-lot-id="{{ data.stock_lot_id }}"
                     data-batch-id="{{ data.batch_id }}">
                     <!-- 🔥 NEW: Individual Row Checkbox -->
                     <td>
@@ -931,12 +1081,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
      aria-modal="true"
      role="dialog"
      style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:auto; min-width:320px; max-width:560px; max-height:60vh; overflow:auto; background:#fff; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:10001; display:none;">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;/* background:#028084; */color: #222222;border-top-left-radius:12px;border-top-right-radius:12px;">
+  <div class="iqf-rejection-popup-header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;/* background:#028084; */color: #222222;border-top-left-radius:12px;border-top-right-radius:12px;">
     <h3 style="margin:0; font-size:16px; font-weight:600;">Rejection Details</h3>
     <button id="closeRejectionPopup" title="Close" style="background:transparent; border:none; color:#e83d3d; font-size:20px; cursor:pointer;">&times;</button>
   </div>
 
-  <div style="padding:12px 14px;">
+  <div class="iqf-rejection-popup-body" style="padding:12px 14px;">
     <div id="rejection-details-loader" style="display:none; text-align:center; padding:8px 0;">Loading...</div>
 
     <table class="rejection-table" style="width:100%; border-collapse:collapse; font-family:Segoe UI, Tahoma, Arial, sans-serif; font-size:14px;">
@@ -952,6 +1102,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     </table>
   </div>
 </div>
+            </div>
             
          <!-- Pagination Section -->
 
@@ -1013,11 +1164,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                 </ul>
               </nav>
             </div>
-          </div>
         </div>
       </div>
     </div>
   </div>
+</div>
   <!-- Image Slider Modal (popup) -->
   <div id="imageSliderModal" class="image-slider-modal" style="display: none; position: fixed; top: 40px; right: 20px; width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 20px; z-index: 10000; transition: right 0.3s ease;">
     <span id="closeImageSliderModal" class="modal-close" style="position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; color: #666;">&times;</span>
@@ -1770,22 +1921,13 @@ document.addEventListener("DOMContentLoaded", function () {
     // Attach event to all .rejection-popup-trigger elements
     document.querySelectorAll('.rejection-popup-trigger').forEach(function(trigger, idx) {
       trigger.addEventListener('click', function(e) {
-        // Find the closest row and get the lot_id from data attribute or hidden cell
         const row = trigger.closest('tr');
         let lot_id = null;
         if (row) {
-          // Try to get from a hidden cell or data attribute
-          lot_id = row.querySelector('[data-lot-id]')?.getAttribute('data-lot-id');
+          lot_id = row.dataset.submissionLotId || row.dataset.lotId || null;
           if (!lot_id) {
-            // Try to get from a hidden cell if you render it in the template
             lot_id = row.querySelector('.lot-id-cell')?.textContent?.trim();
           }
-          // Or, if you render lot_id as a data attribute on the row:
-          if (!lot_id && row.dataset.lotId) lot_id = row.dataset.lotId;
-        }
-        // Fallback: try to get from Django context if you render it in the table
-        if (!lot_id) {
-          lot_id = "{{ data.stock_lot_id|default:'' }}";
         }
         if (!lot_id) {
           alert("Lot ID not found for this row.");
@@ -1799,8 +1941,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Open modal
         document.getElementById('rejectionPopupModal').style.display = 'block';
   
-        // Fetch rejection details - consolidated IQF reject endpoint
-        fetch(`/iqf/reject/?lot_id=${encodeURIComponent(lot_id)}`, {
+        fetch(`/iqf/iqf_lot_details/?lot_id=${encodeURIComponent(lot_id)}&table=reject`, {
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(resp => resp.json())
@@ -1808,11 +1949,19 @@ document.addEventListener("DOMContentLoaded", function () {
           document.getElementById('rejection-details-loader').style.display = 'none';
           const tbody = document.getElementById('rejection-details-body');
           tbody.innerHTML = '';
-          if (data.success && data.reasons.length > 0) {
-            data.reasons.forEach(item => {
+          const reasons = data.rejection_reasons || data.reasons || [];
+          if (data.success && reasons.length > 0) {
+            reasons.forEach(item => {
               const tr = document.createElement('tr');
               tr.style.border = "1px solid #ddd";
-              tr.innerHTML = `<td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;">${item.reason}</td><td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;">${item.qty}</td>`;
+              const reasonTd = document.createElement('td');
+              reasonTd.style.cssText = "border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;";
+              reasonTd.textContent = item.reason || item.reason_text || '';
+              const qtyTd = document.createElement('td');
+              qtyTd.style.cssText = "border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;";
+              qtyTd.textContent = item.qty || item.iqf_qty || 0;
+              tr.appendChild(reasonTd);
+              tr.appendChild(qtyTd);
               tbody.appendChild(tr);
             });
           } else {

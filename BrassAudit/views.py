@@ -793,7 +793,7 @@ def _resolve_lot_trays_audit(lot_id):
     source = "BrassAuditTrayId"
 
     # Step 1: BrassAuditTrayId (Brass Audit's own table)
-    trays = BrassAuditTrayId.objects.filter(lot_id=lot_id).order_by('-top_tray', 'tray_id')
+    trays = BrassAuditTrayId.objects.filter(lot_id=lot_id).order_by('-top_tray', 'id')
     if trays.exists():
         tray_data = [
             {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
@@ -852,7 +852,7 @@ def _resolve_lot_trays_audit(lot_id):
         source = "BrassTrayId"
         brass_trays = BrassTrayId.objects.filter(
             lot_id=lot_id, delink_tray=False, rejected_tray=False
-        ).order_by('-top_tray', 'tray_id')
+        ).order_by('-top_tray', 'id')
         if brass_trays.exists():
             tray_data = [
                 {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
@@ -868,7 +868,7 @@ def _resolve_lot_trays_audit(lot_id):
         ip_trays = IPTrayId.objects.filter(
             lot_id=lot_id, tray_quantity__gt=0,
             rejected_tray=False, delink_tray=False
-        ).order_by('-top_tray', 'tray_id')
+        ).order_by('-top_tray', 'id')
         if ip_trays.exists():
             tray_data = [
                 {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
@@ -884,7 +884,7 @@ def _resolve_lot_trays_audit(lot_id):
         trays = TrayId.objects.filter(
             lot_id=lot_id, tray_quantity__gt=0,
             rejected_tray=False, delink_tray=False
-        ).order_by('-top_tray', 'tray_id')
+        ).order_by('-top_tray', 'id')
         tray_data = [
             {"tray_id": t.tray_id, "qty": t.tray_quantity or 0,
              "is_rejected": False,
@@ -906,7 +906,7 @@ def _resolve_lot_trays_audit(lot_id):
     # Step 8: IQFTrayId fallback — for IQF-accepted child lots that have no BrassAuditTrayId
     if not tray_data:
         source = "IQFTrayId"
-        iqf_trays = IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).order_by('-top_tray', 'tray_id')
+        iqf_trays = IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).order_by('-top_tray', 'id')
         tray_data = [
             {
                 "tray_id": t.tray_id,

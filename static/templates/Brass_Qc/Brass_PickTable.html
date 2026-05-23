@@ -3599,7 +3599,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var acceptHasTop = false;
 
       _acceptSlots.forEach(function(s) {
-        trayActions.push({ tray_id: s.tray_id, action: 'ACCEPT', is_top: s.is_top });
+        trayActions.push({ tray_id: s.tray_id, action: 'ACCEPT', is_top: s.is_top, qty: s.qty });
         if (s.is_top) acceptHasTop = true;
       });
 

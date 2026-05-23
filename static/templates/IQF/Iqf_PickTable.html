@@ -3491,6 +3491,14 @@
           }
         });
 
+        var partialItems = [];
+        document.querySelectorAll('#rejection-grid-2col .rejection-qty-input').forEach(function(inp){
+          partialItems.push({
+            reason_id: inp.getAttribute('data-reason-id') || null,
+            iqf_qty: inp.value || '0'
+          });
+        });
+
         // Collect reject tray IDs (user-scanned in reject section)
         var rejectedTrayIds = [];
         document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').forEach(function(inp){
@@ -3523,6 +3531,8 @@
             accepted_tray_ids: acceptedTrayIds,
             rejected_tray_ids: rejectedTrayIds,
             delinked_tray_ids: delinkedTrayIds,
+            items: partialItems,
+            remark: remarkVal,
             confirm: true
           })
         })
@@ -5320,6 +5330,13 @@ document.addEventListener('click', function(evt){
       });
 
       var csrftoken = getCookie('csrftoken');
+      var delinkItems = [];
+      document.querySelectorAll('#rejection-grid-2col .rejection-qty-input').forEach(function(inp){
+        delinkItems.push({
+          reason_id: inp.getAttribute('data-reason-id') || null,
+          iqf_qty: inp.value || '0'
+        });
+      });
 
       // POST to backend with confirm=true to update IQF_Submitted and finalize
       fetch('/iqf/iqf_accept_delink_modal/', {
@@ -5331,6 +5348,7 @@ document.addEventListener('click', function(evt){
           iqf_rejection_total: _delinkRejTotal,
           accepted_tray_ids: _delinkAcceptedTrayIds,
           delinked_tray_ids: delinkedIds,
+          items: delinkItems,
           confirm: true,
           remark: (document.getElementById('iqfAuditNotes') ? (document.getElementById('iqfAuditNotes').value || '') : '').trim()
         })
