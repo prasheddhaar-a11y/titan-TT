@@ -312,8 +312,13 @@ class Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
-                images = batch_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                stock_for_images = batch_obj.plating_stk_no or getattr(batch_obj.model_stock_no, 'plating_stk_no', '')
+                hover_payload = _get_model_hover_payload(
+                    request,
+                    stock_for_images,
+                    fallback_images=batch_obj.images.all(),
+                )
+                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -329,8 +334,12 @@ class Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-                images = model_master_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                hover_payload = _get_model_hover_payload(
+                    request,
+                    model_master_obj.plating_stk_no,
+                    fallback_images=model_master_obj.images.all(),
+                )
+                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
                 
                 context.update({
                     'batch_id': None,
@@ -404,6 +413,177 @@ class Visual_AidView(APIView):
 
         return Response(context)
     
+_STOCK_NO_RE = re.compile(r'^[A-Z0-9/_-]{1,50}$', re.IGNORECASE)
+_STOCK_NO_CANONICAL_RE = re.compile(r'(\d{4})([A-Z])([A-Z])([A-Z])(\d{2})', re.IGNORECASE)
+
+_IMAGE_VIEW_LABELS = {
+    'TV': 'Top View',
+    'FV': 'Front View',
+    'FSV': 'Front Side View',
+    'IV': 'Isometric View',
+    'RSV': 'Right Side View',
+    'LSV': 'Left Side View',
+    'BV': 'Bottom View',
+}
+
+_IMAGE_VIEW_ORDER = {
+    'TV': 0,
+    'FV': 1,
+    'FSV': 2,
+    'IV': 3,
+    'RSV': 4,
+    'LSV': 5,
+    'BV': 6,
+}
+
+
+def _parse_stock_no(raw_stock_no):
+    stock_no = (raw_stock_no or '').strip().upper()
+    if not stock_no or not _STOCK_NO_RE.match(stock_no):
+        return None
+
+    match = _STOCK_NO_CANONICAL_RE.search(stock_no)
+    if not match:
+        return None
+
+    model_no, polish_code, plating_code, bath_code, version_code = match.groups()
+    canonical = ''.join(match.groups()).upper()
+    return {
+        'raw': stock_no,
+        'canonical': canonical,
+        'model_no': model_no,
+        'polish_code': polish_code.upper(),
+        'plating_code': plating_code.upper(),
+        'bath_code': bath_code.upper(),
+        'version_code': version_code,
+        'image_key': f'{model_no}xx{bath_code.lower()}{version_code}',
+    }
+
+
+def _detect_image_view(image_name):
+    base_name = os.path.splitext(os.path.basename(image_name or ''))[0].upper()
+    for suffix in ('RSV', 'LSV', 'FSV', 'TV', 'FV', 'IV', 'BV'):
+        if base_name.endswith(suffix) or base_name.endswith('_' + suffix):
+            return suffix, _IMAGE_VIEW_LABELS[suffix]
+    return 'VIEW', 'View'
+
+
+def _sort_model_images(images):
+    return sorted(
+        [img for img in images if getattr(img, 'master_image', None)],
+        key=lambda img: (
+            _IMAGE_VIEW_ORDER.get(_detect_image_view(img.master_image.name)[0], 99),
+            os.path.basename(img.master_image.name).lower(),
+        ),
+    )
+
+
+def _get_images_for_stock(stock_parts, model_master=None, fallback_images=None):
+    keyed_images = ModelImage.objects.filter(
+        master_image__icontains=stock_parts['image_key']
+    )
+    if keyed_images.exists():
+        return _sort_model_images(keyed_images)
+
+    if model_master:
+        model_images = model_master.images.all()
+        if model_images.exists():
+            return _sort_model_images(model_images)
+
+    if fallback_images is not None:
+        fallback_images = list(fallback_images)
+        if fallback_images:
+            return _sort_model_images(fallback_images)
+
+    model_images = ModelImage.objects.filter(master_image__icontains=stock_parts['model_no'])
+    return _sort_model_images(model_images)
+
+
+def _build_image_payload(request, images):
+    payload = []
+    for img in images:
+        try:
+            image_url = request.build_absolute_uri(img.master_image.url)
+        except Exception:
+            continue
+        view_code, view_label = _detect_image_view(img.master_image.name)
+        payload.append({
+            'id': img.id,
+            'url': image_url,
+            'view_code': view_code,
+            'view': view_label,
+        })
+    return payload
+
+
+def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
+    stock_parts = _parse_stock_no(raw_stock_no)
+    if not stock_parts:
+        return None
+
+    model_master = (
+        ModelMaster.objects
+        .prefetch_related('images')
+        .filter(plating_stk_no__iexact=stock_parts['canonical'])
+        .first()
+    )
+    if not model_master:
+        model_master = (
+            ModelMaster.objects
+            .prefetch_related('images')
+            .filter(model_no=stock_parts['model_no'])
+            .first()
+        )
+
+    if not model_master:
+        return {
+            'found': False,
+            'stock_no': stock_parts['canonical'],
+            'images': [],
+            'preview_image': '',
+            'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + stock_parts['canonical'],
+        }
+
+    images_payload = _build_image_payload(
+        request,
+        _get_images_for_stock(stock_parts, model_master=model_master, fallback_images=fallback_images),
+    )
+    preview = images_payload[0] if images_payload else {}
+
+    return {
+        'found': True,
+        'stock_no': stock_parts['canonical'],
+        'raw_stock_no': stock_parts['raw'],
+        'model_no': model_master.model_no or stock_parts['model_no'],
+        'version': stock_parts['version_code'],
+        'bath_type': stock_parts['bath_code'],
+        'ep_bath_type': model_master.ep_bath_type or '',
+        'images': images_payload,
+        'preview_image': preview.get('url', ''),
+        'preview_view': preview.get('view', ''),
+        'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + stock_parts['canonical'],
+    }
+
+
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+class ModelHoverPreviewAPIView(APIView):
+    """
+    GET /adminportal/api/model-hover-preview/<stock_no>/
+    Returns image URLs and metadata for the model identified by stock_no.
+    Used by the global ttt-stock-hover.js popup system.
+    All image URLs are built with request.build_absolute_uri() for IIS
+    production compatibility (no localhost hardcoding).
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request, stock_no=None, format=None):
+        stock_no = stock_no or request.GET.get('stock_no', '')
+        payload = _get_model_hover_payload(request, stock_no)
+        if payload is None:
+            return Response({'error': 'Invalid stock number'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(payload, status=status.HTTP_200_OK)
+
+
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
 class Rec_Visual_AidView(APIView):
     renderer_classes = [TemplateHTMLRenderer]

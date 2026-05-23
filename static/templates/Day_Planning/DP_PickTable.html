@@ -999,8 +999,14 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   z-index: 25 !important;
 }
 
+.dp-pick-table-page #order-listing th,
+.dp-pick-table-page #order-listing td,
+.dp-pick-table-page #order-listing td * {
+  font-size: 13px !important;
+}
+
 .dp-pick-table-page #order-listing th:nth-child(4),
-.dp-pick-table-page #order-listing td:nth-child(4) { width: 188px !important; min-width: 188px !important; max-width: 188px !important; overflow: visible !important; text-overflow: clip !important; }
+.dp-pick-table-page #order-listing td:nth-child(4) { width: 238px !important; min-width: 238px !important; max-width: 238px !important; overflow: visible !important; text-overflow: clip !important; white-space: nowrap !important; }
 .dp-pick-table-page #order-listing th:nth-child(5),
 .dp-pick-table-page #order-listing td:nth-child(5) { width: 92px !important; min-width: 92px !important; max-width: 92px !important; }
 .dp-pick-table-page #order-listing th:nth-child(6),
@@ -1256,19 +1262,19 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
         <span style="display:inline-block; margin-top:4px;">{{ data.date_time|date:"h:i A"  }}</span>
       </td>
       <td class="{% if not is_admin and not visible_headings|get_item:'Plating Stk No' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}" style="white-space:normal;word-break:break-all;">
-        <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all; position: relative;">
+        <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all; position: relative;">
           {{ data.plating_stk_no|highlight_plating_color|safe_html }}
           <div class="model-image-tooltip"
                style="position: absolute; left: 238%; top: 0%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 10010; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s;">
             <button class="close-btn" style="position:absolute; top:8px; right:8px;">Close</button>
             <button class="info-btn" style="position:absolute; top:8px; left:8px;">Info</button>
-            <button class="img-scroll-left" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
-            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
+            <button class="img-scroll-left" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
+            <div class="img-gallery" style="display: flex; justify-content:center; gap: 6px; overflow: hidden; width: 180px;">
               <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" 
-                  style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+              style="width: 120px; height: 120px; object-fit: contain; border-radius: 6px; background:#fff;" />
             </div>
 
-            <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
+            <button class="img-scroll-right" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
           </div>
         </span>
       </td>
@@ -6305,6 +6311,53 @@ for (let i = 0; i < row.children.length; i++) {
 <script nonce="{{ csp_nonce }}">
    document.addEventListener("DOMContentLoaded", function () {
      let openTooltip = null;
+     const stockPreviewCache = {};
+
+     function setTooltipPreview(trigger, imageUrl, viewText) {
+       const tooltip = trigger.querySelector(".model-image-tooltip");
+       const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+       if (!gallery) return;
+
+       if (imageUrl) {
+         gallery.innerHTML = '<img src="' + imageUrl + '" alt="' + (viewText || 'Model image') + '" style="width:120px;height:120px;object-fit:contain;border-radius:6px;background:#fff;" />';
+       } else if (viewText === 'Loading') {
+         gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;display:block;width:100%;">Loading...</span>';
+       } else {
+         gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;display:block;width:100%;">No image</span>';
+       }
+     }
+
+     function loadStockPreview(trigger) {
+       const stockNo = (trigger.getAttribute("data-plating-stk-no") || "").trim();
+       if (!stockNo) return;
+
+       if (stockPreviewCache[stockNo]) {
+         const cached = stockPreviewCache[stockNo];
+         setTooltipPreview(trigger, cached.preview_image, cached.preview_view);
+         return;
+       }
+
+       setTooltipPreview(trigger, "", "Loading");
+       const xhr = new XMLHttpRequest();
+       xhr.open("GET", "/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), true);
+       xhr.setRequestHeader("Accept", "application/json");
+       xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+       xhr.onreadystatechange = function () {
+         if (xhr.readyState !== 4) return;
+         if (xhr.status < 200 || xhr.status >= 300) {
+           setTooltipPreview(trigger, "", "");
+           return;
+         }
+         try {
+           const data = JSON.parse(xhr.responseText || "{}");
+           stockPreviewCache[stockNo] = data;
+           setTooltipPreview(trigger, data.preview_image, data.preview_view);
+         } catch (err) {
+           setTooltipPreview(trigger, "", "");
+         }
+       };
+       xhr.send();
+     }
    
      // Helper function to completely close a tooltip
      function closeTooltip(tooltip, trigger) {
@@ -6345,17 +6398,18 @@ for (let i = 0; i < row.children.length; i++) {
     e.stopPropagation();
     // Find the closest row
     const row = btn.closest('tr');
-    let lotId = null; 
     let batchId = null;
+    let platingStockNo = null;
     if (row) {
       batchId = row.getAttribute('data-batch-id');
+      const trigger = row.querySelector('.model-hover-trigger');
+      platingStockNo = trigger ? trigger.getAttribute('data-plating-stk-no') : null;
     }
-    // Build the URL with lot_id and batch_id if found
+    // Use plating stock number so Visual Aid resolves the same image set as hover preview.
     let url = "/adminportal/dp_visualaid/";
-    if (lotId) {
-      url += encodeURIComponent(lotId) + "/";
-    }
-    if (batchId) {
+    if (platingStockNo) {
+      url += "?plating_stk_no=" + encodeURIComponent(platingStockNo);
+    } else if (batchId) {
       url += "?batch_id=" + encodeURIComponent(batchId);
     }
     window.location.href = url;
@@ -6368,6 +6422,7 @@ for (let i = 0; i < row.children.length; i++) {
    
        trigger.addEventListener("mouseenter", function () {
          if (tooltip && !tooltip.classList.contains("pinned")) {
+           loadStockPreview(trigger);
            tooltip.style.display = "flex"; // ✅ ADDED: Reset display
            tooltip.style.visibility = "visible"; // ✅ ADDED: Reset visibility
            tooltip.style.opacity = "1";
@@ -6427,6 +6482,7 @@ for (let i = 0; i < row.children.length; i++) {
    
        trigger.addEventListener("click", function (e) {
          e.stopPropagation();
+         loadStockPreview(trigger);
    
          if (tooltip) {
            // Close any previously opened tooltip

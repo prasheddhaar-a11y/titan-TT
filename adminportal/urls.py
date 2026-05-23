@@ -92,7 +92,9 @@ urlpatterns = [
     # Global tray search (F2 scan feature)
     path('global_tray_search/', GlobalTraySearchView.as_view(), name='global_tray_search'),
 
-
+    # Model hover preview API (used by stock-number preview popups)
+    path('api/model-hover-preview/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview'),
+    path('api/model-hover-preview/<path:stock_no>/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview-detail'),
 ]
 
 
