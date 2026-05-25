@@ -48,7 +48,9 @@ urlpatterns = [
     path('accounts/profile/', lambda request: redirect('home')),
     
     # Use your custom login template here:    
-    path('accounts/login/', TimedLoginView.as_view(template_name='login.html'), name='login'), 
+    path('accounts/login/', TimedLoginView.as_view(template_name='login.html'), name='login'),
+    # Alias used by adminportal API views that require authentication.
+    path('accounts/login/', TimedLoginView.as_view(template_name='login.html'), name='login-api'),
      
     path('home/', IndexView.as_view(), name="home"),  # Dashboard with permission-filtered stats
     path('admin/', admin.site.urls),

@@ -1291,7 +1291,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
             </span>
           {% endif %}
           {% if not data.Moved_to_D_Picker %}
-            <a href="#" title="Delete">
+            <a href="#" class="delete-batch-btn" title="Delete" data-batch-id="{{ data.batch_id }}">
               <img src="{% static 'assets/icons/bin.png' %}" alt="Delete" style="width: 24px; margin-right: 8px; height: auto; cursor:pointer;" />
             </a>
           {% else %}
@@ -1301,7 +1301,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
           {% endif %}
         {% endif %}
         {% if not data.Moved_to_D_Picker %}
-          <a href="#" class="text-primary tray-scan-btn" style="text-decoration: none;
+          <a href="#" class="text-primary tray-scan-btn{% if data.Draft_Saved %} draft-resume-btn{% endif %}" style="text-decoration: none;
     background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
     padding: 5px 7px;
     border-radius: 4px;

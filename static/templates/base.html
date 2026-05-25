@@ -3166,6 +3166,11 @@
       .forEach(function(row) {
         row.classList.remove('gs-active-scan', 'gs-hi', 'gkb-row-focus', 'dp-row-action-highlight');
         row.removeAttribute('data-global-scan-active');
+        // Remove inline background applied by global_shortcut_manager.js on frozen/sticky cells.
+        row.querySelectorAll('[data-gkb-bg]').forEach(function(cell) {
+          cell.style.removeProperty('background-color');
+          cell.removeAttribute('data-gkb-bg');
+        });
       });
   }
 

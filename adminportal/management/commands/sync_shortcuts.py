@@ -217,7 +217,7 @@ CANONICAL_SHORTCUTS = [
         'label': 'Tray Scan',
         'description': 'Open the existing tray scan action for the selected row.',
         'action_type': 'row_action',
-        'target_selector': '.tray-scan-btn:not(.btn-reject-is):not(.btn-accept-is), [data-action="tray-scan"]',
+        'target_selector': '.tray-scan-btn:not(.btn-reject-is):not(.btn-accept-is):not(.iqf-audit-btn), [data-action="tray-scan"]',
         'fallback_selector': '',
         'contexts': ['global'],
         'allow_in_modal': False,

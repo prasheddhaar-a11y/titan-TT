@@ -842,6 +842,12 @@
         row.classList.add('gkb-row-focus', 'dp-row-action-highlight');
         row.setAttribute('aria-selected', 'true');
         row.setAttribute('data-gkb-active', 'true');
+        // Apply inline background to every cell so sticky/frozen column !important CSS is overridden.
+        // element.style.setProperty with 'important' beats author !important rules of any specificity.
+        Array.from(row.querySelectorAll('td, th')).forEach(function (cell) {
+            cell.style.setProperty('background-color', '#fff5bd', 'important');
+            cell.setAttribute('data-gkb-bg', '1');
+        });
         if (!row.hasAttribute('tabindex')) {
             row.setAttribute('tabindex', '-1');
         }
@@ -858,12 +864,29 @@
         var selector = ROW_HIGHLIGHT_CLASSES.map(function (className) {
             return 'tr.' + className;
         }).join(', ');
-        queryElements(selector, document).forEach(function (row) {
+        // Also clear any rows that have the inline background marker but may have lost their class.
+        var bgSelector = 'tr[data-gkb-bg], tr:has([data-gkb-bg])';
+        var allRows = queryElements(selector, document);
+        try {
+            // Merge in rows that have cells with data-gkb-bg (handles edge cases).
+            queryElements('[data-gkb-bg]', document).forEach(function (cell) {
+                var parentRow = cell.closest('tr');
+                if (parentRow && allRows.indexOf(parentRow) === -1) {
+                    allRows.push(parentRow);
+                }
+            });
+        } catch (e) { /* ignore */ }
+        allRows.forEach(function (row) {
             if (exceptRow && row === exceptRow) {
                 return;
             }
             ROW_HIGHLIGHT_CLASSES.forEach(function (className) {
                 row.classList.remove(className);
+            });
+            // Remove inline background forced on sticky/frozen cells.
+            Array.from(row.querySelectorAll('[data-gkb-bg]')).forEach(function (cell) {
+                cell.style.removeProperty('background-color');
+                cell.removeAttribute('data-gkb-bg');
             });
             row.removeAttribute('data-global-scan-active');
             row.removeAttribute('data-gkb-active');

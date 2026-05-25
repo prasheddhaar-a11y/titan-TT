@@ -1444,7 +1444,7 @@
                         {% if not jig_detail.jig_position or not jig_detail.remarks %}
                           {% if jig_detail.bath_numbers %}
                             <!-- Enabled Inspection link -->
-                            <a href="#" class="text-primary tray-scan-btn remarks-modal-trigger"
+                            <a href="#" class="text-primary tray-scan-btn ip-inspection-btn remarks-modal-trigger"
                               data-jig-id="{{ jig_detail.id }}"
                               data-lot-id="{{ jig_detail.lot_id }}"
                               data-no-of-trays="{{ jig_detail.calculated_no_of_trays }}"
@@ -1454,7 +1454,7 @@
                               data-moved-to-d-picker="False">Inspection</a>
                           {% else %}
                             <!-- Disabled Inspection link -->
-                            <a href="javascript:void(0);" class="text-secondary tray-scan-btn remarks-modal-trigger disabled"
+                            <a href="javascript:void(0);" class="text-secondary tray-scan-btn ip-inspection-btn remarks-modal-trigger disabled"
                               style="pointer-events: none; opacity: 0.5; cursor: not-allowed;"
                               title="Select Bath Number first">Inspection</a>
                           {% endif %}

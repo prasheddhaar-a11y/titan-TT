@@ -3,454 +3,406 @@
 {% block content %}
 
 <style>
-    /* Make selected option text black for all dropdowns */
-  select:focus, select option:checked, select option[selected] {
-      color: #111 !important;
-  }
-  select {
-      color: #111 !important;
-  }
-@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
-  .nav.nav-tabs.elegant-tabs {
-    flex-direction: row !important;
-    gap: 18px;
-    padding-top: 16px;
-    padding-bottom: 16px;
-  }
-  .nav.nav-tabs.elegant-tabs .nav-item {
-    order: unset;
-  }
-  .nav.nav-tabs.elegant-tabs .nav-item:last-child .btn,
-  .nav.nav-tabs.elegant-tabs .nav-link.btn {
-    order: unset;
-    margin-top: 0;
-    margin-bottom: 0;
-  }
+/* ═══ Model Master — Refined Design System ═══════════════════════════════ */
+:root {
+  --mm-teal:        #0d9488;
+  --mm-teal-dark:   #0f766e;
+  --mm-teal-xdark:  #134e4a;
+  --mm-teal-light:  #f0fdfa;
+  --mm-bg:          #f8fafc;
+  --mm-card:        #ffffff;
+  --mm-border:      #e2e8f0;
+  --mm-text:        #0f172a;
+  --mm-muted:       #64748b;
+  --mm-label:       #475569;
+  --mm-input-h:     38px;
+  --mm-radius:      8px;
+  --mm-radius-lg:   12px;
+  --mm-focus-ring:  0 0 0 3px rgba(13,148,136,.15);
+  --mm-shadow:      inset 0 1px 2px rgba(0,0,0,.04);
 }
-  .view-data-btn {
-    background-color: #dcf5f6; /* Custom background color */
-    color: rgb(14, 124, 121); /* Text color */
-    border: 1px solid #025b5e; /* Border color */
-    border-radius: 50px; /* Rounded corners */
-    padding: 10px 10px; /* Padding for the button */
-    font-size: 0.9rem; /* Font size */
-    font-weight: 600; /* Font weight */
-    transition: all 0.3s ease; /* Smooth hover effect */
-  }
+/* ── Page frame ── */
+.model-master-frame {
+  background: var(--mm-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(0,0,0,.07);
+  margin: 20px auto;
+  max-width: 1400px;
+  overflow: hidden;
+  border: 1px solid var(--mm-border);
+}
 
-  .view-data-btn:hover {
-    background-color: #00a2a8; /* Darker background on hover */
-    color: #ffffff; /* Text color on hover */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow on hover */
-  }
+/* ── Header ── */
+.model-master-header {
+  background: linear-gradient(135deg, var(--mm-teal-dark) 0%, var(--mm-teal-xdark) 100%);
+  color: #fff;
+  padding: 16px 24px;
+}
+.model-master-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -.01em;
+}
+.view-data-btn {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.3) !important;
+  border-radius: 20px !important;
+  padding: 6px 18px !important;
+  font-size: .82rem !important;
+  font-weight: 600;
+  transition: background .2s;
+}
+.view-data-btn:hover {
+  background: rgba(255,255,255,.28) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
 
-  /* Tab container styling */
-  .nav-tabs {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 20px;
-  }
-
-  .nav-tabs .nav-item {
-    flex: 0;
-    text-align: center;
-    
-  }
-
-  .nav-tabs .nav-link {
-    display: block;
-    padding: 12px 16px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #374151;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    
-    transition: all 0.3s ease;
-  }
-
-  .nav-tabs .nav-link:hover {
-    background: #e5e7eb;
-    color: #1f2937;
-  }
-
-  .nav-tabs .nav-link.active {
-    background: #028084;
-    color: #ffffff;
-    border-color: #028084;
-    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.2);
-  }
-
-  .form-control {
-    border: 0.5px solid #d1d5db !important; /* Grey border */
-    border-radius: 10px;
-    padding: 14px 16px;
-    font-size: 0.95rem;
-    background: #fafbfc;
-    box-shadow: none; /* Remove shadow */
-    outline: none; /* Remove outline */
-    transition: all 0.3s ease;
-  }
-
-  .row.g-3 > .col-md-6 {
-    flex: 0 0 calc(33.333% - 1rem); /* Adjust width for 3 fields in a row */
-    max-width: calc(33.333% - 1rem);
-  }
-
-  .row.g-3 {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0rem;
-    padding: 20px;
-  }
-
-  .form-control:focus {
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); /* Focus shadow */
-    background: white;
-    transform: translateY(-1px); /* Slight lift effect */
-  }
-
-  .model-master-frame {
-    background: #ffffff;
-    border-radius: 20px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-    padding: 0;
-    margin: 20px auto;
-    max-width: 1400px;
-    overflow: hidden;
-    border: 1px solid #e8ecf4;
-  }
-
-  .model-master-header {
-    background: linear-gradient(135deg, #028084 0%, #025b5e 100%);
-    color: white;
-    padding: 15px 15px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .model-master-header::before {
-    content: "";
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-      45deg,
-      transparent,
-      rgba(255, 255, 255, 0.1),
-      transparent
-    );
-    animation: shimmer 3s infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%) translateY(-100%) rotate(45deg);
-    }
-    100% {
-      transform: translateX(100%) translateY(100%) rotate(45deg);
-    }
-  }
-
-  .model-master-header h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
+/* ── Content area ── */
 .model-master-content {
-    padding: 40px;
-    background: #fafbff;
-    overflow: auto !important;
-    min-height: 280px;
-    max-height: 70vh;
-    height: auto;
+  padding: 24px;
+  background: var(--mm-bg);
 }
+
+/* ── Tab navigation ── */
 .elegant-tabs {
   display: flex;
-  justify-content: stretch;
-  align-items: stretch;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  flex-wrap: wrap;
+  gap: 3px;
+  border-bottom: 2px solid var(--mm-border);
+  margin-bottom: 20px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
   padding: 0;
-  margin-bottom: 30px;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  overflow-x: auto;
+}
+.elegant-tabs .nav-item { flex: 0 0 auto; margin: 0; }
+.elegant-tabs .nav-link {
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--mm-muted);
+  font-weight: 500;
+  font-size: .79rem;
+  padding: 8px 13px;
+  border-radius: 6px 6px 0 0;
+  transition: all .15s ease;
+  white-space: nowrap;
+  position: relative;
+  bottom: -2px;
+  display: block;
+}
+.elegant-tabs .nav-link:hover:not(.active) {
+  color: var(--mm-teal);
+  background: var(--mm-teal-light);
+  border-color: transparent;
+}
+.elegant-tabs .nav-link.active {
+  color: var(--mm-teal-dark);
+  background: var(--mm-card);
+  border-color: var(--mm-border);
+  border-bottom-color: var(--mm-card);
+  font-weight: 700;
 }
 
-  .elegant-tabs .nav-link {
-    border: 1px solid #dedcdc;
-    background: transparent;
-    color: #64748b;
-    font-weight: 600;
-    font-size: 0.95rem;
-    padding: 16px 20px;
-    
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    white-space: nowrap;
-     flex: 1 1 0;
-    text-align: center;
-    margin: 0;
-    display: flex;
-  }
-
-  .elegant-tabs .nav-link::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
-    transition: left 0.5s;
-  }
-
-  .elegant-tabs .nav-link:hover::before {
-    left: 100%;
-  }
-
-  .elegant-tabs .nav-link.active {
-    background: linear-gradient(135deg, #66d2ea 0%, #266b84 100%);
-    color: white;
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-    transform: translateY(-2px);
-  }
-
-  .elegant-tabs .nav-link:hover:not(.active) {
-    background: white;
-    color: #028084;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .tab-content-frame {
-    background: white;
-    border-radius: 16px;
-    padding: 0px;
-    /* border: 1px solid #e8ecf4; */
-    position: relative;
-    /* overflow: hidden;
-  }
-
-  .tab-content-frame::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-  }
-
-  .form-section-elegant {
-    margin-bottom: 0;
-  }
-
-  .form-section-elegant .form-label {
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-  }
-
-.form-section-elegant .form-control, .form-section-elegant .form-select {
-    border: 0.5px solid #d1d5db;
-    border-radius: 10px;
-    padding: 8px !important;
-    font-size: 12px;
-    transition: all 0.3s ease;
-    background: #fafbfc;
-    box-shadow: none;
-    outline: none;
+/* ── Tab pane card ── */
+.tab-content-frame {
+  background: var(--mm-card);
+  border-radius: var(--mm-radius-lg);
+  border: 1px solid var(--mm-border);
+  padding: 28px 32px;
 }
 
-  .form-section-elegant .form-control:focus,
-  .form-section-elegant .form-select:focus {
-    border-color: #d1d5db !important;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: white;
-    transform: translateY(-1px);
-  }
+/* ── Form grid ── */
+.mm-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px 20px;
+  align-items: start;
+}
+/* Bootstrap column overrides inside mm-form */
+.mm-form > [class*="col-"] {
+  padding: 0;
+  width: auto;
+  max-width: 100%;
+  flex: none;
+}
+.mm-form > .col-md-12,
+.mm-form > .col-12 {
+  grid-column: 1 / -1;
+}
+.mm-form > .submit-section,
+.mm-form > .d-flex {
+  grid-column: 1 / -1;
+}
 
-  .form-section-elegant .form-check {
-    padding: 15px 20px;
-    transition: all 0.3s ease;
-  }
+/* ── Labels (uniform uppercase small) ── */
+.mm-form label,
+.form-label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--mm-label);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
 
-  .form-section-elegant .form-check:hover {
-    background: #f0f7ff;
-  }
+/* ── Uniform inputs & selects ── */
+.form-control,
+.form-select {
+  height: var(--mm-input-h) !important;
+  border: 1.5px solid var(--mm-border) !important;
+  border-radius: var(--mm-radius) !important;
+  padding: 0 12px !important;
+  font-size: .875rem !important;
+  color: var(--mm-text) !important;
+  background: #fdfdfe !important;
+  box-shadow: var(--mm-shadow) !important;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none !important;
+  width: 100%;
+}
+.form-control::placeholder { color: #b0bec5 !important; }
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--mm-teal) !important;
+  box-shadow: var(--mm-focus-ring) !important;
+  background: #fff !important;
+  transform: none !important;
+}
+select, select option { color: var(--mm-text) !important; }
 
-  .form-section-elegant .form-check-input {
-    width: 20px;
-    height: 20px;
-    margin-right: 12px;
-  }
+/* Multi-select */
+select[multiple].form-select {
+  height: auto !important;
+  padding: 8px 12px !important;
+  min-height: 90px;
+}
+/* File input */
+input[type="file"].form-control {
+  height: auto !important;
+  padding: 7px 12px !important;
+  cursor: pointer;
+}
+/* Textarea */
+textarea.form-control {
+  height: auto !important;
+  padding: 8px 12px !important;
+  resize: vertical;
+}
+/* Number spin */
+input[type="number"].form-control::-webkit-inner-spin-button,
+input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 
-  .form-section-elegant .form-check-label {
-    font-weight: 500;
-    color: #374151;
-    cursor: pointer;
-  }
+/* ── Checkboxes ── */
+.form-check-input {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--mm-border);
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.form-check-input:checked {
+  background-color: var(--mm-teal);
+  border-color: var(--mm-teal);
+}
+.form-check-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--mm-text);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
 
+/* ── Submit section ── */
 .submit-section {
-    /* background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); */
-    /* border-radius: 89px; */
-    padding: 5px;
-    text-align: center;
-    margin-top: 30px;
-    /* border: 1px solid #e2e8f0; */
+  padding: 4px 0 0;
+  text-align: left;
+  margin-top: 0;
+  grid-column: 1 / -1;
+}
+.btn-elegant-primary {
+  background: var(--mm-teal);
+  border: none;
+  color: #fff;
+  padding: 9px 28px;
+  border-radius: var(--mm-radius);
+  font-weight: 600;
+  font-size: .875rem;
+  transition: all .2s ease;
+  box-shadow: 0 2px 8px rgba(13,148,136,.25);
+  letter-spacing: .01em;
+}
+.btn-elegant-primary:hover {
+  background: var(--mm-teal-dark);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(13,148,136,.3);
+  transform: translateY(-1px);
 }
 
-  .btn-elegant-primary {
-    background: linear-gradient(135deg, #028084 0%, #028084 100%);
-    border: none;
-    color: white;
-    padding: 16px 40px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 1.1rem;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  }
+/* ── Alerts/messages ── */
+.message-area { margin-bottom: 14px; }
+.alert {
+  border-radius: var(--mm-radius);
+  padding: 10px 14px;
+  font-size: .84rem;
+  font-weight: 500;
+  border: none;
+}
+.alert-success {
+  background: #f0fdf4;
+  color: #166534;
+  border-left: 3px solid #22c55e;
+}
+.alert-danger {
+  background: #fef2f2;
+  color: #991b1b;
+  border-left: 3px solid #ef4444;
+}
 
-  .btn-elegant-primary::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
-    transition: left 0.5s;
-  }
+/* ── TrayID management section ── */
+.mm-tray-add-section { margin-bottom: 20px; }
+.mm-section-title {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--mm-teal-dark);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 14px;
+}
+.mm-tray-add-bar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.mm-tray-field { min-width: 130px; flex: 1 1 130px; }
+.mm-tray-field label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--mm-label);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
+.mm-tray-btns { display: flex; gap: 8px; align-items: flex-end; }
+.mm-tray-btns .btn {
+  white-space: nowrap;
+  font-size: .82rem !important;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--mm-radius);
+}
+#trayid-preview-area { margin-top: 14px; }
+.mm-tray-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mm-tray-list-header .mm-search-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.mm-tray-list-header .mm-search-wrap .form-control {
+  width: 200px !important;
+  height: 34px !important;
+  font-size: .82rem !important;
+  padding: 0 10px !important;
+}
+.mm-tray-list-header .mm-search-wrap .btn {
+  white-space: nowrap;
+  font-size: .8rem !important;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--mm-radius);
+}
+#trayid-table-container {
+  max-height: 350px;
+  overflow-y: auto;
+  border: 1px solid var(--mm-border);
+  border-radius: var(--mm-radius-lg);
+}
+#trayid-table-container .table { font-size: .82rem; margin: 0; }
+#trayid-table-container thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: #f1f5f9;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: .71rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--mm-muted);
+  border-bottom: 1px solid var(--mm-border);
+}
+#trayid-table-container tbody td {
+  padding: 8px 14px;
+  vertical-align: middle;
+  border-color: var(--mm-border);
+}
+#trayid-undo-bar {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: var(--mm-radius);
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+}
 
-  .btn-elegant-primary:hover::before {
-    left: 100%;
-  }
-
-  .btn-elegant-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    color: white;
-  }
-
-  .file-upload-elegant {
-    border: 3px dashed #cbd5e1;
-    border-radius: 16px;
-    padding: 30px;
-    text-align: center;
-    background: #f8fafc;
-    transition: all 0.3s ease;
-    cursor: pointer;
-  }
-
-  .file-upload-elegant:hover {
-    border-color: #028084;
-    background: #f0f7ff;
-    transform: scale(1.02);
-  }
-
-  .file-upload-elegant .form-control {
-    display: none;
-  }
-
-  .upload-text {
-    color: #6b7280;
-    font-size: 0.95rem;
-    margin-top: 10px;
-  }
-
-  .upload-icon {
-    font-size: 2rem;
-    color: #9ca3af;
-    margin-bottom: 10px;
-  }
-
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    .model-master-content {
-      padding: 20px;
-    }
-
-    .tab-content-frame {
-      padding: 20px;
-    }
-
-    .model-master-header {
-      padding: 20px;
-    }
-
-    .model-master-header h3 {
-      font-size: 2rem;
-    }
-
-    .elegant-tabs .nav-link {
-      padding: 12px 16px;
-      font-size: 0.9rem;
-    }
-
-    .submit-section {
-      padding: 20px;
-    }
-  }
-
-  @media (max-width: 576px) {
-    .model-master-frame {
-      margin: 10px;
-      border-radius: 16px;
-    }
-
-    .elegant-tabs {
-      flex-direction: column;
-    }
-
-    .elegant-tabs .nav-item {
-      width: 100%;
-      margin-bottom: 4px;
-    }
-
-    .elegant-tabs .nav-link {
-      text-align: center;
-    }
-  }
-
-  /* Message styling */
-  .alert {
-    border-radius: 10px;
-    margin-bottom: 20px;
-    padding: 15px 20px;
-    font-weight: 500;
-  }
-
-  .alert i {
-    margin-right: 8px;
-  }
-
-  /* Message area styling */
-  .message-area {
-    margin-bottom: 20px;
-  }
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .model-master-content { padding: 14px; }
+  .tab-content-frame { padding: 16px; }
+  .mm-form { grid-template-columns: 1fr; }
+  .elegant-tabs .nav-link { font-size: .75rem; padding: 6px 10px; }
+}
+@media (max-width: 576px) {
+  .model-master-frame { margin: 8px; border-radius: 12px; }
+}
+/* ── Phase 2: Split-panel layout ── */
+.mm-tab-layout { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 20px; align-items: start; }
+.mm-form-panel { background: #f8fafc; border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 18px 20px; }
+.mm-form-panel .mm-form { grid-template-columns: 1fr; }
+.mm-form-panel .submit-section { padding-top: 4px; }
+.mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 16px 20px; min-height: 180px; }
+.mm-panel-title { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--mm-muted); margin-bottom: 0; }
+.mm-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--mm-border); gap: 8px; }
+.mm-count-badge { font-size: .7rem !important; vertical-align: middle; margin-left: 4px; }
+/* ── Tag pills ── */
+.mm-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.mm-tag { display: inline-flex; align-items: center; gap: 5px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: 6px; padding: 5px 10px; font-size: .82rem; color: var(--mm-text); transition: border-color .12s; }
+.mm-tag:hover { border-color: #94a3b8; }
+.mm-tag-del { background: none; border: none; padding: 0 0 0 3px; cursor: pointer; color: #cbd5e1; line-height: 1; transition: color .12s; font-size: .9rem; }
+.mm-tag-del:hover { color: #ef4444; }
+.mm-tag-sub { font-size: .72rem; color: var(--mm-muted); }
+.mm-tag-badge { font-size: .66rem; background: #f0fdfa; color: #0f766e; border-radius: 4px; padding: 1px 5px; font-weight: 700; border: 1px solid #99f6e4; }
+/* ── Image gallery ── */
+.mm-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.mm-gallery-item { border: 1px solid var(--mm-border); border-radius: var(--mm-radius); overflow: hidden; position: relative; background: #f8fafc; transition: box-shadow .2s; }
+.mm-gallery-item:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); }
+.mm-gallery-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+.mm-gallery-del { position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.88); color: #fff; border: none; border-radius: 4px; padding: 2px 7px; font-size: .68rem; font-weight: 600; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.mm-gallery-item:hover .mm-gallery-del { opacity: 1; }
+.mm-gallery-name { font-size: .67rem; color: var(--mm-muted); padding: 4px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #fff; }
+/* ── Empty/loading states ── */
+.mm-list-empty { text-align: center; padding: 24px 12px; color: #94a3b8; font-size: .83rem; display: block; }
+/* ── Model master compact table ── */
+.mm-master-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.mm-master-table th { background: #f8fafc; font-weight: 600; color: var(--mm-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .05em; padding: 8px 10px; border-bottom: 2px solid var(--mm-border); white-space: nowrap; }
+.mm-master-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: var(--mm-text); }
+.mm-master-table tr:hover td { background: #fafcff; }
+@media (max-width: 900px) { .mm-tab-layout { grid-template-columns: 1fr; } }
 </style>
 
 <div class="model-master-frame">
@@ -636,7 +588,7 @@
           <div class="tab-content-frame">
             <!-- Model Master message area -->
             <div id="model-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="model-master-form">
+            <form class="mm-form" id="model-master-form">
               {% csrf_token %}
               <!-- Model No -->
               <div class="col-md-6">
@@ -736,231 +688,227 @@
                 <button type="submit" class="btn btn-elegant-primary">Save Model Master</button>
               </div>
             </form>
+
+            <hr style="border-color:var(--mm-border);margin:24px 0 16px;">
+            <div class="mm-list-header">
+              <p class="mm-panel-title">Existing Model Masters <span id="model-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="model-refresh-btn">↺ Refresh</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="mm-master-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Model No</th>
+                    <th>Polish Finish</th>
+                    <th>EP Bath Type</th>
+                    <th>Tray Type</th>
+                    <th>Version</th>
+                    <th style="text-align:center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="model-list-body">
+                  <tr><td colspan="7" class="mm-list-empty">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         <!-- 2. Polish Finish Type -->
         <div class="tab-pane fade" id="polish" role="tabpanel" aria-labelledby="polish-tab">
           <div class="tab-content-frame">
-            <!-- Polish Finish message area -->
             <div id="polish-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="polish-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="polish_finish_name" class="form-label">Polish Finish</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="polish_finish_name"
-                  name="polish_finish"
-                  placeholder="Enter polish finish name"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add New Polish Finish</p>
+                <form class="mm-form" id="polish-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="polish_finish_name" class="form-label">Polish Finish Name</label>
+                    <input type="text" class="form-control" id="polish_finish_name" name="polish_finish" placeholder="e.g. Matte" required />
+                  </div>
+                  <div>
+                    <label for="polish_internal" class="form-label">Internal Code</label>
+                    <input type="text" class="form-control" id="polish_internal" name="polish_internal" placeholder="e.g. MT" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Polish Finish</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-md-6">
-                <label for="polish_internal" class="form-label">Internal ID</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="polish_internal"
-                  name="polish_internal"
-                  placeholder="Enter internal ID"
-                  required
-                />
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Polish Finishes <span id="polish-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="polish-refresh-btn">↺ Refresh</button>
+                </div>
+                <div id="polish-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-              <!-- Submit Section -->
-              <div class="submit-section">
-                <button type="submit" class="btn btn-elegant-primary">Save Polish Finish</button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <!-- 3. Plating Colors -->
         <div class="tab-pane fade" id="plating" role="tabpanel" aria-labelledby="plating-tab">
           <div class="tab-content-frame">
-            <!-- Plating Color message area -->
             <div id="plating-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="plating-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="plating_color" class="form-label">Plating Color</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="plating_color"
-                  name="plating_color"
-                  placeholder="Enter plating color"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add New Plating Color</p>
+                <form class="mm-form" id="plating-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="plating_color" class="form-label">Plating Color</label>
+                    <input type="text" class="form-control" id="plating_color" name="plating_color" placeholder="e.g. Gold" required />
+                  </div>
+                  <div>
+                    <label for="plating_internal" class="form-label">Internal Code</label>
+                    <input type="text" class="form-control" id="plating_internal" name="plating_color_internal" placeholder="e.g. GD" maxlength="10" />
+                  </div>
+                  <div style="display:flex;gap:20px;align-items:center;">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="jig_unload_zone_1" name="jig_unload_zone_1" />
+                      <label class="form-check-label" for="jig_unload_zone_1">Jig Unload Zone 1</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="jig_unload_zone_2" name="jig_unload_zone_2" />
+                      <label class="form-check-label" for="jig_unload_zone_2">Jig Unload Zone 2</label>
+                    </div>
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Plating Color</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-md-6">
-                <label for="plating_internal" class="form-label">Internal Code</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="plating_internal"
-                  name="plating_color_internal"
-                  placeholder="Enter internal code (max 10 chars)"
-                  maxlength="10"
-                />
-              </div>
-
-              <!-- Jig Unload Zone Checkboxes -->
-              <div class="d-flex align-items-center" style="gap: 20px; margin-top: 10px;">
-                <div class="form-check d-flex align-items-center">
-                  <input
-                    class="form-check-input ms-2"
-                    type="checkbox"
-                    id="jig_unload_zone_1"
-                    name="jig_unload_zone_1"
-                  />
-                  <label class="form-check-label ms-2" for="jig_unload_zone_1">
-                    Jig Unload Zone 1
-                  </label>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Plating Colors <span id="plating-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="plating-refresh-btn">↺ Refresh</button>
                 </div>
-                <div class="form-check d-flex align-items-center">
-                  <input
-                    class="form-check-input ms-2"
-                    type="checkbox"
-                    id="jig_unload_zone_2"
-                    name="jig_unload_zone_2"
-                  />
-                  <label class="form-check-label ms-2" for="jig_unload_zone_2">
-                    Jig Unload Zone 2
-                  </label>
-                </div>
+                <div id="plating-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-              
-              <!-- Submit Section -->
-              <div class="submit-section">
-                <button type="submit" class="btn btn-elegant-primary">Save Plating Color</button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <!-- 4. Tray Types -->
         <div class="tab-pane fade" id="tray" role="tabpanel" aria-labelledby="tray-tab">
           <div class="tab-content-frame">
-            <!-- Tray Type message area -->
             <div id="tray-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="tray-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="tray_type_name" class="form-label">Tray Type</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="tray_type_name"
-                  name="tray_type"
-                  placeholder="Enter tray type name"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add New Tray Type</p>
+                <form class="mm-form" id="tray-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="tray_type_name" class="form-label">Tray Type Name</label>
+                    <input type="text" class="form-control" id="tray_type_name" name="tray_type" placeholder="e.g. JB-A" required />
+                  </div>
+                  <div>
+                    <label for="tray_capacity_value" class="form-label">Capacity (pcs)</label>
+                    <input type="number" class="form-control" id="tray_capacity_value" name="tray_capacity" placeholder="e.g. 60" min="1" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Tray Type</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-md-6">
-                <label for="tray_capacity_value" class="form-label">Tray Capacity</label>
-                <input
-                  type="number"
-                  class="form-control"
-                  id="tray_capacity_value"
-                  name="tray_capacity"
-                  placeholder="Enter tray capacity"
-                  min="1"
-                  required
-                />
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Tray Types <span id="tray-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="tray-refresh-btn">↺ Refresh</button>
+                </div>
+                <div id="tray-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-              
-              <!-- Submit Section -->
-              <div class="submit-section">
-                <button type="submit" class="btn btn-elegant-primary">Save Tray Type</button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <!-- 5. Model Images -->
         <div class="tab-pane fade" id="images" role="tabpanel" aria-labelledby="images-tab">
           <div class="tab-content-frame">
-            <!-- Model Images message area -->
             <div id="images-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="images-form" enctype="multipart/form-data">
-              {% csrf_token %}
-              <div class="col-md-12">
-                <label for="model_images_upload" class="form-label">Upload Model Images</label>
-                <input
-                  type="file"
-                  class="form-control"
-                  id="model_images_upload"
-                  name="images"
-                  multiple
-                  accept="image/*"
-                  required
-                />
-                <small class="text-muted">
-                  Supports multiple images (JPG, PNG, GIF). Hold Ctrl to select multiple files.
-                </small>
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Upload Model Image</p>
+                <form class="mm-form" id="images-form" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  <div>
+                    <label for="model_images_upload" class="form-label">Select Images</label>
+                    <input type="file" class="form-control" id="model_images_upload" name="images" multiple accept="image/*" required />
+                    <small class="text-muted" style="font-size:.78rem;">JPG, PNG, GIF &mdash; hold Ctrl to select multiple.</small>
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Upload Images</button>
+                  </div>
+                </form>
               </div>
-              
-              <!-- Submit Section -->
-              <div class="submit-section">
-                <button type="submit" class="btn btn-elegant-primary">Upload Images</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Uploaded Images <span id="images-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="images-refresh-btn">↺ Refresh</button>
+                </div>
+                <div id="images-gallery" class="mm-gallery"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <!-- 6. Category -->
         <div class="tab-pane fade" id="category-tab-pane" role="tabpanel" aria-labelledby="category-tab">
           <div class="tab-content-frame">
-            <!-- Category message area -->
             <div id="category-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="category-form" method="post" action="">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="category_name" class="form-label">Category Name</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="category_name"
-                  name="category_name"
-                  placeholder="Enter category name"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add New Category</p>
+                <form class="mm-form" id="category-form" method="post" action="">
+                  {% csrf_token %}
+                  <div>
+                    <label for="category_name" class="form-label">Category Name</label>
+                    <input type="text" class="form-control" id="category_name" name="category_name" placeholder="e.g. Jumbo" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Category</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-12">
-                <div class="submit-section">
-                  <button type="submit" class="btn btn-elegant-primary">Save Category</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Categories <span id="category-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="category-refresh-btn">↺ Refresh</button>
                 </div>
+                <div id="category-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <!-- 7. Location -->
         <div class="tab-pane fade" id="location" role="tabpanel" aria-labelledby="location-tab">
           <div class="tab-content-frame">
-            <!-- Location message area -->
             <div id="location-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="location-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="location_name" class="form-label">Location Name</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="location_name"
-                  name="location_name"
-                  placeholder="Enter location name"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add New Location</p>
+                <form class="mm-form" id="location-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="location_name" class="form-label">Location Name</label>
+                    <input type="text" class="form-control" id="location_name" name="location_name" placeholder="e.g. Warehouse A" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Location</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-12">
-                <div class="submit-section">
-                  <button type="submit" class="btn btn-elegant-primary">Save Location</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Locations <span id="location-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="location-refresh-btn">↺ Refresh</button>
                 </div>
+                <div id="location-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
@@ -971,13 +919,13 @@
             <div id="trayid-message-area" class="message-area"></div>
 
             <!-- Add Tray IDs Section -->
-            <div class="form-section-elegant" style="margin-bottom:14px;">
-              <h5 style="font-weight:700;color:#028084;margin-bottom:10px;">Add Tray IDs</h5>
-              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-                <div style="min-width:140px;">
-                  <label for="trayid_tray_type_select" class="form-label" style="margin-bottom:4px;font-size:0.85rem;">Tray Type</label>
-                  <select class="form-select" id="trayid_tray_type_select" style="padding:6px 10px;font-size:0.85rem;" required>
-                    <option value="">Select</option>
+            <div class="mm-tray-add-section">
+              <p class="mm-section-title">Add Tray IDs</p>
+              <div class="mm-tray-add-bar">
+                <div class="mm-tray-field">
+                  <label for="trayid_tray_type_select">Tray Type</label>
+                  <select class="form-select" id="trayid_tray_type_select" required>
+                    <option value="">Select type</option>
                     <option value="JB-A">JB-A (Jumbo)</option>
                     <option value="JR-A">JR-A (Jumbo R)</option>
                     <option value="JD-A">JD-A (Jumbo D)</option>
@@ -988,69 +936,55 @@
                     <option value="NL-A">NL-A (Normal L)</option>
                   </select>
                 </div>
-                <div style="min-width:100px;">
-                  <label for="trayid_start_number" class="form-label" style="margin-bottom:4px;font-size:0.85rem;">Start No</label>
-                  <input type="number" class="form-control" id="trayid_start_number"
-                    placeholder="e.g. 1" min="0" style="padding:6px 10px;font-size:0.85rem;" required />
+                <div class="mm-tray-field">
+                  <label for="trayid_start_number">Start No</label>
+                  <input type="number" class="form-control" id="trayid_start_number" placeholder="e.g. 1" min="0" required />
                 </div>
-                <div style="min-width:100px;">
-                  <label for="trayid_end_number" class="form-label" style="margin-bottom:4px;font-size:0.85rem;">End No</label>
-                  <input type="number" class="form-control" id="trayid_end_number"
-                    placeholder="e.g. 50" min="0" style="padding:6px 10px;font-size:0.85rem;" required />
+                <div class="mm-tray-field">
+                  <label for="trayid_end_number">End No</label>
+                  <input type="number" class="form-control" id="trayid_end_number" placeholder="e.g. 50" min="0" required />
                 </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="trayid-preview-btn"
-                  style="border-radius:8px;font-weight:600;padding:11px 14px;font-size:0.85rem;height:fit-content;">
-                  Generate Preview
-                </button>
-                <button type="button" class="btn btn-elegant-primary btn-sm" id="trayid-add-btn"
-                  style="border-radius:8px;font-weight:600;padding:11px 18px;font-size:0.85rem;height:fit-content;">
-                  Add Trays
-                </button>
+                <div class="mm-tray-btns">
+                  <button type="button" class="btn btn-outline-secondary" id="trayid-preview-btn">Generate Preview</button>
+                  <button type="button" class="btn btn-elegant-primary" id="trayid-add-btn">Add Trays</button>
+                </div>
               </div>
 
-              <!-- Preview area -->
-              <div id="trayid-preview-area" style="margin-top:10px;display:none;">
-                <label class="form-label" style="font-weight:600;font-size:0.85rem;">Preview (editable):</label>
+              <div id="trayid-preview-area" style="display:none;">
+                <label class="form-label" for="trayid_preview_text">Preview (editable)</label>
                 <textarea class="form-control" id="trayid_preview_text" rows="3"
-                  style="font-family:monospace;font-size:12px;"
+                  style="font-family:monospace;"
                   placeholder="Tray IDs will appear here..."></textarea>
-                <small class="text-muted">One tray ID per line. You can edit, add, or remove IDs before saving.</small>
+                <small class="text-muted">One tray ID per line. Edit or remove before saving.</small>
               </div>
             </div>
 
-            <hr style="border-color:#e2e8f0;">
+            <hr style="border-color:var(--mm-border);margin:20px 0;">
 
             <!-- Tray ID List Section -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <h5 style="font-weight:700;color:#028084;margin:0;">
+            <div class="mm-tray-list-header">
+              <p class="mm-section-title" style="margin-bottom:0;">
                 Existing Tray IDs
-                <span id="trayid-total-badge" class="badge bg-secondary" style="font-size:0.8rem;vertical-align:middle;margin-left:6px;">0</span>
-              </h5>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" class="form-control" id="trayid-search-input"
-                  placeholder="Search tray ID..." style="width:220px;font-size:0.85rem;padding:6px 12px;border-radius:8px;" />
-                <button type="button" class="btn btn-outline-info btn-sm" id="trayid-refresh-btn"
-                  style="border-radius:8px;font-weight:600;">
-                  Refresh
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-sm" id="trayid-delete-all-btn"
-                  style="border-radius:8px;font-weight:600;">
-                  Delete All
-                </button>
+                <span id="trayid-total-badge" class="badge bg-secondary" style="font-size:.75rem;vertical-align:middle;margin-left:6px;">0</span>
+              </p>
+              <div class="mm-search-wrap">
+                <input type="text" class="form-control" id="trayid-search-input" placeholder="Search tray ID..." />
+                <button type="button" class="btn btn-outline-info btn-sm" id="trayid-refresh-btn">Refresh</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="trayid-delete-all-btn">Delete All</button>
               </div>
             </div>
 
-            <div id="trayid-table-container" style="max-height:350px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:12px;">
-              <table class="table table-hover table-sm mb-0" style="font-size:0.85rem;">
-                <thead style="position:sticky;top:0;background:#f1f5f9;z-index:1;">
+            <div id="trayid-table-container">
+              <table class="table table-hover table-sm mb-0">
+                <thead>
                   <tr>
-                    <th style="padding:10px 14px;">S.No</th>
-                    <th style="padding:10px 14px;">Tray ID</th>
-                    <th style="padding:10px 14px;">Type</th>
-                    <th style="padding:10px 14px;">Capacity</th>
-                    <th style="padding:10px 14px;">Status</th>
-                    <th style="padding:10px 14px;">Created</th>
-                    <th style="padding:10px 14px;text-align:center;">Action</th>
+                    <th>S.No</th>
+                    <th>Tray ID</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="text-align:center;">Action</th>
                   </tr>
                 </thead>
                 <tbody id="trayid-table-body">
@@ -1059,17 +993,11 @@
               </table>
             </div>
 
-            <!-- Undo bar (hidden by default) -->
-            <div id="trayid-undo-bar" style="display:none;margin-top:12px;padding:12px 18px;background:#fff3cd;border:1px solid #ffc107;border-radius:10px;
-              align-items:center;justify-content:space-between;">
-              <span id="trayid-undo-msg" style="font-weight:600;color:#856404;font-size:0.9rem;"></span>
+            <div id="trayid-undo-bar">
+              <span id="trayid-undo-msg" style="font-weight:600;color:#92400e;font-size:.85rem;"></span>
               <div style="display:flex;gap:8px;">
-                <button type="button" class="btn btn-warning btn-sm" id="trayid-undo-btn"
-                  style="border-radius:8px;font-weight:600;font-size:0.82rem;">
-                  Undo
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="trayid-undo-dismiss"
-                  style="border-radius:8px;font-size:0.82rem;">Dismiss</button>
+                <button type="button" class="btn btn-warning btn-sm" id="trayid-undo-btn">Undo</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="trayid-undo-dismiss">Dismiss</button>
               </div>
             </div>
           </div>
@@ -1078,82 +1006,86 @@
         <!-- 9. IP Rejection -->
         <div class="tab-pane fade" id="iprejection" role="tabpanel" aria-labelledby="iprejection-tab">
           <div class="tab-content-frame">
-            <!-- IP Rejection message area -->
             <div id="iprejection-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="iprejection-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="iprejection_reason" class="form-label">Rejection Reason</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="iprejection_reason"
-                  name="rejection_reason"
-                  placeholder="Enter rejection reason"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add IP Rejection Reason</p>
+                <form class="mm-form" id="iprejection-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="iprejection_reason" class="form-label">Rejection Reason</label>
+                    <input type="text" class="form-control" id="iprejection_reason" name="rejection_reason" placeholder="e.g. Burr on surface" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save IP Rejection</button>
+                  </div>
+                </form>
               </div>
-
-              <div class="col-12">
-                <div class="submit-section">
-                  <button type="submit" class="btn btn-elegant-primary">Save IP Rejection</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing IP Rejection Reasons <span id="iprejection-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="iprejection-refresh-btn">↺ Refresh</button>
                 </div>
+                <div id="iprejection-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
                 <!-- 10. BRASS/IQF Rejection -->
         <div class="tab-pane fade" id="brassiqf" role="tabpanel" aria-labelledby="brassiqf-tab">
           <div class="tab-content-frame">
-            <!-- BRASS/IQF Rejection message area -->
             <div id="brassiqf-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="brassiqf-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="brassiqf_reason" class="form-label">Rejection Reason</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="brassiqf_reason"
-                  name="rejection_reason"
-                  placeholder="Enter rejection reason"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add BQ/BA/IQF Rejection Reason</p>
+                <form class="mm-form" id="brassiqf-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="brassiqf_reason" class="form-label">Rejection Reason</label>
+                    <input type="text" class="form-control" id="brassiqf_reason" name="rejection_reason" placeholder="e.g. Dimensional out of spec" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save BQ/BA/IQF Rejection</button>
+                  </div>
+                </form>
               </div>
-
-              <div class="col-12">
-                <div class="submit-section">
-                  <button type="submit" class="btn btn-elegant-primary">Save BRASS/IQF Rejection</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing BQ/BA/IQF Reasons <span id="brassiqf-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="brassiqf-refresh-btn">↺ Refresh</button>
                 </div>
+                <div id="brassiqf-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
         <div class="tab-pane fade" id="nickelrejection" role="tabpanel" aria-labelledby="nickelrejection-tab">
           <div class="tab-content-frame">
-            <!-- Nickel Audit/QC Rejection message area -->
             <div id="nickelrejection-message-area" class="message-area"></div>
-            <form class="row g-3 form-section-elegant" id="nickelrejection-form">
-              {% csrf_token %}
-              <div class="col-md-6">
-                <label for="nickelrejection_reason" class="form-label">Rejection Reason</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="nickelrejection_reason"
-                  name="rejection_reason"
-                  placeholder="Enter rejection reason"
-                  required
-                />
+            <div class="mm-tab-layout">
+              <div class="mm-form-panel">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Add NQ/NA Rejection Reason</p>
+                <form class="mm-form" id="nickelrejection-form">
+                  {% csrf_token %}
+                  <div>
+                    <label for="nickelrejection_reason" class="form-label">Rejection Reason</label>
+                    <input type="text" class="form-control" id="nickelrejection_reason" name="rejection_reason" placeholder="e.g. Plating peel off" required />
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save NQ/NA Rejection</button>
+                  </div>
+                </form>
               </div>
-              <div class="col-12">
-                <div class="submit-section">
-                  <button type="submit" class="btn btn-elegant-primary">Save Nickel Audit/QC Rejection</button>
+              <div class="mm-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing NQ/NA Reasons <span id="nickelrejection-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="nickelrejection-refresh-btn">↺ Refresh</button>
                 </div>
+                <div id="nickelrejection-tag-list" class="mm-tag-list"><span class="mm-list-empty">Loading…</span></div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
@@ -1237,6 +1169,7 @@ const PolishFinishAPI = {
                 document.getElementById('polish_finish_name').value = '';
                 document.getElementById('polish_internal').value = '';
                 this.refreshDropdown();
+                refreshPolishList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating polish finish');
                 showInlineMessage('polish-message-area', errorMsg, false);
@@ -1295,6 +1228,7 @@ const PlatingColorAPI = {
                 document.getElementById('plating_internal').value = '';
                 document.getElementById('jig_unload_zone_1').checked = false;
                 document.getElementById('jig_unload_zone_2').checked = false;
+                refreshPlatingList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating plating color');
                 showInlineMessage('plating-message-area', errorMsg, false);
@@ -1329,6 +1263,7 @@ const TrayTypeAPI = {
                 document.getElementById('tray_type_name').value = '';
                 document.getElementById('tray_capacity_value').value = '';
                 this.refreshDropdown();
+                refreshTrayTypeList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating tray type');
                 showInlineMessage('tray-message-area', errorMsg, false);
@@ -1392,6 +1327,7 @@ const ModelImageAPI = {
                 showInlineMessage('images-message-area', result.message || 'Images uploaded successfully!', true);
                 filesInput.value = '';
                 this.refreshDropdown();
+                refreshImageGallery();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error uploading images');
                 showInlineMessage('images-message-area', errorMsg, false);
@@ -1447,6 +1383,7 @@ const ModelMasterAPI = {
             if (result.success) {
                 showInlineMessage('model-message-area', result.message || 'Model master created successfully!', true);
                 document.getElementById('model-master-form').reset();
+                refreshModelMasterList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating model master');
                 showInlineMessage('model-message-area', errorMsg, false);
@@ -1478,6 +1415,7 @@ const LocationAPI = {
                 showInlineMessage('location-message-area', result.message || 'Location created successfully!', true);
                 document.getElementById('location_name').value = '';
                 this.refreshDropdown();
+                refreshLocationList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating location');
                 showInlineMessage('location-message-area', errorMsg, false);
@@ -1557,7 +1495,7 @@ const IPRejectionAPI = {
             if (result.success) {
                 showInlineMessage('iprejection-message-area', result.message || 'IP Rejection saved successfully!', true);
                 document.getElementById('iprejection_reason').value = '';
-
+                refreshIPRejectionList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error saving IP Rejection');
                 showInlineMessage('iprejection-message-area', errorMsg, false);
@@ -1587,6 +1525,7 @@ const BrassIQFRejectionAPI = {
             if (result.success) {
                 showInlineMessage('brassiqf-message-area', result.message || 'BRASS/IQF Rejection saved successfully!', true);
                 document.getElementById('brassiqf_reason').value = '';
+                refreshBrassIQFList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error saving BRASS/IQF Rejection');
                 showInlineMessage('brassiqf-message-area', errorMsg, false);
@@ -1625,6 +1564,7 @@ const NickelAuditQCRejectionAPI = {
             if (result.success) {
                 showInlineMessage('nickelrejection-message-area', result.message || 'Nickel Audit/QC Rejection saved successfully!', true);
                 document.getElementById('nickelrejection_reason').value = '';
+                refreshNickelRejectionList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error saving Nickel Audit/QC Rejection');
                 showInlineMessage('nickelrejection-message-area', errorMsg, false);
@@ -1746,6 +1686,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Tray ID management UI
     initTrayManageUI();
     
+    // Init refresh buttons and load all existing-data lists
+    initListRefreshButtons();
+    loadAllLists();
+    
     console.log('Initialization complete!');
 });
 
@@ -1835,6 +1779,7 @@ function setupFormHandlers() {
                 if (typeof PolishFinishAPI !== "undefined" && PolishFinishAPI.refreshDropdown) {
                     PolishFinishAPI.refreshDropdown();
                 }
+                refreshPolishList();
                 // Auto-hide success message after 5 seconds
                 setTimeout(() => {
                     messageArea.innerHTML = '';
@@ -1956,6 +1901,7 @@ function setupFormHandlers() {
                 if (typeof CategoryAPI !== "undefined" && CategoryAPI.refreshDropdown) {
                     CategoryAPI.refreshDropdown();
                 }
+                refreshCategoryList();
                 // Auto-hide success message after 5 seconds
                 setTimeout(() => {
                     messageArea.innerHTML = '';
@@ -2214,7 +2160,7 @@ function renderTrayRows(data) {
             : '<span class="badge bg-success">Available</span>';
         html += `<tr>
             <td style="padding:8px 14px;">${idx + 1}</td>
-            <td style="padding:8px 14px;font-weight:600;font-family:monospace;">${escapeHtml(t.tray_id)}</td>
+            <td style="padding:8px 14px;font-family:monospace;">${escapeHtml(t.tray_id)}</td>
             <td style="padding:8px 14px;">${escapeHtml(t.tray_type)}</td>
             <td style="padding:8px 14px;">${t.tray_capacity || '-'}</td>
             <td style="padding:8px 14px;">${statusBadge}</td>
@@ -2300,7 +2246,256 @@ function escapeHtml(str) {
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
 }
-// ── End Tray ID Management UI ────────────────────────────────────────────────
+
+// ── Master List Helpers ───────────────────────────────────────────────
+
+async function apiDelete(url) {
+    try {
+        const r = await fetch(url, { method: 'DELETE', headers: { 'X-CSRFToken': getCSRFToken() } });
+        return await r.json();
+    } catch (e) {
+        return { success: false, message: 'Network error: ' + e.message };
+    }
+}
+
+function renderTagList(containerId, badgeId, items, labelFn, deleteUrlFn) {
+    const c = document.getElementById(containerId);
+    const b = document.getElementById(badgeId);
+    if (!c) return;
+    if (b) b.textContent = items.length;
+    if (!items.length) {
+        c.innerHTML = '<span class="mm-list-empty">No items yet.</span>';
+        return;
+    }
+    c.innerHTML = items.map(item => {
+        const { label, sub, badge } = labelFn(item);
+        const delBtn = deleteUrlFn
+            ? `<button type="button" class="mm-tag-del" data-id="${item.id}" data-url="${deleteUrlFn(item.id)}" title="Delete">&times;</button>`
+            : '';
+        const subHtml = sub ? `<span class="mm-tag-sub ms-1">${escapeHtml(sub)}</span>` : '';
+        const badgeHtml = badge ? `<span class="mm-tag-badge ms-1">${escapeHtml(badge)}</span>` : '';
+        return `<span class="mm-tag">${escapeHtml(label)}${subHtml}${badgeHtml}${delBtn}</span>`;
+    }).join('');
+    c.querySelectorAll('.mm-tag-del[data-url]').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const url = this.getAttribute('data-url');
+            const tag = this.closest('.mm-tag');
+            this.disabled = true;
+            const result = await apiDelete(url);
+            if (result && result.success) {
+                tag.remove();
+                if (b) b.textContent = Math.max(0, parseInt(b.textContent || '1') - 1);
+            } else {
+                this.disabled = false;
+                alert(result?.message || 'Delete failed.');
+            }
+        });
+    });
+}
+
+async function refreshPolishList() {
+    const data = await PolishFinishAPI.getAll();
+    if (data && data.success) {
+        renderTagList('polish-tag-list', 'polish-count-badge', data.data,
+            item => ({ label: item.polish_finish, sub: item.polish_internal }),
+            id => `/adminportal/polish-finish/${id}/`);
+    }
+}
+
+async function refreshPlatingList() {
+    try {
+        const r = await fetch('/adminportal/plating-color/');
+        const data = await r.json();
+        if (data && data.success) {
+            renderTagList('plating-tag-list', 'plating-count-badge', data.data,
+                item => {
+                    let badge = '';
+                    if (item.jig_unload_zone_1 && item.jig_unload_zone_2) badge = 'Z1+Z2';
+                    else if (item.jig_unload_zone_1) badge = 'Z1';
+                    else if (item.jig_unload_zone_2) badge = 'Z2';
+                    return { label: item.plating_color, sub: item.plating_color_internal || '', badge };
+                },
+                id => `/adminportal/plating-color/${id}/`);
+        }
+    } catch (e) { console.error('refreshPlatingList:', e); }
+}
+
+async function refreshTrayTypeList() {
+    const data = await TrayTypeAPI.getAll();
+    if (data && data.success) {
+        renderTagList('tray-tag-list', 'tray-count-badge', data.data,
+            item => ({ label: item.tray_type, badge: `${item.tray_capacity} pcs` }),
+            id => `/adminportal/tray-type/${id}/`);
+    }
+}
+
+async function refreshImageGallery() {
+    const data = await ModelImageAPI.getAll();
+    const c = document.getElementById('images-gallery');
+    const b = document.getElementById('images-count-badge');
+    if (!c) return;
+    if (!data || !data.success || !data.data.length) {
+        c.innerHTML = '<span class="mm-list-empty">No images uploaded yet.</span>';
+        if (b) b.textContent = '0';
+        return;
+    }
+    if (b) b.textContent = data.data.length;
+    c.innerHTML = data.data.map(item => {
+        const src = item.master_image || '';
+        const name = src.split('/').pop() || `Image ${item.id}`;
+        return `<div class="mm-gallery-item">
+            <img class="mm-gallery-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" loading="lazy" onerror="this.src='';this.style.height='80px';">
+            <div class="mm-gallery-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+            <button type="button" class="mm-gallery-del" data-id="${item.id}" title="Delete">&times;</button>
+        </div>`;
+    }).join('');
+    c.querySelectorAll('.mm-gallery-del').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const id = this.getAttribute('data-id');
+            const card = this.closest('.mm-gallery-item');
+            this.disabled = true;
+            const result = await apiDelete(`/adminportal/model-image/${id}/`);
+            if (result && result.success) {
+                card.remove();
+                ModelImageAPI.refreshDropdown();
+                if (b) b.textContent = Math.max(0, parseInt(b.textContent || '1') - 1);
+            } else {
+                this.disabled = false;
+                alert(result?.message || 'Delete failed.');
+            }
+        });
+    });
+}
+
+async function refreshCategoryList() {
+    const data = await CategoryAPI.getAll();
+    if (data && data.success) {
+        renderTagList('category-tag-list', 'category-count-badge', data.data,
+            item => ({ label: item.category_name }),
+            id => `/adminportal/category/${id}/`);
+    }
+}
+
+async function refreshLocationList() {
+    const data = await LocationAPI.getAll();
+    if (data && data.success) {
+        renderTagList('location-tag-list', 'location-count-badge', data.data,
+            item => ({ label: item.location_name }),
+            id => `/adminportal/location/${id}/`);
+    }
+}
+
+async function refreshIPRejectionList() {
+    try {
+        const r = await fetch('/adminportal/ip-rejection/');
+        const data = await r.json();
+        if (data && data.success) {
+            renderTagList('iprejection-tag-list', 'iprejection-count-badge', data.data,
+                item => ({ label: item.rejection_reason }),
+                id => `/adminportal/ip-rejection/${id}/`);
+        }
+    } catch (e) { console.error('refreshIPRejectionList:', e); }
+}
+
+async function refreshBrassIQFList() {
+    try {
+        const r = await fetch('/adminportal/brass-iqf-rejection/');
+        const data = await r.json();
+        if (data && data.success) {
+            renderTagList('brassiqf-tag-list', 'brassiqf-count-badge', data.data,
+                item => ({ label: item.rejection_reason }),
+                id => `/adminportal/brass-iqf-rejection/${id}/`);
+        }
+    } catch (e) { console.error('refreshBrassIQFList:', e); }
+}
+
+async function refreshNickelRejectionList() {
+    try {
+        const r = await fetch('/adminportal/nickel-auditqc-rejection/');
+        const data = await r.json();
+        if (data && data.success) {
+            renderTagList('nickelrejection-tag-list', 'nickelrejection-count-badge', data.data,
+                item => ({ label: item.rejection_reason }),
+                id => `/adminportal/nickel-auditqc-rejection/${id}/`);
+        }
+    } catch (e) { console.error('refreshNickelRejectionList:', e); }
+}
+
+async function refreshModelMasterList() {
+    try {
+        const r = await fetch('/adminportal/model-master/');
+        const data = await r.json();
+        const tbody = document.getElementById('model-list-body');
+        const badge = document.getElementById('model-count-badge');
+        if (!tbody) return;
+        if (!data || !data.success || !data.data || !data.data.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="mm-list-empty">No model masters yet.</td></tr>';
+            if (badge) badge.textContent = '0';
+            return;
+        }
+        if (badge) badge.textContent = data.data.length;
+        tbody.innerHTML = data.data.map((m, i) => `<tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(m.model_no || '')}</td>
+            <td>${escapeHtml(m.polish_finish_name || (typeof m.polish_finish === 'string' ? m.polish_finish : '') || '-')}</td>
+            <td>${escapeHtml(m.ep_bath_type || '-')}</td>
+            <td>${escapeHtml(m.tray_type_name || (typeof m.tray_type === 'string' ? m.tray_type : '') || '-')}</td>
+            <td>${escapeHtml(m.version || '-')}</td>
+            <td style="text-align:center;">
+                <button type="button" class="btn btn-outline-danger btn-sm model-del-btn" data-id="${m.id}" style="font-size:.72rem;padding:2px 10px;border-radius:5px;">Delete</button>
+            </td>
+        </tr>`).join('');
+        tbody.querySelectorAll('.model-del-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.getAttribute('data-id');
+                if (!confirm('Delete this model master?')) return;
+                this.disabled = true;
+                const result = await apiDelete(`/adminportal/model-master/${id}/`);
+                if (result && result.success) {
+                    refreshModelMasterList();
+                } else {
+                    this.disabled = false;
+                    alert(result?.message || 'Delete failed.');
+                }
+            });
+        });
+    } catch (e) { console.error('refreshModelMasterList:', e); }
+}
+
+function initListRefreshButtons() {
+    const btnMap = {
+        'polish-refresh-btn': refreshPolishList,
+        'plating-refresh-btn': refreshPlatingList,
+        'tray-refresh-btn': refreshTrayTypeList,
+        'images-refresh-btn': refreshImageGallery,
+        'category-refresh-btn': refreshCategoryList,
+        'location-refresh-btn': refreshLocationList,
+        'iprejection-refresh-btn': refreshIPRejectionList,
+        'brassiqf-refresh-btn': refreshBrassIQFList,
+        'nickelrejection-refresh-btn': refreshNickelRejectionList,
+        'model-refresh-btn': refreshModelMasterList,
+    };
+    Object.entries(btnMap).forEach(([id, fn]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', fn);
+    });
+}
+
+async function loadAllLists() {
+    await Promise.all([
+        refreshPolishList(),
+        refreshPlatingList(),
+        refreshTrayTypeList(),
+        refreshImageGallery(),
+        refreshCategoryList(),
+        refreshLocationList(),
+        refreshIPRejectionList(),
+        refreshBrassIQFList(),
+        refreshNickelRejectionList(),
+        refreshModelMasterList(),
+    ]);
+}
+// ── End Master List Refresh Functions ─────────────────────────────────────────────
 </script>
 
 {% endblock %}
