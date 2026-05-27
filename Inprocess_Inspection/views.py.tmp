@@ -46,7 +46,6 @@ class InprocessInspectionView(TemplateView):
                 except ImportError:
                     return rsm, True, ModelMasterCreation
         except Exception as e:
-            pass
         
         return None, False, None
 
@@ -166,7 +165,6 @@ class InprocessInspectionView(TemplateView):
                         # Also provide a string copy for templates that call split()
                         jig_detail.no_of_model_cases_str = no_of_model_cases_str
                 except Exception as e:
-                    pass
             
             # Get multiple lot_ids exactly like JigCompletedTable
             multiple_lot_ids = self.get_multiple_lot_ids(jig_detail)
@@ -420,9 +418,7 @@ class InprocessInspectionView(TemplateView):
                     batch_to_master[model.id] = model
                     
             except ImportError:
-                pass
             except Exception as e:
-                pass
         
         # STEP 3: Process in the same order as lot_ids to maintain consistency
         
@@ -619,7 +615,6 @@ class InprocessInspectionView(TemplateView):
         models_data = self.get_models_data(model_stock_nos)
         
         for model_no, data in models_data.items():
-            pass
         
         plating_stk_nos = []
         polishing_stk_nos = []
@@ -786,7 +781,6 @@ class InprocessInspectionView(TemplateView):
                     if tsm.polish_finish and jig_detail.polish_finish == 'N/A':
                         jig_detail.polish_finish = tsm.polish_finish.polish_finish
             except Exception as e:
-                pass
         
         # Fallback: Fetch tray info from TotalStockModel if not set
         if not jig_detail.tray_type or jig_detail.tray_type == 'No Tray Type':
@@ -798,7 +792,6 @@ class InprocessInspectionView(TemplateView):
                         jig_detail.tray_type = mmc.model_stock_no.tray_type.tray_type
                         jig_detail.tray_capacity = self.get_dynamic_tray_capacity(mmc.model_stock_no.tray_type.tray_type if mmc.model_stock_no.tray_type else "No Tray Type")
             except Exception as e:
-                pass
         
 
         
@@ -904,7 +897,6 @@ class InprocessInspectionView(TemplateView):
                                             if _img.master_image:
                                                 images.append(_img.master_image.url)
                                 except Exception as _ie:
-                                    pass
                         
                         if not images:
                             images = [static('assets/images/imagePlaceholder.jpg')]
@@ -929,9 +921,7 @@ class InprocessInspectionView(TemplateView):
                             batch_id = stock_model.batch_id.id
                             batch_model_class = batch_model_cls
                         else:
-                            pass
                     except Exception as e:
-                        pass
                 
                 if batch_id and batch_model_class:
                     # Get batch data using the appropriate model class
@@ -951,9 +941,7 @@ class InprocessInspectionView(TemplateView):
                                 if model_master:
                                     jig_detail.no_of_model_cases = [model_master.model_no]
                                 else:
-                                    pass
                             except Exception as e:
-                                pass
                         
                         # Keep existing model display logic for frontend (multiple model circles)
                         if jig_detail.no_of_model_cases:
@@ -1039,9 +1027,7 @@ class InprocessInspectionView(TemplateView):
                                 
                                 jig_model_images[model_no] = images
                             else:
-                                pass
                         except Exception as e:
-                            pass
                     
                     # Populate the required fields for frontend
                     jig_detail.no_of_model_cases = model_numbers
@@ -1098,7 +1084,6 @@ class InprocessInspectionView(TemplateView):
                         jig_detail.primary_tray_capacity = 0
                     return
             except Exception as e:
-                pass
         for attr in ('unique_versions', 'unique_vendors', 'unique_locations',
                      'unique_tray_types', 'unique_tray_capacities'):
             if not hasattr(jig_detail, attr):
@@ -1148,7 +1133,6 @@ class InprocessInspectionView(TemplateView):
                 if tsm and tsm.plating_color:
                     plating_color = tsm.plating_color.plating_color
             except Exception as e:
-                pass
             
             # Fetch tray info from ModelMaster
             tray_type = "No Tray Type"
@@ -1175,9 +1159,7 @@ class InprocessInspectionView(TemplateView):
             }
         except Exception as e:
             if 'DoesNotExist' in str(type(e)):
-                pass
             else:
-                pass
             return self.get_default_batch_data()
     
     def parse_model_cases(self, no_of_model_cases):
@@ -1285,9 +1267,7 @@ class InprocessInspectionView(TemplateView):
                         models_data[model_no] = self.extract_model_data(recovery_master, 'RecoveryMasterCreation')
                         
             except ImportError:
-                pass
             except Exception as e:
-                pass
         
         return models_data
     
@@ -1321,7 +1301,6 @@ class InprocessInspectionView(TemplateView):
             if tsm and tsm.plating_color:
                 plating_color_display = tsm.plating_color.plating_color
         except Exception as e:
-            pass
         
         return {
             'batch_id': model_master.id,
@@ -1757,7 +1736,6 @@ class InprocessInspectionCompleteView(TemplateView):
                 except ImportError:
                     return rsm, True, ModelMasterCreation
         except Exception as e:
-            pass
         
         return None, False, None
 
@@ -2143,9 +2121,7 @@ class InprocessInspectionCompleteView(TemplateView):
                     batch_to_master[model.id] = model
                     
             except ImportError:
-                pass
             except Exception as e:
-                pass
         
         # STEP 3: Process in the same order as lot_ids to maintain consistency
         
@@ -2311,9 +2287,7 @@ class InprocessInspectionCompleteView(TemplateView):
                     batch_id = stock_model.batch_id.id
                     batch_model_class = batch_model_cls
                 else:
-                    pass
             except Exception as e:
-                pass
         
         if batch_id and batch_model_class:
             # Get batch data using the appropriate model class
@@ -2442,7 +2416,6 @@ class InprocessInspectionCompleteView(TemplateView):
                         jig_detail.primary_tray_capacity = 0
                     return
             except Exception as e:
-                pass
         for attr in ('unique_versions', 'unique_vendors', 'unique_locations',
                      'unique_tray_types', 'unique_tray_capacities'):
             if not hasattr(jig_detail, attr):
@@ -2525,7 +2498,6 @@ class InprocessInspectionCompleteView(TemplateView):
                         jig_detail.primary_tray_capacity = 0
                     return
             except Exception as e:
-                pass
         # Absolute last resort — only set attrs not already present
         for attr in ('unique_versions', 'unique_vendors', 'unique_locations',
                      'unique_tray_types', 'unique_tray_capacities'):
@@ -2598,9 +2570,7 @@ class InprocessInspectionCompleteView(TemplateView):
             }
         except Exception as e:
             if 'DoesNotExist' in str(type(e)):
-                pass
             else:
-                pass
             return self.get_default_batch_data()
 
     def set_default_values(self, jig_detail):

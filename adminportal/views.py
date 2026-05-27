@@ -57,10 +57,18 @@ class ShortcutConfigurationAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request, format=None):
+        import time as _time
         from .services import get_active_shortcut_configurations
+        t0 = _time.time()
+        shortcuts = get_active_shortcut_configurations()
+        elapsed_ms = (_time.time() - t0) * 1000
+        logger.debug(
+            'shortcuts API: %.2fms count=%d user=%s',
+            elapsed_ms, len(shortcuts), request.user.username,
+        )
         return Response({
             'success': True,
-            'shortcuts': get_active_shortcut_configurations(),
+            'shortcuts': shortcuts,
         })
 
 

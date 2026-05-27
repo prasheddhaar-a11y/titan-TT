@@ -1818,7 +1818,7 @@
                         </span>
 
                       {% elif data.ui.action_type == 'AUDIT_ENABLED' %}
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn iqf-audit-btn"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn iqf-audit-btn{% if data.ui.status_pill.label == 'Draft' %} draft-resume-btn{% endif %}"
                                 style="background-color: #eaab36; color: #fff; border: 2px solid #b38f00; box-shadow: 0 2px 8px rgba(234,171,54,0.12);"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"

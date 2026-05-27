@@ -192,7 +192,27 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# Cache backend — in-process per worker.
+# To share across Gunicorn workers (recommended for production scale-out),
+# replace with a Redis backend:
+#   pip install django-redis
+#   CACHES = {'default': {'BACKEND': 'django_redis.cache.RedisCache',
+#                         'LOCATION': 'redis://127.0.0.1:6379/1'}}
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'ttt-default',
+        'TIMEOUT': 300,
+        'OPTIONS': {
+            'MAX_ENTRIES': 2000,
+        },
+    }
+}
+
+# cached_db reads the session from the in-process cache on warm hits,
+# falling back to PostgreSQL only on a miss. This removes one DB round-trip
+# from every authenticated request compared to the plain 'db' backend.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'

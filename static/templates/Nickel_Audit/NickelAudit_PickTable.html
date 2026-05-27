@@ -853,12 +853,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                 style="opacity: 0.6; cursor: not-allowed; pointer-events: none;"
                                 disabled>Accept</button>
                         {% if data.is_delink_only %}
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.na_draft %} draft-resume-btn{% endif %}"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false">Set Delink</button>
                         {% else %}
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.na_draft %} draft-resume-btn{% endif %}"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
                                   data-is-delink-only="false">Set Top Tray</button>

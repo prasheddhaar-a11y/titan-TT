@@ -872,7 +872,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {% if not data.nq_qc_accepted_qty_verified %}disabled{% endif %}>
                          Accept
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                 data-stock-lot-id="{{ data.lot_id }}"
                                 data-batch-id="{{ data.batch_id }}">
                           Reject
@@ -888,7 +888,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <!-- ✅ UPDATED: Conditional button text and styling -->
                         {% if data.nq_onhold_picking %}
                           {% if data.is_delink_only %}
-                            <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
+                            <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                     style="background-color: #e57373;"
                                     data-stock-lot-id="{{ data.lot_id }}"
                                     data-batch-id="{{ data.batch_id }}"
@@ -897,7 +897,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             </button>
                           {% else %}
                             <!-- Normal case: Some pieces available for top tray -->
-                            <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn"
+                            <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                     style="background-color: #e57373;"
                                     data-stock-lot-id="{{ data.lot_id }}"
                                     data-batch-id="{{ data.batch_id }}"
@@ -914,10 +914,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {% if not data.nq_qc_accepted_qty_verified %}disabled{% endif %}>
                          Accept
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                 data-stock-lot-id="{{ data.lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
-                                {% if not data.nq_qc_accepted_qty_verified %}disabled{% endif %}>
+                                {% if not data.nq_qc_accepted_qty_verified and not data.nq_draft %}disabled{% endif %}>
                           Reject
                         </button>
 
@@ -929,7 +929,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                 disabled>
                          Accept
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                 data-stock-lot-id="{{ data.lot_id }}"
                                 data-batch-id="{{ data.batch_id }}">
                           Reject
@@ -954,10 +954,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                 {% if not data.nq_qc_accepted_qty_verified %}disabled{% endif %}>
                          Accept
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.nq_draft %} draft-resume-btn{% endif %}"
                                 data-stock-lot-id="{{ data.lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
-                                {% if not data.nq_qc_accepted_qty_verified %}disabled{% endif %}>
+                                {% if not data.nq_qc_accepted_qty_verified and not data.nq_draft %}disabled{% endif %}>
                           Reject
                         </button>
                       {% endif %}

@@ -1,0 +1,399 @@
+"""
+SEED SCRIPT — 20 LOTS PER MODULE (PICK TABLES)
+TTT Enterprise Manufacturing Workflow System
+
+Creates 20 active lots in the pick table of every module:
+  - Day Planning            → 20 lots (ready to be picked)
+  - Input Screening         → 20 lots (Moved_to_D_Picker + tray scan exists)
+  - Brass QC                → 20 lots (accepted from IS)
+  - Brass Audit             → 20 lots (accepted from Brass QC)
+  - IQF                     → 20 lots (next_process_module='IQF')
+  - Jig Loading             → 20 lots (brass_audit_accptance=True)
+
+Safe to re-run. Uses SEED_TAG prefix to detect & skip already-created lots.
+All writes are inside a single atomic transaction.
+
+Usage:
+    env\\Scripts\\python.exe seed_20_lots_per_module.py
+"""
+
+import os
+import sys
+import uuid
+import time
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'watchcase_tracker.settings')
+django.setup()
+
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.utils import timezone
+
+from modelmasterapp.models import (
+    ModelMaster, ModelMasterCreation, TotalStockModel, TrayId,
+    Version, PolishFinishType, Plating_Color, TrayType, Vendor, Location,
+)
+from DayPlanning.models import DPTrayId_History
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
+SEED_TAG    = "SEED20-"   # batch_id prefix so we can detect seeded rows
+LOTS_PER_MODULE = 20
+
+MODULES = [
+    "Day Planning",
+    "Input Screening",
+    "Brass QC",
+    "Brass Audit",
+    "IQF",
+    "Jig Loading",
+]
+
+print("=" * 68)
+print("TTT — SEED 20 LOTS PER MODULE")
+print("=" * 68)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOAD ADMIN USER
+# ─────────────────────────────────────────────────────────────────────────────
+try:
+    ADMIN = User.objects.get(username='admin')
+    print(f"\n✅  Admin user: {ADMIN.username}")
+except User.DoesNotExist:
+    print("\n❌  Admin user not found. Run seed_all_master_data.py first.")
+    sys.exit(1)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOAD MASTER REFERENCES  (all must exist — run seed_all_master_data.py first)
+# ─────────────────────────────────────────────────────────────────────────────
+def first_or_die(qs, label):
+    obj = qs.first()
+    if not obj:
+        print(f"❌  No {label} found. Run seed_all_master_data.py first.")
+        sys.exit(1)
+    return obj
+
+normal_tray  = first_or_die(TrayType.objects.filter(tray_type='Normal'), "TrayType Normal")
+jumbo_tray   = first_or_die(TrayType.objects.filter(tray_type='Jumbo'), "TrayType Jumbo")
+ver_a        = first_or_die(Version.objects.filter(version_internal='A'), "Version A")
+polish_buff  = first_or_die(PolishFinishType.objects.filter(polish_internal='A'), "PolishFinish Buffed")
+plating_blk  = first_or_die(Plating_Color.objects.filter(plating_color_internal='N'), "Plating Color BLACK")
+plating_ips  = first_or_die(Plating_Color.objects.filter(plating_color_internal='S'), "Plating Color IPS")
+plating_ipg  = first_or_die(Plating_Color.objects.filter(plating_color_internal='Y'), "Plating Color IPG")
+vendor_demo  = first_or_die(Vendor.objects.filter(vendor_internal='Demo2'), "Vendor Demo2")
+location_obj = Location.objects.first()  # location is optional — skip if none
+
+# Pick 6 real ModelMaster entries (one per module group) to rotate across lots
+model_masters = list(ModelMaster.objects.all()[:10])
+if not model_masters:
+    print("❌  No ModelMaster entries found. Run seed_all_master_data.py first.")
+    sys.exit(1)
+
+# Pool of real free tray IDs we can assign to seeded lots.
+# We grab NR-A prefixed trays that are still new_tray=True and not yet assigned.
+# We need LOTS_PER_MODULE * 6 modules * 2 trays each = ~240 tray rows.
+FREE_TRAY_IDS = list(
+    TrayId.objects.filter(
+        new_tray=True,
+        scanned=False,
+        batch_id__isnull=True,
+        tray_id__startswith='NR-A',
+    ).order_by('tray_id').values_list('tray_id', flat=True)[:500]
+)
+if len(FREE_TRAY_IDS) < LOTS_PER_MODULE * 6 * 2:
+    print(f"⚠️  Only {len(FREE_TRAY_IDS)} free NR-A tray IDs found. "
+          "Some lots will share or get fewer trays. Continuing…")
+
+tray_pool_iter = iter(FREE_TRAY_IDS)
+
+def next_tray():
+    """Return next available tray ID from the pool, or generate a placeholder."""
+    try:
+        return next(tray_pool_iter)
+    except StopIteration:
+        return f"SEED-TRAY-{uuid.uuid4().hex[:8].upper()}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ID GENERATORS
+# ─────────────────────────────────────────────────────────────────────────────
+_lot_counter = [0]
+
+def gen_batch_id(module_tag: str, idx: int) -> str:
+    return f"{SEED_TAG}{module_tag}-{idx:03d}"
+
+def gen_lot_id(module_tag: str, idx: int) -> str:
+    _lot_counter[0] += 1
+    ts = time.strftime('%Y%m%d%H%M%S')
+    return f"LID{ts}{_lot_counter[0]:04d}{module_tag}{idx:03d}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PER-LOT BUILDERS  — module-specific flag sets
+# ─────────────────────────────────────────────────────────────────────────────
+
+def make_tsm_kwargs(module: str, lot_qty: int, batch: ModelMasterCreation,
+                    mm: ModelMaster, lot_id: str, idx: int) -> dict:
+    """Return TotalStockModel field dict for a given module's pick table."""
+    base = dict(
+        batch_id              = batch,
+        model_stock_no        = mm,
+        version               = ver_a,
+        total_stock           = lot_qty,
+        dp_physical_qty       = lot_qty,
+        lot_id                = lot_id,
+        polish_finish         = polish_buff,
+        last_process_module   = 'Day Planning',
+        next_process_module   = 'Input Screening',
+        created_at            = timezone.now(),
+    )
+
+    if module == "Day Planning":
+        # Lot ready in Day Planning — not yet moved to IS
+        base.update(
+            last_process_module = 'Day Planning',
+            next_process_module = 'Input Screening',
+        )
+
+    elif module == "Input Screening":
+        # IS Pick Table requires: Moved_to_D_Picker=True AND tray record exists
+        # (tray records are created separately via DPTrayId_History)
+        base.update(
+            last_process_module = 'Day Planning',
+            next_process_module = 'Input Screening',
+        )
+
+    elif module == "Brass QC":
+        # Brass QC Pick Table requires: accepted_Ip_stock=True
+        base.update(
+            accepted_Ip_stock             = True,
+            total_IP_accpeted_quantity    = lot_qty,
+            tray_scan_status              = True,
+            accepted_tray_scan_status     = True,
+            last_process_module           = 'Input screening',
+            next_process_module           = 'Brass QC',
+            last_process_date_time        = timezone.now(),
+            brass_physical_qty            = lot_qty,
+        )
+
+    elif module == "Brass Audit":
+        # Brass Audit Pick Table: brass_qc_accptance=True, brass_audit_accptance=False
+        base.update(
+            accepted_Ip_stock             = True,
+            total_IP_accpeted_quantity    = lot_qty,
+            accepted_tray_scan_status     = True,
+            brass_qc_accptance            = True,
+            brass_qc_accepted_qty         = lot_qty,
+            brass_qc_accepted_qty_verified= True,
+            brass_accepted_tray_scan_status = True,
+            last_process_module           = 'Brass QC',
+            next_process_module           = 'Brass Audit',
+            last_process_date_time        = timezone.now(),
+            bq_last_process_date_time     = timezone.now(),
+            brass_physical_qty            = lot_qty,
+            brass_audit_physical_qty      = lot_qty,
+        )
+
+    elif module == "IQF":
+        # IQF Pick Table: next_process_module='IQF'
+        base.update(
+            accepted_Ip_stock             = True,
+            total_IP_accpeted_quantity    = lot_qty,
+            accepted_tray_scan_status     = True,
+            brass_qc_accptance            = True,
+            brass_qc_accepted_qty         = lot_qty,
+            brass_audit_accptance         = True,
+            brass_audit_accepted_qty      = lot_qty,
+            brass_audit_accepted_qty_verified = True,
+            brass_audit_accepted_tray_scan_status = True,
+            last_process_module           = 'Brass Audit',
+            next_process_module           = 'IQF',
+            last_process_date_time        = timezone.now(),
+            bq_last_process_date_time     = timezone.now(),
+            brass_audit_last_process_date_time = timezone.now(),
+            brass_physical_qty            = lot_qty,
+            brass_audit_physical_qty      = lot_qty,
+            iqf_physical_qty              = lot_qty,
+        )
+
+    elif module == "Jig Loading":
+        # Jig Loading Pick Table: brass_audit_accptance=True
+        base.update(
+            accepted_Ip_stock             = True,
+            total_IP_accpeted_quantity    = lot_qty,
+            accepted_tray_scan_status     = True,
+            brass_qc_accptance            = True,
+            brass_qc_accepted_qty         = lot_qty,
+            brass_audit_accptance         = True,
+            brass_audit_accepted_qty      = lot_qty,
+            brass_audit_accepted_qty_verified = True,
+            brass_audit_accepted_tray_scan_status = True,
+            last_process_module           = 'Brass Audit',
+            next_process_module           = 'Jig Loading',
+            last_process_date_time        = timezone.now(),
+            bq_last_process_date_time     = timezone.now(),
+            brass_audit_last_process_date_time = timezone.now(),
+            brass_physical_qty            = lot_qty,
+            brass_audit_physical_qty      = lot_qty,
+            iqf_physical_qty              = lot_qty,
+        )
+
+    return base
+
+
+# plating color pool per module (rotate for visual variety in tables)
+PLATING_POOL = [plating_blk, plating_blk, plating_ips, plating_ipg,
+                plating_blk, plating_ips, plating_ipg, plating_blk,
+                plating_ips, plating_blk]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN SEEDING LOOP
+# ─────────────────────────────────────────────────────────────────────────────
+
+MODULE_TAGS = {
+    "Day Planning":     "DP",
+    "Input Screening":  "IS",
+    "Brass QC":         "BQ",
+    "Brass Audit":      "BA",
+    "IQF":              "IQ",
+    "Jig Loading":      "JL",
+}
+
+total_created = 0
+total_skipped = 0
+
+with transaction.atomic():
+    for module in MODULES:
+        tag   = MODULE_TAGS[module]
+        count = 0
+        skip  = 0
+
+        for idx in range(1, LOTS_PER_MODULE + 1):
+            batch_id_str = gen_batch_id(tag, idx)
+
+            # ── Skip if already seeded ──────────────────────────────────────
+            if ModelMasterCreation.objects.filter(batch_id=batch_id_str).exists():
+                skip += 1
+                continue
+
+            # ── Pick real model master (rotate through available) ───────────
+            mm = model_masters[(idx - 1) % len(model_masters)]
+            tray_type_obj = mm.tray_type or normal_tray
+            tray_cap      = tray_type_obj.tray_capacity if mm.tray_type else normal_tray.tray_capacity
+
+            # Lot qty: vary realistically (100–320 pieces)
+            lot_qty = (80 + idx * 12) if tray_cap <= 16 else (100 + idx * 10)
+
+            # Choose plating color
+            pc = PLATING_POOL[(idx - 1) % len(PLATING_POOL)]
+
+            # ── ModelMasterCreation (batch) ─────────────────────────────────
+            batch = ModelMasterCreation.objects.create(
+                batch_id             = batch_id_str,
+                model_stock_no       = mm,
+                polish_finish        = mm.polish_finish.polish_finish if mm.polish_finish else 'Buffed (A)',
+                ep_bath_type         = mm.ep_bath_type or 'Bright',
+                tray_type            = tray_type_obj.tray_type,
+                tray_capacity        = tray_cap,
+                total_batch_quantity = lot_qty,
+                version              = ver_a,
+                Moved_to_D_Picker    = (module != "Day Planning"),
+                top_tray_qty_verified= False,
+                Draft_Saved          = False,
+                plating_color        = pc.plating_color,
+                plating_stk_no       = mm.plating_stk_no or '',
+                vendor_internal      = vendor_demo.vendor_internal,
+                createdby            = ADMIN,
+            )
+            if location_obj:
+                batch.location = location_obj
+                batch.save(update_fields=['location'])
+
+            # ── TotalStockModel (lot) ───────────────────────────────────────
+            lot_id_str = gen_lot_id(tag, idx)
+            tsm_kwargs = make_tsm_kwargs(module, lot_qty, batch, mm, lot_id_str, idx)
+            tsm_kwargs['plating_color'] = pc
+            tsm = TotalStockModel(**tsm_kwargs)
+            if location_obj:
+                tsm.save()
+                tsm.location.set([location_obj])
+            else:
+                tsm.save()
+
+            # ── DPTrayId_History rows (2-3 trays per lot) ──────────────────
+            # All downstream selectors trace trays from DPTrayId_History
+            n_trays   = 2 if idx % 3 != 0 else 3
+            remaining = lot_qty
+            for t in range(n_trays):
+                is_last = (t == n_trays - 1)
+                tray_id = next_tray()
+                if is_last:
+                    qty = remaining
+                else:
+                    qty = min(tray_cap, remaining - (n_trays - t - 1))
+                    qty = max(1, qty)
+                    remaining -= qty
+
+                is_top = (t == 0)   # first tray = top tray (smallest qty = first)
+
+                DPTrayId_History.objects.create(
+                    lot_id        = lot_id_str,
+                    tray_id       = tray_id,
+                    tray_quantity = qty,
+                    batch_id      = batch,
+                    user          = ADMIN,
+                    top_tray      = is_top,
+                    new_tray      = True,
+                    scanned       = False,
+                    tray_type     = tray_type_obj.tray_type,
+                    tray_capacity = tray_cap,
+                )
+
+            count += 1
+            time.sleep(0.01)   # ensure unique timestamps in lot_ids
+
+        total_created += count
+        total_skipped += skip
+        print(f"\n  [{module}]  ✅ Created: {count}  |  ⏭  Skipped (exists): {skip}")
+
+print(f"\n{'=' * 68}")
+print(f"DONE — Total created: {total_created}  |  Skipped: {total_skipped}")
+print(f"{'=' * 68}")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VERIFICATION SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n── Verification (live DB counts) ─────────────────────────────────────")
+
+# IS Pick Table: Moved_to_D_Picker=True, tray scan exists, not accepted/rejected/submitted
+from django.db.models import Exists, OuterRef, Q
+ts_exists = Exists(TotalStockModel.objects.filter(batch_id=OuterRef('pk')))
+is_pick = (
+    ModelMasterCreation.objects
+    .filter(total_batch_quantity__gt=0, Moved_to_D_Picker=True)
+    .annotate(ts_exists=ts_exists)
+    .filter(ts_exists=True)
+    .exclude(Q(batch_id__startswith=SEED_TAG + 'DP'))  # DP module rows not in IS
+    .filter(batch_id__startswith=SEED_TAG + 'IS')
+    .count()
+)
+print(f"  Input Screening seeded lots  : {is_pick}")
+
+bq_cnt  = TotalStockModel.objects.filter(batch_id__batch_id__startswith=SEED_TAG + 'BQ').count()
+ba_cnt  = TotalStockModel.objects.filter(batch_id__batch_id__startswith=SEED_TAG + 'BA').count()
+iq_cnt  = TotalStockModel.objects.filter(batch_id__batch_id__startswith=SEED_TAG + 'IQ').count()
+jl_cnt  = TotalStockModel.objects.filter(batch_id__batch_id__startswith=SEED_TAG + 'JL').count()
+dp_cnt  = TotalStockModel.objects.filter(batch_id__batch_id__startswith=SEED_TAG + 'DP').count()
+
+print(f"  Day Planning seeded lots     : {dp_cnt}")
+print(f"  Brass QC seeded lots         : {bq_cnt}")
+print(f"  Brass Audit seeded lots      : {ba_cnt}")
+print(f"  IQF seeded lots              : {iq_cnt}")
+print(f"  Jig Loading seeded lots      : {jl_cnt}")
+
+tray_cnt = DPTrayId_History.objects.filter(lot_id__contains='LID').filter(
+    batch_id__batch_id__startswith=SEED_TAG
+).count()
+print(f"  DPTrayId_History rows created: {tray_cnt}")
+print()

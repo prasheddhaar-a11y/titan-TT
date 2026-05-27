@@ -1095,7 +1095,7 @@ tr.row-inactive td.action-td {
                                 {% if not data.brass_qc_accepted_qty_verified %}disabled{% endif %}>
                           Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
@@ -1111,7 +1111,7 @@ tr.row-inactive td.action-td {
                                   disabled>
                             Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                   style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
@@ -1127,7 +1127,7 @@ tr.row-inactive td.action-td {
                                   disabled>
                             Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                           </button>
-                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                          <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                   style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                   data-stock-lot-id="{{ data.stock_lot_id }}"
                                   data-batch-id="{{ data.batch_id }}"
@@ -1144,7 +1144,7 @@ tr.row-inactive td.action-td {
                                 {% if not data.brass_qc_accepted_qty_verified %}disabled{% endif %}>
                           Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
@@ -1160,7 +1160,7 @@ tr.row-inactive td.action-td {
                                 {% if not data.brass_qc_accepted_qty_verified %}disabled{% endif %}>
                           Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                 style="background-color: #e57373; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"
@@ -1189,7 +1189,7 @@ tr.row-inactive td.action-td {
                                 {% if not data.brass_qc_accepted_qty_verified %}disabled{% endif %}>
                           Accept <kbd data-shortcut-template-code="accept_row" data-shortcut-template="{key}" style="font-size:10px;opacity:.75;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 3px;"></kbd>
                         </button>
-                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is"
+                        <button type="button" class="btn btn-social-icon-text btn-youtube tray-scan-btn btn-reject-is{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                                 style="background-color: #e57373; color: white; border: none; padding: 8px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
                                 data-stock-lot-id="{{ data.stock_lot_id }}"
                                 data-batch-id="{{ data.batch_id }}"

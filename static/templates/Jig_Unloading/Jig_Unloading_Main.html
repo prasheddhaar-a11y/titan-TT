@@ -1709,7 +1709,7 @@ body.add-model-mode #selectAllCheckbox {
                              <span>Unloaded</span>
                           </a>
                         {% else %}
-                          <a href="#" class="text-primary z1-unload-btn" 
+                          <a href="#" class="text-primary z1-unload-btn{% if jig_detail.jig_unload_draft %} draft-resume-btn{% endif %}" 
                              style="text-decoration: underline; font-weight:600; pointer-events: auto !important; position: relative;"
                              data-jig-completed-id="{{ jig_detail.id }}"
                              title="Unload jig trays">

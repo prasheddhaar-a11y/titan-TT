@@ -9,6 +9,8 @@
   --mm-teal-dark:   #0f766e;
   --mm-teal-xdark:  #134e4a;
   --mm-teal-light:  #f0fdfa;
+  --mm-accent:      #2563eb;
+  --mm-soft:        #f8fafc;
   --mm-bg:          #f8fafc;
   --mm-card:        #ffffff;
   --mm-border:      #e2e8f0;
@@ -24,10 +26,10 @@
 /* ── Page frame ── */
 .model-master-frame {
   background: var(--mm-card);
-  border-radius: 16px;
-  box-shadow: 0 4px 32px rgba(0,0,0,.07);
-  margin: 20px auto;
-  max-width: 1400px;
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(15,23,42,.08);
+  margin: 18px auto;
+  max-width: 1320px;
   overflow: hidden;
   border: 1px solid var(--mm-border);
 }
@@ -61,7 +63,7 @@
 
 /* ── Content area ── */
 .model-master-content {
-  padding: 24px;
+  padding: 20px;
   background: var(--mm-bg);
 }
 
@@ -111,14 +113,14 @@
   background: var(--mm-card);
   border-radius: var(--mm-radius-lg);
   border: 1px solid var(--mm-border);
-  padding: 28px 32px;
+  padding: 20px;
 }
 
 /* ── Form grid ── */
 .mm-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 18px;
   align-items: start;
 }
 /* Bootstrap column overrides inside mm-form */
@@ -179,6 +181,17 @@ select[multiple].form-select {
   height: auto !important;
   padding: 8px 12px !important;
   min-height: 90px;
+}
+.mm-native-image-select {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 /* File input */
 input[type="file"].form-control {
@@ -371,30 +384,46 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   .model-master-frame { margin: 8px; border-radius: 12px; }
 }
 /* ── Phase 2: Split-panel layout ── */
-.mm-tab-layout { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 20px; align-items: start; }
-.mm-form-panel { background: #f8fafc; border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 18px 20px; }
+.mm-tab-layout { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.mm-form-panel { background: var(--mm-soft); border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 16px 18px; }
 .mm-form-panel .mm-form { grid-template-columns: 1fr; }
 .mm-form-panel .submit-section { padding-top: 4px; }
-.mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 16px 20px; min-height: 180px; }
-.mm-panel-title { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--mm-muted); margin-bottom: 0; }
+.mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 14px 16px; min-height: 180px; max-height: min(430px, calc(100vh - 255px)); overflow: hidden; display: flex; flex-direction: column; }
+.mm-panel-title { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--mm-muted); margin-bottom: 0; }
+.mm-panel-title-border { border-bottom:1px solid var(--mm-border); padding-bottom:8px; margin-bottom:14px; }
 .mm-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--mm-border); gap: 8px; }
-.mm-count-badge { font-size: .7rem !important; vertical-align: middle; margin-left: 4px; }
+.mm-count-badge { font-size: .68rem !important; font-weight: 600; vertical-align: middle; margin-left: 4px; }
 /* ── Tag pills ── */
-.mm-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.mm-tag { display: inline-flex; align-items: center; gap: 5px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: 6px; padding: 5px 10px; font-size: .82rem; color: var(--mm-text); transition: border-color .12s; }
+.mm-tag-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 318px; overflow-y: auto; align-content: flex-start; padding-right: 4px; }
+.mm-tag { display: inline-flex; align-items: center; gap: 5px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: 6px; padding: 5px 10px; font-size: .8rem; font-weight: 500; color: var(--mm-text); transition: border-color .12s; }
 .mm-tag:hover { border-color: #94a3b8; }
 .mm-tag-del { background: none; border: none; padding: 0 0 0 3px; cursor: pointer; color: #cbd5e1; line-height: 1; transition: color .12s; font-size: .9rem; }
 .mm-tag-del:hover { color: #ef4444; }
-.mm-tag-sub { font-size: .72rem; color: var(--mm-muted); }
+.mm-tag-sub { font-size: .72rem; font-weight: 400; color: var(--mm-muted); }
 .mm-tag-badge { font-size: .66rem; background: #f0fdfa; color: #0f766e; border-radius: 4px; padding: 1px 5px; font-weight: 700; border: 1px solid #99f6e4; }
 /* ── Image gallery ── */
-.mm-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-.mm-gallery-item { border: 1px solid var(--mm-border); border-radius: var(--mm-radius); overflow: hidden; position: relative; background: #f8fafc; transition: box-shadow .2s; }
-.mm-gallery-item:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); }
-.mm-gallery-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
-.mm-gallery-del { position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.88); color: #fff; border: none; border-radius: 4px; padding: 2px 7px; font-size: .68rem; font-weight: 600; cursor: pointer; opacity: 0; transition: opacity .15s; }
-.mm-gallery-item:hover .mm-gallery-del { opacity: 1; }
-.mm-gallery-name { font-size: .67rem; color: var(--mm-muted); padding: 4px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #fff; }
+.mm-gallery { min-height: 315px; overflow: hidden; }
+.mm-album-shell { display: grid; grid-template-columns: minmax(145px, 185px) minmax(0, 1fr); gap: 14px; min-height: 315px; }
+.mm-album-rail { border-right: 1px solid var(--mm-border); padding-right: 10px; max-height: 350px; overflow-y: auto; }
+.mm-album-tab { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid transparent; background: #f8fafc; color: #334155; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; font-size: .78rem; font-weight: 500; text-align: left; cursor: pointer; }
+.mm-album-tab.active { background: #ecfeff; border-color: #99f6e4; color: #0f766e; }
+.mm-album-count { color: #64748b; font-size: .68rem; font-weight: 600; }
+.mm-album-stage { min-width: 0; display: grid; grid-template-rows: auto minmax(210px, 1fr) auto; gap: 9px; }
+.mm-album-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #334155; font-size: .78rem; }
+.mm-album-model { font-weight: 650; color: #0f172a; }
+.mm-album-position { color: var(--mm-muted); font-size: .72rem; }
+.mm-album-preview { position: relative; min-height: 230px; border: 1px solid var(--mm-border); border-radius: 10px; background: linear-gradient(180deg, #fff 0%, #f8fafc 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.mm-album-preview img { max-width: 100%; max-height: 245px; object-fit: contain; display: block; }
+.mm-album-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: 1px solid rgba(15,23,42,.12); border-radius: 50%; background: rgba(255,255,255,.92); color: #0f172a; font-size: 1.25rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,23,42,.12); }
+.mm-album-nav:hover { background: #fff; border-color: var(--mm-teal); color: var(--mm-teal-dark); }
+.mm-album-prev { left: 10px; }
+.mm-album-next { right: 10px; }
+.mm-album-delete { position: absolute; top: 10px; right: 10px; background: rgba(220,38,38,.92); color: #fff; border: none; border-radius: 6px; padding: 4px 9px; font-size: .72rem; font-weight: 600; cursor: pointer; }
+.mm-album-caption { color: var(--mm-muted); font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-album-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.mm-album-thumb { width: 58px; height: 58px; flex: 0 0 auto; border: 2px solid transparent; border-radius: 7px; padding: 2px; background: #f8fafc; cursor: pointer; }
+.mm-album-thumb.active { border-color: var(--mm-teal); background: #ecfeff; }
+.mm-album-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* ── Empty/loading states ── */
 .mm-list-empty { text-align: center; padding: 24px 12px; color: #94a3b8; font-size: .83rem; display: block; }
 /* ── Model master compact table ── */
@@ -402,7 +431,40 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 .mm-master-table th { background: #f8fafc; font-weight: 600; color: var(--mm-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .05em; padding: 8px 10px; border-bottom: 2px solid var(--mm-border); white-space: nowrap; }
 .mm-master-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: var(--mm-text); }
 .mm-master-table tr:hover td { background: #fafcff; }
-@media (max-width: 900px) { .mm-tab-layout { grid-template-columns: 1fr; } }
+.mm-table-scroll { max-height: 335px; overflow: auto; border: 1px solid #f1f5f9; border-radius: var(--mm-radius); }
+.mm-table-scroll .mm-master-table th { position: sticky; top: 0; z-index: 1; }
+
+/* ── Model Master workspace ── */
+.mm-model-workspace { display: grid; grid-template-columns: minmax(420px, .95fr) minmax(440px, 1.05fr); gap: 18px; align-items: start; }
+.mm-model-frame { padding: 18px; }
+.mm-model-form-panel { max-height: min(650px, calc(100vh - 230px)); overflow-y: auto; }
+.mm-model-list-panel { max-height: min(520px, calc(100vh - 230px)); }
+.mm-model-form-panel .mm-form { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+.mm-model-form-panel .mm-image-field,
+.mm-model-form-panel .submit-section { grid-column: 1 / -1; }
+.mm-image-picker { border: 1px solid var(--mm-border); border-radius: var(--mm-radius); background: #fff; padding: 12px; min-height: 166px; }
+.mm-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.mm-picker-title { color: #334155; font-size: .74rem; font-weight: 600; }
+.mm-picker-clear { border: 1px solid var(--mm-border); background: #fff; color: var(--mm-muted); border-radius: 6px; padding: 4px 8px; font-size: .7rem; font-weight: 600; cursor: pointer; }
+.mm-picker-clear:hover { color: #dc2626; border-color: #fecaca; }
+.mm-picker-browser { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; gap: 9px; align-items: stretch; }
+.mm-picker-nav { width: 34px; height: 34px; border: 1px solid var(--mm-border); background: #fff; color: #334155; border-radius: 50%; font-size: 1rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.mm-picker-nav:hover { border-color: var(--mm-teal); color: var(--mm-teal-dark); }
+.mm-picker-album-card { min-width: 0; border: 1px solid #e8eef5; border-radius: 10px; background: #f8fafc; padding: 10px; }
+.mm-picker-album-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.mm-picker-album-name { min-width: 0; color: #0f172a; font-size: .78rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-picker-album-meta { color: var(--mm-muted); font-size: .7rem; white-space: nowrap; }
+.mm-picker-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; max-height: 166px; overflow-y: auto; padding-right: 3px; }
+.mm-picker-image-card { border: 1px solid var(--mm-border); background: #fff; border-radius: 8px; padding: 6px; cursor: pointer; position: relative; text-align: left; min-width: 0; }
+.mm-picker-image-card:hover { border-color: #99f6e4; box-shadow: 0 2px 9px rgba(15,23,42,.08); }
+.mm-picker-image-card.selected { border-color: var(--mm-teal); background: #ecfeff; }
+.mm-picker-image-card.selected::after { content: 'Selected'; position: absolute; top: 5px; right: 5px; background: var(--mm-teal); color: #fff; border-radius: 999px; padding: 1px 6px; font-size: .58rem; font-weight: 700; }
+.mm-picker-image-card img { width: 100%; height: 54px; object-fit: contain; display: block; margin-bottom: 5px; }
+.mm-picker-image-card.is-missing { display: flex; align-items: center; justify-content: center; min-height: 88px; color: #64748b; font-size: .68rem; background: #f8fafc; }
+.mm-picker-image-name { color: #334155; font-size: .68rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1050px) { .mm-model-workspace { grid-template-columns: 1fr; } .mm-model-form-panel, .mm-model-list-panel { max-height: none; } }
+@media (max-width: 900px) { .mm-tab-layout { grid-template-columns: 1fr; } .mm-list-panel { max-height: 420px; } .mm-album-shell { grid-template-columns: 1fr; } .mm-album-rail { border-right: 0; border-bottom: 1px solid var(--mm-border); padding-right: 0; padding-bottom: 8px; max-height: 120px; } }
+@media (max-width: 640px) { .mm-model-form-panel .mm-form { grid-template-columns: 1fr; } .mm-picker-browser { grid-template-columns: 1fr; } .mm-picker-nav { width: 100%; border-radius: 7px; } }
 </style>
 
 <div class="model-master-frame">
@@ -585,132 +647,138 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
         
         <!-- 1. Model Master -->
         <div class="tab-pane fade show active" id="model" role="tabpanel" aria-labelledby="model-tab">
-          <div class="tab-content-frame">
+          <div class="tab-content-frame mm-model-frame">
             <!-- Model Master message area -->
             <div id="model-message-area" class="message-area"></div>
-            <form class="mm-form" id="model-master-form">
-              {% csrf_token %}
-              <!-- Model No -->
-              <div class="col-md-6">
-                <label for="model_no" class="form-label">Model No</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="model_no"
-                  name="model_no"
-                  placeholder="Enter model number"
-                  required
-                />
-              </div>
+            <div class="mm-model-workspace">
+              <section class="mm-form-panel mm-model-form-panel">
+                <p class="mm-panel-title mm-panel-title-border">Add Model Master</p>
+                <form class="mm-form" id="model-master-form">
+                  {% csrf_token %}
+                  <!-- Model No -->
+                  <div class="col-md-6">
+                    <label for="model_no" class="form-label">Model No</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="model_no"
+                      name="model_no"
+                      placeholder="Enter model number"
+                      required
+                    />
+                  </div>
 
-              <!-- Polish Finish -->
-              <div class="col-md-6">
-                <label for="polish_finish" class="form-label">Polish Finish</label>
-                <select class="form-select" id="polish_finish" name="polish_finish">
-                  <option value="">Select Polish Finish</option>
-                </select>
-              </div>
+                  <!-- Polish Finish -->
+                  <div class="col-md-6">
+                    <label for="polish_finish" class="form-label">Polish Finish</label>
+                    <select class="form-select" id="polish_finish" name="polish_finish">
+                      <option value="">Select Polish Finish</option>
+                    </select>
+                  </div>
 
-              <!-- EP Bath Type -->
-              <div class="col-md-6">
-                <label for="ep_bath_type" class="form-label">EP Bath Type</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="ep_bath_type"
-                  name="ep_bath_type"
-                  placeholder="Enter EP Bath Type"
-                  required
-                />
-              </div>
+                  <!-- EP Bath Type -->
+                  <div class="col-md-6">
+                    <label for="ep_bath_type" class="form-label">EP Bath Type</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="ep_bath_type"
+                      name="ep_bath_type"
+                      placeholder="Enter EP Bath Type"
+                      required
+                    />
+                  </div>
 
-              <!-- Tray Type -->
-              <div class="col-md-6">
-                <label for="tray_type" class="form-label">Tray Type</label>
-                <select class="form-select" id="tray_type" name="tray_type">
-                  <option value="">Select Tray Type</option>
-                </select>
-              </div>
+                  <!-- Tray Type -->
+                  <div class="col-md-6">
+                    <label for="tray_type" class="form-label">Tray Type</label>
+                    <select class="form-select" id="tray_type" name="tray_type">
+                      <option value="">Select Tray Type</option>
+                    </select>
+                  </div>
 
-              <!-- Tray Capacity -->
-              <div class="col-md-6">
-                <label for="tray_capacity" class="form-label">Tray Capacity</label>
-                <input
-                  type="number"
-                  class="form-control"
-                  id="tray_capacity"
-                  name="tray_capacity"
-                  placeholder="Auto-filled from tray type"
-                  min="1"
-                />
-              </div>
-              <div class="col-md-6">
-                <label for="version" class="form-label">Version</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="version"
-                  name="version"
-                  placeholder="Enter version"
-                  required
-                />
-              </div>
+                  <!-- Tray Capacity -->
+                  <div class="col-md-6">
+                    <label for="tray_capacity" class="form-label">Tray Capacity</label>
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="tray_capacity"
+                      name="tray_capacity"
+                      placeholder="Auto-filled from tray type"
+                      min="1"
+                    />
+                  </div>
+                  <div class="col-md-6">
+                    <label for="version" class="form-label">Version</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="version"
+                      name="version"
+                      placeholder="Enter version"
+                      required
+                    />
+                  </div>
 
-              <!-- Images -->
-              <div class="col-md-6">
-                <label for="model_images" class="form-label">Images</label>
-                <select class="form-select" id="model_images" name="model_images" multiple>
-                  <option value="">Select Images</option>
-                </select>
-                <small class="text-muted">
-                  Hold down "Control", or "Command" on a Mac, to select more than one.
-                </small>
-              </div>
+                  <!-- Images -->
+                  <div class="col-md-12 mm-image-field">
+                    <label for="model_images" class="form-label">Images</label>
+                    <select class="form-select mm-native-image-select" id="model_images" name="model_images" multiple aria-hidden="true" tabindex="-1">
+                      <option value="">Select Images</option>
+                    </select>
+                    <div id="model-image-picker" class="mm-image-picker">
+                      <span class="mm-list-empty">Loading image albums...</span>
+                    </div>
+                  </div>
 
-              <!-- Source Name (Location Dropdown) -->
-              <div class="col-md-6" style="display: none;">
-                <label for="source_name" class="form-label">Source</label>
-                <select class="form-select" id="source_name" name="source_name">
-                  <option value="">Select Source</option>
-                </select>
-              </div>
+                  <!-- Source Name (Location Dropdown) -->
+                  <div class="col-md-6" style="display: none;">
+                    <label for="source_name" class="form-label">Source</label>
+                    <select class="form-select" id="source_name" name="source_name">
+                      <option value="">Select Source</option>
+                    </select>
+                  </div>
 
-              <!-- Category Dropdown -->
-              <div class="col-md-6" style="display: none;">
-                <label for="category" class="form-label">Category</label>
-                <select class="form-select" id="category" name="category">
-                  <option value="">Select Category</option>
-                </select>
-              </div>
+                  <!-- Category Dropdown -->
+                  <div class="col-md-6" style="display: none;">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category">
+                      <option value="">Select Category</option>
+                    </select>
+                  </div>
 
-              <!-- Submit Section -->
-              <div class="submit-section">
-                <button type="submit" class="btn btn-elegant-primary">Save Model Master</button>
-              </div>
-            </form>
+                  <!-- Submit Section -->
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary">Save Model Master</button>
+                  </div>
+                </form>
+              </section>
 
-            <hr style="border-color:var(--mm-border);margin:24px 0 16px;">
-            <div class="mm-list-header">
-              <p class="mm-panel-title">Existing Model Masters <span id="model-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="model-refresh-btn">↺ Refresh</button>
-            </div>
-            <div style="overflow-x:auto;">
-              <table class="mm-master-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Model No</th>
-                    <th>Polish Finish</th>
-                    <th>EP Bath Type</th>
-                    <th>Tray Type</th>
-                    <th>Version</th>
-                    <th style="text-align:center;">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="model-list-body">
-                  <tr><td colspan="7" class="mm-list-empty">Loading…</td></tr>
-                </tbody>
-              </table>
+              <section class="mm-list-panel mm-model-list-panel">
+                <div class="mm-list-header">
+                  <p class="mm-panel-title">Existing Model Masters <span id="model-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="model-refresh-btn">↺ Refresh</button>
+                </div>
+                <div class="mm-table-scroll">
+                  <table class="mm-master-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Model No</th>
+                        <th>Polish Finish</th>
+                        <th>EP Bath Type</th>
+                        <th>Tray Type</th>
+                        <th>Version</th>
+                        <th style="text-align:center;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="model-list-body">
+                      <tr><td colspan="7" class="mm-list-empty">Loading...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -845,7 +913,7 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
               </div>
               <div class="mm-list-panel">
                 <div class="mm-list-header">
-                  <p class="mm-panel-title">Uploaded Images <span id="images-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  <p class="mm-panel-title">Image Albums <span id="images-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
                   <button type="button" class="btn btn-outline-secondary btn-sm" id="images-refresh-btn">↺ Refresh</button>
                 </div>
                 <div id="images-gallery" class="mm-gallery"><span class="mm-list-empty">Loading…</span></div>
@@ -1357,10 +1425,14 @@ const ModelImageAPI = {
             select.innerHTML = '<option value="">Select Images</option>';
             data.data.forEach(item => {
                 const option = document.createElement('option');
+                const imageName = getImageDisplayName(item);
                 option.value = item.id;
-                option.textContent = `Master_Image ${item.id}`;
+                option.textContent = imageName;
+                option.setAttribute('data-src', normalizeImageUrl(item.master_image || ''));
+                option.setAttribute('data-name', imageName);
                 select.appendChild(option);
             });
+            renderModelImagePicker();
         }
     }
 };
@@ -1383,6 +1455,7 @@ const ModelMasterAPI = {
             if (result.success) {
                 showInlineMessage('model-message-area', result.message || 'Model master created successfully!', true);
                 document.getElementById('model-master-form').reset();
+                renderModelImagePicker();
                 refreshModelMasterList();
             } else {
                 const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Error creating model master');
@@ -1703,9 +1776,9 @@ async function loadDropdownData() {
             // Populate dropdowns
             populateSelect('polish_finish', data.polish_finishes, 'id', 'polish_finish');
             populateSelect('tray_type', data.tray_types, 'id', 'tray_type');
-            populateSelect('model_images', data.model_images, 'id', 'master_image');
             populateSelect('source_name', data.locations, 'id', 'location_name');
             populateSelect('category', data.categories, 'id', 'category_name');
+            await ModelImageAPI.refreshDropdown();
         }
     } catch (error) {
         console.error('Error loading dropdown data:', error);
@@ -1724,14 +1797,19 @@ function populateSelect(selectId, data, valueField, textField) {
         
         data.forEach(item => {
             const option = document.createElement('option');
+          const displayText = textField === 'master_image'
+            ? getImageDisplayName(item)
+            : item[textField];
             option.value = item[valueField];
-            option.textContent = textField === 'master_image' 
-                ? `Master_Image ${item.id}` 
-                : item[textField];
+          option.textContent = displayText;
             
             if (selectId === 'tray_type') {
                 option.setAttribute('data-capacity', item.tray_capacity);
             }
+          if (selectId === 'model_images') {
+            option.setAttribute('data-src', normalizeImageUrl(item.master_image || ''));
+            option.setAttribute('data-name', displayText || '');
+          }
             
             select.appendChild(option);
         });
@@ -2247,6 +2325,249 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let _uploadedImageAlbumGroups = [];
+let _uploadedImageAlbumState = { groupIndex: 0, imageIndex: 0 };
+let _modelImagePickerState = { groupIndex: 0, imageIndex: 0 };
+
+function normalizeImageUrl(src) {
+  const value = String(src || '').trim();
+  if (!value) return '';
+  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith('/')) return value;
+  if (value.startsWith('media/')) return '/' + value;
+  return '/media/' + value.replace(/^\/+/, '');
+}
+
+function getImageSource(item) {
+  if (!item) return '';
+  if (item.master_image) return normalizeImageUrl(item.master_image);
+  if (item.src) return normalizeImageUrl(item.src);
+  if (item.getAttribute) return normalizeImageUrl(item.getAttribute('data-src') || '');
+  return '';
+}
+
+function getImageFileName(src, fallback) {
+  let cleanSrc = String(src || '').split('?')[0].split('#')[0];
+  try { cleanSrc = decodeURIComponent(cleanSrc); } catch (e) {}
+  const parts = cleanSrc.split('/').filter(Boolean);
+  return parts.pop() || fallback || 'Image';
+}
+
+function getImageDisplayName(item) {
+  if (!item) return 'Image';
+  if (item.getAttribute) {
+    return item.getAttribute('data-name') || getImageFileName(getImageSource(item), item.textContent || 'Image');
+  }
+  if (item.name) return item.name;
+  return getImageFileName(getImageSource(item), item.id ? `Image ${item.id}` : 'Image');
+}
+
+function getImageAlbumKey(name) {
+  const baseName = String(name || 'Image').replace(/\.[^.]+$/, '');
+  const modelKey = baseName.replace(/(?:[_-]?(?:FSV|RSV|LSV|TV|FV|IV|BV))$/i, '');
+  return (modelKey || baseName || 'Images').toUpperCase();
+}
+
+function getImageViewOrder(name) {
+  const viewOrder = { TV: 1, FV: 2, FSV: 3, IV: 4, RSV: 5, LSV: 6, BV: 7 };
+  const match = String(name || '').match(/(?:[_-]?(FSV|RSV|LSV|TV|FV|IV|BV))(?:\.[^.]+)?$/i);
+  return match ? (viewOrder[match[1].toUpperCase()] || 99) : 99;
+}
+
+function buildImageAlbumGroups(items) {
+  const grouped = new Map();
+  (items || []).forEach(item => {
+    const src = getImageSource(item);
+    const name = getImageDisplayName(item);
+    const key = getImageAlbumKey(name);
+    if (!grouped.has(key)) grouped.set(key, { key, title: key, items: [] });
+    grouped.get(key).items.push({ ...item, src, name });
+  });
+  return Array.from(grouped.values())
+    .map(group => ({
+      ...group,
+      items: group.items.sort((a, b) => getImageViewOrder(a.name) - getImageViewOrder(b.name) || a.name.localeCompare(b.name))
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function clampAlbumState(state, groups) {
+  if (!groups.length) {
+    state.groupIndex = 0;
+    state.imageIndex = 0;
+    return null;
+  }
+  state.groupIndex = Math.max(0, Math.min(state.groupIndex, groups.length - 1));
+  const group = groups[state.groupIndex];
+  state.imageIndex = Math.max(0, Math.min(state.imageIndex, group.items.length - 1));
+  return group;
+}
+
+function getModelImagePickerItems() {
+  const select = document.getElementById('model_images');
+  if (!select) return [];
+  return Array.from(select.options)
+    .filter(option => option.value)
+    .map(option => ({
+      id: option.value,
+      src: option.getAttribute('data-src') || '',
+      name: option.getAttribute('data-name') || option.textContent || `Image ${option.value}`,
+      option
+    }));
+}
+
+function renderModelImagePicker() {
+  const picker = document.getElementById('model-image-picker');
+  if (!picker) return;
+
+  const items = getModelImagePickerItems();
+  const groups = buildImageAlbumGroups(items);
+  const selectedCount = items.filter(item => item.option && item.option.selected).length;
+
+  if (!groups.length) {
+    picker.innerHTML = '<span class="mm-list-empty">Upload model images first, then select them here.</span>';
+    return;
+  }
+
+  const group = clampAlbumState(_modelImagePickerState, groups);
+  const selectedLabel = `${selectedCount} selected`;
+  const imageCards = group.items.map((image, index) => `
+    <button type="button" class="mm-picker-image-card ${image.option && image.option.selected ? 'selected' : ''}" data-index="${index}" title="${escapeAttr(image.name)}">
+      ${image.src ? `<img src="${escapeAttr(image.src)}" alt="${escapeAttr(image.name)}" loading="lazy">` : ''}
+      <div class="mm-picker-image-name">${escapeHtml(image.name)}</div>
+    </button>`).join('');
+
+  picker.innerHTML = `
+    <div class="mm-picker-head">
+      <span class="mm-picker-title">Choose from model albums - ${escapeHtml(selectedLabel)}</span>
+      <button type="button" class="mm-picker-clear">Clear</button>
+    </div>
+    <div class="mm-picker-browser">
+      <button type="button" class="mm-picker-nav" data-dir="-1" aria-label="Previous model album">&#8249;</button>
+      <div class="mm-picker-album-card">
+        <div class="mm-picker-album-head">
+          <div class="mm-picker-album-name" title="${escapeAttr(group.title)}">${escapeHtml(group.title)}</div>
+          <div class="mm-picker-album-meta">Album ${_modelImagePickerState.groupIndex + 1} of ${groups.length} - ${group.items.length} images</div>
+        </div>
+        <div class="mm-picker-card-grid">
+          ${imageCards}
+        </div>
+      </div>
+      <button type="button" class="mm-picker-nav" data-dir="1" aria-label="Next model album">&#8250;</button>
+    </div>`;
+
+  picker.querySelectorAll('.mm-picker-nav').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const direction = parseInt(this.getAttribute('data-dir')) || 0;
+      _modelImagePickerState.groupIndex = (groups.length + _modelImagePickerState.groupIndex + direction) % groups.length;
+      renderModelImagePicker();
+    });
+  });
+  picker.querySelectorAll('.mm-picker-image-card').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const image = group.items[parseInt(this.getAttribute('data-index')) || 0];
+      if (image.option) image.option.selected = !image.option.selected;
+      renderModelImagePicker();
+    });
+  });
+  picker.querySelectorAll('.mm-picker-image-card img').forEach(img => {
+    img.addEventListener('error', function() {
+      const card = this.closest('.mm-picker-image-card');
+      if (card) card.classList.add('is-missing');
+      this.remove();
+    });
+  });
+  const clear = picker.querySelector('.mm-picker-clear');
+  if (clear) {
+    clear.addEventListener('click', function() {
+      items.forEach(item => { if (item.option) item.option.selected = false; });
+      renderModelImagePicker();
+    });
+  }
+}
+
+function renderUploadedImageAlbum() {
+  const container = document.getElementById('images-gallery');
+  if (!container) return;
+
+  const group = clampAlbumState(_uploadedImageAlbumState, _uploadedImageAlbumGroups);
+  if (!group) {
+    container.innerHTML = '<span class="mm-list-empty">No images uploaded yet.</span>';
+    return;
+  }
+
+  const image = group.items[_uploadedImageAlbumState.imageIndex];
+  const albums = _uploadedImageAlbumGroups.map((album, index) => `
+    <button type="button" class="mm-album-tab ${index === _uploadedImageAlbumState.groupIndex ? 'active' : ''}" data-index="${index}">
+      <span>${escapeHtml(album.title)}</span>
+      <span class="mm-album-count">${album.items.length}</span>
+    </button>`).join('');
+  const thumbs = group.items.map((thumb, index) => `
+    <button type="button" class="mm-album-thumb ${index === _uploadedImageAlbumState.imageIndex ? 'active' : ''}" data-index="${index}" title="${escapeAttr(thumb.name)}">
+      <img src="${escapeAttr(thumb.src)}" alt="${escapeAttr(thumb.name)}" loading="lazy">
+    </button>`).join('');
+
+  container.innerHTML = `
+    <div class="mm-album-shell">
+      <div class="mm-album-rail">${albums}</div>
+      <div class="mm-album-stage">
+        <div class="mm-album-title-row">
+          <div><span class="mm-album-model">${escapeHtml(group.title)}</span> <span class="mm-album-count">${group.items.length} images</span></div>
+          <span class="mm-album-position">${_uploadedImageAlbumState.imageIndex + 1} / ${group.items.length}</span>
+        </div>
+        <div class="mm-album-preview">
+          <button type="button" class="mm-album-nav mm-album-prev" data-dir="-1" aria-label="Previous image">&#8249;</button>
+          <img src="${escapeAttr(image.src)}" alt="${escapeAttr(image.name)}" loading="lazy">
+          <button type="button" class="mm-album-nav mm-album-next" data-dir="1" aria-label="Next image">&#8250;</button>
+          <button type="button" class="mm-album-delete" data-id="${escapeAttr(image.id)}">Delete</button>
+        </div>
+        <div class="mm-album-caption" title="${escapeAttr(image.name)}">${escapeHtml(image.name)}</div>
+        <div class="mm-album-thumbs">${thumbs}</div>
+      </div>
+    </div>`;
+
+  container.querySelectorAll('.mm-album-tab').forEach(btn => {
+    btn.addEventListener('click', function() {
+      _uploadedImageAlbumState.groupIndex = parseInt(this.getAttribute('data-index')) || 0;
+      _uploadedImageAlbumState.imageIndex = 0;
+      renderUploadedImageAlbum();
+    });
+  });
+  container.querySelectorAll('.mm-album-nav').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const direction = parseInt(this.getAttribute('data-dir')) || 0;
+      const activeGroup = _uploadedImageAlbumGroups[_uploadedImageAlbumState.groupIndex];
+      _uploadedImageAlbumState.imageIndex = (activeGroup.items.length + _uploadedImageAlbumState.imageIndex + direction) % activeGroup.items.length;
+      renderUploadedImageAlbum();
+    });
+  });
+  container.querySelectorAll('.mm-album-thumb').forEach(btn => {
+    btn.addEventListener('click', function() {
+      _uploadedImageAlbumState.imageIndex = parseInt(this.getAttribute('data-index')) || 0;
+      renderUploadedImageAlbum();
+    });
+  });
+  const deleteButton = container.querySelector('.mm-album-delete');
+  if (deleteButton) {
+    deleteButton.addEventListener('click', async function() {
+      const id = this.getAttribute('data-id');
+      if (!id) return;
+      this.disabled = true;
+      const result = await apiDelete(`/adminportal/model-image/${id}/`);
+      if (result && result.success) {
+        ModelImageAPI.refreshDropdown();
+        refreshImageGallery();
+      } else {
+        this.disabled = false;
+        alert(result?.message || 'Delete failed.');
+      }
+    });
+  }
+}
+
 // ── Master List Helpers ───────────────────────────────────────────────
 
 async function apiDelete(url) {
@@ -2335,36 +2656,14 @@ async function refreshImageGallery() {
     const b = document.getElementById('images-count-badge');
     if (!c) return;
     if (!data || !data.success || !data.data.length) {
+        _uploadedImageAlbumGroups = [];
         c.innerHTML = '<span class="mm-list-empty">No images uploaded yet.</span>';
         if (b) b.textContent = '0';
         return;
     }
     if (b) b.textContent = data.data.length;
-    c.innerHTML = data.data.map(item => {
-        const src = item.master_image || '';
-        const name = src.split('/').pop() || `Image ${item.id}`;
-        return `<div class="mm-gallery-item">
-            <img class="mm-gallery-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" loading="lazy" onerror="this.src='';this.style.height='80px';">
-            <div class="mm-gallery-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-            <button type="button" class="mm-gallery-del" data-id="${item.id}" title="Delete">&times;</button>
-        </div>`;
-    }).join('');
-    c.querySelectorAll('.mm-gallery-del').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const id = this.getAttribute('data-id');
-            const card = this.closest('.mm-gallery-item');
-            this.disabled = true;
-            const result = await apiDelete(`/adminportal/model-image/${id}/`);
-            if (result && result.success) {
-                card.remove();
-                ModelImageAPI.refreshDropdown();
-                if (b) b.textContent = Math.max(0, parseInt(b.textContent || '1') - 1);
-            } else {
-                this.disabled = false;
-                alert(result?.message || 'Delete failed.');
-            }
-        });
-    });
+    _uploadedImageAlbumGroups = buildImageAlbumGroups(data.data);
+    renderUploadedImageAlbum();
 }
 
 async function refreshCategoryList() {

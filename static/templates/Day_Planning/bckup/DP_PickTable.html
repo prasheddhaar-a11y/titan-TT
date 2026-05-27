@@ -7288,7 +7288,39 @@ document.addEventListener("DOMContentLoaded", function () {
     
     const allRows = Array.from(table.querySelectorAll("tbody tr"));
     
-    // ✅ UP/DOWN arrows while in delete mode to navigate rows for deletion
+    // ✅ ERR 2: D KEY - Select row for deletion with LIGHT RED highlight (SEPARATE MODE)
+    if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      inDeleteMode = true; // ✅ NEW: Enter delete mode
+      
+      // ✅ NEW: Clear any yellow navigation highlight first
+      const yellowRows = Array.from(table.querySelectorAll("tbody tr[style*='ffeb3b']"));
+      yellowRows.forEach(row => {
+        row.style.backgroundColor = '';
+        row.style.border = '';
+        const cells = row.querySelectorAll('td, th');
+        cells.forEach(cell => cell.style.backgroundColor = '');
+      });
+      
+      if (!selectedDeleteRow && allRows.length > 0) {
+        selectedDeleteRow = allRows[0];
+        applyRedHighlight(selectedDeleteRow);
+        selectedDeleteRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        console.log('✅ ERR 2: Row 1 selected for deletion (light red) - DELETE MODE ACTIVE');
+      } else if (selectedDeleteRow) {
+        const currentIndex = allRows.indexOf(selectedDeleteRow);
+        if (currentIndex < allRows.length - 1) {
+          removeRedHighlight(selectedDeleteRow);
+          selectedDeleteRow = allRows[currentIndex + 1];
+          applyRedHighlight(selectedDeleteRow);
+          selectedDeleteRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log('✅ ERR 2: Row ' + (currentIndex + 2) + ' selected for deletion (delete mode)');
+        }
+      }
+      return;
+    }
+    
+    // ✅ ERR 2: UP/DOWN arrows while in delete mode to navigate rows for deletion
     if (selectedDeleteRow && inDeleteMode) {
       if (e.key === 'ArrowUp' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();

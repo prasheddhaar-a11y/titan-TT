@@ -23,6 +23,17 @@ USER_GROUP_NAMES_CACHE_TTL = 300
 MODULE_REGISTRY_CACHE_KEY = 'adminportal_module_registry_seeded_v4'
 MODULE_REGISTRY_NAMES = [entry['name'] for entry in MODULE_REGISTRY]
 
+# Shortcut config is pure static data — cache aggressively.
+# Bump the version suffix if the schema changes to force a cold read.
+SHORTCUT_CACHE_KEY = 'active_shortcut_configurations_v1'
+SHORTCUT_CACHE_TTL = 300  # 5 minutes; shortcuts change rarely
+
+_SHORTCUT_VALUES_FIELDS = (
+    'code', 'keys', 'key_display', 'label', 'description',
+    'action_type', 'target_selector', 'fallback_selector',
+    'contexts', 'allow_in_modal', 'allow_when_typing', 'sort_order',
+)
+
 DASHBOARD_MODULE_ACCESS = {
     'Day Planning': {'Data Upload', 'DP Pick Table', 'DP Complete Table'},
     'Input Screening': {
@@ -274,25 +285,50 @@ def get_user_allowed_module_payload(user):
 
 
 def get_active_shortcut_configurations():
-    """Return active shortcut configuration used by the global keyboard manager."""
-    shortcuts = ShortcutConfiguration.objects.filter(is_active=True).order_by('sort_order', 'label', 'code')
-    return [
+    """Return active shortcut configuration used by the global keyboard manager.
+
+    Optimizations applied:
+    - Results are cached for SHORTCUT_CACHE_TTL seconds (shortcuts almost never change).
+    - Uses .values() to skip Django model instantiation overhead.
+    - Fetches only the 12 fields the API actually returns (avoids id/created_at/updated_at).
+    Cache is shared within the same process worker. On cache miss the DB hit is one
+    simple index-scan on (is_active, sort_order).
+    """
+    cached = cache.get(SHORTCUT_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    t0 = time.time()
+    raw = list(
+        ShortcutConfiguration.objects
+        .filter(is_active=True)
+        .order_by('sort_order', 'label', 'code')
+        .values(*_SHORTCUT_VALUES_FIELDS)
+    )
+    elapsed_ms = (time.time() - t0) * 1000
+    logger.debug('shortcuts DB query: %.2fms rows=%d', elapsed_ms, len(raw))
+
+    # Normalise None values that blank=True fields can return.
+    shortcuts = [
         {
-            'code': shortcut.code,
-            'keys': shortcut.keys or [],
-            'key_display': shortcut.key_display,
-            'label': shortcut.label,
-            'description': shortcut.description or '',
-            'action_type': shortcut.action_type,
-            'target_selector': shortcut.target_selector or '',
-            'fallback_selector': shortcut.fallback_selector or '',
-            'contexts': shortcut.contexts or [],
-            'allow_in_modal': shortcut.allow_in_modal,
-            'allow_when_typing': shortcut.allow_when_typing,
-            'sort_order': shortcut.sort_order,
+            'code': row['code'],
+            'keys': row['keys'] or [],
+            'key_display': row['key_display'],
+            'label': row['label'],
+            'description': row['description'] or '',
+            'action_type': row['action_type'],
+            'target_selector': row['target_selector'] or '',
+            'fallback_selector': row['fallback_selector'] or '',
+            'contexts': row['contexts'] or [],
+            'allow_in_modal': row['allow_in_modal'],
+            'allow_when_typing': row['allow_when_typing'],
+            'sort_order': row['sort_order'],
         }
-        for shortcut in shortcuts
+        for row in raw
     ]
+
+    cache.set(SHORTCUT_CACHE_KEY, shortcuts, timeout=SHORTCUT_CACHE_TTL)
+    return shortcuts
 
 
 def sync_user_module_provisions_from_group(user):

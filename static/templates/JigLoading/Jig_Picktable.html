@@ -403,7 +403,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                 <!-- Add Jig Button - Teal Linear Gradient -->
                 <button
                   type="button"
-                  class="btn btn-social-icon-text btn-twitter open-jig-modal-btn"
+                  class="btn btn-social-icon-text btn-twitter open-jig-modal-btn{% if data.lot_status == 'Draft' %} draft-resume-btn{% endif %}"
                   style="background:linear-gradient(135deg, #134E5E, #71B280); border:none; box-shadow:0 1px 3px rgba(0,0,0,0.12); transition:all 0.2s ease; font-weight:500; font-size:13px; padding:6px 16px;"
                   data-batch-id="{{ data.batch_id }}"
                   data-stock-lot-id="{{ data.stock_lot_id }}"
