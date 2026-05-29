@@ -450,6 +450,7 @@ def handle_submission(request, action):
 
     stock.last_process_date_time = timezone.now()
     stock.bq_last_process_date_time = timezone.now()
+    stock.current_stage = 'Brass QC'
 
     stock.save(update_fields=[
         'brass_qc_accptance',
@@ -475,6 +476,7 @@ def handle_submission(request, action):
         'is_split',
         'remove_lot',
         'send_brass_qc',
+        'current_stage',
     ])
 
     logger.info(

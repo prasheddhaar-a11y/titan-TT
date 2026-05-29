@@ -703,9 +703,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     cursor: not-allowed;
     background: #f5f5f5 !important;
   }
-    /* Remark tooltip — position is fully controlled by JS (position:fixed via getBoundingClientRect) */
+    /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
-    /* no top/bottom override — JS positions at runtime */
+    top: auto !important;
+    bottom: 110% !important;
   }
 
   /* Styling for remark tooltip close button */
@@ -1001,7 +1002,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 .dp-pick-table-page #order-listing th,
 .dp-pick-table-page #order-listing td,
 .dp-pick-table-page #order-listing td * {
-  font-size: var(--titan-ui-font-size, 16px) !important;
+  font-size: 15px !important;
 }
 
 .dp-pick-table-page #order-listing th:nth-child(4),
@@ -1437,7 +1438,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             </div>
                           </a>
 
-                          <a href="#" title="Add Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; cursor: pointer; position: relative;">
+                          <a href="#" title="Add Remark" class="remark-tooltip-trigger" style="cursor: pointer;">
                             <img
                               src="{% static 'assets/icons/chat_icon.png' %}"
                               alt="Chat"
@@ -3491,7 +3492,6 @@ const table = document.getElementById("order-listing");
 <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
       let openRemarkTooltip = null; // Global reference to track open tooltip
-      let openRemarkTrigger = null; // Track the trigger separately (tooltip may be in body)
 
       // Helper function to close remark tooltip completely
       function closeRemarkTooltip(tooltip, trigger) {
@@ -3502,16 +3502,10 @@ const table = document.getElementById("order-listing");
           tooltip.classList.remove("pinned");
 
           // Hide the entire tooltip completely
-          // Use removeProperty to clear !important overrides set by showTooltip,
-          // then explicitly set to hidden values
-          tooltip.style.removeProperty('display');
-          tooltip.style.removeProperty('opacity');
-          tooltip.style.removeProperty('visibility');
-          tooltip.style.removeProperty('pointer-events');
-          tooltip.style.display = "none";
           tooltip.style.opacity = "0";
-          tooltip.style.visibility = "hidden";
           tooltip.style.pointerEvents = "none";
+          tooltip.style.visibility = "hidden";
+          tooltip.style.display = "none";
 
           // Hide close button
           const closeBtn = tooltip.querySelector('.remark-close-btn');
@@ -3523,9 +3517,8 @@ const table = document.getElementById("order-listing");
             trigger.style.borderRadius = '';
           }
 
-          // Clear global references
+          // Clear global reference
           openRemarkTooltip = null;
-          openRemarkTrigger = null;
 
           console.log('✅ Remark tooltip completely closed');
         }
@@ -3539,48 +3532,21 @@ const table = document.getElementById("order-listing");
         var textarea = tooltip ? tooltip.querySelector("textarea") : null;
 
         function showTooltip() {
-          // Move tooltip to document.body so it escapes scroll-container overflow constraints
-          // (Chromium treats overflow:auto scroll containers as position:fixed containing blocks)
-          if (tooltip.parentElement !== document.body) {
-            document.body.appendChild(tooltip);
+          tooltip.style.display = "block";
+          tooltip.style.opacity = "1";
+          tooltip.style.visibility = "visible";
+          tooltip.style.pointerEvents = "auto";
+
+          var rect = tooltip.getBoundingClientRect();
+          if (rect.right > window.innerWidth) {
+            tooltip.style.left = "auto";
+            tooltip.style.right = "0";
+            tooltip.style.transform = "none";
           }
-
-          // Use position:absolute in document.body (page-relative coords) to escape all overflow constraints
-          // Use setProperty('important') to override titan-style.css !important rules on .remark-tooltip
-          tooltip.style.setProperty('position', 'absolute', 'important');
-          tooltip.style.setProperty('display', 'block', 'important');
-          tooltip.style.setProperty('opacity', '1', 'important');
-          tooltip.style.setProperty('visibility', 'visible', 'important');
-          tooltip.style.setProperty('pointer-events', 'auto', 'important');
-          tooltip.style.setProperty('z-index', '99999', 'important');
-          tooltip.style.setProperty('bottom', 'auto', 'important');
-          tooltip.style.setProperty('right', 'auto', 'important');
-          tooltip.style.setProperty('transform', 'none', 'important');
-          tooltip.style.setProperty('inset', 'unset', 'important');
-
-          // Viewport-relative coords from getBoundingClientRect, convert to page coords with scroll offset
-          var trigRect = trigger.getBoundingClientRect();
-          var ttWidth  = tooltip.offsetWidth  || 270;
-          var ttHeight = tooltip.offsetHeight || 120;
-          var scrollX  = window.scrollX || window.pageXOffset || 0;
-          var scrollY  = window.scrollY || window.pageYOffset || 0;
-
-          // Place below trigger by default
-          var top  = trigRect.bottom + scrollY + 6;
-          var left = trigRect.left  + scrollX + (trigRect.width / 2) - (ttWidth / 2);
-
-          // Flip above if it would overflow viewport bottom
-          if (trigRect.bottom + ttHeight + 6 > window.innerHeight - 10) {
-            top = trigRect.top + scrollY - ttHeight - 6;
+          if (rect.left < 0) {
+            tooltip.style.left = "0";
+            tooltip.style.transform = "none";
           }
-          // Clamp horizontally inside viewport
-          if (left - scrollX + ttWidth > window.innerWidth - 10) {
-            left = scrollX + window.innerWidth - ttWidth - 10;
-          }
-          if (left < 8) left = 8;
-
-          tooltip.style.setProperty('top',  top  + 'px', 'important');
-          tooltip.style.setProperty('left', left + 'px', 'important');
         }
 
         function hideTooltip() {
@@ -3653,7 +3619,6 @@ const table = document.getElementById("order-listing");
               tooltip.classList.add("pinned");
               showTooltip();
               openRemarkTooltip = tooltip;
-              openRemarkTrigger = trigger;
 
               // Show close button
               if (closeButton) closeButton.style.display = 'block';
@@ -3700,14 +3665,6 @@ const table = document.getElementById("order-listing");
               trigger.style.backgroundColor = '#e3f2fd';
               trigger.style.borderRadius = '4px';
               if (closeButton) closeButton.style.display = 'block';
-            }
-          });
-
-          // ESC key on textarea closes the tooltip
-          textarea.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              closeRemarkTooltip(tooltip, trigger);
             }
           });
         }
@@ -3798,7 +3755,7 @@ const table = document.getElementById("order-listing");
       // Close remark tooltip when clicking outside
       document.addEventListener("click", function (e) {
         if (openRemarkTooltip && !e.target.closest('.remark-tooltip') && !e.target.closest('.remark-tooltip-trigger')) {
-          const openTrigger = openRemarkTrigger || openRemarkTooltip.closest('.remark-tooltip-trigger');
+          const openTrigger = openRemarkTooltip.closest('.remark-tooltip-trigger');
           closeRemarkTooltip(openRemarkTooltip, openTrigger);
         }
       });
@@ -3806,7 +3763,7 @@ const table = document.getElementById("order-listing");
       // Close remark tooltip with ESC key
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && openRemarkTooltip) {
-          const openTrigger = openRemarkTrigger || openRemarkTooltip.closest('.remark-tooltip-trigger');
+          const openTrigger = openRemarkTooltip.closest('.remark-tooltip-trigger');
           closeRemarkTooltip(openRemarkTooltip, openTrigger);
           console.log('✅ Remark tooltip closed with ESC key');
         }

@@ -472,9 +472,9 @@ class BrassCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
-                # Dynamic stage — guarded: only advance to next stage if lot has been
-                # actually worked on there, not just sitting in the pick table.
-                'next_process_module': _compute_brass_qc_display_stage(stock_obj),
+                # Use current_stage when set (new data); fall back to dynamic computation
+                # for legacy lots that pre-date the current_stage field.
+                'next_process_module': stock_obj.current_stage or _compute_brass_qc_display_stage(stock_obj),
                 'brass_qc_accepted_qty_verified': stock_obj.brass_qc_accepted_qty_verified,
                 'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
                 'brass_rejection_qty': stock_obj.brass_rejection_qty,
@@ -596,7 +596,9 @@ def brass_qc_toggle_verified(request):
     # ── ERR1: On verification, move stage to Brass QC ──
     if bool(verified) and ts.last_process_module != 'Brass QC':
         ts.last_process_module = 'Brass QC'
+        ts.current_stage = 'Brass QC'
         update_fields.append('last_process_module')
+        update_fields.append('current_stage')
         logger.info(f"[BrassQC] [STATUS UPDATE] lot_id={lot_id} moved {ts.last_process_module} → Brass QC")
 
     ts.save(update_fields=update_fields)
@@ -1275,7 +1277,8 @@ def brass_qc_action(request):
             logger.info(f"[DRAFT TRANSITION] lot_id={lot_id} → draft_transition_lot_id={draft.draft_transition_lot_id}")
         stock.brass_draft = True
         stock.brass_onhold_picking = True
-        stock.save(update_fields=['brass_draft', 'brass_onhold_picking'])
+        stock.current_stage = 'Brass QC'
+        stock.save(update_fields=['brass_draft', 'brass_onhold_picking', 'current_stage'])
         logger.info(f"[DRAFT] Saved for lot_id={lot_id}, user={request.user}, created={created}")
         return JsonResponse({
             "success": True,

@@ -492,9 +492,9 @@ class BrassAuditCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
-                # Dynamic stage — guarded: only advance to next stage if lot has been
-                # actually worked on there, not just sitting in the pick table.
-                'next_process_module': _compute_brass_audit_display_stage(stock_obj),
+                # Use current_stage when set (new data); fall back to dynamic computation
+                # for legacy lots that pre-date the current_stage field.
+                'next_process_module': stock_obj.current_stage or _compute_brass_audit_display_stage(stock_obj),
                 'brass_audit_accepted_qty_verified': stock_obj.brass_audit_accepted_qty_verified,
                 'brass_audit_accepted_qty': stock_obj.brass_audit_accepted_qty,
                 'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
@@ -957,7 +957,9 @@ def brass_audit_toggle_verified(request):
 
     if bool(verified) and ts.last_process_module != 'Brass Audit':
         ts.last_process_module = 'Brass Audit'
+        ts.current_stage = 'Brass Audit'
         update_fields.append('last_process_module')
+        update_fields.append('current_stage')
 
     ts.save(update_fields=update_fields)
 
@@ -1310,7 +1312,8 @@ def brass_audit_action(request):
             logger.info(f"[AUDIT DRAFT TRANSITION] lot_id={lot_id} → draft_transition_lot_id={draft.draft_transition_lot_id}")
         stock.brass_audit_draft = True
         stock.brass_audit_onhold_picking = True
-        stock.save(update_fields=['brass_audit_draft', 'brass_audit_onhold_picking'])
+        stock.current_stage = 'Brass Audit'
+        stock.save(update_fields=['brass_audit_draft', 'brass_audit_onhold_picking', 'current_stage'])
         logger.info(f"[AUDIT DRAFT] Saved for lot_id={lot_id}, user={request.user}")
         return JsonResponse({
             "success": True, "lot_id": lot_id, "draft_id": draft.id,
@@ -1712,6 +1715,7 @@ def _handle_audit_submission(request, action):
             accepted_child.brass_audit_rejection = False
             accepted_child.last_process_module = 'Brass Audit'
             accepted_child.next_process_module = 'Jig Loading'
+            accepted_child.current_stage = 'Brass Audit'
             accepted_child.send_brass_audit_to_iqf = False
             accepted_child.send_brass_audit_to_qc = False
             accepted_child.brass_audit_draft = False
@@ -1763,6 +1767,7 @@ def _handle_audit_submission(request, action):
             rejected_child.brass_audit_few_cases_accptance = False
             rejected_child.last_process_module = 'Brass Audit'
             rejected_child.next_process_module = 'IQF'
+            rejected_child.current_stage = 'Brass Audit'
             rejected_child.send_brass_audit_to_iqf = True
             rejected_child.send_brass_audit_to_qc = False
             # Set IQF qty — the rejected qty flows into IQF for reprocessing
@@ -1899,6 +1904,7 @@ def _handle_audit_submission(request, action):
             stock.last_process_date_time = timezone.now()
             stock.brass_audit_last_process_date_time = timezone.now()
             stock.brass_audit_draft = False
+            stock.current_stage = 'Brass Audit'
             # Clear ALL routing flags so parent doesn't appear in any downstream pick table
             stock.send_brass_audit_to_iqf = False
             stock.send_brass_audit_to_qc = False  # ✅ Parent must NOT appear in Brass QC
@@ -1940,6 +1946,7 @@ def _handle_audit_submission(request, action):
                 "brass_qc_few_cases_accptance",
                 "brass_qc_accepted_qty_verified",
                 "remove_lot",
+                "current_stage",
             ])
 
         _accept_tray_str = [t['tray_id'] + '(' + str(t['qty']) + ')' for t in accepted_trays]
@@ -2004,6 +2011,7 @@ def _handle_audit_submission(request, action):
 
     stock.last_process_date_time = timezone.now()
     stock.brass_audit_last_process_date_time = timezone.now()
+    stock.current_stage = 'Brass Audit'
     stock.save(update_fields=[
         'brass_audit_accptance', 'brass_audit_rejection', 'brass_audit_few_cases_accptance',
         'brass_audit_physical_qty', 'brass_audit_accepted_qty', 'next_process_module', 'last_process_module',
@@ -2012,6 +2020,7 @@ def _handle_audit_submission(request, action):
         'send_brass_audit_to_qc', 'send_brass_audit_to_iqf',
         'brass_audit_transition_lot_id', 'brass_audit_transition_label',
         'brass_qc_accepted_qty_verified',
+        'current_stage',
     ])
 
     # Sync accepted trays to BrassAuditTrayId for FULL_ACCEPT only.

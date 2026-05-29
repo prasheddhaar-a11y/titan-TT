@@ -384,7 +384,16 @@ class JigUnloadAfterTable(models.Model):
     Un_loaded_date_time = models.DateTimeField(null=True, blank=True, help_text="Un Loaded Date Time")
 
     jig_physical_qty = models.IntegerField(help_text="Original physical quantity in IQF", default=0)  # New field
-    
+
+    # ═══ Centralized Stage Tracking — Single Source of Truth ═══
+    # Updated only on actual processing activity: draft save, submit, accept, reject.
+    current_stage = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Current active stage for this unload lot — updated on actual processing"
+    )
+
     def __str__(self):
         return f"{self.lot_id} | {self.unload_lot_id} - {self.total_case_qty}"
 

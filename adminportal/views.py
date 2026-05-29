@@ -3149,3 +3149,64 @@ class UserPageAPIView(APIView):
         page_number = (position // page_size) + 1
         
         return Response({'page': page_number})
+
+
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+class LotRemarkHistoryAPIView(APIView):
+    """
+    GET /adminportal/api/lot_remark_history/?lot_id=<lot_id>
+    Returns all pick-stage remarks for a lot in workflow order.
+    Queries TotalStockModel (early stages) and JigUnloadAfterTable (post-unloading stages).
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        lot_id = (request.GET.get('lot_id') or '').strip()
+        if not lot_id:
+            return Response({'success': False, 'error': 'lot_id is required'}, status=400)
+
+        remarks = []
+
+        # ── Early stages: TotalStockModel ──────────────────────────────────
+        try:
+            from modelmasterapp.models import TotalStockModel
+            stock = TotalStockModel.objects.select_related('batch_id').filter(lot_id=lot_id).first()
+            if stock:
+                # Day Planning remark lives on ModelMasterCreation (batch)
+                if stock.batch_id and stock.batch_id.dp_pick_remarks:
+                    remarks.append({
+                        'stage': 'Day Planning',
+                        'remark': stock.batch_id.dp_pick_remarks,
+                    })
+                if stock.IP_pick_remarks:
+                    remarks.append({'stage': 'Input Screening', 'remark': stock.IP_pick_remarks})
+                if stock.IQF_pick_remarks:
+                    remarks.append({'stage': 'IQF', 'remark': stock.IQF_pick_remarks})
+                if stock.Bq_pick_remarks:
+                    remarks.append({'stage': 'Brass QC', 'remark': stock.Bq_pick_remarks})
+                if stock.BA_pick_remarks:
+                    remarks.append({'stage': 'Brass Audit', 'remark': stock.BA_pick_remarks})
+                if stock.jig_pick_remarks:
+                    remarks.append({'stage': 'Jig Loading', 'remark': stock.jig_pick_remarks})
+        except Exception as e:
+            logger.warning("[LotRemarkHistory] TotalStockModel lookup failed for lot_id=%s: %s", lot_id, e)
+
+        # ── Post-unloading stages: JigUnloadAfterTable ────────────────────
+        try:
+            from Jig_Unloading.models import JigUnloadAfterTable
+            juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
+            if juat:
+                if juat.nq_pick_remarks:
+                    remarks.append({'stage': 'Nickel Inspection', 'remark': juat.nq_pick_remarks})
+                if juat.na_pick_remarks:
+                    remarks.append({'stage': 'Nickel Audit', 'remark': juat.na_pick_remarks})
+                if juat.spider_pick_remarks:
+                    remarks.append({'stage': 'Spider Spindle', 'remark': juat.spider_pick_remarks})
+        except Exception as e:
+            logger.warning("[LotRemarkHistory] JigUnloadAfterTable lookup failed for lot_id=%s: %s", lot_id, e)
+
+        return Response({
+            'success': True,
+            'lot_id': lot_id,
+            'remarks': remarks,
+        })

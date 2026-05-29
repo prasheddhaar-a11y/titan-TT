@@ -1027,10 +1027,11 @@ def _nq_do_full_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
+        juat.current_stage = 'Nickel Inspection'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',
-            'nq_last_process_date_time', 'last_process_module',
+            'nq_last_process_date_time', 'last_process_module', 'current_stage',
         ])
         _nq_clear_draft_state(lot_id)
     logger.info("[nq_full_accept] lot=%s user=%s qty=%d", lot_id, request.user, total_qty)
@@ -1181,12 +1182,13 @@ def _nq_do_submit_reject(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
+        juat.current_stage = 'Nickel Inspection'
         if is_partial:
             juat.nq_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
             'nq_qc_rejection', 'nq_qc_few_cases_accptance',
             'nq_draft', 'nq_onhold_picking',
-            'nq_last_process_date_time', 'last_process_module', 'nq_qc_accepted_qty',
+            'nq_last_process_date_time', 'last_process_module', 'nq_qc_accepted_qty', 'current_stage',
         ])
         _nq_clear_draft_state(lot_id)
         # ── Create NickelQC_Submission record ──────────────────────────────────
@@ -1339,10 +1341,11 @@ def _nq_do_submit_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
+        juat.current_stage = 'Nickel Inspection'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',
-            'nq_last_process_date_time', 'last_process_module',
+            'nq_last_process_date_time', 'last_process_module', 'current_stage',
         ])
         _nq_clear_draft_state(lot_id)
         # ERR3: Save independent NickelWiping_FullAcceptRecord for view icon

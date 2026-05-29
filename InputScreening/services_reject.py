@@ -45,6 +45,7 @@ def _mark_lot_submitted_flags(lot_id: str, accepted_qty: int = 0) -> None:
         total_IP_accpeted_quantity=accepted_qty,
         last_process_module="Input Screening",
         next_process_module="Brass QC",
+        current_stage="Input Screening",
         last_process_date_time=timezone.now(),
     )
 
@@ -1645,7 +1646,8 @@ def save_draft_partial_reject(
 
     # ✅ Update TotalStockModel to reflect Current Stage = "Input Screening"
     TotalStockModel.objects.filter(lot_id=lot_id).update(
-        last_process_module="Input Screening"
+        last_process_module="Input Screening",
+        current_stage="Input Screening"
     )
 
     logger.info(

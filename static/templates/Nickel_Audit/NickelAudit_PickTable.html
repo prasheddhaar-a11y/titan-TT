@@ -971,7 +971,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td {% if data.na_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.location__location_name}}</td>
                     <!-- Remarks -->
                     <td {% if data.na_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <a href="#" title="Add Remark" class="remark-tooltip-trigger"
+                      <a href="#" title="{% if data.na_pick_remarks %}{% else %}Add Remark{% endif %}" class="remark-tooltip-trigger"
                         style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;">
                         <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
                           style="width: 20px; height: 20px; {% if data.na_pick_remarks %}filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;{% endif %}" />
@@ -990,6 +990,14 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             {% endif %}
                           </div>
                         </div>
+                      </a>
+                      {% if data.nq_pick_remarks %}
+                        <a href="#" title="NQ Remark: {{ data.nq_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
+                          <i class="fa fa-info-circle" style="color: #e83e8c; font-size: 16px;"></i>
+                        </a>
+                      {% endif %}
+                      <a href="#" class="remark-history-btn" data-lot-id="{{ data.stock_lot_id }}" title="View full remark history" style="margin-left: 5px; color: #6c757d; font-size: 15px; display: inline-flex; align-items: center;">
+                        <i class="fa fa-history"></i>
                       </a>
                     </td>
                     <!-- Version (hidden) -->

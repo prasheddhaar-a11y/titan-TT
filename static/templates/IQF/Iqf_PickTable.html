@@ -2068,7 +2068,7 @@
                     </a>
                     <a
                       href="#"
-                      title="Add Remark"
+                      title="{% if data.IQF_pick_remarks %}{% else %}Add Remark{% endif %}"
                       class="remark-tooltip-trigger"
                       style="
                         display: inline-flex;
@@ -2171,16 +2171,14 @@
                         <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
                       </span>
                     {% endif %}
-                    {% if data.Bq_pick_remarks %}
-                      <a href="#" title="{{ data.Bq_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
-                        <i class="fa fa-info-circle" style="color: #007bff; font-size: 16px;"></i>
+                    {% if data.IP_pick_remarks %}
+                      <a href="#" title="IS Remark: {{ data.IP_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
+                        <i class="fa fa-info-circle" style="color: #17a2b8; font-size: 16px;"></i>
                       </a>
                     {% endif %}
-                    {% if data.BA_pick_remarks %}
-                      <a href="#" title="{{ data.BA_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
-                        <i class="fa fa-info-circle" style="color: #6f42c1; font-size: 16px;"></i>
-                      </a>
-                    {% endif %}
+                    <a href="#" class="remark-history-btn" data-lot-id="{{ data.stock_lot_id }}" title="View full remark history" style="margin-left: 5px; color: #6c757d; font-size: 15px; display: inline-flex; align-items: center;">
+                      <i class="fa fa-history"></i>
+                    </a>
                     </td>
 
                   </tr>

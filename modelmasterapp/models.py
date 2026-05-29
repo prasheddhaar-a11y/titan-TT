@@ -541,6 +541,17 @@ class TotalStockModel(models.Model):
 
     is_split = models.BooleanField(default=False, help_text="Flag to mark lot as split into accept/reject portions")
     remove_lot=models.BooleanField(default=False, help_text="Indicates if the lot is to be removed")
+
+    # ═══ Centralized Stage Tracking — Single Source of Truth ═══
+    # Updated only on actual processing activity: draft save, qty verify, submit, accept, reject.
+    # Never updated on view/read operations, search, or navigation.
+    current_stage = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Current active stage — updated on actual processing (draft/verify/submit/accept/reject)"
+    )
+
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):

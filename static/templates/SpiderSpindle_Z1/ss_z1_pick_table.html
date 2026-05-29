@@ -228,7 +228,7 @@ tr.hold-row td:nth-child(3) {
                   <td>{{ item.location }}</td>
                   <td>{{ item.total_case_qty }}</td>
                   <td style="position:relative;">
-                    <a href="#" title="Add Remark" class="remark-tooltip-trigger">
+                    <a href="#" title="{% if item.spider_pick_remarks %}{% else %}Add Remark{% endif %}" class="remark-tooltip-trigger">
                       <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat"
                         style="width:20px;height:20px;{% if item.spider_pick_remarks %}filter:grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2);opacity:1;{% else %}filter:grayscale(1) brightness(0.8);opacity:0.7;{% endif %}" />
                       <div class="remark-tooltip">
@@ -247,6 +247,9 @@ tr.hold-row td:nth-child(3) {
                           {% endif %}
                         </div>
                       </div>
+                    </a>
+                    <a href="#" class="remark-history-btn" data-lot-id="{{ item.lot_id }}" title="View full remark history" style="margin-left: 5px; color: #6c757d; font-size: 15px; display: inline-flex; align-items: center; vertical-align: middle;">
+                      <i class="fa fa-history"></i>
                     </a>
                   </td>
                 </tr>

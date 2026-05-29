@@ -34143,7 +34143,7 @@ table.dataTable tbody td.select-checkbox:after {
   border-radius: 10px;
 }
 .swal2-modal .swal2-title {
-  font-size: var(--titan-ui-font-size) !important;
+  font-size: 20px !important;
   line-height: 1;
   font-weight: 600;
   color: #1f1f1f;
@@ -34151,7 +34151,7 @@ table.dataTable tbody td.select-checkbox:after {
   margin-bottom: 0;
 }
 div:where(.swal2-container) div:where(.swal2-html-container){
-    font-size: var(--titan-ui-font-size) !important;
+    font-size: 16px !important;
 }
 .swal2-modal .swal2-icon,
 .swal2-modal .swal2-success-ring {
@@ -35719,7 +35719,7 @@ div.tagsinput span.tag a {
     color: #b9b8ee;
     padding: 0.7rem 1rem;
     position: relative;
-    font-size: var(--titan-ui-font-size) !important;
+    font-size: 20px !important;
     line-height: 1;
     height: auto;
     border-top: 0;
@@ -47956,109 +47956,3 @@ div.tagsinput span.tag a {
     background: #e6f7fa;
     z-index: 2;
   }
-
-/* ============================================================
-   GLOBAL RESPONSIVE FONT POLICY
-   Desktop/wide: 13px. Tablet touch devices: 16px.
-   ============================================================ */
-:root {
-  --titan-ui-font-size: 13px;
-  --bs-body-font-size: var(--titan-ui-font-size);
-}
-
-:root.ttt-viewport-tablet {
-  --titan-ui-font-size: 16px;
-}
-
-@media (pointer: coarse) and (min-width: 768px) and (max-width: 1920px) {
-  :root {
-    --titan-ui-font-size: 16px;
-  }
-}
-
-@media (pointer: coarse) and (width: 1920px) and (height: 1200px),
-       (pointer: coarse) and (width: 1200px) and (height: 1920px) {
-  :root {
-    --titan-ui-font-size: 16px;
-  }
-}
-
-html,
-body {
-  font-size: var(--titan-ui-font-size) !important;
-}
-
-body,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.content-wrapper,
-.main-panel,
-.navbar,
-.sidebar,
-.sidebar .nav,
-.sidebar .nav .nav-item .nav-link,
-.table,
-.table th,
-.table td,
-#order-listing,
-#order-listing th,
-#order-listing td,
-.dataTable,
-.dataTable th,
-.dataTable td,
-button,
-.btn,
-input,
-select,
-textarea,
-.form-control,
-.dropdown-menu,
-.modal,
-.card,
-.badge {
-  font-size: var(--titan-ui-font-size) !important;
-}
-
-/* Final page font lock for responsive table screens.
-   Desktop/wide remains 13px; html.ttt-viewport-tablet forces real tablet pages to 16px. */
-html:not(.ttt-viewport-tablet) :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(.card-body, .table-responsive, #order-listing, .data-table, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge),
-html:not(.ttt-viewport-tablet) :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(#order-listing, #order-listing *, .data-table, .data-table *) {
-  font-size: 13px !important;
-}
-
-html.ttt-viewport-tablet {
-  --titan-ui-font-size: 16px !important;
-}
-
-html.ttt-viewport-tablet :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(.card-body, .table-responsive, #order-listing, .data-table, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge),
-html.ttt-viewport-tablet :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(#order-listing, #order-listing *, .data-table, .data-table *) {
-  font-size: 16px !important;
-}

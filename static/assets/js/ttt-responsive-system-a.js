@@ -8,47 +8,17 @@
 
   var profiles = {
     desktop: {
-      "--ttt-font-size-body": "13px",
-      "--ttt-font-size-control": "13px",
-      "--ttt-font-size-table": "13px",
-      "--ttt-font-size-table-header": "13px",
-      "--ttt-font-size-tablet": "13px",
-      "--ttt-font-size-sidebar": "13px",
-      "--ttt-font-size-submenu": "13px",
-      "--ttt-font-size-header-action": "13px",
-      "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
-      "--ttt-font-size-caption": "13px",
-      "--ttt-line-height-base": "1.25",
-      "--ttt-line-height-tight": "1.12",
-      "--ttt-line-height-table": "1.16",
-      "--ttt-content-gutter": "0.75rem",
-      "--ttt-table-cell-padding-y": "0.25rem",
-      "--ttt-table-cell-padding-x": "0.45rem",
-      "--ttt-table-row-height": "32px",
-      "--ttt-table-header-height": "34px",
-      "--ttt-table-action-min-width": "18rem",
-      "--ttt-table-max-cell-width": "18rem",
-      "--ttt-pagination-height": "34px",
-      "--ttt-touch-target-size": "30px",
-      "--ttt-row-icon-size": "1.35rem",
-      "--ttt-navbar-button-height": "30px",
-      "--ttt-navbar-button-padding-x": "10px",
-      "--ttt-navbar-button-icon-size": "16px",
-      minTableHeight: 220
-    },
-    tablet: {
       "--ttt-font-size-body": "16px",
       "--ttt-font-size-control": "16px",
       "--ttt-font-size-table": "16px",
-      "--ttt-font-size-table-header": "16px",
+      "--ttt-font-size-table-header": "18px",
       "--ttt-font-size-tablet": "16px",
       "--ttt-font-size-sidebar": "16px",
       "--ttt-font-size-submenu": "16px",
       "--ttt-font-size-header-action": "16px",
       "--ttt-font-size-row-action": "16px",
-      "--ttt-font-size-last-updated": "16px",
-      "--ttt-font-size-caption": "16px",
+      "--ttt-font-size-last-updated": "14px",
+      "--ttt-font-size-caption": "13px",
       "--ttt-line-height-base": "1.34",
       "--ttt-line-height-tight": "1.18",
       "--ttt-line-height-table": "1.22",
@@ -67,17 +37,47 @@
       "--ttt-navbar-button-icon-size": "19px",
       minTableHeight: 260
     },
-    mobile: {
+    tablet: {
       "--ttt-font-size-body": "13px",
       "--ttt-font-size-control": "13px",
       "--ttt-font-size-table": "13px",
       "--ttt-font-size-table-header": "13px",
-      "--ttt-font-size-tablet": "13px",
+      "--ttt-font-size-tablet": "14px",
       "--ttt-font-size-sidebar": "13px",
       "--ttt-font-size-submenu": "13px",
       "--ttt-font-size-header-action": "13px",
       "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
+      "--ttt-font-size-last-updated": "11px",
+      "--ttt-font-size-caption": "10px",
+      "--ttt-line-height-base": "1.25",
+      "--ttt-line-height-tight": "1.12",
+      "--ttt-line-height-table": "1.16",
+      "--ttt-content-gutter": "0.75rem",
+      "--ttt-table-cell-padding-y": "0.25rem",
+      "--ttt-table-cell-padding-x": "0.45rem",
+      "--ttt-table-row-height": "32px",
+      "--ttt-table-header-height": "34px",
+      "--ttt-table-action-min-width": "18rem",
+      "--ttt-table-max-cell-width": "18rem",
+      "--ttt-pagination-height": "34px",
+      "--ttt-touch-target-size": "30px",
+      "--ttt-row-icon-size": "1.35rem",
+      "--ttt-navbar-button-height": "30px",
+      "--ttt-navbar-button-padding-x": "10px",
+      "--ttt-navbar-button-icon-size": "16px",
+      minTableHeight: 220
+    },
+    mobile: {
+      "--ttt-font-size-body": "15px",
+      "--ttt-font-size-control": "15px",
+      "--ttt-font-size-table": "15px",
+      "--ttt-font-size-table-header": "16px",
+      "--ttt-font-size-tablet": "15px",
+      "--ttt-font-size-sidebar": "15px",
+      "--ttt-font-size-submenu": "15px",
+      "--ttt-font-size-header-action": "15px",
+      "--ttt-font-size-row-action": "15px",
+      "--ttt-font-size-last-updated": "14px",
       "--ttt-font-size-caption": "13px",
       "--ttt-line-height-base": "1.38",
       "--ttt-line-height-tight": "1.22",
@@ -107,8 +107,8 @@
       "--ttt-font-size-submenu": "13px",
       "--ttt-font-size-header-action": "13px",
       "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
-      "--ttt-font-size-caption": "13px",
+      "--ttt-font-size-last-updated": "11px",
+      "--ttt-font-size-caption": "10px",
       "--ttt-line-height-base": "1.25",
       "--ttt-line-height-tight": "1.12",
       "--ttt-line-height-table": "1.16",
@@ -136,20 +136,11 @@
     };
   }
 
-  function isTabletLikeDevice(width, height) {
-    var hasCoarsePointer = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-    var isTabletSize = width >= 768 && width <= 1920;
-    var isTabA9Resolution =
-      (width === 1920 && height === 1200) ||
-      (width === 1200 && height === 1920);
-    return hasCoarsePointer && (isTabletSize || isTabA9Resolution);
-  }
-
-  function getMode(width, height) {
+  function getMode(width) {
     if (width < 768) return "mobile";
-    if (isTabletLikeDevice(width, height)) return "tablet";
+    if (width >= 1024 && width <= 1280) return "tablet";
     if (width >= 1920) return "wide";
-    return "desktop"; /* desktop/wide use 13px; tablet touch devices use 16px */
+    return "desktop"; /* covers 768-1023 and 1281-1919 */
   }
 
   function getVisibleHeight(element) {
@@ -161,12 +152,6 @@
 
   function setImportant(element, property, value) {
     if (!element || !value) return;
-    if (
-      element.style.getPropertyValue(property) === value &&
-      element.style.getPropertyPriority(property) === "important"
-    ) {
-      return;
-    }
     element.style.setProperty(property, value, "important");
   }
 
@@ -187,57 +172,8 @@
       }
     });
 
-    root.style.setProperty("--titan-ui-font-size", profile["--ttt-font-size-body"]);
     root.style.setProperty("--ttt-viewport-width", width + "px");
     root.style.setProperty("--ttt-viewport-height", height + "px");
-  }
-
-  function applyFontPolicy(mode) {
-    var profile = profiles[mode] || profiles.desktop;
-    var fontSize = profile["--ttt-font-size-body"] || "13px";
-    var pageSelectors = [
-      ".dp-bulk-upload-page",
-      ".dp-pick-table-page",
-      ".dp-completed-table-page",
-      ".is-pick-table-page",
-      ".is-completed-table-page"
-    ];
-    var childSelectors = [
-      ".card-body",
-      ".card-body *",
-      ".table-responsive",
-      "#order-listing",
-      "#order-listing *",
-      ".data-table",
-      ".data-table *",
-      "button",
-      ".btn",
-      "input",
-      "select",
-      "textarea",
-      "label",
-      "span",
-      "div",
-      "a",
-      "p",
-      "small",
-      "kbd",
-      ".badge",
-      ".rounded-pill",
-      ".status-badge"
-    ];
-
-    pageSelectors.forEach(function (pageSelector) {
-      var pages = document.querySelectorAll(pageSelector);
-      pages.forEach(function (page) {
-        setImportant(page, "font-size", fontSize);
-        childSelectors.forEach(function (childSelector) {
-          page.querySelectorAll(childSelector).forEach(function (element) {
-            setImportant(element, "font-size", fontSize);
-          });
-        });
-      });
-    });
   }
 
   function updateShellMeasurements(height) {
@@ -330,9 +266,8 @@
 
   function refreshResponsiveSystem() {
     var viewport = getViewport();
-    var mode = getMode(viewport.width, viewport.height);
+    var mode = getMode(viewport.width);
     applyProfile(mode, viewport.width, viewport.height);
-    applyFontPolicy(mode);
     updateTableHeights(mode, viewport.height, updateShellMeasurements(viewport.height));
 
     // ── DIAGNOSTIC CONSOLE LOG ──────────────────────────────────────────────
@@ -342,7 +277,7 @@
       'color:#028084;font-weight:700'
     );
     console.log('  Viewport  :', viewport.width + 'px wide ×', viewport.height + 'px tall');
-    console.log('  Mode      :', mode.toUpperCase(), '  |  Font policy: Desktop/Wide 13px | Tablet touch devices 16px');
+    console.log('  Mode      :', mode.toUpperCase(), '  |  Breakpoints: Mobile<768 | Tablet 1024–1280 (13px compact) | Desktop 1281–1919 (16px) | Wide≥1920 (13px)');
     console.log('  Font body :', profile['--ttt-font-size-body'],
                 ' | table:', profile['--ttt-font-size-table'],
                 ' | heading:', profile['--ttt-font-size-table-header']);
@@ -371,9 +306,7 @@
     });
     tableObserver.observe(target, {
       childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["style", "class"]
+      subtree: true
     });
   }
 
@@ -381,25 +314,17 @@
     refresh: refreshResponsiveSystem,
     schedule: scheduleRefresh,
     getMode: function () {
-      var viewport = getViewport();
-      return root.getAttribute("data-ttt-viewport") || getMode(viewport.width, viewport.height);
+      return root.getAttribute("data-ttt-viewport") || getMode(getViewport().width);
     }
   };
 
   window.addEventListener("resize", scheduleRefresh, { passive: true });
   window.addEventListener("orientationchange", scheduleRefresh, { passive: true });
   window.addEventListener("load", scheduleRefresh, { passive: true });
-  window.addEventListener("load", function () {
-    window.setTimeout(scheduleRefresh, 250);
-    window.setTimeout(scheduleRefresh, 1000);
-    window.setTimeout(scheduleRefresh, 2500);
-  }, { passive: true });
 
   document.addEventListener("DOMContentLoaded", function () {
     observeTableChanges();
     scheduleRefresh();
-    window.setTimeout(scheduleRefresh, 250);
-    window.setTimeout(scheduleRefresh, 1000);
   });
 
   refreshResponsiveSystem();

@@ -1449,7 +1449,7 @@ footer {
   .tray-scan-status-circle {
     width: 30px !important;
     height: 30px !important;
-    font-size: var(--titan-ui-font-size) !important;
+    font-size: 20px !important;
     min-width: 40px !important;
     min-height: 40px !important;
     max-width: 40px !important;
@@ -1995,7 +1995,7 @@ footer {
 
 #modalModelNo_DayPlanning {
   margin: 0 !important;
-  font-size: var(--titan-ui-font-size) !important;
+  font-size: 16px !important;
   font-weight: 600 !important;
   color: #028084 !important;
   margin-top: 0 !important;
@@ -4757,11 +4757,11 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
   /* --- Tablet: freeze first 3 columns consistently with desktop --- */
   @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
     * {
-      font-size: var(--titan-ui-font-size) !important;
+      font-size: 20px !important; /* Increase font size for better readability */
     }
 
     :root {
-      --app-font-size: var(--titan-ui-font-size);
+      --app-font-size: 20px;
     }
     .rounded-circle {
       padding: 17px !important;
@@ -6349,109 +6349,3 @@ tr[data-jig-hold-lot="false"] .hold-remark-icon:not(.has-reason) {
 .excess-row-checkbox.locked { pointer-events:none; accent-color:#028084; }
 /* Total Delink Qty bar */
 .delink-total-bar { display:flex; align-items:center; justify-content:space-between; padding:6px 12px; background:linear-gradient(135deg,#d4edda,#e8f5e9); border-radius:8px; margin-top:6px; font-size:12px; font-weight:600; color:#155724; border:1px solid #28a745; }
-
-/* ============================================================
-   GLOBAL RESPONSIVE FONT POLICY
-   Desktop/wide: 13px. Tablet touch devices: 16px.
-   Keep this at the end so page-level font declarations inherit one rule.
-   ============================================================ */
-:root {
-  --titan-ui-font-size: 13px;
-}
-
-:root.ttt-viewport-tablet {
-  --titan-ui-font-size: 16px;
-}
-
-@media (pointer: coarse) and (min-width: 768px) and (max-width: 1920px) {
-  :root {
-    --titan-ui-font-size: 16px;
-  }
-}
-
-@media (pointer: coarse) and (width: 1920px) and (height: 1200px),
-       (pointer: coarse) and (width: 1200px) and (height: 1920px) {
-  :root {
-    --titan-ui-font-size: 16px;
-  }
-}
-
-html,
-body {
-  font-size: var(--titan-ui-font-size) !important;
-}
-
-body,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.content-wrapper,
-.main-panel,
-.navbar,
-.sidebar,
-.sidebar .nav,
-.sidebar .nav .nav-item .nav-link,
-.table,
-.table th,
-.table td,
-#order-listing,
-#order-listing th,
-#order-listing td,
-.dataTable,
-.dataTable th,
-.dataTable td,
-button,
-.btn,
-input,
-select,
-textarea,
-.form-control,
-.dropdown-menu,
-.modal,
-.card,
-.badge {
-  font-size: var(--titan-ui-font-size) !important;
-}
-
-/* Final page font lock for responsive table screens.
-   Desktop/wide remains 13px; html.ttt-viewport-tablet forces real tablet pages to 16px. */
-html:not(.ttt-viewport-tablet) :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(.card-body, .table-responsive, #order-listing, .data-table, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge),
-html:not(.ttt-viewport-tablet) :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(#order-listing, #order-listing *, .data-table, .data-table *) {
-  font-size: 13px !important;
-}
-
-html.ttt-viewport-tablet {
-  --titan-ui-font-size: 16px !important;
-}
-
-html.ttt-viewport-tablet :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(.card-body, .table-responsive, #order-listing, .data-table, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge),
-html.ttt-viewport-tablet :is(
-  .dp-bulk-upload-page,
-  .dp-pick-table-page,
-  .dp-completed-table-page,
-  .is-pick-table-page,
-  .is-completed-table-page
-) :is(#order-listing, #order-listing *, .data-table, .data-table *) {
-  font-size: 16px !important;
-}

@@ -464,6 +464,7 @@ class IQFPickTableView(APIView):
                 'IQF_pick_remarks': stock_obj.IQF_pick_remarks,
                 'Bq_pick_remarks': stock_obj.Bq_pick_remarks,
                 'BA_pick_remarks': stock_obj.BA_pick_remarks,
+                'IP_pick_remarks': stock_obj.IP_pick_remarks,
                 'brass_rejection_total_qty': stock_obj.brass_rejection_total_qty,
                 'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
                 'brass_qc_few_cases_accptance': stock_obj.brass_qc_few_cases_accptance,
@@ -1718,6 +1719,7 @@ def iqf_submit_audit(request):
             ts.iqf_after_rejection_qty = rejected_qty
             ts.iqf_accepted_qty_verified = False  # Reset for fresh cycle on re-entry
             ts.last_process_module = 'IQF'
+            ts.current_stage = 'IQF'
             ts.send_brass_audit_to_iqf = False  # Always remove parent from IQF pick table after submit
             ts.iqf_last_process_date_time = timezone.now()
 
@@ -1733,6 +1735,7 @@ def iqf_submit_audit(request):
                 'brass_qc_few_cases_accptance', 'brass_draft', 'brass_onhold_picking',
                 'brass_accepted_tray_scan_status', 'brass_physical_qty', 'brass_missing_qty',
                 'is_split', 'remove_lot', 'brass_audit_rejection',
+                'current_stage',
             ])
 
             print(f'[MOVEMENT] iqf_acceptance={ts.iqf_acceptance}, '
@@ -3701,6 +3704,7 @@ def iqf_accept_delink_modal(request):
                         ts.iqf_accepted_qty = accepted_qty
                         ts.iqf_after_rejection_qty = rejected_qty
                         ts.last_process_module = 'IQF'
+                        ts.current_stage = 'IQF'
                         ts.next_process_module = None
                         ts.is_split = True
                         ts.remove_lot = True
@@ -3710,7 +3714,7 @@ def iqf_accept_delink_modal(request):
                             'iqf_few_cases_acceptance', 'iqf_onhold_picking', 'iqf_acceptance', 'iqf_rejection',
                             'send_brass_qc', 'send_brass_audit_to_iqf', 'iqf_accepted_qty', 'iqf_after_rejection_qty',
                             'last_process_module', 'next_process_module', 'is_split', 'remove_lot',
-                            'brass_audit_rejection', 'iqf_last_process_date_time',
+                            'brass_audit_rejection', 'iqf_last_process_date_time', 'current_stage',
                         ])
                         print(f'[DELINK CONFIRM NEW] ✅ FINALIZED lot={lot_id}: accept={accepted_lot_id}(qty={accepted_qty}), reject={rejected_lot_id}(qty={rejected_qty})')
 
@@ -3989,6 +3993,7 @@ def iqf_lot_rejection(request):
                 ts.iqf_accepted_qty = 0
                 ts.iqf_after_rejection_qty = rejected_qty
                 ts.last_process_module = 'IQF'
+                ts.current_stage = 'IQF'
                 ts.send_brass_audit_to_iqf = False
                 ts.brass_audit_rejection = False
                 ts.send_brass_qc = False
@@ -3997,7 +4002,7 @@ def iqf_lot_rejection(request):
                     'iqf_rejection', 'iqf_acceptance', 'iqf_few_cases_acceptance',
                     'iqf_onhold_picking', 'iqf_accepted_qty', 'iqf_after_rejection_qty',
                     'last_process_module', 'send_brass_audit_to_iqf', 'brass_audit_rejection', 'send_brass_qc',
-                    'iqf_last_process_date_time',
+                    'iqf_last_process_date_time', 'current_stage',
                 ])
 
                 # 6. Clear any existing drafts

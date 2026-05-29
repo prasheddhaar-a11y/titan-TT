@@ -823,6 +823,7 @@ def submit_full_accept(lot_id, remarks, user):
         accepted_tray_scan_status=True,
         last_process_module="Input Screening",
         next_process_module="Brass QC",
+        current_stage="Input Screening",
         last_process_date_time=timezone.now(),
     )
 
@@ -897,6 +898,7 @@ def submit_full_reject(lot_id, remarks, user):
         total_IP_accpeted_quantity=0,
         last_process_module="Input Screening",
         next_process_module="Input Screening",
+        current_stage="Input Screening",
         last_process_date_time=timezone.now(),
     )
 

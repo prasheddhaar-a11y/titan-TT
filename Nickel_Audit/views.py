@@ -561,6 +561,7 @@ class NA_PickTableView(APIView):
                 'rejected_ip_stock': jig_unload_obj.rejected_audit_nickle_ip_stock,
                 'accepted_tray_scan_status': jig_unload_obj.na_accepted_tray_scan_status,
                 'na_pick_remarks': jig_unload_obj.na_pick_remarks,  # Not applicable for nickel
+                'nq_pick_remarks': jig_unload_obj.nq_pick_remarks,  # Nickel Inspection pick remark (previous stage)
                 'nq_qc_accptance': False,  # Not applicable
                 'na_accepted_tray_scan_status': False,  # Not applicable
                 'na_qc_rejection': jig_unload_obj.na_qc_rejection,
@@ -1106,10 +1107,11 @@ def _na_do_full_accept(request, lot_id, juat):
         juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
+        juat.current_stage = 'Nickel Audit'
         juat.save(update_fields=[
             'na_qc_accptance', 'na_qc_accepted_qty',
             'na_draft', 'na_onhold_picking',
-            'na_last_process_date_time', 'last_process_module',
+            'na_last_process_date_time', 'last_process_module', 'current_stage',
         ])
         _na_clear_draft_state(lot_id)
     logger.info("[AUDIT_ACCEPT_FLOW] action=FULL_ACCEPT lot=%s user=%s qty=%d trays=%d", lot_id, request.user, total_qty, len(trays))
@@ -1272,12 +1274,13 @@ def _na_do_submit_reject(request, lot_id, juat):
         juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
+        juat.current_stage = 'Nickel Audit'
         if is_partial:
             juat.na_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
             'na_qc_rejection', 'na_qc_few_cases_accptance',
             'na_draft', 'na_onhold_picking',
-            'na_last_process_date_time', 'last_process_module', 'na_qc_accepted_qty',
+            'na_last_process_date_time', 'last_process_module', 'na_qc_accepted_qty', 'current_stage',
         ])
         _na_clear_draft_state(lot_id)
         submission_type = 'PARTIAL' if is_partial else 'FULL_REJECT'
@@ -1395,10 +1398,11 @@ def _na_do_submit_accept(request, lot_id, juat):
         juat.na_onhold_picking = False
         juat.na_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel Audit'
+        juat.current_stage = 'Nickel Audit'
         juat.save(update_fields=[
             'na_qc_accptance', 'na_qc_accepted_qty',
             'na_draft', 'na_onhold_picking',
-            'na_last_process_date_time', 'last_process_module',
+            'na_last_process_date_time', 'last_process_module', 'current_stage',
         ])
         _na_clear_draft_state(lot_id)
     logger.info("[AUDIT_ACCEPT_FLOW] action=SUBMIT_ACCEPT lot=%s user=%s trays=%d", lot_id, request.user, len(accept_trays))
@@ -1563,6 +1567,7 @@ class NACompletedView(APIView):
                 'na_physical_qty': jig_unload_obj.na_physical_qty,
                 'na_missing_qty': jig_unload_obj.na_missing_qty or 0,
                 'na_pick_remarks': jig_unload_obj.na_pick_remarks,
+                'nq_pick_remarks': jig_unload_obj.nq_pick_remarks,  # Nickel Inspection pick remark (previous stage)
                 'na_accepted_tray_scan_status': jig_unload_obj.na_accepted_tray_scan_status,
                 'na_ac_accepted_qty_verified': jig_unload_obj.na_ac_accepted_qty_verified,
                 'na_qc_accepted_qty': accepted_qty,

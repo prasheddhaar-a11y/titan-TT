@@ -3007,6 +3007,115 @@
       });
       </script>
 
+      <!-- ══ Lot Remark History Modal (global — all pick tables) ══ -->
+      <div id="lotRemarkHistoryModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);z-index:99998;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:12px;width:480px;max-width:96vw;max-height:80vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.22);position:relative;padding:0;">
+          <div style="padding:16px 20px 12px;border-bottom:1px solid #e8edf2;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <h6 style="margin:0;color:#028084;font-weight:700;font-size:15px;"><i class="fa fa-history" style="margin-right:7px;"></i>Remark History</h6>
+              <small id="lotRemarkHistoryLotId" style="color:#666;font-size:12px;"></small>
+            </div>
+            <span id="lotRemarkHistoryClose" style="font-size:22px;font-weight:bold;color:#d9534f;cursor:pointer;line-height:1;">&times;</span>
+          </div>
+          <div id="lotRemarkHistoryBody" style="padding:16px 20px;">
+            <div id="lotRemarkHistorySpinner" style="text-align:center;padding:24px 0;color:#888;"><i class="fa fa-spinner fa-spin" style="font-size:22px;"></i><br><small style="display:block;margin-top:8px;">Loading remarks&hellip;</small></div>
+            <div id="lotRemarkHistoryContent" style="display:none;"></div>
+            <div id="lotRemarkHistoryEmpty" style="display:none;text-align:center;padding:20px 0;color:#888;font-size:13px;"><i class="fa fa-comment-o" style="font-size:24px;margin-bottom:8px;display:block;"></i>No remarks saved for this lot yet.</div>
+            <div id="lotRemarkHistoryError" style="display:none;text-align:center;padding:20px 0;color:#a94442;font-size:13px;"></div>
+          </div>
+        </div>
+      </div>
+      <script nonce="{{ csp_nonce }}">
+      (function () {
+        'use strict';
+        var modal = document.getElementById('lotRemarkHistoryModal');
+        var closeBtn = document.getElementById('lotRemarkHistoryClose');
+        var lotIdLabel = document.getElementById('lotRemarkHistoryLotId');
+        var spinner = document.getElementById('lotRemarkHistorySpinner');
+        var content = document.getElementById('lotRemarkHistoryContent');
+        var emptyMsg = document.getElementById('lotRemarkHistoryEmpty');
+        var errorMsg = document.getElementById('lotRemarkHistoryError');
+
+        function openModal(lotId) {
+          if (!modal) return;
+          lotIdLabel.textContent = 'Lot: ' + lotId;
+          spinner.style.display = 'block';
+          content.style.display = 'none';
+          emptyMsg.style.display = 'none';
+          errorMsg.style.display = 'none';
+          modal.style.display = 'flex';
+
+          fetch('/adminportal/api/lot_remark_history/?lot_id=' + encodeURIComponent(lotId), {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+          })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            spinner.style.display = 'none';
+            if (!data.success) {
+              errorMsg.textContent = data.error || 'Failed to load remarks.';
+              errorMsg.style.display = 'block';
+              return;
+            }
+            var remarks = data.remarks || [];
+            if (remarks.length === 0) {
+              emptyMsg.style.display = 'block';
+              return;
+            }
+            var stageColors = {
+              'Day Planning': '#6c757d',
+              'Input Screening': '#17a2b8',
+              'IQF': '#fd7e14',
+              'Brass QC': '#ffc107',
+              'Brass Audit': '#28a745',
+              'Jig Loading': '#6610f2',
+              'Nickel Inspection': '#e83e8c',
+              'Nickel Audit': '#dc3545',
+              'Spider Spindle': '#343a40',
+            };
+            var html = '<div style="position:relative;padding-left:20px;">';
+            html += '<div style="position:absolute;left:8px;top:0;bottom:0;width:2px;background:#e0e0e0;border-radius:2px;"></div>';
+            remarks.forEach(function (r) {
+              var color = stageColors[r.stage] || '#007bff';
+              html += '<div style="position:relative;margin-bottom:16px;">';
+              html += '<div style="position:absolute;left:-16px;top:4px;width:10px;height:10px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 0 0 2px ' + color + ';"></div>';
+              html += '<div style="background:#f8f9fa;border:1px solid #e8edf2;border-radius:8px;padding:10px 13px;">';
+              html += '<span style="font-size:11px;font-weight:700;color:' + color + ';text-transform:uppercase;letter-spacing:0.5px;">' + r.stage + '</span>';
+              html += '<p style="margin:6px 0 0;font-size:13px;color:#333;line-height:1.5;">' + (r.remark || '') + '</p>';
+              html += '</div></div>';
+            });
+            html += '</div>';
+            content.innerHTML = html;
+            content.style.display = 'block';
+          })
+          .catch(function () {
+            spinner.style.display = 'none';
+            errorMsg.textContent = 'Network error. Please try again.';
+            errorMsg.style.display = 'block';
+          });
+        }
+
+        function closeModal() {
+          if (modal) modal.style.display = 'none';
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (modal) modal.addEventListener('click', function (e) {
+          if (e.target === modal) closeModal();
+        });
+
+        // Global delegated handler for .remark-history-btn
+        document.addEventListener('click', function (e) {
+          var btn = e.target.closest('.remark-history-btn');
+          if (!btn) return;
+          e.preventDefault();
+          var lotId = btn.getAttribute('data-lot-id') || '';
+          if (lotId) openModal(lotId);
+        });
+      }());
+      </script>
+
       <!-- CTRL+SHIFT+R handled in centralized keydown handler below -->
 
 <!-- GLOBAL SCAN FEATURE: event-driven current pick-table scanner -->

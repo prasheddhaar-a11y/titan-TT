@@ -3386,7 +3386,9 @@ class SubmitAllUnloadZ1View(APIView):
                 changed_fields.append('total_case_qty')
             if not after_table.last_process_module:
                 after_table.last_process_module = 'Jig Unloading'
+                after_table.current_stage = 'Jig Unloading'
                 changed_fields.append('last_process_module')
+                changed_fields.append('current_stage')
             if not after_table.Un_loaded_date_time:
                 after_table.Un_loaded_date_time = now
                 changed_fields.append('Un_loaded_date_time')
@@ -3409,6 +3411,7 @@ class SubmitAllUnloadZ1View(APIView):
                 selected_user=request_user if request_user.is_authenticated else None,
                 Un_loaded_date_time=now,
                 last_process_module='Jig Unloading',
+                current_stage='Jig Unloading',
                 plating_stk_no_list=plating_stk_no_list,
                 polish_stk_no_list=polish_stk_no_list,
                 version_list=version_list,
@@ -3596,6 +3599,7 @@ class SubmitAllUnloadZ1View(APIView):
             updated_count = TotalStockModel.objects.filter(lot_id__in=moved_lot_ids).update(
                 last_process_module='Jig Unloading',
                 next_process_module='Nickel Inspection',
+                current_stage='Jig Unloading',
                 last_process_date_time=now
             )
             logger.info(
