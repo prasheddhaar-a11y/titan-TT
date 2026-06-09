@@ -402,214 +402,14 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 /* For very small screens */
 
 
-/* Day Planning completed table final layout overrides */
-.dp-table-page {
-  --dp-table-font-size: 16px !important;
-  --dp-table-header-font-size: 16px !important;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: 288px !important;
-  max-height: 288px !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  padding-top: 0.75rem !important;
-  padding-bottom: 0 !important;
-}
-
-.dp-table-page > .col-12.grid-margin.stretch-card,
-.dp-table-page .card,
-.dp-table-page .card-body {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.dp-table-page > .col-12.grid-margin.stretch-card,
-.dp-table-page .card {
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page .card-body {
-  flex-direction: column;
-  padding-bottom: 0.5rem !important;
-  overflow: hidden !important;
-}
-
-.dp-table-page .calendar-bar,
-.dp-table-page .pagination-wrapper,
-.dp-table-page h4 {
-  flex: 0 0 auto;
-}
-
-.dp-table-page .pagination-wrapper {
-  position: static !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  width: 100% !important;
-  min-height: 42px !important;
-  padding: 4px 0 0 !important;
-  margin-top: 0.35rem !important;
-  background: #f5f7ff !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 4 !important;
-}
-
-.dp-table-page .table-responsive {
-  flex: 1 1 0 !important;
-  width: 100%;
-  height: auto !important;
-  max-height: none !important;
-  min-height: 0;
-  overflow-x: auto !important;
-  overflow-y: auto !important;
-  scrollbar-gutter: stable;
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page #order-listing {
-  table-layout: fixed !important;
-  width: max-content !important;
-  min-width: 100% !important;
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page #order-listing th,
-.dp-table-page #order-listing td {
-  box-sizing: border-box !important;
-  height: auto !important;
-  padding: 2px var(--ttt-table-cell-padding-x, 7px) !important;
-  font-size: var(--dp-table-font-size) !important;
-  line-height: 1.1 !important;
-  vertical-align: middle !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.dp-table-page #order-listing thead th {
-  height: var(--ttt-table-header-height, 34px) !important;
-  padding: var(--ttt-table-cell-padding-y, 4px) calc(var(--ttt-table-cell-padding-x, 7px) + 14px) var(--ttt-table-cell-padding-y, 4px) var(--ttt-table-cell-padding-x, 7px) !important;
-  font-size: var(--dp-table-header-font-size) !important;
-  font-weight: 700 !important;
-  line-height: 1.15 !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 30 !important;
-}
-
-.dp-table-page #order-listing tbody tr {
-  height: 24px !important;
-}
-
-.dp-table-page #order-listing th .fa-filter,
-.dp-table-page #order-listing .header-icons {
-  right: 6px !important;
-  font-size: 10px !important;
-}
-
-.dp-table-page .tray-scan-status-circle.dp-status-complete {
-  background: #0c8249 !important;
-}
-
-.dp-table-page .tray-scan-status-circle.dp-status-pending {
-  background: #c3c2c2 !important;
-}
-
-.dp-completed-table-page #order-listing th:nth-child(1),
-.dp-completed-table-page #order-listing td:nth-child(1) {
-  position: sticky !important;
-  left: 0 !important;
-  width: 70px !important;
-  min-width: 80px !important;
-  max-width: 80px !important;
-  background: #f7fafd !important;
-}
-
-.dp-completed-table-page #order-listing th:nth-child(2),
-.dp-completed-table-page #order-listing td:nth-child(2) {
-  position: sticky !important;
-  left: 70px !important;
-  width: 118px !important;
-  min-width: 118px !important;
-  max-width: 118px !important;
-  background: #f7fafd !important;
-}
-
-.dp-completed-table-page #order-listing th:nth-child(3),
-.dp-completed-table-page #order-listing td:nth-child(3) {
-  position: sticky !important;
-  left: 188px !important;
-  width: 150px !important;
-  min-width: 150px !important;
-  max-width: 150px !important;
-  background: #f7fafd !important;
-}
-
-.dp-completed-table-page #order-listing thead th:nth-child(-n+3) {
-  background: #028084 !important;
-  color: #e5fcff !important;
-  z-index: 45 !important;
-}
-
-.dp-completed-table-page #order-listing tbody td:nth-child(-n+3) {
-  background: #f7fafd !important;
-  z-index: 25 !important;
-}
-
-.dp-completed-table-page #order-listing th:nth-child(4),
-.dp-completed-table-page #order-listing td:nth-child(4) { width: 115px !important; min-width: 115px !important; max-width: 115px !important; overflow: visible !important; text-overflow: clip !important; }
-.dp-completed-table-page #order-listing th:nth-child(5),
-.dp-completed-table-page #order-listing td:nth-child(5) { width: 92px !important; min-width: 92px !important; max-width: 92px !important; }
-.dp-completed-table-page #order-listing th:nth-child(6),
-.dp-completed-table-page #order-listing td:nth-child(6) { width: 96px !important; min-width: 96px !important; max-width: 96px !important; }
-.dp-completed-table-page #order-listing th:nth-child(7),
-.dp-completed-table-page #order-listing td:nth-child(7) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
-.dp-completed-table-page #order-listing th:nth-child(8),
-.dp-completed-table-page #order-listing td:nth-child(8) { width: 118px !important; min-width: 118px !important; max-width: 118px !important; }
-.dp-completed-table-page #order-listing th:nth-child(9),
-.dp-completed-table-page #order-listing td:nth-child(9) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
-.dp-completed-table-page #order-listing th:nth-child(10),
-.dp-completed-table-page #order-listing td:nth-child(10) { width: 158px !important; min-width: 158px !important; max-width: 158px !important; }
-.dp-completed-table-page #order-listing th:nth-child(11),
-.dp-completed-table-page #order-listing td:nth-child(11) { width: 132px !important; min-width: 132px !important; max-width: 132px !important; }
-.dp-completed-table-page #order-listing th:nth-child(12),
-.dp-completed-table-page #order-listing td:nth-child(12) { width: 105px !important; min-width: 105px !important; max-width: 105px !important; }
-.dp-completed-table-page #order-listing th:nth-child(13),
-.dp-completed-table-page #order-listing td:nth-child(13) { width: 122px !important; min-width: 122px !important; max-width: 122px !important; }
-.dp-completed-table-page #order-listing th:nth-child(14),
-.dp-completed-table-page #order-listing td:nth-child(14) { width: 128px !important; min-width: 128px !important; max-width: 128px !important; }
-.dp-completed-table-page #order-listing th:nth-child(15),
-.dp-completed-table-page #order-listing td:nth-child(15) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.dp-completed-table-page #order-listing th:nth-child(16),
-.dp-completed-table-page #order-listing td:nth-child(16) { width: 115px !important; min-width: 115px !important; max-width: 115px !important; }
-.dp-completed-table-page #order-listing th:nth-child(17),
-.dp-completed-table-page #order-listing td:nth-child(17) { width: 104px !important; min-width: 104px !important; max-width: 104px !important; }
-
-.dp-completed-table-page #order-listing td:nth-child(10),
-.dp-completed-table-page #order-listing td:nth-child(10) * {
-  white-space: nowrap !important;
-}
-
-.dp-completed-table-page #order-listing td:nth-child(10) .rounded-pill {
-  min-width: 118px;
-}
-
-
-
-
+/* Shared Day Planning table layout lives in static/assets/css/titan-style.css. */
 </style>
  
 <div class="content-wrapper dp-table-page dp-completed-table-page">
       <div class="col-12 grid-margin stretch-card">
         <div class="card">
           <div class="card-body" style="padding-bottom:12px;">
-          <h4 class="text-left mt-0 mb-3" style="font-size: 16px; font-weight: 600">
+          <h4 class="text-left mt-0 mb-3" style="font-weight: 600">
             Day Planning Completed Table
           </h4>
             <!-- Search by date range with calendar icon and clear labels -->
@@ -619,7 +419,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               <input type="date" id="from-date-simple" name="from_date" 
                     value="{{ from_date }}" 
                     max="{{ 'now'|date:'Y-m-d' }}"
-                    style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; font-size: 14px; color: #028084; font-weight: 600;">
+                    style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; color: #028084; font-weight: 600;">
             </div>
             
             <div class="date-input-group">
@@ -627,19 +427,19 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               <input type="date" id="to-date-simple" name="to_date" 
                     value="{{ to_date }}" 
                     max="{{ 'now'|date:'Y-m-d' }}"
-                    style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; font-size: 14px; color: #028084; font-weight: 600;">
+                    style="border: 1.5px solid #028084; border-radius: 6px; padding: 6px 12px; color: #028084; font-weight: 600;">
             </div>
             
-            <button id="search-date-range-simple" type="button" style="background: #028084; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+            <button id="search-date-range-simple" type="button" style="background: #028084; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; display: flex; align-items: center; gap: 6px;">
               <i class="fa fa-search"></i> Search
             </button>
             
-            <button id="clear-date-filter-simple" type="button" style="background: #6c757d; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; margin-left: 10px;">
+            <button id="clear-date-filter-simple" type="button" style="background: #6c757d; border: none; border-radius: 6px; cursor: pointer; padding: 8px 18px; color: #fff; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-left: 10px;">
               <i class="fa fa-times"></i> Clear Filter
             </button>
           <!-- Filter Active indicator - positioned above table -->
         <div id="filterActiveIndicator" style="display: none; margin: 10px 0;">
-          <span style="font-size: 12px; color: #fff; font-weight: 600; background: #28a745; padding: 5px 12px; border-radius: 15px; border: 1px solid #1e7e34; display: inline-block;">Filter Active</span>
+          <span style="color: #fff; font-weight: 600; background: #28a745; padding: 5px 12px; border-radius: 15px; border: 1px solid #1e7e34; display: inline-block;">Filter Active</span>
         </div>
           </div>
 

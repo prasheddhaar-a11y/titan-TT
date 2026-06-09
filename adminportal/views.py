@@ -13,6 +13,7 @@ import re
 import logging
 from .serializers import *
 from .utils import extract_table_headings_from_html
+from .decorators import require_admin
 import datetime
 from InputScreening import *
 from django.db import transaction
@@ -903,6 +904,7 @@ class Other_Visual_AidView(APIView):
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class DP_ViewmasterView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = 'ModelMaster/viewmasters.html'
@@ -1218,6 +1220,7 @@ class DP_ViewmasterView(APIView):
             })
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class DP_ModelmasterView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = 'ModelMaster/dp_modelmaster.html'
@@ -1268,6 +1271,7 @@ class DP_ModelmasterView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class PolishFinishAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1348,6 +1352,7 @@ class PolishFinishAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class PlatingColorAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1428,6 +1433,7 @@ class PlatingColorAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class TrayTypeAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1509,6 +1515,7 @@ class TrayTypeAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class ModelImageAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1521,18 +1528,57 @@ class ModelImageAPIView(APIView):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
+    # Allowed image MIME types and extensions (Issue #24)
+    _ALLOWED_IMAGE_MIME = frozenset({
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+    })
+    _ALLOWED_IMAGE_EXT = frozenset({
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp',
+    })
+    # Dangerous intermediate extensions that must not appear anywhere in the filename
+    _DANGEROUS_EXT = frozenset({
+        '.exe', '.php', '.sh', '.bat', '.cmd', '.ps1', '.js', '.py',
+        '.rb', '.pl', '.asp', '.aspx', '.jsp', '.cgi', '.dll', '.so',
+    })
+
+    @staticmethod
+    def _validate_image_file(image):
+        """Returns an error string, or None if the file is acceptable."""
+        import os
+        name = image.name or ''
+        _, ext = os.path.splitext(name.lower())
+        # Block dangerous intermediate extensions (e.g. sample.exe.png)
+        stem = os.path.splitext(name)[0].lower()
+        for dext in ModelImageAPIView._DANGEROUS_EXT:
+            if stem.endswith(dext) or f'{dext}.' in stem:
+                return f'File "{name}" contains a disallowed intermediate extension.'
+        if ext not in ModelImageAPIView._ALLOWED_IMAGE_EXT:
+            return f'File extension "{ext}" is not allowed. Allowed: jpg, jpeg, png, gif, webp, bmp.'
+        content_type = getattr(image, 'content_type', '') or ''
+        if content_type and content_type not in ModelImageAPIView._ALLOWED_IMAGE_MIME:
+            return f'File type "{content_type}" is not allowed. Only image files are accepted.'
+        return None
+
     def post(self, request):
         """Upload new Model Images"""
         try:
             # Handle multiple image uploads
             uploaded_images = []
-            
+
             if 'images' in request.FILES:
                 images = request.FILES.getlist('images')
                 for image in images:
+                    # --- File type validation (Issue #24) ---
+                    err = self._validate_image_file(image)
+                    if err:
+                        return Response({
+                            'success': False,
+                            'message': err,
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
                     image_data = {
                         'master_image': image,
-                        'date_time': timezone.now()  # Add datetime for each image
+                        'date_time': timezone.now()
                     }
                     serializer = ModelImageSerializer(data=image_data)
                     if serializer.is_valid():
@@ -1544,7 +1590,7 @@ class ModelImageAPIView(APIView):
                             'message': 'Invalid image file',
                             'errors': serializer.errors
                         }, status=status.HTTP_400_BAD_REQUEST)
-                
+
                 return Response({
                     'success': True,
                     'message': f'{len(uploaded_images)} image(s) uploaded successfully!',
@@ -1555,11 +1601,12 @@ class ModelImageAPIView(APIView):
                     'success': False,
                     'message': 'No images provided'
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
+
         except Exception as e:
+            logger.exception('ModelImageAPIView.post upload error')
             return Response({
                 'success': False,
-                'message': f'Error uploading images: {str(e)}'
+                'message': 'An internal error occurred while uploading. Please contact the administrator.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1582,6 +1629,7 @@ class ModelImageAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class ModelMasterAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1675,6 +1723,7 @@ class ModelMasterAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class LocationAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1755,6 +1804,7 @@ class LocationAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class TrayIdAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -1829,6 +1879,7 @@ TRAY_FORMAT_PATTERN = re.compile(r'^(JB-A|JR-A|JD-A|JL-A|NB-A|NR-A|ND-A|NL-A)\d{
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class TrayManageAPIView(APIView):
     """
     Single consolidated API for all Tray ID management operations.
@@ -2126,6 +2177,7 @@ class TrayManageAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class CategoryAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -2206,6 +2258,7 @@ class CategoryAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class IPRejectionAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -2286,6 +2339,7 @@ class IPRejectionAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class BrassIQFRejectionAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -2377,6 +2431,7 @@ class BrassIQFRejectionAPIView(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class NickelAuditQCRejectionAPIView(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -2463,6 +2518,7 @@ class NickelAuditQCRejectionAPIView(APIView):
 
 # Utility view to get dropdown data
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class ModelMasterDropdownDataAPIView(APIView):
     renderer_classes = [JSONRenderer]
     
@@ -2493,6 +2549,7 @@ class ModelMasterDropdownDataAPIView(APIView):
 """ Module - User Management """
 # Class for Admin Portal HTML File Navigation (Dashboard/Settings gear - Dropdown - User Creation)
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class AdminPortalView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = 'AdminPortal/adminPortal.html'
@@ -2510,18 +2567,54 @@ class AdminPortalView(APIView):
         })
 
 # Class for Department List APIs Masters
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class DepartmentListAPIView(APIView):
     def get(self, request):
         departments = Department.objects.all().values('id', 'name')
         return Response(list(departments))
-    
-    
+
+
 # Class for Role List APIs Masters
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class RoleListAPIView(APIView):
     def get(self, request):
         roles = Role.objects.all().values('id', 'name')
         return Response(list(roles))
+
+
+_HTML_CHARS_RE = re.compile(r'[<>&"\']')
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+_PASSWORD_RE = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$')
+
+
+def _validate_user_text_field(value, field_name):
+    """Reject values containing HTML characters to prevent stored HTML injection."""
+    if value and _HTML_CHARS_RE.search(value):
+        return f'{field_name} must not contain HTML characters (< > & \' ").'
+    return None
+
+
+def _validate_email(email):
+    if email and not _EMAIL_RE.match(email):
+        return 'Invalid email format.'
+    return None
+
+
+def _validate_password_complexity(password, username=''):
+    if not password:
+        return 'Password is required.'
+    if len(password) < 8:
+        return 'Password must be at least 8 characters.'
+    if not _PASSWORD_RE.match(password):
+        return ('Password must contain at least one uppercase letter, one lowercase letter, '
+                'one digit, and one special character.')
+    if username and password.lower() == username.lower():
+        return 'Password cannot be the same as the username.'
+    return None
 
 
 def _normalize_group_ids_from_payload(data):
@@ -2610,19 +2703,21 @@ def _serialize_user_groups(user):
 # Class for User Creation API - Fixed
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class UserCreateAPIView(APIView):
     def post(self, request, *args, **kwargs):
         from .services import invalidate_user_modules_cache, sync_user_module_provisions_from_group
 
         data = request.data or {}
-        email = data.get('email')
-        first_name = data.get('first_name')
-        last_name = data.get('last_name')
+        email = (data.get('email') or '').strip()
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip()
         password = data.get('password')
         department_id = data.get('department')
         role_id = data.get('role')
         group_ids = _normalize_group_ids_from_payload(data)
-        username = (data.get('username') or email or f"{(first_name or '').strip()}.{(last_name or '').strip()}").strip()
+        username = (data.get('username') or email or f"{first_name}.{last_name}").strip()
 
         try:
             with transaction.atomic():
@@ -2711,7 +2806,7 @@ class UserCreateAPIView(APIView):
 
         except Exception as e:
             logger.exception('User creation failed')
-            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 def create_user(request):
@@ -2739,6 +2834,8 @@ def create_user(request):
     
     
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class UserListAPIView(APIView):
     def get(self, request):
         users = User.objects.prefetch_related('groups', 'module_provisions').all().order_by('id')
@@ -2791,6 +2888,9 @@ class UserListAPIView(APIView):
 
 
 
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class UserGroupListAPIView(APIView):
     def get(self, request):
         from .services import ensure_module_registry_seeded
@@ -2798,9 +2898,12 @@ class UserGroupListAPIView(APIView):
         ensure_module_registry_seeded()
         groups = Group.objects.all().order_by('name').values('id', 'name')
         return Response(list(groups))
-    
-    
-    
+
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class GroupModulesAPIView(APIView):
     def get(self, request, group_id):
         from .services import ensure_module_registry_seeded
@@ -2838,6 +2941,14 @@ def user_allowed_modules(request):
     user = request.user
     if not user.is_authenticated:
         return {'allowed_modules': []}
+
+    if not is_admin_user(user):
+        logger.warning(
+            'UNAUTHORIZED_ADMIN_ACCESS: path=%s method=%s ip=%s',
+            request.path, request.method,
+            request.META.get('REMOTE_ADDR', 'unknown'),
+        )
+        return Response({'error': 'Access denied. Admin privileges required.', 'code': 'ADMIN_REQUIRED'}, status=403)
 
     # ----- POST logic -----
     if request.method == 'POST':
@@ -2903,6 +3014,7 @@ def user_allowed_modules(request):
 #Class for User Deletion API
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class UserDeleteAPIView(APIView):
     def delete(self, request, user_id):
         try:
@@ -2912,11 +3024,13 @@ class UserDeleteAPIView(APIView):
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'User not found.'}, status=404)
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            logger.exception('UserDeleteAPIView.delete error: user_id=%s', user_id)
+            return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
         
 
   
     
+@require_admin
 @csrf_exempt
 def extract_headings_api(request):
     html_file = request.GET.get('html_file')
@@ -2929,7 +3043,9 @@ def extract_headings_api(request):
     headings = extract_table_headings_from_html(abs_path)
     return JsonResponse({'success': True, 'headings': headings})
 
-@csrf_exempt  # Remove this if you use CSRF tokens correctly in JS
+@login_required(login_url='login-api')
+@require_admin
+@csrf_exempt
 def swap_login(request):
     if request.method == "POST":
         try:
@@ -2946,6 +3062,9 @@ def swap_login(request):
             return JsonResponse({"success": False, "error": str(e)})
     return JsonResponse({"success": False, "error": "Invalid request"}, status=400)
 
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class UserDetailAPIView(APIView):
     def get(self, request, user_id):
         try:
@@ -2973,19 +3092,32 @@ class UserDetailAPIView(APIView):
     def put(self, request, user_id):
         from .services import invalidate_user_modules_cache, sync_user_module_provisions_from_group
 
+        data = request.data or {}
+        new_username = data.get('username')
+        new_first_name = data.get('first_name')
+        new_last_name = data.get('last_name')
+        new_email = data.get('email')
+        password = data.get('password')
+
         try:
             user = User.objects.get(id=user_id)
-            data = request.data
-            user.username = data.get('username', user.username)
-            user.first_name = data.get('first_name', user.first_name)
-            user.last_name = data.get('last_name', user.last_name)
-            user.email = data.get('email', user.email)
-            
-            # Update password only if provided
-            password = data.get('password')
-            if password and password.strip():
+            if new_username is not None:
+                user.username = str(new_username).strip()
+            if new_first_name is not None:
+                user.first_name = str(new_first_name).strip()
+            if new_last_name is not None:
+                user.last_name = str(new_last_name).strip()
+            if new_email is not None:
+                user.email = str(new_email).strip()
+
+            if password and str(password).strip():
+                password = str(password).strip()
+                target_username = str(new_username or user.username).strip()
+                pwd_err = _validate_password_complexity(password, username=target_username)
+                if pwd_err:
+                    return Response({'success': False, 'error': pwd_err}, status=400)
                 user.set_password(password)
-                
+
             user.save()
 
             profile = getattr(user, 'userprofile', None)
@@ -3009,7 +3141,8 @@ class UserDetailAPIView(APIView):
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'User not found.'}, status=404)
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            logger.exception('UserDetailAPIView.put error: user_id=%s', user_id)
+            return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
 
     def delete(self, request, user_id):
         try:
@@ -3019,9 +3152,10 @@ class UserDetailAPIView(APIView):
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'User not found.'}, status=404)
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
-            
-        
+            logger.exception('UserDetailAPIView.delete error: user_id=%s', user_id)
+            return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
+
+
 # Safe class - static handling
 """ @method_decorator(login_required(login_url='login-api'), name='dispatch')
 class DP_PickTableView(APIView):

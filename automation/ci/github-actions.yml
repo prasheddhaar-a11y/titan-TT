@@ -1,0 +1,147 @@
+name: TTT Day Planning Automation — CI
+
+on:
+  push:
+    branches: [main, develop, release/**]
+    paths:
+      - 'automation/**'
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Daily regression run at 2 AM IST (UTC+5:30 → 20:30 UTC)
+    - cron: '30 20 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, qa, uat]
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+
+jobs:
+  # ── Job 1: Install & Cache ──────────────────────────────────────────────────
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: automation/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('automation/package-lock.json') }}
+
+  # ── Job 2: Smoke Tests ──────────────────────────────────────────────────────
+  smoke:
+    name: Smoke Tests
+    needs: install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation
+    env:
+      TEST_ENV: ${{ github.event.inputs.environment || 'dev' }}
+      BASE_URL: ${{ secrets.DEV_BASE_URL || 'http://localhost:8000' }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run Smoke Tests
+        run: npx playwright test --grep @smoke --project=chromium-dev --reporter=list,html
+      - name: Upload Smoke Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: automation/reports/html
+          retention-days: 7
+
+  # ── Job 3: Full Regression ─────────────────────────────────────────────────
+  regression:
+    name: Full Regression
+    needs: smoke
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: automation
+    env:
+      TEST_ENV: ${{ github.event.inputs.environment || 'dev' }}
+      BASE_URL: ${{ secrets.DEV_BASE_URL || 'http://localhost:8000' }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run Regression Tests (Shard ${{ matrix.shard }}/4)
+        run: npx playwright test --grep @regression --shard=${{ matrix.shard }}/4
+      - name: Upload Shard Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-results-shard-${{ matrix.shard }}
+          path: automation/test-results
+          retention-days: 14
+
+  # ── Job 4: Merge & Publish Reports ────────────────────────────────────────
+  report:
+    name: Merge Reports & Publish
+    needs: regression
+    if: always()
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: regression-results-shard-*
+          merge-multiple: true
+          path: automation/test-results
+      - name: Merge and generate HTML report
+        run: npx playwright merge-reports --reporter html test-results
+      - name: Publish HTML Report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: automation/reports/html

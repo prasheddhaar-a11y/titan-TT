@@ -216,7 +216,8 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_COOKIE_SECURE = True   # Issue #4: require HTTPS for session cookie
+SESSION_COOKIE_AGE = 1800      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
 
 ENABLE_MICROSOFT_LOGIN = False
 ENABLE_LOGIN_LATENCY_LOGS = False

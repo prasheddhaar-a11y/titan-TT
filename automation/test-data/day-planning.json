@@ -1,0 +1,57 @@
+{
+  "validBulkUploadFile": "test-data/files/valid_day_plan.xlsx",
+  "invalidFormatFile": "test-data/files/invalid_format.txt",
+  "emptyFile": "test-data/files/empty.xlsx",
+  "largeFile": "test-data/files/large_day_plan.xlsx",
+  "missingMandatoryFields": "test-data/files/missing_mandatory.xlsx",
+
+  "validLotIds": [
+    "LOT-2026-001",
+    "LOT-2026-002",
+    "LOT-2026-003"
+  ],
+
+  "invalidLotIds": [
+    "",
+    "LOT!@#$%",
+    "A_VERY_LONG_LOT_ID_THAT_EXCEEDS_MAXIMUM_CHARACTER_LIMIT_OF_FIFTY_CHARACTERS_123456"
+  ],
+
+  "validTrayIds": [
+    "TRY-001",
+    "TRY-002",
+    "TRY-003"
+  ],
+
+  "invalidTrayIds": [
+    "",
+    "INVALID-TRAY",
+    "TRY-ALREADY-USED"
+  ],
+
+  "validRemarks": [
+    "Normal processing",
+    "Priority lot",
+    "Handle with care"
+  ],
+
+  "oversizeRemark": "This remark exceeds the fifty character limit set in the hold remark input field",
+
+  "searchTerms": {
+    "validLotSearch": "LOT-2026",
+    "noResultSearch": "ZZZNONEXISTENT999",
+    "partialSearch": "LOT"
+  },
+
+  "pagination": {
+    "pageSizes": ["10", "25", "50", "100"]
+  },
+
+  "boundaryValues": {
+    "minQuantity": 1,
+    "maxQuantity": 9999,
+    "belowMinQuantity": 0,
+    "aboveMaxQuantity": 10000,
+    "holdRemarkMaxLength": 50
+  }
+}

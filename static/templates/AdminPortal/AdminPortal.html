@@ -2483,6 +2483,41 @@ form.addEventListener("submit", async function (e) {
   const submitBtn = document.getElementById("uc-submit-btn");
   if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = "0.7"; }
 
+  // --- Password policy enforcement (frontend gate) ---
+  const pwdVal = document.getElementById("password").value;
+  const isEditing = !!window.editingUserId;
+  // For create: password required. For edit: validate only if provided.
+  if (!isEditing || pwdVal) {
+    if (!pwdVal) {
+      Swal.fire({ icon: 'error', title: 'Password Required', text: 'Please enter a password.' });
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = "1"; }
+      return;
+    }
+    if (!isPasswordValid(pwdVal)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Weak Password',
+        html: 'Password must meet <b>all</b> of the following:<br>' +
+          '<ul style="text-align:left;margin:8px 0 0 16px;">' +
+          '<li>At least 8 characters</li>' +
+          '<li>Uppercase letter (A-Z)</li>' +
+          '<li>Lowercase letter (a-z)</li>' +
+          '<li>Number (0-9)</li>' +
+          '<li>Special character (!@#$%...)</li>' +
+          '</ul>',
+        confirmButtonColor: '#028084'
+      });
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = "1"; }
+      return;
+    }
+    const confirmPwdVal = document.getElementById("confirmPassword").value;
+    if (pwdVal !== confirmPwdVal) {
+      Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match. Please re-enter.', confirmButtonColor: '#028084' });
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = "1"; }
+      return;
+    }
+  }
+
   try {
     let response, result;
     if (window.editingUserId) {
@@ -2532,7 +2567,7 @@ form.addEventListener("submit", async function (e) {
         Swal.fire({
           icon: 'success',
           title: 'User Created',
-          text: `User created successfully! User ID: ${result.user.username}`
+          text: 'User created successfully!'
         });
         window.latestCreatedUser = result.user;
         if (typeof updateBreadcrumbAccess === "function") updateBreadcrumbAccess();
@@ -4620,6 +4655,10 @@ document.getElementById("btn-module-save-next").onclick = async function () {
      if (/[^A-Za-z0-9]/.test(pwd)) score++;
      return score;
    }
+
+   function isPasswordValid(pwd) {
+     return checkPasswordStrength(pwd) === 5;
+   }
    
    function updatePasswordFeedback() {
      const pwd = document.getElementById("password").value;
@@ -4627,8 +4666,17 @@ document.getElementById("btn-module-save-next").onclick = async function () {
      const msgDiv = document.getElementById("passwordStrengthMsg");
      const fillInline = document.getElementById("passwordStrengthFillInline");
      const live = document.getElementById("passwordStrengthLive");
+
+     // Per-rule checks (must match backend _PASSWORD_RE exactly)
+     const checks = {
+       length:  pwd.length >= 8,
+       upper:   /[A-Z]/.test(pwd),
+       lower:   /[a-z]/.test(pwd),
+       digit:   /\d/.test(pwd),
+       special: /[^A-Za-z0-9]/.test(pwd),
+     };
+     const score = Object.values(checks).filter(Boolean).length;
    
-     let score = checkPasswordStrength(pwd);
      let strength = "";
      let color = "#e5e7eb";
      let width = "0%";
@@ -4657,9 +4705,27 @@ document.getElementById("btn-module-save-next").onclick = async function () {
        live.textContent = strength;
        live.style.color = color;
      }
-     //msgDiv.textContent = strength ? `Password strength: ${strength}` : "";
+
+     // Real-time requirements checklist
+     if (pwd && msgDiv) {
+       const rules = [
+         { key: 'length',  label: 'At least 8 characters' },
+         { key: 'upper',   label: 'Uppercase letter (A-Z)' },
+         { key: 'lower',   label: 'Lowercase letter (a-z)' },
+         { key: 'digit',   label: 'Number (0-9)' },
+         { key: 'special', label: 'Special character (!@#$%...)' },
+       ];
+       msgDiv.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:2px 16px;margin-top:3px;">' +
+         rules.map(r =>
+           '<span style="white-space:nowrap;color:' + (checks[r.key] ? '#16a34a' : '#dc2626') + ';font-size:0.78rem;">' +
+           (checks[r.key] ? '&#10003;' : '&#10007;') + ' ' + r.label + '</span>'
+         ).join('') +
+       '</div>';
+     } else if (!pwd && msgDiv) {
+       msgDiv.innerHTML = '';
+     }
    
-     if (pwd && confirm && pwd === confirm && score >= 3) {
+     if (pwd && confirm && pwd === confirm && score === 5) {
        document.getElementById("passwordMatchIcon").style.display = "";
      } else {
        document.getElementById("passwordMatchIcon").style.display = "none";

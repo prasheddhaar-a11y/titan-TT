@@ -1,0 +1,168 @@
+// Jenkinsfile — TTT Day Planning Playwright Automation
+// Declarative Pipeline for Jenkins
+
+pipeline {
+    agent { label 'linux && nodejs' }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5'))
+    }
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'qa', 'uat'],
+            description: 'Target deployment environment'
+        )
+        choice(
+            name: 'SUITE',
+            choices: ['smoke', 'sanity', 'regression', 'all'],
+            description: 'Test suite to execute'
+        )
+        booleanParam(
+            name: 'HEADED',
+            defaultValue: false,
+            description: 'Run tests in headed mode'
+        )
+    }
+
+    environment {
+        NODE_VERSION = '20'
+        AUTOMATION_DIR = "${WORKSPACE}/automation"
+        TEST_ENV = "${params.ENVIRONMENT}"
+        HEADLESS = "${!params.HEADED}"
+        BASE_URL = credentials("ttt-${params.ENVIRONMENT}-base-url")
+        ADMIN_USERNAME = credentials('ttt-admin-username')
+        ADMIN_PASSWORD = credentials('ttt-admin-password')
+    }
+
+    triggers {
+        cron('30 20 * * *')  // Nightly at 2 AM IST
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                echo "Branch: ${env.BRANCH_NAME} | ENV: ${params.ENVIRONMENT} | Suite: ${params.SUITE}"
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh 'node --version'
+                    sh 'npm --version'
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Install Playwright Browsers') {
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh 'npx playwright install --with-deps chromium'
+                }
+            }
+        }
+
+        stage('Auth Setup') {
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh "npx playwright test fixtures/auth.setup.ts --project=setup"
+                }
+            }
+        }
+
+        stage('Smoke Tests') {
+            when { expression { params.SUITE in ['smoke', 'all'] } }
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh "npx playwright test --grep @smoke --project=chromium-dev --reporter=list,junit"
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true,
+                          testResults: "${AUTOMATION_DIR}/reports/junit/results.xml"
+                }
+            }
+        }
+
+        stage('Sanity Tests') {
+            when { expression { params.SUITE in ['sanity', 'all'] } }
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh "npx playwright test --grep @sanity --project=chromium-dev"
+                }
+            }
+        }
+
+        stage('Regression Tests') {
+            when { expression { params.SUITE in ['regression', 'all'] } }
+            parallel {
+                stage('Shard 1/4') {
+                    steps {
+                        dir(AUTOMATION_DIR) {
+                            sh "npx playwright test --grep @regression --shard=1/4"
+                        }
+                    }
+                }
+                stage('Shard 2/4') {
+                    steps {
+                        dir(AUTOMATION_DIR) {
+                            sh "npx playwright test --grep @regression --shard=2/4"
+                        }
+                    }
+                }
+                stage('Shard 3/4') {
+                    steps {
+                        dir(AUTOMATION_DIR) {
+                            sh "npx playwright test --grep @regression --shard=3/4"
+                        }
+                    }
+                }
+                stage('Shard 4/4') {
+                    steps {
+                        dir(AUTOMATION_DIR) {
+                            sh "npx playwright test --grep @regression --shard=4/4"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Generate HTML Report') {
+            steps {
+                dir(AUTOMATION_DIR) {
+                    sh "npx playwright merge-reports --reporter html test-results || true"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            publishHTML(target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: "${AUTOMATION_DIR}/reports/html",
+                reportFiles: 'index.html',
+                reportName: 'Playwright Test Report'
+            ])
+            archiveArtifacts artifacts: "automation/screenshots/**/*.png", allowEmptyArchive: true
+            archiveArtifacts artifacts: "automation/traces/**/*.zip", allowEmptyArchive: true
+            junit allowEmptyResults: true,
+                  testResults: "${AUTOMATION_DIR}/reports/junit/results.xml"
+        }
+        failure {
+            echo "Tests FAILED. Check report for details."
+        }
+        success {
+            echo "All tests PASSED."
+        }
+    }
+}

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import TemplateHTMLRenderer
@@ -59,6 +60,22 @@ def _is_admin(user):
         return False
     return user.groups.filter(name="Admin").exists()
 
+
+_IS_MODULE_NAME = "Input Pick Table"
+_DP_REDIRECT_URL = "/home/"
+
+
+def _check_is_module_access(request):
+    """Returns an HttpResponse (redirect with warning) if user lacks Input Screening access, else None."""
+    from adminportal.services import get_user_allowed_module_names
+    from django.http import HttpResponseRedirect
+    allowed = get_user_allowed_module_names(request.user)
+    if _IS_MODULE_NAME not in allowed:
+        redirect_url = "{}?access_denied=Input+Screening".format(_DP_REDIRECT_URL)
+        return HttpResponseRedirect(redirect_url)
+    return None
+
+
 def _empty_table_context(user):
     return {
         "master_data": [],
@@ -76,6 +93,9 @@ class IS_PickTable(APIView):
 
     def get(self, request):
         user = request.user
+        denied = _check_is_module_access(request)
+        if denied:
+            return denied
         queryset = pick_table_queryset()
         page_number = request.GET.get("page", 1)
         paginator = Paginator(queryset, PAGE_SIZE)
@@ -99,6 +119,9 @@ class IS_AcceptTable(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        denied = _check_is_module_access(request)
+        if denied:
+            return denied
         from_date = request.GET.get("from_date") or None
         to_date = request.GET.get("to_date") or None
         rows = get_accept_table_rows(from_date=from_date, to_date=to_date)
@@ -124,6 +147,9 @@ class IS_Completed_Table(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        denied = _check_is_module_access(request)
+        if denied:
+            return denied
         from_date = request.GET.get("from_date") or None
         to_date = request.GET.get("to_date") or None
         rows = get_completed_table_rows(from_date=from_date, to_date=to_date)
@@ -149,6 +175,9 @@ class IS_RejectTable(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        denied = _check_is_module_access(request)
+        if denied:
+            return denied
         from_date = request.GET.get("from_date") or None
         to_date = request.GET.get("to_date") or None
         rows = get_reject_table_rows(from_date=from_date, to_date=to_date)

@@ -1,0 +1,28 @@
+{
+  "validUsers": {
+    "admin": {
+      "username": "admin",
+      "password": "admin@123",
+      "role": "admin"
+    },
+    "operator": {
+      "username": "operator",
+      "password": "operator@123",
+      "role": "operator"
+    },
+    "viewer": {
+      "username": "viewer",
+      "password": "viewer@123",
+      "role": "viewer"
+    }
+  },
+  "invalidUsers": [
+    { "username": "wronguser", "password": "wrongpassword", "description": "Non-existent user" },
+    { "username": "admin", "password": "wrongpassword", "description": "Valid user, wrong password" },
+    { "username": "", "password": "admin@123", "description": "Empty username" },
+    { "username": "admin", "password": "", "description": "Empty password" },
+    { "username": "", "password": "", "description": "Both fields empty" },
+    { "username": "'; DROP TABLE auth_user; --", "password": "inject", "description": "SQL injection attempt" },
+    { "username": "<script>alert(1)</script>", "password": "xss", "description": "XSS attempt" }
+  ]
+}

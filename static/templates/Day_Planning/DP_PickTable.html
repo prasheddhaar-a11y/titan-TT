@@ -703,9 +703,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     cursor: not-allowed;
     background: #f5f5f5 !important;
   }
-    /* Remark tooltip — position is fully controlled by JS (position:fixed via getBoundingClientRect) */
+    /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
-    /* no top/bottom override — JS positions at runtime */
+    top: auto !important;
+    bottom: 110% !important;
   }
 
   /* Styling for remark tooltip close button */
@@ -816,6 +817,160 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   font-weight: 600;
   padding: 8px 4px; /* Reduced horizontal padding for S.no */
 }
+
+html.ttt-viewport-tablet .tray-scan-modal.open {
+  width: min(560px, calc(100vw - 28px)) !important;
+}
+
+html.ttt-viewport-tablet .tray-scan-modal-content {
+  padding: 18px 18px 14px !important;
+  max-width: calc(100vw - 28px) !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails.table-grid {
+  grid-template-columns: minmax(72px, 0.7fr) minmax(180px, 1.55fr) minmax(156px, 1.2fr) !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  padding-right: 6px !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails.table-grid.four-column {
+  grid-template-columns: minmax(70px, 0.7fr) minmax(176px, 1.45fr) minmax(142px, 1.05fr) minmax(126px, 1fr) !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails.table-grid > div {
+  padding: 9px 10px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
+  padding: 9px 8px !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails .tray-id-input,
+html.ttt-viewport-tablet #trayScanDetails .tray-qty-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 7px 9px !important;
+  box-sizing: border-box !important;
+  text-overflow: clip !important;
+}
+
+html.ttt-viewport-tablet #trayScanDetails .tray-edit-btn,
+html.ttt-viewport-tablet #trayScanDetails .tray-verify-checkbox {
+  flex: 0 0 auto !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal.tray-scan-modal.open {
+  top: 50% !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(860px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-buttons,
+html.ttt-viewport-tablet #trayScanModal #trayQtyErrorFooter,
+html.ttt-viewport-tablet #trayScanModal #traySlotExceededInfo {
+  flex: 0 0 auto !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header {
+  flex-wrap: nowrap !important;
+  gap: 14px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header img {
+  flex: 0 0 44px !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header > div {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header > div:first-of-type {
+  flex: 1 1 auto !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #modalPlatingStk {
+  display: inline-block !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  line-height: 1.15 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #modalTrayQty {
+  white-space: nowrap !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid {
+  flex: 1 1 auto !important;
+  max-height: min(430px, calc(100vh - 285px)) !important;
+  min-height: 180px !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid > div {
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid > div:nth-child(3n+1) {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails .tray-id-input,
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails .tray-qty-input,
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input[type="text"],
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input[type="number"] {
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input::placeholder {
+  font-size: 22px !important;
+  opacity: 1 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3, h4, h5, h6, p, span, div, label, button, input, textarea, select, .btn, .form-control) {
+  font-size: 22px !important;
+}
  
 /* For mobile responsiveness */
 
@@ -823,230 +978,25 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 /* For very small screens */
 
 
-/* Day Planning table final layout overrides */
-.dp-table-page {
-  --dp-table-font-size: 16px !important;
-  --dp-table-header-font-size: 16px !important;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: 335px !important;
-  max-height: 335px !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  padding-top: 0.75rem !important;
-  padding-bottom: 0 !important;
-}
-
-.dp-table-page > .col-12.grid-margin.stretch-card {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page .card,
-.dp-table-page .card-body {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.dp-table-page .card {
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page .card-body {
-  flex-direction: column;
-  padding-bottom: 0.5rem !important;
-  overflow: hidden !important;
-}
-
-.dp-table-page .dp-title-bar,
-.dp-table-page .pagination-wrapper {
-  flex: 0 0 auto;
-}
-
-.dp-table-page .pagination-wrapper {
-  position: static !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  width: 100% !important;
-  min-height: 42px !important;
-  padding: 4px 0 0 !important;
-  margin-top: 0.35rem !important;
-  background: #ffffff !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 4 !important;
-}
-
-.dp-table-page .table-responsive {
-  flex: 1 1 0 !important;
-  width: 100%;
-  height: auto !important;
-  max-height: none !important;
-  min-height: 0;
-  overflow-x: auto !important;
-  overflow-y: auto !important;
-  scrollbar-gutter: stable;
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page #order-listing {
-  table-layout: fixed !important;
-  width: max-content !important;
-  min-width: 100% !important;
-  margin-bottom: 0 !important;
-}
-
-.dp-table-page #order-listing th,
-.dp-table-page #order-listing td {
-  box-sizing: border-box !important;
-  height: auto !important;
-  padding: 2px var(--ttt-table-cell-padding-x, 7px) !important;
-  font-size: var(--dp-table-font-size) !important;
-  line-height: 1.1 !important;
-  vertical-align: middle !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.dp-table-page #order-listing thead th {
-  height: var(--ttt-table-header-height, 34px) !important;
-  padding: var(--ttt-table-cell-padding-y, 4px) calc(var(--ttt-table-cell-padding-x, 7px) + 14px) var(--ttt-table-cell-padding-y, 4px) var(--ttt-table-cell-padding-x, 7px) !important;
-  font-size: var(--dp-table-header-font-size) !important;
-  font-weight: 700 !important;
-  line-height: 1.15 !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 30 !important;
-}
-
-.dp-table-page #order-listing tbody tr {
-  height: 24px !important;
-}
-
-.dp-table-page #order-listing th .fa-filter {
-  right: 6px !important;
-  font-size: 10px !important;
-}
-
-.dp-table-page .tray-scan-btn,
-.dp-table-page #order-listing td:nth-child(4) > a,
-.dp-table-page #order-listing td:nth-child(4) > span {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  white-space: nowrap !important;
-  line-height: 1.1 !important;
-  vertical-align: middle !important;
-}
-
-.dp-table-page .dp-remark-icon-saved {
-  filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2);
-  opacity: 1;
-}
-
-.dp-table-page .dp-remark-icon-empty {
-  opacity: 0.7;
-}
-
-.dp-pick-table-page #order-listing th:nth-child(1),
-.dp-pick-table-page #order-listing td:nth-child(1) {
-  position: sticky !important;
-  left: 0 !important;
-  width: 78px !important;
-  min-width: 78px !important;
-  max-width: 78px !important;
-  background: #f7fafd !important;
-}
-
-.dp-pick-table-page #order-listing th:nth-child(2),
-.dp-pick-table-page #order-listing td:nth-child(2) {
-  position: sticky !important;
-  left: 78px !important;
-  width: 118px !important;
-  min-width: 118px !important;
-  max-width: 118px !important;
-  background: #f7fafd !important;
-}
-
-.dp-pick-table-page #order-listing th:nth-child(3),
-.dp-pick-table-page #order-listing td:nth-child(3) {
-  position: sticky !important;
-  left: 196px !important;
-  width: 150px !important;
-  min-width: 150px !important;
-  max-width: 150px !important;
-  background: #f7fafd !important;
-}
-
-.dp-pick-table-page #order-listing thead th:nth-child(-n+3) {
-  background: #028084 !important;
-  color: #e5fcff !important;
-  z-index: 45 !important;
-}
-
-.dp-pick-table-page #order-listing tbody td:nth-child(-n+3) {
-  background: #f7fafd !important;
-  z-index: 25 !important;
-}
-
-.dp-pick-table-page #order-listing th,
-.dp-pick-table-page #order-listing td,
-.dp-pick-table-page #order-listing td * {
-  font-size: var(--titan-ui-font-size, 16px) !important;
-}
-
-.dp-pick-table-page #order-listing th:nth-child(4),
-.dp-pick-table-page #order-listing td:nth-child(4) { width: 238px !important; min-width: 238px !important; max-width: 238px !important; overflow: visible !important; text-overflow: clip !important; white-space: nowrap !important; }
-.dp-pick-table-page #order-listing th:nth-child(5),
-.dp-pick-table-page #order-listing td:nth-child(5) { width: 92px !important; min-width: 92px !important; max-width: 92px !important; }
-.dp-pick-table-page #order-listing th:nth-child(6),
-.dp-pick-table-page #order-listing td:nth-child(6) { width: 96px !important; min-width: 96px !important; max-width: 96px !important; }
-.dp-pick-table-page #order-listing th:nth-child(7),
-.dp-pick-table-page #order-listing td:nth-child(7) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.dp-pick-table-page #order-listing th:nth-child(8),
-.dp-pick-table-page #order-listing td:nth-child(8) { width: 152px !important; min-width: 152px !important; max-width: 152px !important; }
-.dp-pick-table-page #order-listing th:nth-child(9),
-.dp-pick-table-page #order-listing td:nth-child(9) { width: 158px !important; min-width: 158px !important; max-width: 158px !important; }
-.dp-pick-table-page #order-listing th:nth-child(10),
-.dp-pick-table-page #order-listing td:nth-child(10) { width: 132px !important; min-width: 132px !important; max-width: 132px !important; }
-.dp-pick-table-page #order-listing th:nth-child(11),
-.dp-pick-table-page #order-listing td:nth-child(11) { width: 105px !important; min-width: 105px !important; max-width: 105px !important; }
-.dp-pick-table-page #order-listing th:nth-child(12),
-.dp-pick-table-page #order-listing td:nth-child(12) { width: 122px !important; min-width: 122px !important; max-width: 122px !important; }
-.dp-pick-table-page #order-listing th:nth-child(13),
-.dp-pick-table-page #order-listing td:nth-child(13) { width: 128px !important; min-width: 128px !important; max-width: 128px !important; }
-.dp-pick-table-page #order-listing th:nth-child(14),
-.dp-pick-table-page #order-listing td:nth-child(14) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.dp-pick-table-page #order-listing th:nth-child(15),
-.dp-pick-table-page #order-listing td:nth-child(15) { width: 146px !important; min-width: 146px !important; max-width: 146px !important; }
-.dp-pick-table-page #order-listing th:nth-child(16),
-.dp-pick-table-page #order-listing td:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.dp-pick-table-page #order-listing th:nth-child(17),
-.dp-pick-table-page #order-listing td:nth-child(17) { width: 104px !important; min-width: 104px !important; max-width: 104px !important; }
-
-.dp-pick-table-page #order-listing td:nth-child(9),
-.dp-pick-table-page #order-listing td:nth-child(9) * {
-  white-space: nowrap !important;
-}
-
-.dp-pick-table-page #order-listing td:nth-child(9) .rounded-pill {
-  min-width: 118px;
-}
-
-
-
-
+/* Shared Day Planning table layout lives in static/assets/css/titan-style.css. */
 </style>
  
+<script nonce="{{ csp_nonce }}">
+(function () {
+  function revealPickTable() {
+    var page = document.querySelector(".dp-pick-table-page");
+    if (!page) return;
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        page.classList.add("dp-pick-table-ready");
+      });
+    });
+  }
+
+  window.addEventListener("load", revealPickTable, { once: true, passive: true });
+  window.setTimeout(revealPickTable, 1400);
+})();
+</script>
 
 <div class="content-wrapper dp-table-page dp-pick-table-page">
   <!-- <h5 class="text-left mt-0 mb-3">Day Planning Pick Table</h5> -->
@@ -1437,7 +1387,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             </div>
                           </a>
 
-                          <a href="#" title="Add Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; cursor: pointer; position: relative;">
+                          <a href="#" title="Add Remark" class="remark-tooltip-trigger" style="cursor: pointer;">
                             <img
                               src="{% static 'assets/icons/chat_icon.png' %}"
                               alt="Chat"
@@ -3491,7 +3441,6 @@ const table = document.getElementById("order-listing");
 <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
       let openRemarkTooltip = null; // Global reference to track open tooltip
-      let openRemarkTrigger = null; // Track the trigger separately (tooltip may be in body)
 
       // Helper function to close remark tooltip completely
       function closeRemarkTooltip(tooltip, trigger) {
@@ -3502,16 +3451,10 @@ const table = document.getElementById("order-listing");
           tooltip.classList.remove("pinned");
 
           // Hide the entire tooltip completely
-          // Use removeProperty to clear !important overrides set by showTooltip,
-          // then explicitly set to hidden values
-          tooltip.style.removeProperty('display');
-          tooltip.style.removeProperty('opacity');
-          tooltip.style.removeProperty('visibility');
-          tooltip.style.removeProperty('pointer-events');
-          tooltip.style.display = "none";
           tooltip.style.opacity = "0";
-          tooltip.style.visibility = "hidden";
           tooltip.style.pointerEvents = "none";
+          tooltip.style.visibility = "hidden";
+          tooltip.style.display = "none";
 
           // Hide close button
           const closeBtn = tooltip.querySelector('.remark-close-btn');
@@ -3523,9 +3466,8 @@ const table = document.getElementById("order-listing");
             trigger.style.borderRadius = '';
           }
 
-          // Clear global references
+          // Clear global reference
           openRemarkTooltip = null;
-          openRemarkTrigger = null;
 
           console.log('✅ Remark tooltip completely closed');
         }
@@ -3539,48 +3481,21 @@ const table = document.getElementById("order-listing");
         var textarea = tooltip ? tooltip.querySelector("textarea") : null;
 
         function showTooltip() {
-          // Move tooltip to document.body so it escapes scroll-container overflow constraints
-          // (Chromium treats overflow:auto scroll containers as position:fixed containing blocks)
-          if (tooltip.parentElement !== document.body) {
-            document.body.appendChild(tooltip);
+          tooltip.style.display = "block";
+          tooltip.style.opacity = "1";
+          tooltip.style.visibility = "visible";
+          tooltip.style.pointerEvents = "auto";
+
+          var rect = tooltip.getBoundingClientRect();
+          if (rect.right > window.innerWidth) {
+            tooltip.style.left = "auto";
+            tooltip.style.right = "0";
+            tooltip.style.transform = "none";
           }
-
-          // Use position:absolute in document.body (page-relative coords) to escape all overflow constraints
-          // Use setProperty('important') to override titan-style.css !important rules on .remark-tooltip
-          tooltip.style.setProperty('position', 'absolute', 'important');
-          tooltip.style.setProperty('display', 'block', 'important');
-          tooltip.style.setProperty('opacity', '1', 'important');
-          tooltip.style.setProperty('visibility', 'visible', 'important');
-          tooltip.style.setProperty('pointer-events', 'auto', 'important');
-          tooltip.style.setProperty('z-index', '99999', 'important');
-          tooltip.style.setProperty('bottom', 'auto', 'important');
-          tooltip.style.setProperty('right', 'auto', 'important');
-          tooltip.style.setProperty('transform', 'none', 'important');
-          tooltip.style.setProperty('inset', 'unset', 'important');
-
-          // Viewport-relative coords from getBoundingClientRect, convert to page coords with scroll offset
-          var trigRect = trigger.getBoundingClientRect();
-          var ttWidth  = tooltip.offsetWidth  || 270;
-          var ttHeight = tooltip.offsetHeight || 120;
-          var scrollX  = window.scrollX || window.pageXOffset || 0;
-          var scrollY  = window.scrollY || window.pageYOffset || 0;
-
-          // Place below trigger by default
-          var top  = trigRect.bottom + scrollY + 6;
-          var left = trigRect.left  + scrollX + (trigRect.width / 2) - (ttWidth / 2);
-
-          // Flip above if it would overflow viewport bottom
-          if (trigRect.bottom + ttHeight + 6 > window.innerHeight - 10) {
-            top = trigRect.top + scrollY - ttHeight - 6;
+          if (rect.left < 0) {
+            tooltip.style.left = "0";
+            tooltip.style.transform = "none";
           }
-          // Clamp horizontally inside viewport
-          if (left - scrollX + ttWidth > window.innerWidth - 10) {
-            left = scrollX + window.innerWidth - ttWidth - 10;
-          }
-          if (left < 8) left = 8;
-
-          tooltip.style.setProperty('top',  top  + 'px', 'important');
-          tooltip.style.setProperty('left', left + 'px', 'important');
         }
 
         function hideTooltip() {
@@ -3653,7 +3568,6 @@ const table = document.getElementById("order-listing");
               tooltip.classList.add("pinned");
               showTooltip();
               openRemarkTooltip = tooltip;
-              openRemarkTrigger = trigger;
 
               // Show close button
               if (closeButton) closeButton.style.display = 'block';
@@ -3700,14 +3614,6 @@ const table = document.getElementById("order-listing");
               trigger.style.backgroundColor = '#e3f2fd';
               trigger.style.borderRadius = '4px';
               if (closeButton) closeButton.style.display = 'block';
-            }
-          });
-
-          // ESC key on textarea closes the tooltip
-          textarea.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              closeRemarkTooltip(tooltip, trigger);
             }
           });
         }
@@ -3798,7 +3704,7 @@ const table = document.getElementById("order-listing");
       // Close remark tooltip when clicking outside
       document.addEventListener("click", function (e) {
         if (openRemarkTooltip && !e.target.closest('.remark-tooltip') && !e.target.closest('.remark-tooltip-trigger')) {
-          const openTrigger = openRemarkTrigger || openRemarkTooltip.closest('.remark-tooltip-trigger');
+          const openTrigger = openRemarkTooltip.closest('.remark-tooltip-trigger');
           closeRemarkTooltip(openRemarkTooltip, openTrigger);
         }
       });
@@ -3806,7 +3712,7 @@ const table = document.getElementById("order-listing");
       // Close remark tooltip with ESC key
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && openRemarkTooltip) {
-          const openTrigger = openRemarkTrigger || openRemarkTooltip.closest('.remark-tooltip-trigger');
+          const openTrigger = openRemarkTooltip.closest('.remark-tooltip-trigger');
           closeRemarkTooltip(openRemarkTooltip, openTrigger);
           console.log('✅ Remark tooltip closed with ESC key');
         }

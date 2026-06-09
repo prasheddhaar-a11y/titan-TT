@@ -4,21 +4,23 @@
   var root = document.documentElement;
   var viewportClasses = ["ttt-viewport-desktop", "ttt-viewport-tablet", "ttt-viewport-mobile", "ttt-viewport-wide"];
   var resizeFrame = null;
+  var resizeTimer = null;
   var tableObserver = null;
+  var lastRefreshKey = "";
 
   var profiles = {
     desktop: {
-      "--ttt-font-size-body": "13px",
-      "--ttt-font-size-control": "13px",
-      "--ttt-font-size-table": "13px",
-      "--ttt-font-size-table-header": "13px",
-      "--ttt-font-size-tablet": "13px",
-      "--ttt-font-size-sidebar": "13px",
-      "--ttt-font-size-submenu": "13px",
-      "--ttt-font-size-header-action": "13px",
-      "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
-      "--ttt-font-size-caption": "13px",
+      "--ttt-font-size-body": "14px",
+      "--ttt-font-size-control": "14px",
+      "--ttt-font-size-table": "14px",
+      "--ttt-font-size-table-header": "14px",
+      "--ttt-font-size-tablet": "14px",
+      "--ttt-font-size-sidebar": "14px",
+      "--ttt-font-size-submenu": "14px",
+      "--ttt-font-size-header-action": "14px",
+      "--ttt-font-size-row-action": "14px",
+      "--ttt-font-size-last-updated": "14px",
+      "--ttt-font-size-caption": "14px",
       "--ttt-line-height-base": "1.25",
       "--ttt-line-height-tight": "1.12",
       "--ttt-line-height-table": "1.16",
@@ -38,17 +40,17 @@
       minTableHeight: 220
     },
     tablet: {
-      "--ttt-font-size-body": "16px",
-      "--ttt-font-size-control": "16px",
-      "--ttt-font-size-table": "16px",
-      "--ttt-font-size-table-header": "16px",
-      "--ttt-font-size-tablet": "16px",
-      "--ttt-font-size-sidebar": "16px",
-      "--ttt-font-size-submenu": "16px",
-      "--ttt-font-size-header-action": "16px",
-      "--ttt-font-size-row-action": "16px",
-      "--ttt-font-size-last-updated": "16px",
-      "--ttt-font-size-caption": "16px",
+      "--ttt-font-size-body": "22px",
+      "--ttt-font-size-control": "22px",
+      "--ttt-font-size-table": "22px",
+      "--ttt-font-size-table-header": "22px",
+      "--ttt-font-size-tablet": "22px",
+      "--ttt-font-size-sidebar": "22px",
+      "--ttt-font-size-submenu": "22px",
+      "--ttt-font-size-header-action": "22px",
+      "--ttt-font-size-row-action": "22px",
+      "--ttt-font-size-last-updated": "22px",
+      "--ttt-font-size-caption": "22px",
       "--ttt-line-height-base": "1.34",
       "--ttt-line-height-tight": "1.18",
       "--ttt-line-height-table": "1.22",
@@ -68,17 +70,17 @@
       minTableHeight: 260
     },
     mobile: {
-      "--ttt-font-size-body": "13px",
-      "--ttt-font-size-control": "13px",
-      "--ttt-font-size-table": "13px",
-      "--ttt-font-size-table-header": "13px",
-      "--ttt-font-size-tablet": "13px",
-      "--ttt-font-size-sidebar": "13px",
-      "--ttt-font-size-submenu": "13px",
-      "--ttt-font-size-header-action": "13px",
-      "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
-      "--ttt-font-size-caption": "13px",
+      "--ttt-font-size-body": "14px",
+      "--ttt-font-size-control": "14px",
+      "--ttt-font-size-table": "14px",
+      "--ttt-font-size-table-header": "14px",
+      "--ttt-font-size-tablet": "14px",
+      "--ttt-font-size-sidebar": "14px",
+      "--ttt-font-size-submenu": "14px",
+      "--ttt-font-size-header-action": "14px",
+      "--ttt-font-size-row-action": "14px",
+      "--ttt-font-size-last-updated": "14px",
+      "--ttt-font-size-caption": "14px",
       "--ttt-line-height-base": "1.38",
       "--ttt-line-height-tight": "1.22",
       "--ttt-line-height-table": "1.26",
@@ -98,17 +100,17 @@
       minTableHeight: 240
     },
     wide: {
-      "--ttt-font-size-body": "13px",
-      "--ttt-font-size-control": "13px",
-      "--ttt-font-size-table": "13px",
-      "--ttt-font-size-table-header": "13px",
-      "--ttt-font-size-tablet": "13px",
-      "--ttt-font-size-sidebar": "13px",
-      "--ttt-font-size-submenu": "13px",
-      "--ttt-font-size-header-action": "13px",
-      "--ttt-font-size-row-action": "13px",
-      "--ttt-font-size-last-updated": "13px",
-      "--ttt-font-size-caption": "13px",
+      "--ttt-font-size-body": "14px",
+      "--ttt-font-size-control": "14px",
+      "--ttt-font-size-table": "14px",
+      "--ttt-font-size-table-header": "14px",
+      "--ttt-font-size-tablet": "14px",
+      "--ttt-font-size-sidebar": "14px",
+      "--ttt-font-size-submenu": "14px",
+      "--ttt-font-size-header-action": "14px",
+      "--ttt-font-size-row-action": "14px",
+      "--ttt-font-size-last-updated": "14px",
+      "--ttt-font-size-caption": "14px",
       "--ttt-line-height-base": "1.25",
       "--ttt-line-height-tight": "1.12",
       "--ttt-line-height-table": "1.16",
@@ -137,19 +139,53 @@
   }
 
   function isTabletLikeDevice(width, height) {
-    var hasCoarsePointer = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-    var isTabletSize = width >= 768 && width <= 1920;
+    var userAgent = navigator.userAgent || "";
+    var platform = navigator.platform || "";
+    var maxTouchPoints = navigator.maxTouchPoints || navigator.msMaxTouchPoints || 0;
+    var hasCoarsePointer = false;
+    if (window.matchMedia) {
+      hasCoarsePointer =
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.matchMedia("(any-pointer: coarse)").matches ||
+        window.matchMedia("(hover: none)").matches;
+    }
+    var hasTouchInput = maxTouchPoints > 0 || hasCoarsePointer;
+    var isTabletUserAgent = /Android|iPad|Tablet/i.test(userAgent) ||
+      (platform === "MacIntel" && maxTouchPoints > 1);
+    var shortestSide = Math.min(width, height);
+    var longestSide = Math.max(width, height);
+    var screenWidth = window.screen ? Math.max(window.screen.width || 0, window.screen.availWidth || 0) : 0;
+    var screenHeight = window.screen ? Math.max(window.screen.height || 0, window.screen.availHeight || 0) : 0;
+    var screenShortest = Math.min(screenWidth, screenHeight);
+    var screenLongest = Math.max(screenWidth, screenHeight);
+    var screenAspect = screenShortest ? screenLongest / screenShortest : 0;
+    var isTabletSize = shortestSide >= 560 && longestSide >= 900 && longestSide <= 2200;
     var isTabA9Resolution =
       (width === 1920 && height === 1200) ||
-      (width === 1200 && height === 1920);
-    return hasCoarsePointer && (isTabletSize || isTabA9Resolution);
+      (width === 1200 && height === 1920) ||
+      (screenWidth === 1920 && screenHeight === 1200) ||
+      (screenWidth === 1200 && screenHeight === 1920);
+    var isTabletScreen =
+      screenShortest >= 600 &&
+      screenLongest >= 900 &&
+      screenLongest <= 2200 &&
+      screenAspect >= 1.45 &&
+      screenAspect <= 1.75;
+    var isDesktopBrowserModeTablet =
+      /Linux|X11|Android/i.test(userAgent) &&
+      isTabletSize &&
+      isTabletScreen;
+
+    return ((isTabletUserAgent || hasTouchInput) && (isTabletSize || isTabA9Resolution || isTabletScreen)) ||
+      isTabA9Resolution ||
+      isDesktopBrowserModeTablet;
   }
 
   function getMode(width, height) {
-    if (width < 768) return "mobile";
     if (isTabletLikeDevice(width, height)) return "tablet";
+    if (width < 768) return "mobile";
     if (width >= 1920) return "wide";
-    return "desktop"; /* desktop/wide use 13px; tablet touch devices use 16px */
+    return "desktop"; /* debug sizing: desktop/wide use 14px; tablet touch devices use 22px */
   }
 
   function getVisibleHeight(element) {
@@ -230,11 +266,17 @@
     pageSelectors.forEach(function (pageSelector) {
       var pages = document.querySelectorAll(pageSelector);
       pages.forEach(function (page) {
-        setImportant(page, "font-size", fontSize);
+        var pageFontSize = fontSize;
+        setImportant(page, "font-size", pageFontSize);
         childSelectors.forEach(function (childSelector) {
           page.querySelectorAll(childSelector).forEach(function (element) {
-            setImportant(element, "font-size", fontSize);
+            setImportant(element, "font-size", pageFontSize);
           });
+        });
+        page.querySelectorAll("#order-listing th .fa-filter").forEach(function (element) {
+          setImportant(element, "font-size", mode === "tablet" ? "16px" : "10px");
+          setImportant(element, "line-height", "1");
+          setImportant(element, "right", mode === "tablet" ? "8px" : "6px");
         });
       });
     });
@@ -281,9 +323,15 @@
     var profile = profiles[mode] || profiles.desktop;
     page.style.setProperty("--dp-table-font-size", profile["--ttt-font-size-table"], "important");
     page.style.setProperty("--dp-table-header-font-size", profile["--ttt-font-size-table-header"], "important");
-    setImportant(page, "height", pageHeight + "px");
-    setImportant(page, "max-height", pageHeight + "px");
-    setImportant(page, "overflow", "hidden");
+    if (mode === "tablet" || mode === "mobile") {
+      setImportant(page, "height", pageHeight + "px");
+      setImportant(page, "max-height", pageHeight + "px");
+      setImportant(page, "overflow", "hidden");
+    } else {
+      page.style.removeProperty("height");
+      page.style.removeProperty("max-height");
+      page.style.removeProperty("overflow");
+    }
   }
 
   function updateTableHeights(mode, viewportHeight, shell) {
@@ -328,9 +376,13 @@
     });
   }
 
-  function refreshResponsiveSystem() {
+  function refreshResponsiveSystem(force) {
     var viewport = getViewport();
     var mode = getMode(viewport.width, viewport.height);
+    var refreshKey = mode + ":" + viewport.width + "x" + viewport.height;
+    if (!force && refreshKey === lastRefreshKey) return;
+    lastRefreshKey = refreshKey;
+
     applyProfile(mode, viewport.width, viewport.height);
     applyFontPolicy(mode);
     updateTableHeights(mode, viewport.height, updateShellMeasurements(viewport.height));
@@ -338,11 +390,11 @@
     // ── DIAGNOSTIC CONSOLE LOG ──────────────────────────────────────────────
     var profile = profiles[mode] || profiles.desktop;
     console.group(
-      '%c[TTT-Responsive] ' + mode.toUpperCase() + ' @ ' + viewport.width + 'x' + viewport.height + 'px  (' + new Date().toLocaleTimeString() + ')',
+      '%c[TTT-Responsive tabdebug-20260604-2] ' + mode.toUpperCase() + ' @ ' + viewport.width + 'x' + viewport.height + 'px  (' + new Date().toLocaleTimeString() + ')',
       'color:#028084;font-weight:700'
     );
     console.log('  Viewport  :', viewport.width + 'px wide ×', viewport.height + 'px tall');
-    console.log('  Mode      :', mode.toUpperCase(), '  |  Font policy: Desktop/Wide 13px | Tablet touch devices 16px');
+    console.log('  Mode      :', mode.toUpperCase(), '  |  Font policy: Desktop/Wide 14px | Tablet touch devices 22px');
     console.log('  Font body :', profile['--ttt-font-size-body'],
                 ' | table:', profile['--ttt-font-size-table'],
                 ' | heading:', profile['--ttt-font-size-table-header']);
@@ -352,13 +404,32 @@
     // ────────────────────────────────────────────────────────────────────────
   }
 
-  function scheduleRefresh() {
+  function scheduleRefresh(force) {
+    if (force === true) {
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = null;
+      }
+      runRefresh(true);
+      return;
+    }
+
+    if (resizeTimer) {
+      window.clearTimeout(resizeTimer);
+    }
+    resizeTimer = window.setTimeout(function () {
+      resizeTimer = null;
+      runRefresh(force);
+    }, 120);
+  }
+
+  function runRefresh(force) {
     if (resizeFrame) {
       window.cancelAnimationFrame(resizeFrame);
     }
     resizeFrame = window.requestAnimationFrame(function () {
       resizeFrame = null;
-      refreshResponsiveSystem();
+      refreshResponsiveSystem(force === true);
     });
   }
 
@@ -367,13 +438,11 @@
     var target = document.querySelector(".main-panel") || document.body;
     if (!target) return;
     tableObserver = new MutationObserver(function () {
-      scheduleRefresh();
+      scheduleRefresh(false);
     });
     tableObserver.observe(target, {
       childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["style", "class"]
+      subtree: true
     });
   }
 
@@ -388,19 +457,14 @@
 
   window.addEventListener("resize", scheduleRefresh, { passive: true });
   window.addEventListener("orientationchange", scheduleRefresh, { passive: true });
-  window.addEventListener("load", scheduleRefresh, { passive: true });
   window.addEventListener("load", function () {
-    window.setTimeout(scheduleRefresh, 250);
-    window.setTimeout(scheduleRefresh, 1000);
-    window.setTimeout(scheduleRefresh, 2500);
+    scheduleRefresh(true);
   }, { passive: true });
 
   document.addEventListener("DOMContentLoaded", function () {
     observeTableChanges();
-    scheduleRefresh();
-    window.setTimeout(scheduleRefresh, 250);
-    window.setTimeout(scheduleRefresh, 1000);
+    scheduleRefresh(true);
   });
 
-  refreshResponsiveSystem();
+  refreshResponsiveSystem(true);
 })();

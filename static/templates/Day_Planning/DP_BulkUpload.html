@@ -826,9 +826,141 @@
 .data-table tr.dp-row-action-highlight {
   background-color: transparent !important;
 }
+
+@media screen and (pointer: coarse) and (min-width: 1100px) and (max-width: 1920px) and (orientation: landscape) {
+  .main-panel {
+    padding: 16px 16px 0 16px !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .content-wrapper {
+    padding: 1rem !important;
+    overflow-x: hidden !important;
+  }
+
+  .dp-bulk-upload-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dp-bulk-upload-page .dp-header-controls {
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .dp-bulk-upload-page .dp-header-controls h7 {
+    flex: 0 0 auto;
+    line-height: 1.25;
+  }
+
+  .dp-bulk-upload-page .dp-records-badge,
+  .dp-bulk-upload-page .dp-file-chip,
+  .dp-bulk-upload-page .file-upload-area p,
+  .dp-bulk-upload-page .dp-button-group .btn,
+  .dp-bulk-upload-page #download-template-btn,
+  .dp-bulk-upload-page #add-model-btn {
+    font-size: var(--titan-ui-font-size) !important;
+  }
+
+  .dp-bulk-upload-page .dp-button-group {
+    flex-wrap: nowrap;
+    gap: 0.6rem;
+  }
+
+  .dp-bulk-upload-page .file-upload-area,
+  .dp-bulk-upload-page .dp-button-group .btn,
+  .dp-bulk-upload-page #download-template-btn,
+  .dp-bulk-upload-page #add-model-btn {
+    min-height: 40px;
+    padding: 0.55rem 0.9rem !important;
+  }
+
+  .dp-bulk-upload-page .dp-files-chips {
+    flex: 1 1 320px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .dp-bulk-upload-page .dp-file-chip {
+    max-width: 320px !important;
+    min-width: 0;
+  }
+
+  .dp-bulk-upload-page .dp-file-chip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dp-bulk-upload-page #empty-state-section,
+  .dp-bulk-upload-page #data-table-section {
+    width: 100%;
+    max-width: 100%;
+    margin: 16px 0 !important;
+  }
+
+  .dp-bulk-upload-page #data-table-section .card-body {
+    margin: 0 !important;
+    box-shadow: none;
+  }
+
+  .dp-bulk-upload-page #data-table-section .table-header {
+    min-height: 58px;
+    padding: 0.75rem 1rem !important;
+    gap: 1rem;
+  }
+
+  .dp-bulk-upload-page #data-table-section .table-header h4,
+  .dp-bulk-upload-page .table-actions .btn {
+    font-size: var(--titan-ui-font-size) !important;
+  }
+
+  .dp-bulk-upload-page .table-container,
+  .dp-bulk-upload-page #data-table-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 230px) !important;
+    overflow: auto !important;
+    margin-bottom: 0 !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dp-bulk-upload-page .data-table {
+    width: 100%;
+    min-width: 1320px;
+    table-layout: auto;
+    font-size: var(--titan-ui-font-size) !important;
+  }
+
+  .dp-bulk-upload-page .data-table th,
+  .dp-bulk-upload-page .data-table td {
+    padding: 0.85rem 1rem !important;
+    font-size: var(--titan-ui-font-size) !important;
+    line-height: 1.35;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .dp-bulk-upload-page .cell-input,
+  .dp-bulk-upload-page .simple-dropdown {
+    min-height: 40px;
+    font-size: var(--titan-ui-font-size) !important;
+  }
+
+  .dp-bulk-upload-page .btn-delete {
+    width: 40px;
+    height: 40px;
+  }
+}
 </style>
 
-<div>
+<div class="dp-bulk-upload-page">
     <!-- Header with Records, Buttons, Files, and Upload Area All in One Line -->
     <div class="dp-header-controls">
       <h7 style="font-weight: 500">Day Planning - Data Upload</h7>
@@ -837,13 +969,13 @@
       </div>
       
       <div class="dp-button-group">
-        <button id="download-template-btn" class="btn btn-outline" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(52, 211, 153, 0.3)); border: 1px solid rgba(52, 211, 153, 0.3); padding: 0.5rem 0.85rem; font-size: 0.8rem; color: var(--clr-text); gap: 0.4rem;">
+        <button id="download-template-btn" class="btn btn-outline" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(52, 211, 153, 0.3)); border: 1px solid rgba(52, 211, 153, 0.3); padding: 0.5rem 0.85rem; color: var(--clr-text); gap: 0.4rem;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
           Template
         </button>
-        <button id="add-model-btn" class="btn btn-outline" style="font-size: 0.8rem !important; background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(20, 184, 166, 0.3)); border: 1px solid rgba(20, 184, 166, 0.3); padding: 0.5rem 0.85rem!important; font-size: 0.8rem; color: var(--clr-text); gap: 0.4rem;">
+        <button id="add-model-btn" class="btn btn-outline" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(20, 184, 166, 0.3)); border: 1px solid rgba(20, 184, 166, 0.3); padding: 0.5rem 0.85rem!important; color: var(--clr-text); gap: 0.4rem;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 5v14M5 12h14"/>
           </svg>
@@ -856,7 +988,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--clr-primary);">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        <p style="margin: 0; font-size: 0.8rem; white-space: nowrap;">Drop files or browse</p>
+        <p style="margin: 0; white-space: nowrap;">Drop files or browse</p>
         <input type="file" id="file-upload" accept=".xlsx,.xls" hidden>
       </div>
       
@@ -884,7 +1016,7 @@
   <p>Upload an Excel file to see your data here. Click "Upload" or drag files to get started.</p>
 </div>
 
-<div id="data-table-section" class="data-table-card" style="display:none; background: var(--clr-surface); border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+<div id="data-table-section" class="data-table-card dp-bulk-upload-page" style="display:none; background: var(--clr-surface); border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
   <div class="card-body" style="padding: 0;">
     <div class="table-header" style="padding: 1px 24px; margin-bottom: 0; border-bottom: 1px solid var(--clr-border); display: flex; justify-content: space-between; align-items: center;">
       <h4 style="margin: 0; color: var(--clr-text); font-weight: 600;">Data Table</h4>

@@ -1,0 +1,44 @@
+{
+  "name": "ttt-day-planning-automation",
+  "version": "1.0.0",
+  "description": "Enterprise Playwright automation framework for TTT Day Planning Module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:dev": "playwright test --project=chromium-dev",
+    "test:qa": "playwright test --project=chromium-qa",
+    "test:uat": "playwright test --project=chromium-uat",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:regression": "playwright test --grep @regression",
+    "test:sanity": "playwright test --grep @sanity",
+    "test:dayplanning": "playwright test tests/day-planning/",
+    "test:parallel": "playwright test --workers=4",
+    "test:report": "playwright show-report reports/html",
+    "lint": "eslint . --ext .ts",
+    "clean": "rimraf reports screenshots traces test-results"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "dotenv": "^16.4.5",
+    "winston": "^3.13.0",
+    "rimraf": "^5.0.5",
+    "allure-playwright": "^3.0.1"
+  },
+  "dependencies": {},
+  "keywords": [
+    "playwright",
+    "automation",
+    "day-planning",
+    "ttt",
+    "manufacturing"
+  ],
+  "author": "TTT QA Automation Team",
+  "license": "ISC"
+}

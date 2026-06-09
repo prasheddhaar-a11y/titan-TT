@@ -1,0 +1,147 @@
+# Azure DevOps Pipeline — TTT Day Planning Playwright Automation
+# Place this file in automation/ci/azure-pipelines.yml
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  paths:
+    include:
+      - automation/*
+
+schedules:
+  - cron: "30 20 * * *"
+    displayName: Nightly Regression
+    branches:
+      include: [main]
+    always: true
+
+parameters:
+  - name: environment
+    type: string
+    default: dev
+    values: [dev, qa, uat]
+  - name: suite
+    type: string
+    default: regression
+    values: [smoke, sanity, regression, all]
+
+variables:
+  nodeVersion: '20.x'
+  workingDir: '$(Build.SourcesDirectory)/automation'
+  TEST_ENV: ${{ parameters.environment }}
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  # ── Stage 1: Build & Validate ─────────────────────────────────────────────
+  - stage: Build
+    displayName: 'Build & Dependency Install'
+    jobs:
+      - job: Install
+        displayName: 'Install Dependencies'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Install Node.js'
+
+          - script: npm ci
+            workingDirectory: $(workingDir)
+            displayName: 'NPM CI Install'
+
+          - script: npx playwright install --with-deps chromium firefox
+            workingDirectory: $(workingDir)
+            displayName: 'Install Playwright Browsers'
+
+          - task: CacheBeta@2
+            inputs:
+              key: '"playwright" | "$(Agent.OS)" | $(workingDir)/package-lock.json'
+              path: '~/.cache/ms-playwright'
+            displayName: 'Cache Playwright Browsers'
+
+  # ── Stage 2: Smoke Tests ──────────────────────────────────────────────────
+  - stage: Smoke
+    displayName: 'Smoke Tests'
+    dependsOn: Build
+    jobs:
+      - job: SmokeTest
+        displayName: 'Run Smoke Tests'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - script: npm ci
+            workingDirectory: $(workingDir)
+          - script: npx playwright install --with-deps chromium
+            workingDirectory: $(workingDir)
+          - script: |
+              npx playwright test \
+                --grep @smoke \
+                --project=chromium-dev \
+                --reporter=list,junit
+            workingDirectory: $(workingDir)
+            displayName: 'Execute Smoke Tests'
+            env:
+              BASE_URL: $(BASE_URL)
+              ADMIN_USERNAME: $(ADMIN_USERNAME)
+              ADMIN_PASSWORD: $(ADMIN_PASSWORD)
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '$(workingDir)/reports/junit/results.xml'
+              testRunTitle: 'Smoke Tests'
+
+  # ── Stage 3: Regression ───────────────────────────────────────────────────
+  - stage: Regression
+    displayName: 'Full Regression'
+    dependsOn: Smoke
+    jobs:
+      - job: RegressionTest
+        displayName: 'Run Regression Tests'
+        strategy:
+          parallel: 4
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - script: npm ci
+            workingDirectory: $(workingDir)
+          - script: npx playwright install --with-deps chromium
+            workingDirectory: $(workingDir)
+          - script: |
+              npx playwright test \
+                --grep @regression \
+                --shard=$(System.JobPositionInPhase)/$(System.TotalJobsInPhase) \
+                --reporter=list,junit,html
+            workingDirectory: $(workingDir)
+            displayName: 'Execute Regression Tests'
+            env:
+              BASE_URL: $(BASE_URL)
+              ADMIN_USERNAME: $(ADMIN_USERNAME)
+              ADMIN_PASSWORD: $(ADMIN_PASSWORD)
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '$(workingDir)/reports/junit/results.xml'
+              testRunTitle: 'Regression Tests — Shard $(System.JobPositionInPhase)'
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              PathtoPublish: '$(workingDir)/reports'
+              ArtifactName: 'playwright-reports-$(System.JobPositionInPhase)'
+          - task: PublishBuildArtifacts@1
+            condition: failed()
+            inputs:
+              PathtoPublish: '$(workingDir)/screenshots'
+              ArtifactName: 'failure-screenshots-$(System.JobPositionInPhase)'
+          - task: PublishBuildArtifacts@1
+            condition: failed()
+            inputs:
+              PathtoPublish: '$(workingDir)/traces'
+              ArtifactName: 'failure-traces-$(System.JobPositionInPhase)'

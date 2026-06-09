@@ -1,6 +1,9 @@
 from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.http import JsonResponse, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from adminportal.decorators import require_admin
 from modelmasterapp.models import *
 from Recovery_DP.models import *
 from DayPlanning.models import DPTrayId_History
@@ -11,11 +14,14 @@ from BrassAudit.models import BrassAuditTrayId, Brass_Audit_Accepted_TrayScan, B
 from django.core.paginator import Paginator
 from django.db.models import OuterRef, Subquery, Sum, IntegerField, Count
 from django.utils import timezone
+import logging
 import pytz
 from datetime import timedelta
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 def convert_datetimes(data):
     for item in data:
@@ -24,6 +30,8 @@ def convert_datetimes(data):
                 item[key] = value.replace(tzinfo=None)
     return data
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
 class ReportsView(TemplateView):
     template_name = "reports.html"
 
@@ -51,6 +59,8 @@ class ReportsView(TemplateView):
         return context
     
 # Function for "Reports Module" to download Excel report based on selected module
+@login_required(login_url='login')
+@require_admin
 def download_report(request):
     module = request.GET.get('module')
     if not module:
