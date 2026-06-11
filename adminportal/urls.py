@@ -83,6 +83,9 @@ urlpatterns = [
     
     path('swap-login/', swap_login, name='swap_login'),
     path('api/users/<int:user_id>/', UserDetailAPIView.as_view(), name='user-detail-api'),
+    path('api/users/<int:user_id>/update/', UserUpdateAPIView.as_view(), name='user-update-api'),
+    path('api/users/<int:user_id>/delete/', UserDeletePostAPIView.as_view(), name='user-delete-post-api'),
+    path('api/users/<int:user_id>/unlock/', UserUnlockAPIView.as_view(), name='user-unlock-api'),
     # path('dp_picktable/', DP_PickTableView.as_view(), name='dp-picktable'),
     
     path('module-table/', ModuleTableView.as_view(), name='module-table'),

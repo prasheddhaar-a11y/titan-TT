@@ -18,6 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.http import require_GET
@@ -1896,6 +1897,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
         return jig_list  # Return the list, not queryset
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def JU_Zone_get_model_details(request):
@@ -3216,6 +3218,7 @@ def JU_Zone_save_jig_unload_tray_ids(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_save_jig_unload_draft(request):
@@ -3333,6 +3336,7 @@ def JU_Zone_save_jig_unload_draft(request):
         logger.error(f'Unexpected error: {e}', exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
+@login_required
 @csrf_exempt
 def JU_Zone_load_jig_unload_draft(request):
     """Load draft data for Jig Unload based on main_lot_id"""
@@ -3431,6 +3435,7 @@ def validate_tray_code_by_master_data(tray_id, lot_id):
     return True, f"Tray code {tray_code_prefix} is valid for plating stock {plating_stock}", allowed_codes, zone
 
     
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_validate_tray_id(request):
@@ -3555,6 +3560,7 @@ def JU_Zone_validate_tray_id(request):
         return JsonResponse({'success': False, 'error': f'Validation error: {str(e)}'})
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_validate_tray_id_dynamic(request):
@@ -3923,6 +3929,7 @@ def JU_Zone_validate_tray_id_dynamic(request):
         }, status=500)
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_check_unload_status(request):
@@ -5168,6 +5175,7 @@ class JU_Zone_AfterTrayValidateAPIView(APIView):
             return Response({'valid': False, 'message': f'Error: {str(e)}'}, status=500)
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_fix_missing_plating_colors(request):
@@ -5474,7 +5482,8 @@ def debug_model_availability_zone2(request):
 
 # ==================== AUTO-SAVE FUNCTIONALITY (Zone 2) ====================
 
-@csrf_exempt 
+@login_required
+@csrf_exempt
 def JU_Zone_autosave_jig_unload(request):
     """Auto-save jig unload modal data on typing/changes for Zone 2"""
     import json
@@ -5575,6 +5584,7 @@ def JU_Zone_autosave_jig_unload(request):
     return JsonResponse({'success': False, 'error': 'POST method required'})
 
 
+@login_required
 @csrf_exempt
 def JU_Zone_load_autosave_jig_unload(request, main_lot_id):
     """Load auto-saved data for a specific lot_id for Zone 2"""
@@ -5621,6 +5631,7 @@ def JU_Zone_load_autosave_jig_unload(request, main_lot_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@login_required
 @csrf_exempt
 def JU_Zone_clear_autosave_jig_unload(request, main_lot_id):
     """Clear auto-save data after successful submit/draft for Zone 2"""
@@ -5660,6 +5671,7 @@ def JU_Zone_clear_autosave_jig_unload(request, main_lot_id):
     return JsonResponse({'success': False, 'error': 'DELETE method required'})
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def JU_Zone_delete_jig_details(request):

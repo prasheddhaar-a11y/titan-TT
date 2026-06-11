@@ -1816,6 +1816,7 @@
                     <!-- <th>User Category</th> -->
                     <th>Manager</th>
                     <th>Status</th>
+                    <th>Lock Status</th>
                     <!-- <th>Modules</th> -->
                     <th>Created</th>
                     <th>Actions</th>
@@ -2522,8 +2523,8 @@ form.addEventListener("submit", async function (e) {
     let response, result;
     if (window.editingUserId) {
       // EDIT: Use PUT
-      response = await fetch(`/adminportal/api/users/${window.editingUserId}/`, {
-        method: "PUT",
+      response = await fetch(`/adminportal/api/users/${window.editingUserId}/update/`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-CSRFToken": getCookie("csrftoken")
@@ -2632,6 +2633,15 @@ form.addEventListener("submit", async function (e) {
          }
          return;
        }
+       const unlockBtn = e.target.closest(".action-btn.unlock");
+       if (unlockBtn) {
+         const userId = unlockBtn.getAttribute("data-user-id");
+         const username = unlockBtn.getAttribute("data-username") || "";
+         if (userId) {
+           unlockUser(userId, username);
+         }
+         return;
+       }
      });
    });
 
@@ -2665,13 +2675,13 @@ form.addEventListener("submit", async function (e) {
       const listHtml = `
         <div style="max-height: 180px; overflow-y: auto; text-align: left; padding: 0.5rem 0.8rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;">
           <ul style="margin: 0; padding: 0 0 0 1.2rem; font-size: 0.85em;">
-            ${headings.map(h => `<li style="margin-bottom: 2px; color: #334155;">${h}</li>`).join('')}
+            ${headings.map(h => `<li style="margin-bottom: 2px; color: #334155;">${escapeHtml(h)}</li>`).join('')}
           </ul>
         </div>
       `;
 
       Swal.fire({
-          title: `<div style="font-size: 1.1em; color: #1e293b;">${name}</div>`,
+          title: `<div style="font-size: 1.1em; color: #1e293b;">${escapeHtml(name)}</div>`,
           html: listHtml,
           showCloseButton: false,
           showConfirmButton: true,
@@ -2719,16 +2729,16 @@ form.addEventListener("submit", async function (e) {
                const style = getModuleChipStyle(m.name);
                let styleStr = `background:${style.bg}; color:${style.color}; border:1px solid ${style.border};`;
                
-               let label = m.name;
+               let label = escapeHtml(m.name);
                let dataAttrs = "";
                let chipClass = "module-chip";
-               
+
                // Logic for sub-modules count
                if (m.headings && Array.isArray(m.headings) && m.headings.length > 0) {
                   label += ` (${m.headings.length})`;
-                  const safeHeadings = m.headings.join("|").replace(/"/g, "&quot;");
-                  const safeName = m.name.replace(/"/g, "&quot;");
-                  
+                  const safeHeadings = escapeAttr(m.headings.join("|"));
+                  const safeName = escapeAttr(m.name);
+
                   dataAttrs = `data-module-name="${safeName}" data-module-headings="${safeHeadings}"`;
                   chipClass += " clickable-module-chip";
                   styleStr += " cursor:pointer;";
@@ -2746,25 +2756,41 @@ form.addEventListener("submit", async function (e) {
          }
        }
 
+       // Account lockout policy: status badge + admin unlock action
+       let lockStatusHtml;
+       if (user.is_locked) {
+         const lockedTitle = user.locked_at ? `Locked at ${escapeAttr(user.locked_at)}` : "Locked";
+         lockStatusHtml = `<span title="${lockedTitle}" style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">Locked</span>`;
+       } else {
+         lockStatusHtml = `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;background:#dcfce7;color:#15803d;border:1px solid #86efac;">Active</span>`;
+       }
+
+       const unlockBtnHtml = user.is_locked
+         ? `<button class="action-btn unlock" title="Unlock Account" data-user-id="${user.id}" data-username="${escapeAttr(user.username || "")}">
+              <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M13 8V7a3 3 0 0 0-5.83-1M6 8h8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zm4 3v2" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>`
+         : "";
+
        const actionsHtml = `
           <button class="action-btn edit" title="Edit" data-user-id="${user.id}">        <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M4 13.5V16h2.5l7.06-7.06-2.5-2.5L4 13.5zM17.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#1d4ed8"/></svg>
           </button>
           <button class="action-btn delete" title="Delete" data-user-id="${user.id}">
             <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M6 7v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7M9 10v3m2-3v3M4 7h12M9 3h2a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
+          ${unlockBtnHtml}
         `;
 
        const tr = document.createElement("tr");
        tr.innerHTML = `
          <td>${serial++}</td>
-         <td>${user.username || ""}</td>
-         <td>${user.first_name || ""} ${user.last_name || ""}</td>
-         <td>${user.email || ""}</td>
-         <!-- <td>${user.user_category || user.group_name || ""}</td> -->
-         <td>${user.manager || ""}</td>
-         <td>${user.employment_status || ""}</td>
-         <!-- <td>${modulesHtml}</td> -->
-         <td>${user.created || ""}</td>
+         <td>${escapeHtml(user.username || "")}</td>
+         <td>${escapeHtml(user.first_name || "")} ${escapeHtml(user.last_name || "")}</td>
+         <td>${escapeHtml(user.email || "")}</td>
+         <!-- <td>${escapeHtml(user.user_category || user.group_name || "")}</td> -->
+         <td>${escapeHtml(user.manager || "")}</td>
+         <td>${escapeHtml(user.employment_status || "")}</td>
+         <td>${lockStatusHtml}</td>
+         <td>${escapeHtml(user.created || "")}</td>
          <td>${actionsHtml}</td>
        `;
        tbody.appendChild(tr);
@@ -2831,9 +2857,10 @@ form.addEventListener("submit", async function (e) {
      }).then(async (result) => {
        if (result.isConfirmed) {
          try {
-           const response = await fetch(`/adminportal/api/users/${id}/`, {
-             method: "DELETE",
+           const response = await fetch(`/adminportal/api/users/${id}/delete/`, {
+             method: "POST",
              headers: {
+               "Content-Type": "application/json",
                "X-CSRFToken": getCookie("csrftoken")
              },
              credentials: "same-origin"
@@ -2843,6 +2870,41 @@ form.addEventListener("submit", async function (e) {
              fetchAndRenderUsers(1); // Refresh table
            } else {
              Swal.fire('Error', 'Failed to delete user.', 'error');
+           }
+         } catch (error) {
+           Swal.fire('Error', 'Unexpected error occurred.', 'error');
+         }
+       }
+     });
+   }
+
+   // Action - Unlock Icon (account lockout policy)
+   function unlockUser(id, username) {
+     Swal.fire({
+       title: 'Unlock Account?',
+       text: `This will unlock the account "${username}" and reset its failed login attempts.`,
+       icon: 'question',
+       showCancelButton: true,
+       confirmButtonColor: '#16a34a',
+       cancelButtonColor: '#6b7280',
+       confirmButtonText: 'Yes, unlock it'
+     }).then(async (result) => {
+       if (result.isConfirmed) {
+         try {
+           const response = await fetch(`/adminportal/api/users/${id}/unlock/`, {
+             method: "POST",
+             headers: {
+               "Content-Type": "application/json",
+               "X-CSRFToken": getCookie("csrftoken")
+             },
+             credentials: "same-origin"
+           });
+           const data = await response.json().catch(() => ({}));
+           if (response.ok && data.success) {
+             Swal.fire('Unlocked!', escapeHtml(data.message || 'Account has been unlocked successfully.'), 'success');
+             fetchAndRenderUsers(1); // Refresh table
+           } else {
+             Swal.fire('Error', escapeHtml(data.error || 'Failed to unlock account.'), 'error');
            }
          } catch (error) {
            Swal.fire('Error', 'Unexpected error occurred.', 'error');

@@ -83,9 +83,10 @@ INSTALLED_APPS = [
     'social_django',
 ]
 
-# Add custom backend (keep default ModelBackend as fallback)
+# AccountLockoutBackend extends the default ModelBackend and additionally
+# enforces the account lockout policy (lock after 5 consecutive failed logins).
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
+    'adminportal.auth_backends.AccountLockoutBackend',
 ]
 
 # Ensure social login redirects to the dashboard
@@ -156,6 +157,9 @@ WSGI_APPLICATION = 'watchcase_tracker.wsgi.application'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
     ],
 }
 
@@ -243,6 +247,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Minimal logging
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)  # for the security audit log
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -253,6 +258,10 @@ LOGGING = {
             'style': '{',
             'datefmt': '%d/%b/%Y %I:%M:%S %p',
         },
+        'security': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'django.server': {
@@ -260,10 +269,27 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'django.server',
         },
+        'security_console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'security',
+        },
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'security_audit.log'),
+            'formatter': 'security',
+        },
     },
     'loggers': {
         'django.server': {
             'handlers': ['django.server'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Audit trail for login failures, account lock and unlock events.
+        'security': {
+            'handlers': ['security_console', 'security_file'],
             'level': 'INFO',
             'propagate': False,
         },

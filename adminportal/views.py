@@ -13,7 +13,7 @@ import re
 import logging
 from .serializers import *
 from .utils import extract_table_headings_from_html
-from .decorators import require_admin
+from .decorators import require_admin, IsAdminPermission
 import datetime
 from InputScreening import *
 from django.db import transaction
@@ -37,6 +37,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from django.utils.html import escape
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Module, UserModuleProvision
@@ -114,6 +115,14 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         else:
             response = self.form_invalid(form)
             timers['form_invalid'] = 0.0
+            # Account lockout policy: surface a clear message via the template's
+            # {{ error }} block (locked account vs. plain invalid credentials).
+            from .services import get_account_lock_message
+            lock_message = get_account_lock_message(request.POST.get('username', '').strip())
+            if hasattr(response, 'context_data'):
+                response.context_data['error'] = (
+                    lock_message or 'Invalid username or password. Please try again.'
+                )
 
         total = (_time.time() - t_start) * 1000
         breakdown = ' | '.join(f'{k}={v:.2f}ms' for k, v in timers.items())
@@ -1005,9 +1014,13 @@ class DP_ViewmasterView(APIView):
         })
 
     def generate_table_rows(self, tab_name, paginated_data):
-        """Generate HTML table rows for specific tab data"""
+        """Generate HTML table rows for specific tab data.
+
+        Security: every user-entered value is passed through escape() so stored
+        HTML (e.g. <script>, <img>) is displayed as plain text, never rendered.
+        """
         html_rows = ""
-        
+
         if tab_name == 'model':
             for i, obj in enumerate(paginated_data, start=paginated_data.start_index()):
                 html_rows += f"""
@@ -1015,13 +1028,13 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox model-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.model_no}</td>
-                    <td>{obj.plating_stk_no}</td>
-                    <td>{obj.polish_finish.polish_finish if obj.polish_finish else '-'}</td>
-                    <td>{obj.ep_bath_type}</td>
-                    <td>{obj.version}</td>
-                    <td>{obj.tray_type.tray_type if obj.tray_type else '-'}</td>
-                    <td>{obj.tray_type.tray_capacity if obj.tray_type else '-'}</td>
+                    <td>{escape(obj.model_no)}</td>
+                    <td>{escape(obj.plating_stk_no)}</td>
+                    <td>{escape(obj.polish_finish.polish_finish) if obj.polish_finish else '-'}</td>
+                    <td>{escape(obj.ep_bath_type)}</td>
+                    <td>{escape(obj.version)}</td>
+                    <td>{escape(obj.tray_type.tray_type) if obj.tray_type else '-'}</td>
+                    <td>{escape(obj.tray_type.tray_capacity) if obj.tray_type else '-'}</td>
                 </tr>
                 """
         elif tab_name == 'polish':
@@ -1031,8 +1044,8 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox polish-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.polish_finish}</td>
-                    <td>{obj.polish_internal}</td>
+                    <td>{escape(obj.polish_finish)}</td>
+                    <td>{escape(obj.polish_internal)}</td>
                 </tr>
                 """
         elif tab_name == 'plating':
@@ -1042,8 +1055,8 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox plating-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.plating_color}</td>
-                    <td>{obj.plating_color_internal}</td>
+                    <td>{escape(obj.plating_color)}</td>
+                    <td>{escape(obj.plating_color_internal)}</td>
                 </tr>
                 """
         elif tab_name == 'tray':
@@ -1053,8 +1066,8 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox tray-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.tray_type}</td>
-                    <td>{obj.tray_capacity}</td>
+                    <td>{escape(obj.tray_type)}</td>
+                    <td>{escape(obj.tray_capacity)}</td>
                 </tr>
                 """
         elif tab_name == 'vendor':
@@ -1064,13 +1077,13 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox vendor-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.location_name}</td>
+                    <td>{escape(obj.location_name)}</td>
                 </tr>
                 """
         elif tab_name == 'images':
             for i, obj in enumerate(paginated_data, start=paginated_data.start_index()):
-                image_name = obj.master_image.name if obj.master_image else '-'
-                image_url = f'<a href="{obj.master_image.url}" target="_blank">{obj.master_image.url}</a>' if obj.master_image else '-'
+                image_name = escape(obj.master_image.name) if obj.master_image else '-'
+                image_url = f'<a href="{escape(obj.master_image.url)}" target="_blank">{escape(obj.master_image.url)}</a>' if obj.master_image else '-'
                 html_rows += f"""
                 <tr>
                     <td><input type="checkbox" class="select-checkbox images-checkbox" name="selected_ids" value="{obj.id}"></td>
@@ -1087,9 +1100,9 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox trayid-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.tray_id}</td>
-                    <td>{obj.tray_type}</td>
-                    <td>{obj.tray_capacity}</td>
+                    <td>{escape(obj.tray_id)}</td>
+                    <td>{escape(obj.tray_type)}</td>
+                    <td>{escape(obj.tray_capacity)}</td>
                 </tr>
                 """
         elif tab_name == 'category':
@@ -1099,7 +1112,7 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox category-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.category_name}</td>
+                    <td>{escape(obj.category_name)}</td>
                 </tr>
                 """
         elif tab_name == 'iprejection':
@@ -1109,8 +1122,8 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox iprejection-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.rejection_reason_id}</td>
-                    <td>{obj.rejection_reason}</td>
+                    <td>{escape(obj.rejection_reason_id)}</td>
+                    <td>{escape(obj.rejection_reason)}</td>
                 </tr>
                 """
         elif tab_name == 'brassiqf':
@@ -1120,8 +1133,8 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox brassiqf-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.rejection_reason_id}</td>
-                    <td>{obj.rejection_reason}</td>
+                    <td>{escape(obj.rejection_reason_id)}</td>
+                    <td>{escape(obj.rejection_reason)}</td>
                 </tr>
                 """
         elif tab_name == 'nickelrejection':
@@ -1131,7 +1144,7 @@ class DP_ViewmasterView(APIView):
                     <td><input type="checkbox" class="select-checkbox nickelrejection-checkbox" name="selected_ids" value="{obj.id}"></td>
                     <td>{i}</td>
                     <td>{obj.date_time.strftime('%Y-%m-%d')}</td>
-                    <td>{obj.rejection_reason}</td>
+                    <td>{escape(obj.rejection_reason)}</td>
                 </tr>
                 """
         
@@ -2567,20 +2580,20 @@ class AdminPortalView(APIView):
         })
 
 # Class for Department List APIs Masters
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class DepartmentListAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
     def get(self, request):
         departments = Department.objects.all().values('id', 'name')
         return Response(list(departments))
 
 
 # Class for Role List APIs Masters
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class RoleListAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
     def get(self, request):
         roles = Role.objects.all().values('id', 'name')
         return Response(list(roles))
@@ -2702,10 +2715,10 @@ def _serialize_user_groups(user):
 
 # Class for User Creation API - Fixed
 
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class UserCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['post', 'head', 'options']
+
     def post(self, request, *args, **kwargs):
         from .services import invalidate_user_modules_cache, sync_user_module_provisions_from_group
 
@@ -2833,12 +2846,12 @@ def create_user(request):
     
     
     
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class UserListAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
     def get(self, request):
-        users = User.objects.prefetch_related('groups', 'module_provisions').all().order_by('id')
+        users = User.objects.select_related('account_lockout').prefetch_related('groups', 'module_provisions').all().order_by('id')
         paginator = Paginator(users, 8)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
@@ -2862,6 +2875,12 @@ class UserListAPIView(APIView):
             ]
             group_data = _serialize_user_groups(user)
             created = user.date_joined.strftime("%Y-%m-%d %H:%M")
+            lockout = getattr(user, 'account_lockout', None)
+            is_locked = bool(lockout and lockout.is_locked)
+            locked_at = (
+                timezone.localtime(lockout.locked_at).strftime("%Y-%m-%d %H:%M")
+                if is_locked and lockout.locked_at else ""
+            )
             user_list.append({
                 "id": user.id,
                 "username": user.username,
@@ -2877,7 +2896,10 @@ class UserListAPIView(APIView):
                 "employment_status": employment_status,
                 "modules": modules,
                 "created": created,
-                "is_superuser": user.is_superuser
+                "is_superuser": user.is_superuser,
+                "is_locked": is_locked,
+                "failed_login_attempts": lockout.failed_attempts if lockout else 0,
+                "locked_at": locked_at
             })
         return Response({
             "results": user_list,
@@ -2888,10 +2910,10 @@ class UserListAPIView(APIView):
 
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class UserGroupListAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
     def get(self, request):
         from .services import ensure_module_registry_seeded
 
@@ -2901,10 +2923,10 @@ class UserGroupListAPIView(APIView):
 
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class GroupModulesAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
     def get(self, request, group_id):
         from .services import ensure_module_registry_seeded
 
@@ -3011,11 +3033,11 @@ def user_allowed_modules(request):
 
 
 
-#Class for User Deletion API
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
+#Class for User Deletion API (inactive — route is commented out in urls.py)
 class UserDeleteAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['delete', 'head', 'options']
+
     def delete(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
@@ -3062,10 +3084,32 @@ def swap_login(request):
             return JsonResponse({"success": False, "error": str(e)})
     return JsonResponse({"success": False, "error": "Invalid request"}, status=400)
 
-@method_decorator(csrf_exempt, name='dispatch')
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-@method_decorator(require_admin, name='dispatch')
 class UserDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['get', 'head', 'options']
+
+    def dispatch(self, request, *args, **kwargs):
+        method = request.method.lower()
+
+        # Reject disallowed verbs (DELETE, PUT, POST, …) with 405 BEFORE
+        # authentication so ForbiddenToLoginMiddleware cannot convert the
+        # response to a browser redirect.
+        if method not in self.http_method_names:
+            from django.http import HttpResponseNotAllowed
+            response = HttpResponseNotAllowed([m.upper() for m in self.http_method_names])
+            response['Allow'] = ', '.join(m.upper() for m in self.http_method_names)
+            return response
+
+        # Serve OPTIONS (preflight / discovery) without requiring authentication.
+        if method == 'options':
+            from django.http import HttpResponse
+            response = HttpResponse(status=200)
+            response['Allow'] = ', '.join(m.upper() for m in self.http_method_names)
+            response['Content-Type'] = 'text/plain'
+            return response
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
@@ -3089,7 +3133,12 @@ class UserDetailAPIView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=404)
 
-    def put(self, request, user_id):
+
+class UserUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['post', 'head', 'options']
+
+    def post(self, request, user_id):
         from .services import invalidate_user_modules_cache, sync_user_module_provisions_from_group
 
         data = request.data or {}
@@ -3141,10 +3190,40 @@ class UserDetailAPIView(APIView):
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'User not found.'}, status=404)
         except Exception as e:
-            logger.exception('UserDetailAPIView.put error: user_id=%s', user_id)
+            logger.exception('UserUpdateAPIView.post error: user_id=%s', user_id)
             return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
 
-    def delete(self, request, user_id):
+
+class UserUnlockAPIView(APIView):
+    """Administrator-controlled unlock for accounts locked by the lockout policy."""
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['post', 'head', 'options']
+
+    def post(self, request, user_id):
+        from .services import unlock_user_account
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'success': False, 'error': 'User not found.'}, status=404)
+
+        try:
+            if not unlock_user_account(user, unlocked_by=request.user):
+                return Response({'success': False, 'error': 'Account is not locked.'}, status=400)
+            return Response({
+                'success': True,
+                'message': f'Account "{user.username}" has been unlocked successfully.'
+            })
+        except Exception:
+            logger.exception('UserUnlockAPIView.post error: user_id=%s', user_id)
+            return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
+
+
+class UserDeletePostAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminPermission]
+    http_method_names = ['post', 'head', 'options']
+
+    def post(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
             user.delete()
@@ -3152,7 +3231,7 @@ class UserDetailAPIView(APIView):
         except User.DoesNotExist:
             return Response({'success': False, 'error': 'User not found.'}, status=404)
         except Exception as e:
-            logger.exception('UserDetailAPIView.delete error: user_id=%s', user_id)
+            logger.exception('UserDeletePostAPIView.post error: user_id=%s', user_id)
             return Response({'success': False, 'error': 'An internal error occurred. Please contact the administrator.'}, status=500)
 
 

@@ -1198,15 +1198,18 @@ function formatValidationErrors(errors) {
         }
     }
     
-    return errorMessages.length > 0 ? errorMessages.join('<br>') : 'Validation failed.';
+    return errorMessages.length > 0 ? errorMessages.join('\n') : 'Validation failed.';
 }
 
 // Enhanced show message function for inline display
+// Security: message is always HTML-escaped (user input can be echoed back in
+// API messages, e.g. invalid tray IDs). Newlines are preserved as <br>.
 function showInlineMessage(messageAreaId, message, isSuccess = true) {
     const messageArea = document.getElementById(messageAreaId);
     if (messageArea) {
         const alertClass = isSuccess ? 'alert-success' : 'alert-danger';
-        messageArea.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+        const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
+        messageArea.innerHTML = `<div class="alert ${alertClass}">${safeMessage}</div>`;
         
         // Auto-hide success messages after 5 seconds
         if (isSuccess) {
@@ -1851,7 +1854,7 @@ function setupFormHandlers() {
             const result = await response.json();
 
             if (result.success) {
-                messageArea.innerHTML = `<div class="alert alert-success">${result.message || "Polish finish saved successfully!"}</div>`;
+                messageArea.innerHTML = `<div class="alert alert-success">${escapeHtml(result.message || "Polish finish saved successfully!")}</div>`;
                 document.getElementById('polish_finish_name').value = '';
                 document.getElementById('polish_internal').value = '';
                 if (typeof PolishFinishAPI !== "undefined" && PolishFinishAPI.refreshDropdown) {
@@ -1869,22 +1872,22 @@ function setupFormHandlers() {
                     for (const [field, errors] of Object.entries(result.errors)) {
                         if (Array.isArray(errors)) {
                             errors.forEach(err => {
-                                errorHtml += `<div>${err}</div>`;
+                                errorHtml += `<div>${escapeHtml(err)}</div>`;
                             });
                         } else {
-                            errorHtml += `<div>${errors}</div>`;
+                            errorHtml += `<div>${escapeHtml(errors)}</div>`;
                         }
                     }
                 } else {
-                    errorHtml = result.message || "Error saving polish finish.";
+                    errorHtml = escapeHtml(result.message || "Error saving polish finish.");
                 }
                 messageArea.innerHTML = `<div class="alert alert-danger">${errorHtml}</div>`;
             }
         } catch (error) {
-            messageArea.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            messageArea.innerHTML = `<div class="alert alert-danger">Error: ${escapeHtml(error.message)}</div>`;
         }
     });
-    
+
     // Plating Color Form
     document.getElementById('plating-form').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -1973,7 +1976,7 @@ function setupFormHandlers() {
             const result = await response.json();
 
             if (result.success) {
-                messageArea.innerHTML = `<div class="alert alert-success">${result.message || "Category saved successfully!"}</div>`;
+                messageArea.innerHTML = `<div class="alert alert-success">${escapeHtml(result.message || "Category saved successfully!")}</div>`;
                 document.getElementById('category_name').value = '';
                 // Optionally refresh the dropdown
                 if (typeof CategoryAPI !== "undefined" && CategoryAPI.refreshDropdown) {
@@ -1991,19 +1994,19 @@ function setupFormHandlers() {
                     for (const [field, errors] of Object.entries(result.errors)) {
                         if (Array.isArray(errors)) {
                             errors.forEach(err => {
-                                errorHtml += `<div>${err}</div>`;
+                                errorHtml += `<div>${escapeHtml(err)}</div>`;
                             });
                         } else {
-                            errorHtml += `<div>${errors}</div>`;
+                            errorHtml += `<div>${escapeHtml(errors)}</div>`;
                         }
                     }
                 } else {
-                    errorHtml = result.message || "Error saving category.";
+                    errorHtml = escapeHtml(result.message || "Error saving category.");
                 }
                 messageArea.innerHTML = `<div class="alert alert-danger">${errorHtml}</div>`;
             }
         } catch (error) {
-            messageArea.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            messageArea.innerHTML = `<div class="alert alert-danger">Error: ${escapeHtml(error.message)}</div>`;
         }
     });
 }
@@ -2067,13 +2070,13 @@ function initTrayManageUI() {
         } else if (result.status === 'warning') {
             let msg = result.message;
             if (result.conflicts && result.conflicts.length) {
-                msg += '<br><small>' + result.conflicts.join('<br>') + '</small>';
+                msg += '\n' + result.conflicts.join('\n');
             }
             showInlineMessage('trayid-message-area', msg, true);
         } else {
             let msg = result.message;
             if (result.conflicts && result.conflicts.length) {
-                msg += '<br><small>' + result.conflicts.join('<br>') + '</small>';
+                msg += '\n' + result.conflicts.join('\n');
             }
             showInlineMessage('trayid-message-area', msg, false);
         }
@@ -2114,7 +2117,7 @@ function initTrayManageUI() {
             if (result.status === 'warning') {
                 Swal.fire({
                     title: 'Occupied Trays Found',
-                    html: result.message,
+                    html: escapeHtml(result.message),
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#dc3545',
@@ -2269,7 +2272,7 @@ function renderTrayRows(data) {
                 if (checkResult.status === 'warning') {
                     Swal.fire({
                         title: 'Tray is Occupied',
-                        html: checkResult.message,
+                        html: escapeHtml(checkResult.message),
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#dc3545',

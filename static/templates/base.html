@@ -1062,6 +1062,8 @@
       <script nonce="{{ csp_nonce }}" src="{% static 'assets/js/jquery.dataTables.min.js' %}"></script>
       <!-- Color Mapping -->
       <script src="{% static 'js/colormapping.js' %}" nonce="{{ csp_nonce }}"></script>
+      <!-- Global HTML escaping helpers (XSS / HTML-injection prevention) -->
+      <script src="{% static 'js/escape_utils.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- endinject -->
       <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">

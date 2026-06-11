@@ -34,7 +34,8 @@ from Recovery_BrassAudit.models import *
 from Recovery_IQF.models import *
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 
@@ -133,7 +134,7 @@ class BaseAPIView(APIView):
 
 class GetLotByModelAPIView(APIView):
     """API to fetch tray/lot/model details by model number or related identifiers."""
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         model_no = request.query_params.get('model_no')
@@ -251,6 +252,7 @@ class GetLotByModelAPIView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
     renderer_classes = [TemplateHTMLRenderer, JSONRenderer]
     template_name = 'login.html'
 
@@ -319,17 +321,21 @@ class LoginAPIView(APIView):
                     'message': error_msg
                 }, status=status.HTTP_401_UNAUTHORIZED)
         else:
-            # Invalid credentials
-            error_msg = 'Invalid username or password. Please try again.'
+            # Invalid credentials — or account locked by the lockout policy.
+            from adminportal.services import get_account_lock_message
+            lock_message = get_account_lock_message(username)
+            error_msg = lock_message or 'Invalid username or password. Please try again.'
+            error_status = status.HTTP_403_FORBIDDEN if lock_message else status.HTTP_401_UNAUTHORIZED
             if request.accepted_renderer.format == 'html':
                 return Response({
                     'error': error_msg,
                     'username': username
-                }, template_name=self.template_name, status=status.HTTP_401_UNAUTHORIZED)
+                }, template_name=self.template_name, status=error_status)
             return Response({
-                'success': False, 
-                'message': error_msg
-            }, status=status.HTTP_401_UNAUTHORIZED)
+                'success': False,
+                'message': error_msg,
+                'account_locked': bool(lock_message)
+            }, status=error_status)
 
 def logout_view(request):
     logout(request)
@@ -338,9 +344,12 @@ def logout_view(request):
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+@login_required
 @csrf_exempt
 @require_POST
 def delete_all_tables(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Superuser access required.'}, status=403)
     # List all model classes you want to clear
     model_list = [
     ModelMasterCreation,

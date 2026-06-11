@@ -170,6 +170,35 @@ class UserManagementTable(models.Model):
 
 # ...existing code...
 
+class AccountLockout(models.Model):
+    """
+    Tracks consecutive failed login attempts per user and the resulting
+    account lock state. Enforced by adminportal.auth_backends.AccountLockoutBackend.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='account_lockout')
+    failed_attempts = models.PositiveIntegerField(default=0)
+    is_locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    unlocked_at = models.DateTimeField(null=True, blank=True)
+    unlocked_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_unlocks_performed'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Account Lockout"
+        verbose_name_plural = "Account Lockouts"
+        indexes = [
+            models.Index(fields=['is_locked'], name='acct_lockout_locked_idx'),
+        ]
+
+    def __str__(self):
+        state = 'LOCKED' if self.is_locked else 'active'
+        return f"{self.user.username} ({state}, {self.failed_attempts} failed attempts)"
+
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 

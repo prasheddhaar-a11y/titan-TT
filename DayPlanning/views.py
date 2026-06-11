@@ -2545,6 +2545,8 @@ class GlobalDraftedTraysAPIView(APIView):
     so that trays which have moved past Day Planning (accepted to IS/Brass QC etc.)
     are NOT reported as globally used.
     """
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         from .models import DPTrayId_History
         current_batch_id = request.GET.get('batch_id', '').strip()

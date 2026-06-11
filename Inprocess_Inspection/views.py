@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 from modelmasterapp.models import *
 from django.db.models import OuterRef, Subquery, Exists, F
 import math
@@ -1383,6 +1384,7 @@ class InprocessInspectionView(TemplateView):
         }
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_jig_completed_qty(request):
@@ -1508,6 +1510,7 @@ class SaveBathNumberAPIView(APIView):
             }, status=500)
 
 # AJAX endpoint to save bath number
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def save_bath_number(request):
@@ -1578,6 +1581,7 @@ def save_bath_number(request):
 
 
 # AJAX endpoint to save jig remarks - UPDATED TO MAKE REMARKS OPTIONAL
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def save_jig_remarks(request):

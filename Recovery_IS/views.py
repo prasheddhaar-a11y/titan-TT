@@ -4248,6 +4248,7 @@ def r_get_rejection_details(request):
         return Response({'success': False, 'error': str(e)}, status=500)
 
 
+@login_required
 @csrf_exempt
 def r_delink_selected_trays(request):
     if request.method == "POST":

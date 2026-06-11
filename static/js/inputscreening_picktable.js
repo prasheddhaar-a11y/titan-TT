@@ -911,6 +911,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return input.substring(0, 9);
   }
+  // ─── HTML escaping (security: tray IDs are user-entered; never render raw) ──
+  var tvmEscapeHtml = (typeof window !== "undefined" && window.escapeHtml) ||
+    function (value) {
+      return String(value === null || value === undefined ? "" : value)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    };
   // ─── Status helpers ────────────────────────────────────────────────────────
   const VERIFIED_BADGE_STYLE =
     "background:#f0fdf7;color:#1ba878;border:1px solid #c8f0e0;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;";
@@ -942,10 +949,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const label = text.substring(0, colonIdx);
       const value = text.substring(colonIdx + 1);
       textEl.innerHTML =
-        '<span style="color:#028084;font-weight:700;">' + label + ":</span>" +
-        '<span style="color:#555;">' + value + "</span>";
+        '<span style="color:#028084;font-weight:700;">' + tvmEscapeHtml(label) + ":</span>" +
+        '<span style="color:#555;">' + tvmEscapeHtml(value) + "</span>";
     } else {
-      textEl.innerHTML = '<span style="color:#028084;">' + text + "</span>";
+      textEl.innerHTML = '<span style="color:#028084;">' + tvmEscapeHtml(text) + "</span>";
     }
   }
   // ─── Auto-scroll to tray row with smooth behavior and subtle highlight ───────────
@@ -1075,9 +1082,9 @@ document.addEventListener("DOMContentLoaded", function () {
           t.sno +
           "</td>" +
           '<td style="padding:12px 10px;font-family:monospace;font-weight:600;color:#028084;font-size:13px;letter-spacing:.5px;cursor:pointer;user-select:text;transition:background .2s;" class="tvm-copy-tray-id" data-tray-id="' +
-          t.tray_id +
+          tvmEscapeHtml(t.tray_id) +
           '" title="Click to copy">' +
-          t.tray_id +
+          tvmEscapeHtml(t.tray_id) +
           topTag +
           "</td>" +
           '<td style="padding:12px 10px;text-align:center;color:#666;font-weight:600;">' +
@@ -1613,7 +1620,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!data || !data.success) {
       tbody.innerHTML =
         '<tr><td colspan="4" style="text-align:center;color:#d67d3a;padding:28px;">Error: ' +
-        ((data && data.error) || "Could not load trays") +
+        tvmEscapeHtml((data && data.error) || "Could not load trays") +
         "</td></tr>";
       return data;
     }

@@ -619,3 +619,119 @@ def refresh_dashboard_cache():
 #       return Response({'status': 'success'})
 #
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ACCOUNT LOCKOUT SERVICE (security fix: Missing Account Lockout Policy)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tracks consecutive failed login attempts per user and locks the account after
+# ACCOUNT_LOCKOUT_THRESHOLD failures. Enforcement happens in
+# adminportal.auth_backends.AccountLockoutBackend so every password-based login
+# path (HTML login form, login API, Django admin) is covered.
+
+from .models import AccountLockout
+
+ACCOUNT_LOCKOUT_THRESHOLD = 5
+ACCOUNT_LOCKED_MESSAGE = (
+    'Your account has been locked due to too many failed login attempts. '
+    'Please contact an administrator to unlock it.'
+)
+
+security_logger = logging.getLogger('security.auth')
+
+
+def get_account_lockout(user):
+    """Return (creating if needed) the AccountLockout record for a user."""
+    lockout, _ = AccountLockout.objects.get_or_create(user=user)
+    return lockout
+
+
+def is_user_account_locked(user):
+    return AccountLockout.objects.filter(user=user, is_locked=True).exists()
+
+
+def get_account_lock_message(username):
+    """
+    Return the locked-account error message if the given username belongs to a
+    locked account, else None. Used by login views to show a proper message.
+    """
+    if not username:
+        return None
+    if AccountLockout.objects.filter(user__username=username, is_locked=True).exists():
+        return ACCOUNT_LOCKED_MESSAGE
+    return None
+
+
+def record_failed_login_attempt(user, request=None):
+    """
+    Increment the consecutive failed login counter for a user and lock the
+    account once the threshold is reached. Safe under concurrent attempts
+    (Burp Intruder style) via row-level locking.
+    """
+    from django.utils import timezone
+
+    ip = request.META.get('REMOTE_ADDR', 'unknown') if request is not None else 'unknown'
+    with transaction.atomic():
+        lockout, _ = AccountLockout.objects.select_for_update().get_or_create(user=user)
+        lockout.failed_attempts += 1
+        lockout.last_failed_at = timezone.now()
+        just_locked = False
+        if not lockout.is_locked and lockout.failed_attempts >= ACCOUNT_LOCKOUT_THRESHOLD:
+            lockout.is_locked = True
+            lockout.locked_at = timezone.now()
+            just_locked = True
+        lockout.save(update_fields=[
+            'failed_attempts', 'last_failed_at', 'is_locked', 'locked_at', 'updated_at',
+        ])
+
+    security_logger.warning(
+        'LOGIN_FAILED: user=%s attempt=%d/%d ip=%s',
+        user.username, lockout.failed_attempts, ACCOUNT_LOCKOUT_THRESHOLD, ip,
+    )
+    if just_locked:
+        security_logger.warning(
+            'ACCOUNT_LOCKED: user=%s locked_at=%s after %d consecutive failed attempts ip=%s',
+            user.username, lockout.locked_at.isoformat(), lockout.failed_attempts, ip,
+        )
+    return lockout
+
+
+def reset_failed_login_attempts(user):
+    """Reset the failed-attempt counter after a successful login."""
+    updated = AccountLockout.objects.filter(user=user, failed_attempts__gt=0).update(
+        failed_attempts=0,
+    )
+    if updated:
+        security_logger.info(
+            'LOGIN_FAILED_COUNTER_RESET: user=%s after successful login', user.username,
+        )
+
+
+def unlock_user_account(user, unlocked_by=None):
+    """
+    Administrator-controlled unlock. Clears the lock and the failed-attempt
+    counter. Returns True if the account was locked and is now unlocked.
+    """
+    from django.utils import timezone
+
+    with transaction.atomic():
+        lockout = AccountLockout.objects.select_for_update().filter(user=user).first()
+        if lockout is None or not lockout.is_locked:
+            return False
+        lockout.is_locked = False
+        lockout.failed_attempts = 0
+        lockout.locked_at = None
+        lockout.unlocked_at = timezone.now()
+        lockout.unlocked_by = unlocked_by
+        lockout.save(update_fields=[
+            'is_locked', 'failed_attempts', 'locked_at',
+            'unlocked_at', 'unlocked_by', 'updated_at',
+        ])
+
+    security_logger.warning(
+        'ACCOUNT_UNLOCKED: user=%s unlocked_by=%s unlocked_at=%s',
+        user.username,
+        unlocked_by.username if unlocked_by else 'system',
+        lockout.unlocked_at.isoformat(),
+    )
+    return True

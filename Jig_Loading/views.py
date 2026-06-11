@@ -4820,6 +4820,8 @@ class ExcessTrayInfoAPI(APIView):
 			return JsonResponse({'success': False, 'error': 'Server error'}, status=500)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def jig_get_lot_id_for_tray(request):
 	"""
 	Get lot_id for a scanned tray_id or drafted jig_id in the Jig Loading pick table.
