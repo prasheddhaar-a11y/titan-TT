@@ -119,6 +119,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adminportal.middleware.CSPMiddleware',
     'adminportal.middleware.LoginLatencyMiddleware',
+    'adminportal.middleware.ModuleAccessMiddleware',
     'middleware.forbidden_redirect.ForbiddenToLoginMiddleware',
     'watchcase_tracker.middleware.latency_middleware.LatencyMiddleware',
 ]

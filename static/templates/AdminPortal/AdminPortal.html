@@ -4792,6 +4792,15 @@ document.getElementById("btn-module-save-next").onclick = async function () {
      } else {
        document.getElementById("passwordMatchIcon").style.display = "none";
      }
+
+     // Disable save button when password is typed but weak
+     const submitBtn = document.getElementById("uc-submit-btn");
+     if (submitBtn) {
+       const isWeak = pwd && score < 5;
+       submitBtn.disabled = !!isWeak;
+       submitBtn.style.opacity = isWeak ? "0.5" : "1";
+       submitBtn.style.cursor = isWeak ? "not-allowed" : "";
+     }
    }
    
    
