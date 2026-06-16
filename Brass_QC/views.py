@@ -1821,4 +1821,4 @@ def brass_qc_raw_submission(request):
     
     except Exception as e:
         logger.error(f"[RAW SUBMISSION] Error saving submission: {e}", exc_info=True)
-        return JsonResponse({"status": "error", "message": f"Error saving submission: {str(e)}"}, status=500)
+        return JsonResponse({"status": "error", "message": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)

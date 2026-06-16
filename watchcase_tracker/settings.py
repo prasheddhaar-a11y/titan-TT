@@ -100,7 +100,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
-    'watchcase_tracker.sso_pipeline.link_sso_by_email_or_username',
+    'watchcase_tracker.sso_pipelin-e.link_sso_by_email_or_username',
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
@@ -109,6 +109,7 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 MIDDLEWARE = [
+    'adminportal.middleware.BlockOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -162,6 +163,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    # Disables DRF's schema/metadata response on OPTIONS requests.
+    # No CORS or API discovery is required in this application.
+    'DEFAULT_METADATA_CLASS': None,
 }
 
 # Database
@@ -223,6 +230,20 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = True   # Issue #4: require HTTPS for session cookie
 SESSION_COOKIE_AGE = 1800      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
+
+# ---------------------------------------------------------------------------
+# HSTS — HTTP Strict-Transport-Security (VAPT Finding #7)
+# Django's SecurityMiddleware injects this header on every HTTPS response.
+# max-age=63072000 = 2 years (recommended); includeSubDomains + preload for
+# full protection. Do NOT enable SECURE_SSL_REDIRECT here — IIS handles the
+# HTTP→HTTPS redirect; doing it in Django as well would cause a redirect loop.
+# SECURE_PROXY_SSL_HEADER tells Django to trust the X-Forwarded-Proto header
+# that IIS sets when it forwards a TLS-terminated request to the Django app.
+# ---------------------------------------------------------------------------
+SECURE_HSTS_SECONDS = 63072000          # 2 years
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ENABLE_MICROSOFT_LOGIN = False
 ENABLE_LOGIN_LATENCY_LOGS = False

@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -1107,8 +1109,8 @@ class GetBathNumbersByTypeAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"Error in GetBathNumbersByTypeAPIView: {str(e)}")
-            return Response({'error': str(e)}, status=500)
+            logger.error(f"Error in GetBathNumbersByTypeAPIView: {str(e)}", exc_info=True)
+            return Response({'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1168,10 +1170,10 @@ class SaveBathNumberAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"Error in SaveBathNumberAPIView: {str(e)}")
+            logger.error(f"Error in SaveBathNumberAPIView: {str(e)}", exc_info=True)
             return Response({
                 'success': False,
-                'message': f'Internal server error: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 # AJAX endpoint to save bath number
@@ -1227,7 +1229,7 @@ def save_bath_number(request):
     except Exception as e:
         return JsonResponse({
             'success': False, 
-            'message': f'Error saving bath number: {str(e)}'
+            'message': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)
 
 
@@ -1300,7 +1302,7 @@ def save_jig_remarks(request):
     except Exception as e:
         return JsonResponse({
             'success': False, 
-            'message': f'Error saving jig details: {str(e)}'
+            'message': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)  
         
         
@@ -1321,7 +1323,7 @@ class IISaveIPPickRemarkAPIView(APIView):
                 return JsonResponse({'success': False, 'error': 'No JigDetails found for this lot_id'}, status=404)
             return JsonResponse({'success': True, 'message': 'Pick remarks saved to JigDetails'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
   
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1367,7 +1369,7 @@ class InprocessSaveHoldUnholdReasonAPIView(APIView):
             return JsonResponse({'success': True, 'message': 'Reason saved.'})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
   
@@ -1385,7 +1387,7 @@ class JigDetailsDeleteAPIView(APIView):
                 return Response({'success': False, 'message': 'No record found for this lot_id'}, status=status.HTTP_404_NOT_FOUND)
             return Response({'success': True, 'message': 'Record deleted successfully'})
         except Exception as e:
-            return Response({'success': False, 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'message': 'Unable to process the request. Please verify the submitted data and try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class InprocessInspectionCompleteView(TemplateView):

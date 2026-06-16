@@ -4,7 +4,7 @@
 {% block content %}
 
 
-  <style>
+  <style nonce="{{ csp_nonce }}">
 
 /* ========== Tablet override — paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
@@ -6694,7 +6694,7 @@ function loadDelinkTrayData(lotId) {
    
    // ✅ NEW: Add CSS for draft mode animations and grid styling
    const draftModeCSS = `
-     <style>
+     <style nonce="{{ csp_nonce }}">
        @keyframes draftModeGlow {
          from { box-shadow: 0 0 5px rgba(243, 156, 18, 0.3); }
          to { box-shadow: 0 0 15px rgba(243, 156, 18, 0.6); }

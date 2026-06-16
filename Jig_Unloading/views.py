@@ -3770,7 +3770,7 @@ class JigUnloadPickRemarkZ1View(APIView):
             jc.save(update_fields=['unloading_remarks'])
             return Response({'success': True, 'message': 'Remark saved'})
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -3835,7 +3835,7 @@ class GetJigForTrayZ1View(APIView):
             return Response({'success': False, 'error': 'Tray ID not found in any jig'})
 
         except Exception as e:
-            return Response({'success': False, 'error': f'System error: {str(e)}'}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @require_GET
@@ -3985,8 +3985,8 @@ def validate_tray_occupancy_z1(request):
         })
 
     except Exception as e:
-        print(f"❌ [Z1] Validation error: {str(e)}")
-        return JsonResponse({'success': False, 'error': f'Validation error: {str(e)}'}, status=500)
+        logger.error(f"❌ [Z1] Validation error: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @require_GET
@@ -4086,7 +4086,7 @@ def jig_unload_view_tray_list_z1(request):
         })
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @require_GET
@@ -4156,4 +4156,4 @@ def jig_unload_get_model_images_z1(request):
             return JsonResponse({'success': False, 'image': None, 'error': f'Model {model_no} has no images'})
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)

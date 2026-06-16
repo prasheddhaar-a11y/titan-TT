@@ -1,7 +1,7 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 {% load stock_filters %} 
 
-<style>
+<style nonce="{{ csp_nonce }}">
     .remark-tooltip-trigger img[alt="Chat"]:hover {
     background: #43a047 !important;
   }

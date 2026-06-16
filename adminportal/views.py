@@ -1217,7 +1217,7 @@ class DP_ViewmasterView(APIView):
                         item.delete()
                         deleted_count += 1
                 except Exception as e:
-                    print(f"Error deleting item {item_id}: {str(e)}")
+                    logger.error(f"Error deleting item {item_id}: {str(e)}", exc_info=True)
                     continue
 
             return JsonResponse({
@@ -1229,7 +1229,7 @@ class DP_ViewmasterView(APIView):
         except Exception as e:
             return JsonResponse({
                 'success': False, 
-                'error': str(e)
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             })
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
@@ -1321,7 +1321,7 @@ class PolishFinishAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating polish finish: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1345,7 +1345,7 @@ class PolishFinishAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating polish finish: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1360,7 +1360,7 @@ class PolishFinishAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting polish finish: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1402,7 +1402,7 @@ class PlatingColorAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating plating color: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1426,7 +1426,7 @@ class PlatingColorAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating plating color: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1441,7 +1441,7 @@ class PlatingColorAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting plating color: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1483,7 +1483,7 @@ class TrayTypeAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating tray type: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1507,7 +1507,7 @@ class TrayTypeAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating tray type: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1522,7 +1522,7 @@ class TrayTypeAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting tray type: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1637,7 +1637,7 @@ class ModelImageAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting model image: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1686,7 +1686,7 @@ class ModelMasterAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating model master: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1716,7 +1716,7 @@ class ModelMasterAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating model master: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1731,7 +1731,7 @@ class ModelMasterAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting model master: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1773,7 +1773,7 @@ class LocationAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating location: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1797,7 +1797,7 @@ class LocationAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating location: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -1812,7 +1812,7 @@ class LocationAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting location: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1856,7 +1856,7 @@ class TrayIdAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating tray id: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -1883,7 +1883,7 @@ class TrayIdAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating tray id: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2227,7 +2227,7 @@ class CategoryAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating category: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -2251,7 +2251,7 @@ class CategoryAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating category: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -2266,7 +2266,7 @@ class CategoryAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting category: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2307,7 +2307,7 @@ class IPRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -2331,7 +2331,7 @@ class IPRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -2346,7 +2346,7 @@ class IPRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2394,7 +2394,7 @@ class BrassIQFRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -2419,7 +2419,7 @@ class BrassIQFRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -2438,7 +2438,7 @@ class BrassIQFRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2484,7 +2484,7 @@ class NickelAuditQCRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error creating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, pk):
@@ -2508,7 +2508,7 @@ class NickelAuditQCRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error updating rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -2526,7 +2526,7 @@ class NickelAuditQCRejectionAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error deleting rejection reason: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Utility view to get dropdown data
@@ -2556,7 +2556,7 @@ class ModelMasterDropdownDataAPIView(APIView):
         except Exception as e:
             return Response({
                 'success': False,
-                'message': f'Error fetching dropdown data: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 """ Module - User Management """
@@ -3012,7 +3012,7 @@ def user_allowed_modules(request):
             invalidate_user_modules_cache(user.id)
             return Response({'success': True, 'message': 'Modules saved successfully.'})
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
     # ----- GET logic -----
     # ----- GET logic -----
@@ -3081,7 +3081,7 @@ def swap_login(request):
             else:
                 return JsonResponse({"success": False, "error": "Invalid credentials"})
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+            return JsonResponse({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'})
     return JsonResponse({"success": False, "error": "Invalid request"}, status=400)
 
 class UserDetailAPIView(APIView):
@@ -3091,21 +3091,13 @@ class UserDetailAPIView(APIView):
     def dispatch(self, request, *args, **kwargs):
         method = request.method.lower()
 
-        # Reject disallowed verbs (DELETE, PUT, POST, …) with 405 BEFORE
+        # Reject disallowed verbs (DELETE, PUT, POST, OPTIONS, …) with 405 BEFORE
         # authentication so ForbiddenToLoginMiddleware cannot convert the
         # response to a browser redirect.
         if method not in self.http_method_names:
             from django.http import HttpResponseNotAllowed
             response = HttpResponseNotAllowed([m.upper() for m in self.http_method_names])
             response['Allow'] = ', '.join(m.upper() for m in self.http_method_names)
-            return response
-
-        # Serve OPTIONS (preflight / discovery) without requiring authentication.
-        if method == 'options':
-            from django.http import HttpResponse
-            response = HttpResponse(status=200)
-            response['Allow'] = ', '.join(m.upper() for m in self.http_method_names)
-            response['Content-Type'] = 'text/plain'
             return response
 
         return super().dispatch(request, *args, **kwargs)

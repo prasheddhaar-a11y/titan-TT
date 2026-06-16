@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from django.shortcuts import render, redirect, get_object_or_404
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -34,7 +36,7 @@ from Recovery_BrassAudit.models import *
 from Recovery_IQF.models import *
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.permissions import AllowAny
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
@@ -44,7 +46,7 @@ class BaseAPIView(APIView):
     API View to return user details, fetch TrayId data based on barcodeInput,
     and fetch additional details from ModelMasterCreation and TotalStockModel.
     """
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         # Fetch user details
@@ -249,7 +251,7 @@ class GetLotByModelAPIView(APIView):
             return Response(context, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]

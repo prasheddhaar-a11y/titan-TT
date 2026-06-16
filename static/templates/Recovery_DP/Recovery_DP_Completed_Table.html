@@ -1,7 +1,7 @@
 {% extends "base.html" %} {% load static %} {% load stock_filters %} {% block
 content %}
 
-<style>
+<style nonce="{{ csp_nonce }}">
   @media (min-width: 1245px) {
     /* HP Laptop */
     .table-responsive {

@@ -4,7 +4,7 @@
 {% load custom_tags %}
 {% block content %}
 
-<style>
+<style nonce="{{ csp_nonce }}">
   /* ========== Tablet override — paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {

@@ -3,7 +3,7 @@
 {% load stock_filters %}
 {% load custom_tags %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* Enhanced Model Gallery Modal Styles */
   #modelRemarkModal {
       display: none;
@@ -519,7 +519,7 @@
    }
    /* Table heading font size */
    /* Add this at the end of your 
-<style>
+<style nonce="{{ csp_nonce }}">
    block in DP_PickTable.html */
    /* Professional table header styling with proper text wrapping */
    #order-listing th {

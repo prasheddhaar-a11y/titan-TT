@@ -1,6 +1,21 @@
 import os
+import logging
 from bs4 import BeautifulSoup
 import re
+
+logger = logging.getLogger(__name__)
+
+# Generic safe message returned to clients — never expose raw exception text
+SAFE_ERROR_MESSAGE = "Unable to process the request. Please verify the submitted data and try again."
+
+
+def log_and_get_safe_error(context: str, exc: Exception) -> str:
+    """
+    Log the full exception server-side and return a generic safe message.
+    Call this instead of returning str(exc) in any HTTP response.
+    """
+    logger.exception("%s: %s", context, exc)
+    return SAFE_ERROR_MESSAGE
 
 def extract_table_headings_from_html(file_path):
     """
@@ -42,7 +57,7 @@ def extract_table_headings_from_html(file_path):
         print(f"File not found: {file_path}")
         return []
     except Exception as e:
-        print(f"Error reading file {file_path}: {str(e)}")
+        logger.error(f"Error reading file {file_path}: {str(e)}", exc_info=True)
         return []
 
 def get_template_files():
@@ -63,7 +78,7 @@ def get_template_files():
         
         return sorted(template_files)
     except Exception as e:
-        print(f"Error scanning template directory: {str(e)}")
+        logger.error(f"Error scanning template directory: {str(e)}", exc_info=True)
         return []
 
 def validate_html_file(file_path):

@@ -2239,7 +2239,7 @@ def brass_audit_raw_submission(request):
         })
     except Exception as e:
         logger.error(f"[AUDIT RAW] Error saving: {e}", exc_info=True)
-        return JsonResponse({"status": "error", "message": f"Error saving submission: {str(e)}"}, status=500)
+        return JsonResponse({"status": "error", "message": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2270,7 +2270,7 @@ def brass_get_rejection_details(request):
         return Response({'success': True, 'reasons': data})
     except Exception as e:
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2400,7 +2400,7 @@ def get_brass_audit_tray_details_for_modal(request):
         })
 
     except Exception as e:
-        return Response({'success': False, 'error': str(e)})
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2481,7 +2481,7 @@ class RejectTableTrayIdListAPIView(APIView):
         except Exception as e:
             logger.error(f"[RejectTable] Error fetching trays for lot {lot_id}: {e}")
             traceback.print_exc()
-            return Response({"success": False, "error": str(e)}, status=500)
+            return Response({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2540,7 +2540,7 @@ def brass_audit_get_accepted_tray_scan_data(request):
         })
     except Exception as e:
         logger.error(f"[brass_audit_get_accepted_tray_scan_data] Error: {e}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2587,5 +2587,5 @@ def get_lot_id_for_tray(request):
 
         return JsonResponse({'success': False, 'error': f'Tray {tray_id} not found in system'})
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Database error: {str(e)}'})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 

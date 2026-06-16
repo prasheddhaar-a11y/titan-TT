@@ -5,7 +5,7 @@
     <script nonce="{{ csp_nonce }}">
       window.TTT_DB_SHORTCUTS_ENABLED = true;
     </script>
-      <style>
+      <style nonce="{{ csp_nonce }}">
 /* Sidebar responsive rules are defined in ttt-responsive-system.css */
          /*Global Grid Lines */
          #order-listing th,
@@ -1237,7 +1237,7 @@
             </button>
 
             <ul class="navbar-nav navbar-nav-right" style="gap:6px;align-items:center;">
-               <style>
+               <style nonce="{{ csp_nonce }}">
                  .nb-btn{height:36px!important;padding:0 14px!important;gap:8px!important;display:inline-flex!important;align-items:center!important;border:none!important;border-radius:8px!important;transition:all .2s ease!important;cursor:pointer;white-space:nowrap;line-height:1;text-decoration:none;}
                  .nb-btn small{font-size:12px!important;font-weight:600!important;margin:0!important;line-height:1!important;}
                  .nb-btn .nb-icon{width:18px;height:18px;object-fit:contain;flex-shrink:0;}
@@ -1384,7 +1384,7 @@
       </nav>
          
          <!-- Flag Gallery Modal with Vector Graphics & Innovative UI -->
-         <style>
+         <style nonce="{{ csp_nonce }}">
          /* Advanced animations */
          @keyframes modalSlideIn {
             from { opacity: 0; transform: scale(0.92) translateY(-20px); }
@@ -2228,7 +2228,7 @@
                   </tbody>
                </table>
             </form>
-            <style>
+            <style nonce="{{ csp_nonce }}">
                @media (max-width:600px){
                #barcodeScannerForm{max-width:98vw;}
                #barcodeScannerForm table{font-size:0.89rem;}
@@ -2266,7 +2266,7 @@
                   
                   <!-- Shortcuts Grid -->
                   <div id="shortcutsGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px 20px;">
-                     <style>
+                     <style nonce="{{ csp_nonce }}">
                        .sc-item { display:flex; align-items:center; gap:10px; }
                        .sc-key { 
                          background:linear-gradient(135deg, #e8f1f5, #dce8ed);

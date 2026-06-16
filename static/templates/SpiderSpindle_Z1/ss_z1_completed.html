@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
 #order-listing {
   --ss-sticky-col-1: 64px;
   --ss-sticky-col-2: 132px;

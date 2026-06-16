@@ -2188,7 +2188,7 @@ def JU_Zone_get_model_details(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         })
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2230,7 +2230,7 @@ class JU_Zone_SaveHoldUnholdReasonAPIView(APIView):
             return JsonResponse({'success': True, 'message': 'Reason saved.'})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class JU_Zone_JigPickRemarkAPIView(APIView):
@@ -2256,7 +2256,7 @@ class JU_Zone_JigPickRemarkAPIView(APIView):
             jig_detail.save(update_fields=['unloading_remarks'])
             return JsonResponse({'success': True, 'message': 'Remark saved'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 def populate_jig_unload_fields(jig_unload_instance, lot_ids, jig_lot_id=None):
     """
@@ -2953,7 +2953,7 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                     
                 except Exception as e:
                     logger.error(f"Error creating JigUnloadAfterTable: {str(e)}")
-                    return JsonResponse({'success': False, 'error': f'Failed to create unload record: {str(e)}'})
+                    return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
         # Fallback: if all IDs were duplicates (already in DB), find the existing record
         if not unload_lot_id:
@@ -3215,7 +3215,7 @@ def JU_Zone_save_jig_unload_tray_ids(request):
 
     except Exception as e:
         logger.error(f'Unexpected error: {str(e)}', exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 @login_required
@@ -3334,7 +3334,7 @@ def JU_Zone_save_jig_unload_draft(request):
         return JsonResponse({'success': False, 'error': 'Invalid JSON data'})
     except Exception as e:
         logger.error(f'Unexpected error: {e}', exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 @login_required
 @csrf_exempt
@@ -3361,7 +3361,7 @@ def JU_Zone_load_jig_unload_draft(request):
             })
             
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 def get_plating_stock_for_lot(lot_id):
@@ -3554,10 +3554,10 @@ def JU_Zone_validate_tray_id(request):
         print(f"[DEBUG] ❌ Tray '{tray_id}' not found in TrayId table")
         return JsonResponse({'success': False, 'error': 'Tray ID not found in system.'})
     except Exception as e:
-        print(f"[DEBUG] ❌ Unexpected error: {str(e)}")
+        logger.error(f"[DEBUG] ❌ Unexpected error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
-        return JsonResponse({'success': False, 'error': f'Validation error: {str(e)}'})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 @login_required
@@ -3920,7 +3920,7 @@ def JU_Zone_validate_tray_id_dynamic(request):
             'validation_type': 'invalid_json'
         }, status=400)
     except Exception as e:
-        print(f"[ERROR] JU_Zone_validate_tray_id_dynamic outer exception: {str(e)}")
+        logger.error(f"[ERROR] JU_Zone_validate_tray_id_dynamic outer exception: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': 'Server error during validation',
@@ -4010,7 +4010,7 @@ def JU_Zone_check_unload_status(request):
         print(f"❌ [ERROR] {e}")
         import traceback
         traceback.print_exc()
-        return JsonResponse({'success': False, 'error': str(e)})        
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})        
 
 @method_decorator(csrf_exempt, name='dispatch')
 class JU_Zone_ListAPIView(APIView):
@@ -5060,14 +5060,14 @@ def JU_Zone_get_model_images(request):
             })
 
     except Exception as e:
-        print(f"[DEBUG] Error in JU_Zone_get_model_images: {str(e)}")
+        logger.error(f"[DEBUG] Error in JU_Zone_get_model_images: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': str(e),
+            'error': 'Unable to process the request. Please verify the submitted data and try again.',
             'image': None,
             'debug_info': {
                 'exception_type': type(e).__name__,
-                'exception_message': str(e)
+                'exception_message': 'Unable to process the request. Please verify the submitted data and try again.'
             }
         })
 
@@ -5131,12 +5131,12 @@ def JU_Zone_after_view_tray_list(request):
         })
         
     except Exception as e:
-        print(f"[DEBUG] ERROR in JU_Zone_after_view_tray_list: {str(e)}")
+        logger.error(f"[DEBUG] ERROR in JU_Zone_after_view_tray_list: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         return Response({
             'success': False, 
-            'error': str(e)
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)
 
 
@@ -5172,7 +5172,7 @@ class JU_Zone_AfterTrayValidateAPIView(APIView):
         except json.JSONDecodeError:
             return Response({'valid': False, 'message': 'Invalid JSON data.'}, status=400)
         except Exception as e:
-            return Response({'valid': False, 'message': f'Error: {str(e)}'}, status=500)
+            return Response({'valid': False, 'message': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @login_required
@@ -5236,7 +5236,7 @@ def JU_Zone_fix_missing_plating_colors(request):
         print(f"[FIX PLATING] ❌ Error: {e}")
         import traceback
         traceback.print_exc()
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     def post(self, request):
         try:
             data = request.data if hasattr(request, 'data') else json.loads(request.body.decode('utf-8'))
@@ -5288,12 +5288,12 @@ def JU_Zone_fix_missing_plating_colors(request):
             })
 
         except Exception as e:
-            print(f"[DEBUG] ERROR in JigAfterTrayValidateAPIView: {str(e)}")
+            logger.error(f"[DEBUG] ERROR in JigAfterTrayValidateAPIView: {str(e)}", exc_info=True)
             import traceback
             traceback.print_exc()
             return JsonResponse({
                 'success': False, 
-                'error': str(e)
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -5338,7 +5338,7 @@ def debug_model_availability_zone2(request):
                 print(f"[DEBUG] Zone 2 Model 1805SSA02 exists with {len(images)} images")
             except Exception as e:
                 print(f"[DEBUG] Zone 2 Error checking model 1805SSA02: {e}")
-                specific_model_info = {'exists': True, 'error': str(e)}
+                specific_model_info = {'exists': True, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}
         else:
             specific_model_info = {'exists': False}
             print("[DEBUG] Zone 2 Model 1805SSA02 does not exist")
@@ -5358,7 +5358,7 @@ def debug_model_availability_zone2(request):
                 print(f"[DEBUG] Zone 2 Model 1805 (partial) exists with {len(images)} images")
             except Exception as e:
                 print(f"[DEBUG] Zone 2 Error checking model 1805: {e}")
-                partial_model_info = {'exists': True, 'error': str(e)}
+                partial_model_info = {'exists': True, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}
         else:
             partial_model_info = {'exists': False}
             print("[DEBUG] Zone 2 Model 1805 (partial) does not exist")
@@ -5469,12 +5469,12 @@ def debug_model_availability_zone2(request):
         })
         
     except Exception as e:
-        print(f"[DEBUG] Zone 2 Error in debug_model_availability: {str(e)}")
+        logger.error(f"[DEBUG] Zone 2 Error in debug_model_availability: {str(e)}", exc_info=True)
         import traceback
         print(f"[DEBUG] Zone 2 Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'success': False,
-            'error': str(e),
+            'error': 'Unable to process the request. Please verify the submitted data and try again.',
             'message': 'Error analyzing Zone 2 model availability',
             'traceback': traceback.format_exc()
         })
@@ -5579,7 +5579,7 @@ def JU_Zone_autosave_jig_unload(request):
             return JsonResponse({'success': False, 'error': 'Invalid JSON data'})
         except Exception as e:
             logger.error(f'Zone 2 Auto-save error: {e}', exc_info=True)
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
     
     return JsonResponse({'success': False, 'error': 'POST method required'})
 
@@ -5628,7 +5628,7 @@ def JU_Zone_load_autosave_jig_unload(request, main_lot_id):
             
     except Exception as e:
         logger.error(f'Zone 2 Load auto-save error: {e}', exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 @login_required
@@ -5666,7 +5666,7 @@ def JU_Zone_clear_autosave_jig_unload(request, main_lot_id):
             
         except Exception as e:
             logger.error(f'Zone 2 Clear auto-save error: {e}', exc_info=True)
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
     
     return JsonResponse({'success': False, 'error': 'DELETE method required'})
 
@@ -5716,7 +5716,7 @@ def JU_Zone_delete_jig_details(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Zone 2: Error deleting record: {str(e)}'
+            'message': 'Unable to process the request. Please verify the submitted data and try again.'
         })
 
 @require_GET
@@ -5773,5 +5773,5 @@ def JU_Zone_get_jig_for_tray(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'System error: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         })

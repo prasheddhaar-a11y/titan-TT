@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils.safestring import mark_safe
@@ -149,7 +151,7 @@ class DPQuickHelpAPIView(APIView):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': str(e)
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -475,10 +477,10 @@ class DPBulkUploadView(APIView):
             return JsonResponse(response_data)
 
         except Exception as e:
-            print(f"❌ Error processing file preview: {str(e)}")
+            logger.error(f"❌ Error processing file preview: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'❌ An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
         finally:
             if wb:
@@ -668,7 +670,7 @@ class DPBulkUploadView(APIView):
 
                 except Exception as e:
                     failure_count += 1
-                    failed_rows.append(f"Row {idx}: ❌ Error processing row: {str(e).splitlines()[0]}")
+                    failed_rows.append("Row processing failed. Please verify the row data and try again.")
 
             # ── Single bulk INSERT inside one transaction ───────────────────────────
             if objects_to_create:
@@ -706,10 +708,10 @@ class DPBulkUploadView(APIView):
                 'error': '❌ Invalid JSON data provided.'
             }, status=400)
         except Exception as e:
-            print(f"❌ Error in datatable submission: {str(e)}")
+            logger.error(f"❌ Error in datatable submission: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'❌ An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
     def handle_file_upload(self, request):
@@ -968,8 +970,8 @@ class DPBulkUploadView(APIView):
             return Response({'master_data': ModelMasterCreation.objects.none()})
 
         except Exception as e:
-            print(f"❌ Error processing file: {str(e)}")
-            messages.error(request, f"❌ An error occurred: {str(e)}")
+            logger.error(f"❌ Error processing file: {str(e)}", exc_info=True)
+            messages.error(request, "Unable to process the request. Please verify the submitted data and try again.")
             return Response({'master_data': ModelMasterCreation.objects.none()}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         finally:
             if wb:
@@ -1099,7 +1101,7 @@ class DPBulkUploadPreviewView(APIView):
             return Response({'success': True, 'data': data})
 
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
         finally:
             if wb:
                 wb.close()
@@ -1227,7 +1229,7 @@ class DPBulkUploadPreviewViewEnhanced(APIView):
             return Response({'success': True, 'data': data})
 
         except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
         finally:
             if wb:
                 wb.close()
@@ -1305,10 +1307,10 @@ class GetPlatingColourAPIView(APIView):
                 'error': 'Invalid JSON data'
             }, status=400)
         except Exception as e:
-            print(f"❌ Error in GetPlatingColourAPIView: {str(e)}")
+            logger.error(f"❌ Error in GetPlatingColourAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -1343,10 +1345,10 @@ class GetCategoriesAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in GetCategoriesAPIView: {str(e)}")
+            logger.error(f"❌ Error in GetCategoriesAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -1379,10 +1381,10 @@ class GetLocationsAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in GetLocationsAPIView: {str(e)}")
+            logger.error(f"❌ Error in GetLocationsAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500) 
 
 
@@ -1732,7 +1734,7 @@ class SaveHoldUnholdReasonAPIView(APIView):
             })
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TrayIdScanAPIView(APIView):
@@ -2038,7 +2040,7 @@ class TrayIdScanAPIView(APIView):
             else:
                 return JsonResponse({'success': False, 'error': 'Database integrity error: ' + str(e)}, status=400)
         except Exception as e:
-            print(f"❌ Error in TrayIdScanAPIView: {str(e)}")
+            logger.error(f"❌ Error in TrayIdScanAPIView: {str(e)}", exc_info=True)
             return JsonResponse({'success': False, 'error': 'Unexpected error: ' + str(e)}, status=500)
 
     def generate_new_lot_id(self):
@@ -2176,11 +2178,11 @@ class ValidateTopTrayAPIView(APIView):
             })
 
         except Exception as e:
-            print(f"❌ Error in ValidateTopTrayAPIView: {str(e)}")
+            logger.error(f"❌ Error in ValidateTopTrayAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'valid': False,
-                'error': f'Validation error: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -2301,10 +2303,10 @@ class TopTrayScanAPIView(APIView):
                 })
 
         except Exception as e:
-            print(f"❌ Error in TopTrayScanAPIView: {str(e)}")
+            logger.error(f"❌ Error in TopTrayScanAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False, 
-                'error': f'An error occurred: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
             
 
@@ -2360,10 +2362,10 @@ class VerifyTopTrayQtyAPIView(APIView):
             })
                      
         except Exception as e:
-            print(f"❌ Error in VerifyTopTrayQtyAPIView: {str(e)}")
+            logger.error(f"❌ Error in VerifyTopTrayQtyAPIView: {str(e)}", exc_info=True)
             import traceback
             traceback.print_exc()
-            return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TrayIdListAPIView(APIView):
@@ -2525,13 +2527,13 @@ class DraftTrayIdAPIView(APIView):
             }, status=201)
 
         except IntegrityError as e:
-            print(f"❌ IntegrityError in DraftTrayIdAPIView: {str(e)}")
+            logger.error(f"❌ IntegrityError in DraftTrayIdAPIView: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False, 
-                'error': f'Database constraint error: {str(e)}. Please refresh and try again.'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=400)
         except Exception as e:
-            print(f"❌ Error in DraftTrayIdAPIView: {str(e)}")
+            logger.error(f"❌ Error in DraftTrayIdAPIView: {str(e)}", exc_info=True)
             return JsonResponse({'success': False, 'error': 'Unexpected error: ' + str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2843,10 +2845,10 @@ class TrayIdUniqueCheckAPIView(APIView):
             }
             
         except Exception as e:
-            print(f"❌ Error in tray type validation: {str(e)}")
+            logger.error(f"❌ Error in tray type validation: {str(e)}", exc_info=True)
             return {
                 'compatible': False,
-                'error': f'Validation error: {str(e)}',
+                'error': 'Unable to process the request. Please verify the submitted data and try again.',
                 'batch_tray_type': None,
                 'scanned_tray_type': tray.tray_type if tray else None
             }
@@ -2918,8 +2920,8 @@ class UpdateBatchQuantityAndColorAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in UpdateBatchQuantityAndColorAPIView: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in UpdateBatchQuantityAndColorAPIView: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2936,8 +2938,8 @@ class GetPlatingColorsAPIView(APIView):
                 'count': len(plating_colors)
             })
         except Exception as e:
-            print(f"❌ Error in GetPlatingColorsAPIView: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in GetPlatingColorsAPIView: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -2955,7 +2957,7 @@ class DeleteBatchAPIView(APIView):
             obj.delete()
             return JsonResponse({'success': True, 'message': 'Batch deleted'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2974,7 +2976,7 @@ class SaveDPPickRemarkAPIView(APIView):
             obj.save(update_fields=['dp_pick_remarks'])
             return JsonResponse({'success': True, 'message': 'Remark saved'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TrayValidateAPIView(APIView):
@@ -2994,8 +2996,8 @@ class TrayValidateAPIView(APIView):
 
             return JsonResponse({'success': True, 'exists': exists})
         except Exception as e:
-            print(f"[TrayValidateAPIView] Error: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"[TrayValidateAPIView] Error: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
      
      
 import pytz
@@ -3298,8 +3300,8 @@ class TrayAutoSaveAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in TrayAutoSaveAPIView POST: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in TrayAutoSaveAPIView POST: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     
     def get(self, request):
         """Retrieve auto-save data for current user and batch"""
@@ -3343,8 +3345,8 @@ class TrayAutoSaveAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in TrayAutoSaveAPIView GET: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in TrayAutoSaveAPIView GET: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     
     def delete(self, request):
         """Clear auto-save data for current user and batch"""
@@ -3368,8 +3370,8 @@ class TrayAutoSaveAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in TrayAutoSaveAPIView DELETE: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in TrayAutoSaveAPIView DELETE: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -3401,8 +3403,8 @@ class TrayAutoSaveCleanupAPIView(APIView):
             })
             
         except Exception as e:
-            print(f"❌ Error in TrayAutoSaveCleanupAPIView: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"❌ Error in TrayAutoSaveCleanupAPIView: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
             
 # ==========================================
 # BARCODE SCANNER API - Day Planning
@@ -3465,7 +3467,7 @@ def dget_lot_id_for_tray(request):
                     return None
                     
             except Exception as e:
-                print(f"❌ [DP SCANNER] Error calculating page: {str(e)}")
+                logger.error(f"❌ [DP SCANNER] Error calculating page: {str(e)}", exc_info=True)
                 return None
         
         # 1. Look up in DPTrayId_History table (Day Planning specific)
@@ -3535,10 +3537,10 @@ def dget_lot_id_for_tray(request):
         })
         
     except Exception as e:
-        print(f"❌ [DP SCANNER] Error: {str(e)}")
+        logger.error(f"❌ [DP SCANNER] Error: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False, 
-            'error': f'Database error: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         })
 
 
@@ -3561,8 +3563,8 @@ def draft_tray_delete(request):
         print(f"🗑️ [DRAFT DELETE] Deleted {deleted[0]} draft tray(s) for batch {batch_id} position {position}")
         return JsonResponse({'success': True})
     except Exception as e:
-        print(f"❌ [DRAFT DELETE] Error: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)})
+        logger.error(f"❌ [DRAFT DELETE] Error: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
 
 class GetAllowedVersionsAPIView(APIView):
@@ -3595,7 +3597,7 @@ class GetAllowedVersionsAPIView(APIView):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Failed to fetch allowed versions: {str(e)}',
+                'error': 'Unable to process the request. Please verify the submitted data and try again.',
                 'allowed_versions': ['A', 'B', 'C', 'D', 'E', 'L']  # Fallback
             })
 
@@ -3654,7 +3656,7 @@ class ValidatePlatingStockNoAPIView(APIView):
             result = {
                 'success': False,
                 'is_valid': False,
-                'message': f'Error validating plating stock number: {str(e)}'
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }
             return JsonResponse(result)
 
@@ -3729,8 +3731,8 @@ class DownloadExcelTemplateAPIView(APIView):
             return response
             
         except Exception as e:
-            print(f"❌ Error generating Excel template: {str(e)}")
+            logger.error(f"❌ Error generating Excel template: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'Error generating template: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)

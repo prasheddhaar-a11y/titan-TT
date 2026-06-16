@@ -850,7 +850,7 @@ def na_toggle_verified(request):
         return Response({'success': True, 'last_process_module': obj.last_process_module or ''})
     except Exception as e:
         logger.exception("[na_toggle_verified] error lot=%s", lot_id)
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['POST'])
@@ -1011,19 +1011,19 @@ def na_action(request):
             return _na_do_submit_reject(request, lot_id, juat)
         except Exception as e:
             logger.exception("[na_action SUBMIT_REJECT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'SUBMIT_ACCEPT':
         try:
             return _na_do_submit_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[na_action SUBMIT_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'FULL_ACCEPT':
         try:
             return _na_do_full_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[na_action FULL_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'SAVE_DRAFT':
         draft_data = _na_build_draft_snapshot(request.data.get('draft_data', {}), juat, request)
         with transaction.atomic():
@@ -1436,7 +1436,7 @@ def na_delink_selected_trays(request):
         return Response({'success': True, 'updated': updated, 'lots_processed': lots_processed})
     except Exception as e:
         logger.exception("[na_delink_selected_trays] error")
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])

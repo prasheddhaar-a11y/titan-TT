@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import TemplateHTMLRenderer
@@ -321,8 +323,8 @@ def iqf_get_brass_rejection_quantities(request):
             'total_rejection_quantity': total_rejection_quantity
         })
     except Exception as e:
-        print(f"❌ ERROR in iqf_get_brass_rejection_quantities: {str(e)}")
-        return Response({'success': False, 'error': str(e)}, status=500)
+        logger.error(f"❌ ERROR in iqf_get_brass_rejection_quantities: {str(e)}", exc_info=True)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     
 
 @method_decorator(login_required, name='dispatch')
@@ -365,7 +367,7 @@ class IQFSaveHoldUnholdReasonAPIView(APIView):
             return JsonResponse({'success': True, 'message': 'Reason saved.'})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
         
 @method_decorator(csrf_exempt, name='dispatch')  
 @method_decorator(login_required, name='dispatch')  
@@ -497,7 +499,7 @@ class IQFSaveIPPickRemarkAPIView(APIView):
             batch_obj.save(update_fields=['IQF_pick_remarks'])
             return JsonResponse({'success': True, 'message': 'Remark saved'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -564,7 +566,7 @@ class IQFTrayValidate_Complete_APIView(APIView):
                 'exists': exists
             })
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 # 1. ADD THIS API VIEW TO YOUR views.py
 
 
@@ -822,8 +824,8 @@ class IQFCompleteTableTrayIdListAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[IQFCompleteTableTrayIdListAPIView] Error: {str(e)}")
-            return Response({"success": False, "error": str(e)}, status=500)
+            logger.error(f"[IQFCompleteTableTrayIdListAPIView] Error: {str(e)}", exc_info=True)
+            return Response({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -1041,8 +1043,8 @@ class IQFPickCompleteTableTrayIdListAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"❌ [IQFPickCompleteTableTrayIdListAPIView] Error: {str(e)}")
-            return Response({"success": False, "error": str(e)}, status=500)
+            logger.error(f"❌ [IQFPickCompleteTableTrayIdListAPIView] Error: {str(e)}", exc_info=True)
+            return Response({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -1088,7 +1090,7 @@ class IQFAcceptCompleteTableTrayIdListAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({"success": False, "error": str(e)}, status=500)
+            return Response({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1357,7 +1359,7 @@ class IQFRejectTableTrayIdListAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({"success": False, "error": str(e)}, status=500)
+            return Response({"success": False, "error": 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -1427,7 +1429,7 @@ class IQFLotRejectionDraftAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required, name='dispatch')
@@ -1497,7 +1499,7 @@ class IQFTrayRejectionDraftAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required, name='dispatch')
@@ -1560,7 +1562,7 @@ class IQFClearDraftAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])
@@ -1602,7 +1604,7 @@ def iqf_get_draft_data(request):
             })
             
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])
@@ -1666,7 +1668,7 @@ def iqf_get_all_drafts(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500) 
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500) 
     
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required, name='dispatch')
@@ -1854,8 +1856,8 @@ class IQFLotRejectionAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[BATCH REJECTION ERROR] Failed to process batch rejection with delink: {str(e)}")
-            return Response({'success': False, 'error': str(e)}, status=500)
+            logger.error(f"[BATCH REJECTION ERROR] Failed to process batch rejection with delink: {str(e)}", exc_info=True)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -2017,7 +2019,7 @@ class IQFTrayDelinkTopTrayCalcAPIView(APIView):
 
         except Exception as e:
             # Log the error in production
-            print(f"Error in IQFTrayDelinkTopTrayCalcAPIView: {str(e)}")
+            logger.error(f"Error in IQFTrayDelinkTopTrayCalcAPIView: {str(e)}", exc_info=True)
 
             return Response({
                 'success': False,
@@ -2145,10 +2147,10 @@ class IQFTrayDelinkAndTopTrayUpdateAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[ERROR] Failed to update trays: {str(e)}")
+            logger.error(f"[ERROR] Failed to update trays: {str(e)}", exc_info=True)
             return Response({
                 'success': False, 
-                'error': f'Failed to update trays: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
             
 class IQFValidateTrayIdAPIView(APIView):
@@ -2629,7 +2631,7 @@ class IQFTrayRejectionAPIView(APIView):
             traceback.print_exc()
             return Response({
                 'success': False, 
-                'error': f'Auto-allocation failed: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 @require_GET
@@ -2688,7 +2690,7 @@ def iqf_get_accepted_tray_scan_data(request):
             'tray_capacity': tray_capacity,
         })
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])
@@ -2897,7 +2899,7 @@ def iqf_view_tray_list(request):
         })
         
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -3229,12 +3231,12 @@ class IQFTrayValidateAPIView(APIView):
                 })
             
         except Exception as e:
-            print(f"[DEBUG] ERROR: {str(e)}")
+            logger.error(f"[DEBUG] ERROR: {str(e)}", exc_info=True)
             import traceback
             traceback.print_exc()
             return JsonResponse({
                 'success': False, 
-                'error': str(e)
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 @api_view(['GET'])
@@ -3256,7 +3258,7 @@ def IQF_check_accepted_tray_draft(request):
             'has_draft': has_draft
         })
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -3673,7 +3675,7 @@ def iqf_get_rejected_tray_scan_data(request):
                 delink_candidates = []
                 new_tray_used = False
         except Exception as e:
-            print(f"  Warning: Could not fetch delink candidates: {str(e)}")
+            logger.error(f"  Warning: Could not fetch delink candidates: {str(e)}", exc_info=True)
             delink_candidates = []
             new_tray_used = False
 
@@ -3686,9 +3688,9 @@ def iqf_get_rejected_tray_scan_data(request):
             'new_tray_used': new_tray_used  # ✅ NEW: Include new tray usage flag
         })
     except Exception as e:
-        print(f"[iqf_get_rejected_tray_scan_data] ERROR: {str(e)}")
+        logger.error(f"[iqf_get_rejected_tray_scan_data] ERROR: {str(e)}", exc_info=True)
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -3706,7 +3708,7 @@ class IQFDeleteBatchAPIView(APIView):
             obj.delete()
             return JsonResponse({'success': True, 'message': 'Stock lot deleted'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @method_decorator(login_required, name='dispatch')
 class IQFCompletedTableView(APIView):
@@ -4016,7 +4018,7 @@ class IQFRejectTableView(APIView):
                             data['iqf_rejection_total_qty'] = 0
                         print(f"⚠️ No rejection record found for {stock_lot_id}")
                 except Exception as e:
-                    print(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}")
+                    logger.error(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}", exc_info=True)
                     data['iqf_rejection_total_qty'] = data.get('iqf_rejection_total_qty', 0)
             else:
                 data['iqf_rejection_total_qty'] = 0
@@ -4097,7 +4099,7 @@ def iqf_get_rejection_details(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     
 @require_GET
 def iqf_reject_check_tray_id_simple(request):
@@ -4498,7 +4500,7 @@ def iqf_reject_check_tray_id_simple(request):
 
             except Exception as e:
                 print(f"Error in reuse logic: {e}")
-                return JsonResponse({'exists': False, 'error': f'Validation Error: {str(e)}'})
+                return JsonResponse({'exists': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
         # Fallback (Should not catch anything if logic is sound, but strictly safe)
         return JsonResponse({
@@ -4511,7 +4513,7 @@ def iqf_reject_check_tray_id_simple(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({'exists': False, 'error': str(e)}, status=500)
+        return JsonResponse({'exists': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])
@@ -4624,7 +4626,7 @@ def iqf_get_delink_candidates(request):
                             rejected_tray_ids.add(tray_id)
                             print(f"  📋 Found draft rejection for: {tray_id}")
         except Exception as e:
-            print(f"  ⚠️ Could not parse draft rejection data: {str(e)}")
+            logger.error(f"  ⚠️ Could not parse draft rejection data: {str(e)}", exc_info=True)
         
         # From Brass QC finalized rejection
         brass_rejected = Brass_QC_Rejected_TrayScan.objects.filter(lot_id=lot_id).values_list('rejected_tray_id', flat=True).distinct()
@@ -4683,7 +4685,7 @@ def iqf_get_delink_candidates(request):
                         accepted_tray_ids.append(top_id)
                         print(f"  📋 Found draft acceptance (top tray): {top_id}")
         except Exception as e:
-            print(f"  ⚠️ Could not parse draft acceptance data: {str(e)}")
+            logger.error(f"  ⚠️ Could not parse draft acceptance data: {str(e)}", exc_info=True)
         
         print(f"  Trays in acceptance: {accepted_tray_ids}")
         
@@ -4742,10 +4744,10 @@ def iqf_get_delink_candidates(request):
         })
         
     except Exception as e:
-        print(f"[DELINK ERROR] {str(e)}")
+        logger.error(f"[DELINK ERROR] {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['GET'])
@@ -4827,7 +4829,7 @@ def iqf_get_rejected_trays(request):
         })
         
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -5128,8 +5130,8 @@ def iqf_get_remaining_trays(request):
         })
         
     except Exception as e:
-        print(f"[DEBUG] Error in iqf_get_remaining_trays: {str(e)}")
-        return Response({'success': False, 'error': str(e)}, status=500)
+        logger.error(f"[DEBUG] Error in iqf_get_remaining_trays: {str(e)}", exc_info=True)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -5210,10 +5212,10 @@ def iqf_validate_delink_tray(request):
         })
         
     except Exception as e:
-        print(f"❌ [DELINK-VALIDATE] Error: {str(e)}")
+        logger.error(f"❌ [DELINK-VALIDATE] Error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e), 'is_valid': False}, status=500)     
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.', 'is_valid': False}, status=500)     
 
 
 
@@ -5255,7 +5257,7 @@ def iqf_save_draft_tray_ids(request):
 
         return Response({'success': True, 'message': 'Draft trays saved.'})
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 
@@ -5289,7 +5291,7 @@ def remove_tray_from_rejection(tray_id, lot_id):
         print(f"✅ [CLEANUP] Removed tray {tray_id} from rejection list for lot {lot_id}")
         return True
     except Exception as e:
-        print(f"❌ [CLEANUP] Error removing tray {tray_id} from rejection: {str(e)}")
+        logger.error(f"❌ [CLEANUP] Error removing tray {tray_id} from rejection: {str(e)}", exc_info=True)
         return False
 
 
@@ -5308,7 +5310,7 @@ def remove_tray_from_acceptance(tray_id, lot_id):
         print(f"✅ [CLEANUP] Removed tray {tray_id} from acceptance list for lot {lot_id}")
         return True
     except Exception as e:
-        print(f"❌ [CLEANUP] Error removing tray {tray_id} from acceptance: {str(e)}")
+        logger.error(f"❌ [CLEANUP] Error removing tray {tray_id} from acceptance: {str(e)}", exc_info=True)
         return False
 
 
@@ -5552,10 +5554,10 @@ def iqf_process_all_tray_data(request):
         })
         
     except Exception as e:
-        print(f"[DEBUG] Error in iqf_process_all_tray_data: {str(e)}")
+        logger.error(f"[DEBUG] Error in iqf_process_all_tray_data: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
      
      
      
@@ -5613,7 +5615,7 @@ def get_tray_capacity(request):
 
         return Response(response_data)
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     
 
 @csrf_exempt
@@ -5791,7 +5793,7 @@ def iqf_delink_selected_trays(request):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
     
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
 # These views is for draft ( Delink and Rejection Verification )
@@ -5845,7 +5847,7 @@ class IQFOptimalDistributionDraftView(View):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Error retrieving draft: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
     
     def post(self, request):
@@ -5911,7 +5913,7 @@ class IQFOptimalDistributionDraftView(View):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Error saving draft: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
     
     def delete(self, request):
@@ -5954,7 +5956,7 @@ class IQFOptimalDistributionDraftView(View):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Error deleting draft: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -5988,7 +5990,7 @@ def iqf_check_optimal_distribution_draft(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error checking draft: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)
 
 
@@ -6035,7 +6037,7 @@ def iqf_save_optimal_distribution_draft(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error saving draft: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)
 
 
@@ -6081,7 +6083,7 @@ def iqf_load_optimal_distribution_draft(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error loading draft: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         }, status=500)
         
 
@@ -6334,7 +6336,7 @@ class IQFSetManualDraftAPIView(APIView):
             traceback.print_exc()
             return Response({
                 'success': False,
-                'error': f'Failed to save manual draft: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -6430,7 +6432,7 @@ class IQFSaveRejectionDraftAPIView(APIView):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -6538,7 +6540,7 @@ class IQFSaveAcceptedTrayDraftAPIView(APIView):
             traceback.print_exc()
             return Response({
                 'success': False,
-                'error': f'Failed to save accepted tray draft: {str(e)}'
+                'error': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=500)
 
 
@@ -6610,7 +6612,7 @@ def get_lot_id_for_tray(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Database error: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         })
 
 
@@ -6665,7 +6667,7 @@ def iqf_get_available_new_tray(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Database error: {str(e)}'
+            'error': 'Unable to process the request. Please verify the submitted data and try again.'
         })
 
 
@@ -6798,7 +6800,7 @@ def auto_allocate_iqf_rejection(lot_id, total_rejection_qty, available_trays):
         return result
         
     except Exception as e:
-        print(f"[AUTO-ALLOCATE] Error: {str(e)}")
+        logger.error(f"[AUTO-ALLOCATE] Error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         return {
@@ -6847,7 +6849,7 @@ def consolidate_acceptance_trays(acceptance_trays, lot_id, total_accepted, tray_
         }
         
     except Exception as e:
-        print(f"❌ [CONSOLIDATE] Error: {str(e)}")
+        logger.error(f"❌ [CONSOLIDATE] Error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         return {
@@ -6856,7 +6858,7 @@ def consolidate_acceptance_trays(acceptance_trays, lot_id, total_accepted, tray_
         }
         
     except Exception as e:
-        print(f"❌ [CONSOLIDATE] Error: {str(e)}")
+        logger.error(f"❌ [CONSOLIDATE] Error: {str(e)}", exc_info=True)
         return {
             'acceptance_trays': acceptance_trays,
             'new_trays_needed': []
@@ -6905,7 +6907,7 @@ def generate_new_acceptance_tray_id(original_tray_id):
         return f"ACC-{timestamp}00"
         
     except Exception as e:
-        print(f"❌ [TRAY-ID] Error generating new tray ID: {str(e)}")
+        logger.error(f"❌ [TRAY-ID] Error generating new tray ID: {str(e)}", exc_info=True)
         from datetime import datetime
         timestamp = datetime.now().strftime("%m%d%H%M")
         return f"ACC-{timestamp}"
@@ -6948,7 +6950,7 @@ def get_iqf_available_trays_for_allocation(lot_id):
                             accepted_tray_ids.append(tray_id)
                             print(f"   ⚠️ Excluding draft accepted tray: {tray_id}")
         except Exception as e:
-            print(f"   ⚠️ Could not parse draft acceptance data: {str(e)}")
+            logger.error(f"   ⚠️ Could not parse draft acceptance data: {str(e)}", exc_info=True)
         
         # Get all trays for the lot (including delinked ones for allocation)
         trays = IQFTrayId.objects.filter(
@@ -7141,7 +7143,7 @@ def get_iqf_available_trays_for_allocation(lot_id):
         return tray_list
         
     except Exception as e:
-        print(f"❌ [AVAILABLE-TRAYS] Error: {str(e)}")
+        logger.error(f"❌ [AVAILABLE-TRAYS] Error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
         return []
@@ -7313,7 +7315,7 @@ def apply_iqf_auto_allocation_results(lot_id, batch_id, allocation_results, reje
         return {'success': True, 'message': 'Auto-allocation applied successfully'}
         
     except Exception as e:
-        print(f"[APPLY-ALLOCATION] Error: {str(e)}")
+        logger.error(f"[APPLY-ALLOCATION] Error: {str(e)}", exc_info=True)
         import traceback
         traceback.print_exc()
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}

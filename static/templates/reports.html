@@ -1,5 +1,5 @@
 {% extends "base.html" %} {% load static %} {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .reports-container {
     min-height: calc(100vh - 60px);
     padding: 0;

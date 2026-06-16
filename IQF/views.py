@@ -1,4 +1,6 @@
-﻿from rest_framework.views import APIView
+import logging
+logger = logging.getLogger(__name__)
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import TemplateHTMLRenderer
 from django.shortcuts import render
@@ -1905,7 +1907,7 @@ def iqf_tray_details(request):
     except Exception as e:
         traceback.print_exc()
         print('[IQF TRAY API ERROR]', str(e))
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 # IQF Completed Table API: returns all lots from IQF_Submitted (SINGLE SOURCE OF TRUTH)
 @method_decorator(login_required, name='dispatch')
@@ -1982,7 +1984,7 @@ class IQFCompletedTableView(APIView):
         except Exception as e:
             print('[IQF COMPLETED ERROR]', str(e))
             traceback.print_exc()
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -2602,7 +2604,7 @@ def iqf_delete_lot(request):
     except Exception as e:
         print('[IQF DELETE LOT ERROR]', str(e))
         traceback.print_exc()
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 # ── IQF Accepted Tray Slots — Backend computes, frontend renders ──
@@ -3788,7 +3790,7 @@ def iqf_accept_delink_modal(request):
                 # Lot stays visible in pick table for user retry
                 return Response({
                     'success': False,
-                    'error': f'Delink confirmation failed: {str(e)}. Lot remains in PARTIAL state for retry.',
+                    'error': 'Unable to process the request. Please verify the submitted data and try again.',
                     'lot_id': lot_id,
                 }, status=500)
 
@@ -3815,7 +3817,7 @@ def iqf_accept_delink_modal(request):
         # Return informative error with context for debugging
         return Response({
             'success': False,
-            'error': f'Delink modal initialization failed: {str(e)}',
+            'error': 'Unable to process the request. Please verify the submitted data and try again.',
             'lot_id': lot_id,
             'iqf_rejection_total': iqf_rejection_total,
         }, status=500)
@@ -4337,4 +4339,4 @@ class IQFSaveHoldUnholdReasonAPIView(APIView):
             return JsonResponse({'success': True, 'message': 'Reason saved.'})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)

@@ -1,6 +1,6 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 {% load stock_filters %} 
-<style>
+<style nonce="{{ csp_nonce }}">
 
    /* ===== SORTING STYLES ===== */
    .table th {
@@ -695,7 +695,7 @@
    }
    /* Table heading font size */
    /* Add this at the end of your 
-<style>
+<style nonce="{{ csp_nonce }}">
    block in DP_PickTable.html */
    /* Professional table header styling with proper text wrapping */
    #order-listing th {

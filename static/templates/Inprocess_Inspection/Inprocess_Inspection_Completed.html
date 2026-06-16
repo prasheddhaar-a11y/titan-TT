@@ -3,7 +3,7 @@
 {% load stock_filters %}
 {% load custom_tags %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* Enhanced date input styling */
   #from-date-simple, #to-date-simple {
     transition: all 0.3s ease;

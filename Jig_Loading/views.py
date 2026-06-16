@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 import logging
+logger = logging.getLogger(__name__)
 import re
 import json
 from django.db import transaction
@@ -4324,7 +4325,7 @@ class JigHoldToggleAPI(APIView):
 			logging.error(f'JigHoldToggleAPI error: {str(e)}')
 			return Response({
 				'success': False,
-				'error': str(e)
+				'error': 'Unable to process the request. Please verify the submitted data and try again.'
 			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4444,7 +4445,7 @@ class DeleteJigPickRecordAPI(APIView):
 			logging.exception(f'DeleteJigPickRecordAPI error: {str(e)}')
 			return Response({
 				'success': False,
-				'error': str(e),
+				'error': 'Unable to process the request. Please verify the submitted data and try again.',
 			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4539,7 +4540,7 @@ class UpdateRemarkAPI(APIView):
 			logging.exception(f'UpdateRemarkAPI error: {str(e)}')
 			return Response({
 				'success': False,
-				'error': str(e),
+				'error': 'Unable to process the request. Please verify the submitted data and try again.',
 			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4742,7 +4743,7 @@ class LotFetchAPI(APIView):
 			logging.exception(f'LotFetchAPI default mode error: {str(e)}')
 			return Response({
 				'status': 'error',
-				'message': str(e),
+				'message': 'Unable to process the request. Please verify the submitted data and try again.',
 			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4919,4 +4920,4 @@ def jig_get_lot_id_for_tray(request):
 
 	except Exception as e:
 		logging.exception(f'jig_get_lot_id_for_tray error: {str(e)}')
-		return JsonResponse({'success': False, 'error': f'Database error: {str(e)}'})
+		return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})

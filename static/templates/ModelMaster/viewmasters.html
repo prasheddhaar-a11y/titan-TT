@@ -4,7 +4,7 @@
 
 <div class="container mt-5" style="margin-top: 0px !important">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
+    <style nonce="{{ csp_nonce }}">
 
 
 
@@ -367,7 +367,7 @@
 
   
 {% if nickel_rejections.paginator.count <= 10 %}
-<style>
+<style nonce="{{ csp_nonce }}">
   #nickelrejection-pagination .pagination-btn {
     cursor: not-allowed !important;
     background-color: #d8d8d8 !important;

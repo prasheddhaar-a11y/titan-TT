@@ -1,5 +1,5 @@
 {% extends "base.html" %} {% load static %} {% block content %}
-<style>
+<style nonce="{{ csp_nonce }}">
   /* Pagination Styles */
   #paginationControls {
     display: flex;

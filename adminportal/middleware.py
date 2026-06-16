@@ -7,6 +7,32 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+class BlockOptionsMiddleware:
+    """
+    Security middleware that rejects HTTP OPTIONS requests with 405 Method Not Allowed.
+
+    Rationale:
+    - This application has no CORS requirements (no django-cors-headers, no cross-origin
+      consumers). OPTIONS preflight requests serve no functional purpose here.
+    - Blocking OPTIONS globally prevents scanners and attackers from discovering
+      supported HTTP methods and endpoint structure via OPTIONS introspection.
+    - This middleware must be registered as the FIRST entry in MIDDLEWARE so that
+      OPTIONS requests are rejected before any authentication, session, or CSRF
+      processing occurs.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method == 'OPTIONS':
+            response = HttpResponse(status=405)
+            response['Allow'] = 'GET, POST, HEAD'
+            response['Content-Length'] = '0'
+            return response
+        return self.get_response(request)
+
 # ---------------------------------------------------------------------------
 # URL-prefix → set of module names that grant access to that area.
 # Any module name from USER_CATEGORY_MODULES that belongs to the group
