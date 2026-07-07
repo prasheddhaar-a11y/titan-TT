@@ -3097,6 +3097,9 @@ class DPCompletedTableView(APIView):
             rejected_ip_stock=Subquery(rejected_ip_stock_subquery),
             draft_tray_verify=Subquery(draft_tray_verify_subquery),
         )
+        # Exclude batches that have no TotalStockModel record (created_at is null)
+        # This avoids showing deleted/partial records which were removed downstream
+        queryset = queryset.filter(created_at__isnull=False)
 
         if date_filter_applied:
             batch_ids_in_range = TotalStockModel.objects.filter(

@@ -6,6 +6,7 @@ from BrassAudit.models import *
 from Nickel_Audit.models import *
 from Nickel_Inspection.models import *
 from rest_framework.exceptions import ValidationError
+from django.conf import settings
 from django.utils import timezone
 
 class PolishFinishTypeSerializer(serializers.ModelSerializer):
@@ -120,9 +121,196 @@ class TrayTypeSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 class ModelImageSerializer(serializers.ModelSerializer):
+    # Allowed image MIME types and extensions (Issue #24).
+    # Kept in sync with adminportal/views.py ModelImageAPIView._validate_image_file().
+    # This is now the canonical validation layer; the view-level check is left in
+    # place as a defense-in-depth duplicate, not the source of truth.
+    _ALLOWED_IMAGE_MIME = frozenset({
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+    })
+    _ALLOWED_IMAGE_EXT = frozenset({
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp',
+    })
+    # Dangerous intermediate extensions that must not appear anywhere in the filename
+    _DANGEROUS_EXT = frozenset({
+        '.exe', '.php', '.sh', '.bat', '.cmd', '.ps1', '.js', '.py',
+        '.rb', '.pl', '.asp', '.aspx', '.jsp', '.cgi', '.dll', '.so',
+    })
+
+    # Project-owned magic-number (file signature) checks for each allowed
+    # image format. These inspect actual file bytes, independent of the
+    # filename extension or the client-supplied Content-Type header, so a
+    # mismatched/spoofed extension or MIME cannot mask non-image content.
+    # Values are lists of possible byte signatures at offset 0, since some
+    # formats (GIF, WEBP) have more than one valid header variant.
+    _IMAGE_SIGNATURES = {
+        'PNG': [b'\x89PNG\r\n\x1a\n'],
+        'JPEG': [b'\xff\xd8\xff'],
+        'GIF': [b'GIF87a', b'GIF89a'],
+        # WEBP: 'RIFF' at offset 0, 'WEBP' at offset 8. Checked separately below.
+        'WEBP': [b'RIFF'],
+        'BMP': [b'BM'],
+    }
+
+    # Maps each detected signature format to the extension(s) and MIME type
+    # that are allowed to accompany it. Used to enforce extension/MIME/
+    # signature consistency (Task 4): the detected format must match BOTH
+    # the claimed extension AND the claimed Content-Type, not just be "some
+    # allowed format".
+    _FORMAT_TO_EXT = {
+        'PNG': {'.png'},
+        'JPEG': {'.jpg', '.jpeg'},
+        'GIF': {'.gif'},
+        'WEBP': {'.webp'},
+        'BMP': {'.bmp'},
+    }
+    _FORMAT_TO_MIME = {
+        'PNG': 'image/png',
+        'JPEG': 'image/jpeg',
+        'GIF': 'image/gif',
+        'WEBP': 'image/webp',
+        'BMP': 'image/bmp',
+    }
+
     class Meta:
         model = ModelImage
         fields = '__all__'
+
+    @classmethod
+    def _detect_image_format(cls, value):
+        """
+        Reads the first bytes of the uploaded file and identifies which
+        known image format (if any) the byte signature matches.
+
+        Returns a tuple: (detected_format_or_None, error_or_None).
+        - If content matches a recognized signature: (format_name, None)
+        - If content matches no recognized signature: (None, error_string)
+
+        The file pointer is always reset to the start afterwards so that
+        downstream consumers (Pillow verification, model save) read the
+        complete, untouched file.
+        """
+        try:
+            value.seek(0)
+            header = value.read(16)
+        finally:
+            value.seek(0)
+
+        if not header:
+            return None, 'Uploaded file is empty or unreadable.'
+
+        is_png = header.startswith(cls._IMAGE_SIGNATURES['PNG'][0])
+        is_jpeg = header.startswith(cls._IMAGE_SIGNATURES['JPEG'][0])
+        is_gif = any(header.startswith(sig) for sig in cls._IMAGE_SIGNATURES['GIF'])
+        is_bmp = header.startswith(cls._IMAGE_SIGNATURES['BMP'][0])
+        # WEBP container: 'RIFF' at offset 0, then a 4-byte size field, then 'WEBP' at offset 8.
+        is_webp = header.startswith(cls._IMAGE_SIGNATURES['WEBP'][0]) and header[8:12] == b'WEBP'
+
+        if is_png:
+            return 'PNG', None
+        if is_jpeg:
+            return 'JPEG', None
+        if is_gif:
+            return 'GIF', None
+        if is_webp:
+            return 'WEBP', None
+        if is_bmp:
+            return 'BMP', None
+
+        return None, (
+            'File content does not match a recognized image format '
+            '(PNG, JPEG, GIF, WEBP, BMP). The file may be corrupted or '
+            'not a genuine image.'
+        )
+
+    @classmethod
+    def _check_signature_consistency(cls, value, ext, content_type):
+        """
+        Verifies that the detected image signature, the claimed file
+        extension, and the claimed Content-Type all agree on the same
+        format. Returns an error string if any of the three disagree, or
+        None if they are fully consistent.
+        """
+        detected_format, detect_error = cls._detect_image_format(value)
+        if detect_error:
+            return detect_error
+
+        allowed_exts = cls._FORMAT_TO_EXT[detected_format]
+        expected_mime = cls._FORMAT_TO_MIME[detected_format]
+
+        if ext not in allowed_exts:
+            return (
+                f'File extension "{ext}" does not match the detected image '
+                f'format ({detected_format}). Expected extension(s): '
+                f'{", ".join(sorted(allowed_exts))}.'
+            )
+
+        if content_type and content_type != expected_mime:
+            return (
+                f'Content-Type "{content_type}" does not match the detected '
+                f'image format ({detected_format}). Expected Content-Type: '
+                f'{expected_mime}.'
+            )
+
+        return None
+
+    def validate_master_image(self, value):
+        """
+        Canonical file validation for ModelImage uploads. Runs regardless of
+        which view/caller uses this serializer.
+
+        Layers (same logic as ModelImageAPIView._validate_image_file, plus
+        added size, signature, and consistency checks):
+          1. Dangerous intermediate extension denylist (e.g. sample.exe.png)
+          2. Final extension allowlist
+          3. MIME type allowlist
+          4. Max upload size (settings.MODEL_IMAGE_MAX_UPLOAD_SIZE)
+          5. Magic-number detection + extension/MIME/signature consistency
+             (project-owned, reads raw bytes)
+          6. Valid image content (delegated to ImageField -> Pillow .verify())
+        """
+        import os
+
+        name = value.name or ''
+        stem = os.path.splitext(name)[0].lower()
+        _, ext = os.path.splitext(name.lower())
+
+        for dext in self._DANGEROUS_EXT:
+            if stem.endswith(dext) or f'{dext}.' in stem:
+                raise serializers.ValidationError(
+                    f'File "{name}" contains a disallowed intermediate extension.'
+                )
+
+        if ext not in self._ALLOWED_IMAGE_EXT:
+            raise serializers.ValidationError(
+                f'File extension "{ext}" is not allowed. Allowed: jpg, jpeg, png, gif, webp, bmp.'
+            )
+
+        content_type = getattr(value, 'content_type', '') or ''
+        if content_type and content_type not in self._ALLOWED_IMAGE_MIME:
+            raise serializers.ValidationError(
+                f'File type "{content_type}" is not allowed. Only image files are accepted.'
+            )
+
+        max_size = settings.MODEL_IMAGE_MAX_UPLOAD_SIZE
+        size = getattr(value, 'size', None)
+        if size is not None and size > max_size:
+            max_mb = max_size / (1024 * 1024)
+            raise serializers.ValidationError(
+                f'Image exceeds maximum allowed size of {max_mb:g} MB.'
+            )
+
+        signature_error = self._check_signature_consistency(value, ext, content_type)
+        if signature_error:
+            raise serializers.ValidationError(signature_error)
+
+        # Content verification: ModelImage.master_image is an ImageField, so
+        # ImageField.to_internal_value() has already run Pillow's
+        # Image.open(file).verify() before validate_master_image() is called.
+        # Non-image bytes (even with a spoofed extension/MIME) are rejected
+        # upstream of this point with a DRF "Upload a valid image" error.
+
+        return value
 
     def create(self, validated_data):
         # Ensure date_time is set to current time when creating

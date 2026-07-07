@@ -605,11 +605,21 @@ def brass_qc_toggle_verified(request):
 
     logger.info(f"[BrassQC] Toggle verified: lot_id={lot_id}, verified={ts.brass_qc_accepted_qty_verified}")
 
+    # ── Bin icon activation rule (mirrors BrassPickTableView.can_delete) ──
+    can_delete = (
+        not ts.brass_qc_accptance and
+        not ts.brass_qc_rejection and
+        not ts.brass_accepted_tray_scan_status and
+        not ts.brass_qc_few_cases_accptance and
+        ts.brass_qc_accepted_qty_verified
+    )
+
     return JsonResponse({
         "success": True,
         "lot_id": lot_id,
         "brass_qc_accepted_qty_verified": ts.brass_qc_accepted_qty_verified,
         "last_process_module": ts.last_process_module,
+        "can_delete": can_delete,
     })
 
 

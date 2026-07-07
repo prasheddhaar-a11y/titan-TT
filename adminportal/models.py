@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import *
@@ -197,6 +198,47 @@ class AccountLockout(models.Model):
     def __str__(self):
         state = 'LOCKED' if self.is_locked else 'active'
         return f"{self.user.username} ({state}, {self.failed_attempts} failed attempts)"
+
+
+class UserActiveSession(models.Model):
+    """
+    Single-session-per-account enforcement (TASK 1: model definition only).
+
+    Stores the most recent valid Django session key for a user. Will be used
+    to detect and reject stale sessions when the same account logs in again
+    from a different browser/device, once the corresponding signals and
+    middleware are added in a later task.
+
+    Deliberately kept as its own model rather than added to `UserProfile`:
+    `UserProfile` holds HR/profile data (department, role, manager,
+    employment status) and is created via a post_save signal on User
+    creation. Session security state should not be coupled to that, and
+    keeping it separate also keeps the optional audit fields below
+    (ip_address, user_agent, login_source) out of profile data.
+
+    NOTE: No signals, middleware, or settings wiring are introduced by this
+    change. The model is not yet read or written anywhere; that is handled
+    in a subsequent task.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='active_session'
+    )
+    session_key = models.CharField(max_length=40, db_index=True)
+    login_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Optional audit fields. Not yet populated by any code path; reserved
+    # for future use (e.g. recording where/how the active session was set).
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    login_source = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        verbose_name = "User Active Session"
+        verbose_name_plural = "User Active Sessions"
+
+    def __str__(self):
+        return f"{self.user.username} -> session {self.session_key}"
 
 
 from django.db.models.signals import post_save

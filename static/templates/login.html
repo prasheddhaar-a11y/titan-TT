@@ -709,7 +709,7 @@
                   {{ error }}
                 </div>
                 {% endif %}
-                <form class="pt-3" method="post" action="{% url 'login' %}">
+                <form class="pt-3" method="post" action="">
                   {% csrf_token %}
                   <div class="form-group input-with-icon">
                     <span class="input-icon" aria-hidden="true">
@@ -726,12 +726,18 @@
                     </span>
                     <input
                       type="text"
-                      name="username"
+                      name="{{ form.username.html_name }}"
                       id="usernameInput"
                       class="form-control form-control-lg"
                       placeholder="Email or phone number"
                       autocomplete="off"
+                      value="{{ form.username.value|default_if_none:'' }}"
                     />
+                    {% if form.username.errors %}
+                    <div class="text-danger" style="font-size: 13px; margin-top: 6px;">
+                      {{ form.username.errors.0 }}
+                    </div>
+                    {% endif %}
                   </div>
                   <div
                     class="form-group input-with-icon"
@@ -751,14 +757,29 @@
                     </span>
                     <input
                       type="password"
-                      name="password"
+                      name="{{ form.password.html_name }}"
                       id="passwordInput"
                       class="form-control form-control-lg"
                       placeholder="Password"
                       autocomplete="off"
                     />
+                    {% if form.password.errors %}
+                    <div class="text-danger" style="font-size: 13px; margin-top: 6px;">
+                      {{ form.password.errors.0 }}
+                    </div>
+                    {% endif %}
       
                   </div>
+                  {% if show_captcha and form.captcha %}
+                  <div class="form-group" style="margin-bottom: 16px;">
+                    {{ form.captcha }}
+                    {% if form.captcha.errors %}
+                    <div class="text-danger" style="font-size: 13px; margin-top: 6px;">
+                      {{ form.captcha.errors.0 }}
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endif %}
                   <div class="mt-3">
                     <button type="submit" class="btn btn-primary auth-form-btn" id="loginBtn">
                       Login

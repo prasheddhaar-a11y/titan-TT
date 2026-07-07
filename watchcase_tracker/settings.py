@@ -42,6 +42,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1',
     'http://localhost',
+    'https://*.devtunnels.ms',
 ]
 
 # Application definition
@@ -110,6 +111,10 @@ SOCIAL_AUTH_PIPELINE = (
 
 MIDDLEWARE = [
     'adminportal.middleware.BlockOptionsMiddleware',
+    # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
+    'adminportal.middleware.SecurityHeadersMiddleware',
+    # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
+    'adminportal.middleware.AdminIPRestrictionMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -129,6 +134,18 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/home/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 AUTH_LOGIN_TEMPLATE = 'login.html'
+
+# ---------------------------------------------------------------------------
+# VAPT Fix #35 — Admin IP Allow-List
+# Only IPs listed here can reach the Django /admin/ interface.
+# In production, restrict this to your management network / VPN CIDR.
+# An empty list blocks everyone except localhost (safe default).
+# ---------------------------------------------------------------------------
+ADMIN_IP_ALLOWLIST = [
+    '127.0.0.1',
+    '::1',
+    '192.168.1.2',   # local management workstation — change for production
+]
 
 ROOT_URLCONF = 'watchcase_tracker.urls'
 
@@ -171,7 +188,8 @@ REST_FRAMEWORK = {
     'DEFAULT_METADATA_CLASS': None,
 }
 
-# Database
+
+# Dev Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -182,6 +200,19 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+
+# UAT Database
+""" DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'watchcasetrack',
+        'USER':'postgres',
+        'PASSWORD':'postgres',
+        'HOST':'127.0.0.1',
+        'PORT':'5432',
+        'CONN_MAX_AGE':60,
+    }
+} """
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -229,7 +260,7 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = True   # Issue #4: require HTTPS for session cookie
-SESSION_COOKIE_AGE = 1800      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
+SESSION_COOKIE_AGE = 900      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
 
 # ---------------------------------------------------------------------------
 # HSTS — HTTP Strict-Transport-Security (VAPT Finding #7)
@@ -245,7 +276,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 # SECURE_HSTS_PRELOAD = True
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-ENABLE_MICROSOFT_LOGIN = False
+ENABLE_MICROSOFT_LOGIN = True
 ENABLE_LOGIN_LATENCY_LOGS = False
 ENABLE_DASHBOARD_LATENCY_LOGS = False
 

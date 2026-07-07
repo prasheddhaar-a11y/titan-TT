@@ -2,6 +2,9 @@ import base64
 from django.utils.crypto import get_random_string
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect
+from django.contrib.auth import logout as auth_logout
+from django.contrib import messages
 import time
 import logging
 
@@ -159,6 +162,22 @@ class ModuleAccessMiddleware:
         return HttpResponse(html, status=403, content_type='text/html; charset=utf-8')
 
 class CSPMiddleware:
+    """
+    Content Security Policy (CSP) Middleware.
+    
+    Generates a unique nonce for each request and applies it to the CSP header
+    to allow inline scripts tagged with that nonce while preventing other inline
+    script execution. This protects against XSS attacks while maintaining
+    functionality for trusted scripts.
+    
+    Includes CSP directives for:
+    - Scripts: 'self', nonce-based, and whitelisted CDNs (SweetAlert2, Google reCAPTCHA)
+    - Styles: 'self', 'unsafe-inline', and font/icon CDNs
+    - Images: 'self', Lottie animations, dashboard assets, and data URIs
+    - Frames: 'self' and Google reCAPTCHA only
+    - Object-src: None (no Flash/plugins)
+    - Base-uri: 'self' only (prevents base tag injection)
+    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -168,12 +187,12 @@ class CSPMiddleware:
         response = self.get_response(request)
         response['Content-Security-Policy'] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}' https://unpkg.com https://cdn.jsdelivr.net/npm/sweetalert2@11 'strict-dynamic';"
+            f"script-src 'self' 'nonce-{nonce}' https://unpkg.com https://cdn.jsdelivr.net/npm/sweetalert2@11 https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/;"
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://*.lottiefiles.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://demo.bootstrapdash.com;"
             "img-src 'self' https://assets2.lottiefiles.com/packages/lf20_uiyqFZ.json https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json https://demo.bootstrapdash.com/skydash/themes/assets/images/logo-mini.svg https://demo.bootstrapdash.com/skydash/themes/assets/images/logo.svg https://demo.bootstrapdash.com/skydash/themes/assets/images/dashboard/people.svg data:; "
-            "connect-src 'self' https://assets2.lottiefiles.com/packages/lf20_uiyqFZ.json https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json;"            
-            "frame-src 'self'; "
+            "connect-src 'self' https://assets2.lottiefiles.com/packages/lf20_uiyqFZ.json https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json https://www.google.com/recaptcha/;"
+            "frame-src 'self' https://www.google.com/recaptcha/; "
             "object-src 'none'; "
             "base-uri 'self';"
         )
@@ -182,9 +201,18 @@ class CSPMiddleware:
 
 class LoginLatencyMiddleware:
     """
-    Middleware to measure login flow latency.
-    Logs timing for authentication, dashboard stats, and response rendering.
-    Only active for login-related paths.
+    Middleware to measure login flow latency and performance.
+    
+    Purpose:
+    - Instruments the login flow to measure total time and individual phase timing
+    - Tracks authentication validation, dashboard stats loading, and rendering
+    - Only monitors login-related paths (/, /home/, /login/, etc.)
+    - Disabled by default; set settings.ENABLE_LOGIN_LATENCY_LOGS = True to activate
+    
+    Note:
+    - Timing information is logged server-side only (not sent in HTTP headers)
+    - This is a security fix for VAPT #33 (sensitive information disclosure)
+    - Useful for identifying performance bottlenecks in the authentication flow
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -209,9 +237,420 @@ class LoginLatencyMiddleware:
                 f'Total={total_time:.2f}ms | {timer_log}'
             )
         
-        # Add header with timing for debugging
-        response['X-Login-Total-Time'] = f'{total_time:.2f}ms'
-        for k, v in request.timers.items():
-            response[f'X-Login-{k.upper()}'] = v
-        
+        # NOTE: Timing headers were removed (VAPT #33 — sensitive information
+        # disclosure). Timing values are available in application logs only.
         return response
+
+
+class SingleSessionMiddleware:
+    """
+    Security Middleware: Single Session Per Account Enforcement (VAPT Fix #8).
+
+    Purpose:
+    Prevents concurrent/simultaneous logins by enforcing that each user account
+    can only have one active session at a time. Works in tandem with
+    adminportal.signals which records/clears session keys on login/logout.
+
+    How it Works:
+    - On every authenticated request, compares current session key with the
+      stored UserActiveSession.session_key for that user
+    - If a newer session exists elsewhere, logs out the older session and
+      rejects the current request
+    - Automatically logs out old browsers/devices when user logs in from new location
+
+    Placement requirement:
+    Must be registered AFTER both
+      - django.contrib.sessions.middleware.SessionMiddleware
+      - django.contrib.auth.middleware.AuthenticationMiddleware
+    in settings.MIDDLEWARE, so that request.session and request.user are
+    already populated when this runs. It should also run before
+    ModuleAccessMiddleware so stale sessions never reach module/business
+    logic checks.
+
+    Behavior:
+    - Anonymous requests pass through untouched (login_required and the
+      existing auth flow already handle them).
+    - settings.LOGIN_URL, the logout URL, the Microsoft SSO entry points,
+      Django Admin's own login/logout endpoints, and static/media paths are
+      skipped so the in-flight authentication handshake (including SSO
+      state validation) is never interrupted by this middleware.
+    - For every other authenticated request, the current
+      `request.session.session_key` is compared against the stored
+      `UserActiveSession.session_key` for that user:
+        * Missing session key, or no UserActiveSession row at all (e.g. a
+          session that predates this feature, or whose record was
+          removed): fails safe — the request is logged out and rejected.
+          The next successful login recreates the row via the login
+          signal.
+        * Record exists and matches: request proceeds normally.
+        * Record exists and does NOT match: the session is stale because a
+          newer login happened elsewhere. The current request is logged
+          out and rejected.
+      Rejection returns JSON 401 for API/AJAX requests, or a redirect to
+      settings.LOGIN_URL (with an informational message) for normal
+      browser requests.
+    - A failure while querying UserActiveSession (e.g. a transient DB
+      error) is logged and the request is allowed through unenforced for
+      that one request, rather than crashing or locking out the whole
+      site.
+    """
+
+    _SKIP_PATH_PREFIXES = (
+        '/static/',
+        '/media/',
+    )
+
+    _SKIP_EXACT_PATHS = {
+        '/accounts/profile/',
+        '/auth/microsoft/login/',
+        '/auth/microsoft/callback/',
+    }
+
+    _SKIP_PATH_STARTSWITH = (
+        '/admin/login/',
+        '/admin/logout/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._should_skip(request):
+            return self.get_response(request)
+
+        user = getattr(request, 'user', None)
+        if user is None or not getattr(user, 'is_authenticated', False):
+            return self.get_response(request)
+
+        current_session_key = getattr(request.session, 'session_key', None)
+        if not current_session_key:
+            logger.warning(
+                'SINGLE_SESSION_NO_SESSION_KEY_REJECT: user=%s path=%s',
+                user.username, request.path,
+            )
+            return self._reject(request)
+
+        # Lazy import to avoid circular/app-registry import issues.
+        from adminportal.models import UserActiveSession
+
+        try:
+            active_session = UserActiveSession.objects.filter(user=user).first()
+        except Exception:
+            # A DB hiccup here must never take the whole site down. Log
+            # and let this one request through unenforced; the next
+            # request will simply try the check again.
+            logger.exception(
+                'SINGLE_SESSION_LOOKUP_FAILED: user=%s path=%s',
+                user.username, request.path,
+            )
+            return self.get_response(request)
+
+        if active_session is None:
+            # No record at all — fail safe by forcing re-authentication so
+            # a fresh UserActiveSession row is created on the next login.
+            logger.warning(
+                'SINGLE_SESSION_NO_RECORD_REJECT: user=%s path=%s',
+                user.username, request.path,
+            )
+            return self._reject(request)
+
+        if active_session.session_key == current_session_key:
+            return self.get_response(request)
+
+        logger.warning(
+            'SINGLE_SESSION_STALE_SESSION_REJECTED: user=%s path=%s '
+            'request_session=%s active_session=%s',
+            user.username, request.path, current_session_key, active_session.session_key,
+        )
+        return self._reject(request)
+
+    def _login_url(self):
+        return getattr(settings, 'LOGIN_URL', '/accounts/login/')
+
+    def _logout_url(self):
+        return getattr(settings, 'LOGOUT_URL', '/accounts/logout/')
+
+    def _should_skip(self, request):
+        path = request.path
+        if path == self._login_url() or path == self._logout_url():
+            return True
+        if path in self._SKIP_EXACT_PATHS:
+            return True
+        for prefix in self._SKIP_PATH_PREFIXES:
+            if path.startswith(prefix):
+                return True
+        for prefix in self._SKIP_PATH_STARTSWITH:
+            if path.startswith(prefix):
+                return True
+        return False
+
+    def _wants_json(self, request):
+        return (
+            'application/json' in request.META.get('HTTP_ACCEPT', '')
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.path.startswith('/adminportal/api/')
+        )
+
+    def _reject(self, request):
+        # Logs out the current (stale/invalid) request session. This also
+        # fires user_logged_out, but the TASK 2 handler only clears
+        # UserActiveSession if its stored session_key still matches the
+        # session being logged out, so it safely no-ops here when the
+        # active record already points at a newer session elsewhere.
+        auth_logout(request)
+
+        if self._wants_json(request):
+            return JsonResponse(
+                {'detail': 'Session expired because your account was logged in elsewhere.'},
+                status=401,
+            )
+
+        try:
+            messages.info(request, 'Your account was logged in from another location.')
+        except Exception:
+            # The messages framework may be unavailable/misconfigured;
+            # never let that break the actual security enforcement.
+            logger.debug('Could not attach single-session logout message.', exc_info=True)
+
+        return redirect(self._login_url())
+
+
+class EmailOTPMFARequiredMiddleware:
+    """
+    Security Middleware: Email OTP MFA Enforcement.
+    
+    Purpose:
+    Enforces second-factor authentication (Email OTP) for all authenticated users.
+    Does not handle authentication itself—only validates that MFA has been completed.
+    
+    How it Works:
+    - Allows only requests where session['mfa_verified'] = True
+    - Unauthenticated users are passed through (login_required handles them)
+    - Authenticated users without MFA verified are redirected to OTP verification
+    - Skips certain paths like login, logout, OTP verification page, and static assets
+    
+    Note:
+    The Email OTP verification view is responsible for setting the mfa_verified flag
+    after successful OTP validation.
+    """
+
+    _SKIP_PATH_PREFIXES = (
+        '/static/',
+        '/media/',
+    )
+
+    _SKIP_EXACT_PATHS = {
+        '/accounts/login/',
+        '/accounts/logout/',
+        '/accounts/verify-email-otp/',
+        '/logout/',
+        '/favicon.ico',
+    }
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._should_skip(request):
+            return self.get_response(request)
+
+        user = getattr(request, 'user', None)
+        if user is None or not getattr(user, 'is_authenticated', False):
+            return self.get_response(request)
+
+        if request.session.get('mfa_verified') is True:
+            logger.info(
+                'MFA_VERIFIED_ALLOW: user=%s path=%s',
+                getattr(user, 'username', 'unknown'),
+                request.path,
+            )
+            return self.get_response(request)
+
+        target = '/accounts/login/'
+        if request.session.get('pending_mfa_user_id'):
+            target = '/accounts/verify-email-otp/'
+
+        logger.warning(
+            'MFA_REQUIRED_REJECT: user=%s path=%s redirect=%s',
+            getattr(user, 'username', 'unknown'),
+            request.path,
+            target,
+        )
+        return redirect(target)
+
+    def _should_skip(self, request):
+        path = request.path
+        if path in self._SKIP_EXACT_PATHS:
+            return True
+        for prefix in self._SKIP_PATH_PREFIXES:
+            if path.startswith(prefix):
+                return True
+        return False
+
+
+class SecurityHeadersMiddleware:
+    """
+    Security Middleware: HTTP Security Headers Hardening (VAPT Fix #13 / #33).
+    
+    Purpose:
+    Removes technology stack disclosure headers and enforces security-hardening
+    headers to prevent information leakage and protect against common attacks.
+    
+    Headers Removed (Version/Tech Disclosure — OWASP A05 / CWE-200):
+    - Server: Reveals web-server software and version (e.g., Apache, IIS, nginx)
+    - X-Powered-By: Reveals language/framework (e.g., Python, ASP.NET)
+    - X-Runtime: Exposes per-request processing time (timing attack info)
+    - X-Debug-Token: Debug tokens (should never appear in production)
+    - X-Debug-Token-Link: Debug links
+    
+    Headers Enforced (Defense-in-Depth):
+    - X-Content-Type-Options: nosniff → Prevents MIME sniffing attacks
+    - Referrer-Policy: strict-origin-when-cross-origin → Limits referrer leakage
+    - Permissions-Policy: Disables unused browser features (camera, mic, etc.)
+    - Cache-Control: no-store (HTML only) → Prevents sensitive page caching
+    
+    Note:
+    X-Frame-Options and Content-Security-Policy are handled by separate middleware.
+
+    Headers removed (version/technology disclosure — OWASP A05 / CWE-200):
+    - ``Server``              — reveals web-server software and version
+    - ``X-Powered-By``        — reveals runtime (Python / Django version)
+    - ``X-Runtime``           — reveals per-request processing time (info leakage)
+    - ``X-Debug-Token``       — Symfony-style debug token (should never appear here,
+                                defensive removal)
+    - ``X-Debug-Token-Link``  — same as above
+
+    Headers enforced (defence-in-depth):
+    - ``X-Content-Type-Options: nosniff``   — prevents MIME-sniffing attacks
+    - ``Referrer-Policy: strict-origin-when-cross-origin``
+                                            — limits referrer leakage to
+                                              cross-origin requests
+    - ``Permissions-Policy``                — disables unused browser features
+    - ``Cache-Control: no-store``           — prevents sensitive page caching
+                                              (applies only to HTML responses)
+
+    NOTE: ``X-Frame-Options`` and ``Content-Security-Policy`` are already handled
+    by Django's ``XFrameOptionsMiddleware`` and ``CSPMiddleware`` respectively,
+    so they are not duplicated here.
+    """
+
+    _STRIP_HEADERS = (
+        'Server',
+        'X-Powered-By',
+        'X-Runtime',
+        'X-Debug-Token',
+        'X-Debug-Token-Link',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # --- Remove version/technology disclosure headers ---
+        for header in self._STRIP_HEADERS:
+            if header in response:
+                del response[header]
+
+        # --- Enforce hardening headers ---
+        response.setdefault('X-Content-Type-Options', 'nosniff')
+        response.setdefault(
+            'Referrer-Policy',
+            'strict-origin-when-cross-origin',
+        )
+        response.setdefault(
+            'Permissions-Policy',
+            (
+                'accelerometer=(), camera=(), geolocation=(), '
+                'gyroscope=(), magnetometer=(), microphone=(), '
+                'payment=(), usb=()'
+            ),
+        )
+
+        # Prevent browsers from caching authenticated HTML pages.
+        content_type = response.get('Content-Type', '')
+        if 'text/html' in content_type:
+            response.setdefault('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+
+        return response
+
+
+class AdminIPRestrictionMiddleware:
+    """
+    Security Middleware: Django Admin Interface IP Restriction (VAPT Fix #35).
+    
+    Purpose:
+    Restricts access to the Django admin interface (/admin/) to an explicit
+    IP allow-list. Blocks access from all other IPs with an intentional 404
+    response (security by obscurity—don't reveal that /admin/ exists).
+    
+    Configuration:
+    Set settings.ADMIN_IP_ALLOWLIST to a list of allowed IPv4/IPv6 addresses.
+    Example: ADMIN_IP_ALLOWLIST = ['127.0.0.1', '::1', '192.168.1.0/24']
+    Default (if not set): ['127.0.0.1', '::1'] (localhost only)
+    
+    How it Works:
+    - Intercepts all /admin/* requests
+    - Extracts client IP from request (respects X-Forwarded-For for proxy scenarios)
+    - Returns 404 (not 403) if IP is not in allow-list to avoid confirming existence
+    - Logs all blocked attempts for security monitoring
+    
+    Note:
+    The 404 response is intentional—it prevents attackers from discovering that
+    an admin interface exists at this path.
+
+    Any request to a path under ``/admin/`` whose source IP is not in the
+    allow-list is rejected with HTTP 404 (deliberately not 403 to avoid
+    confirming that an admin interface exists at that path — security by
+    obscurity as a secondary layer, OWASP A01).
+
+    The allow-list is read from ``settings.ADMIN_IP_ALLOWLIST`` which must be
+    a list/tuple of IPv4 (or IPv6) address strings.  Example setting::
+
+        ADMIN_IP_ALLOWLIST = ['127.0.0.1', '::1', '192.168.1.0/24']
+
+    If the setting is absent or empty the middleware blocks all non-localhost
+    access to ``/admin/`` as a safe default.
+
+    IP extraction respects the ``X-Forwarded-For`` header when the request
+    has been forwarded through a trusted proxy (IIS → Django). Only the
+    left-most address (the real client IP) is evaluated.
+    """
+
+    _ADMIN_PREFIX = '/admin/'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not request.path.startswith(self._ADMIN_PREFIX):
+            return self.get_response(request)
+
+        client_ip = self._get_client_ip(request)
+        allowed_ips = getattr(settings, 'ADMIN_IP_ALLOWLIST', ['127.0.0.1', '::1'])
+
+        if client_ip in allowed_ips:
+            return self.get_response(request)
+
+        logger.warning(
+            'ADMIN_IP_BLOCKED: ip=%s path=%s method=%s',
+            client_ip,
+            request.path,
+            request.method,
+        )
+        # Return 404 — do not reveal that the admin panel exists at this path.
+        from django.http import Http404
+        from django.views.defaults import page_not_found
+        return page_not_found(request, Http404())
+
+    @staticmethod
+    def _get_client_ip(request):
+        """
+        Return the real client IP, honouring X-Forwarded-For when present.
+        Only the left-most (originating) address is trusted.
+        """
+        forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        if forwarded_for:
+            return forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')

@@ -4,13 +4,17 @@ from rest_framework.response import Response
 from modelmasterapp.models import *
 from rest_framework import status
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone  # Added timezone import
+from django.conf import settings
 import json
 import re
 import logging
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+from .forms import AdaptiveCaptchaAuthenticationForm
 from .serializers import *
 from .utils import extract_table_headings_from_html
 from .decorators import require_admin, IsAdminPermission
@@ -32,12 +36,15 @@ from django.views.decorators.csrf import csrf_exempt
 import os
 from django.contrib.auth.models import Group
 from django.http import JsonResponse
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model, login
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import escape
+from django.views.decorators.http import require_POST
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Module, UserModuleProvision
@@ -86,16 +93,107 @@ class ShortcutConfigurationAPIView(APIView):
 # -----------------------------------------------------------------------------
 class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginView']).LoginView):
     template_name = 'login.html'
+    authentication_form = AdaptiveCaptchaAuthenticationForm
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from django.conf import settings
+        from .services import is_recaptcha_configured, should_require_login_captcha
+
+        form = context.get('form')
+        username = ''
+        if form is not None and getattr(form, 'data', None):
+            username = form.data.get('username', '').strip()
+        elif self.request.method == 'POST':
+            username = self.request.POST.get('username', '').strip()
+
         context['enable_microsoft_login'] = getattr(settings, 'ENABLE_MICROSOFT_LOGIN', False)
+        if self.request.GET.get('otp_error') == 'expired':
+            context['error'] = 'Verification code expired.'
+        context['show_captcha'] = bool(
+            getattr(form, 'require_captcha', False)
+            or should_require_login_captcha(username)
+        )
+        context['captcha_configured'] = is_recaptcha_configured()
         return context
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        from .services import should_require_login_captcha
+
+        username = ''
+        data = kwargs.get('data')
+        if data:
+            username = data.get('username', '').strip()
+        kwargs['require_captcha'] = should_require_login_captcha(username)
+        return kwargs
+
+    def _login_error_message(self, form, username):
+        captcha_error = getattr(form, 'get_captcha_error_message', lambda: None)()
+        if captcha_error:
+            return captcha_error
+
+        from .services import get_account_lock_message
+
+        return (
+            get_account_lock_message(username)
+            or 'Invalid username or password. Please try again.'
+        )
+
+
+    def form_valid(self, form):
+        # Let Django perform the normal login
+        response = super().form_valid(form)
+
+        # Skip OTP verification
+        self.request.session["mfa_verified"] = True
+        self.request.session.modified = True
+
+        return response
+
+    def _refresh_captcha_context_after_failed_login(self, response, username):
+        from .services import is_recaptcha_configured, should_require_login_captcha
+
+        if not hasattr(response, 'context_data'):
+            return
+
+        captcha_required = should_require_login_captcha(username)
+        if captcha_required:
+            response.context_data['form'] = self.get_form_class()(
+                self.request,
+                initial={'username': username},
+                require_captcha=True,
+            )
+        response.context_data['show_captcha'] = captcha_required
+        response.context_data['captcha_configured'] = is_recaptcha_configured()
+
+    # Rate limiting (CWE-307): cap login POSTs per source IP regardless of
+    # which username is being tried. block=False so we can return our own
+    # friendly HTML error instead of django-ratelimit's default 403 page;
+    # the actual 429 response is built below when request.limited is True.
+    # This is in addition to, not a replacement for, the existing
+    # AccountLockoutBackend (5 failed attempts -> account lock).
+    @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=False))
     def post(self, request, *args, **kwargs):
         from django.conf import settings
         import time as _time
+
+        # request.limited is set by the ratelimit decorator above.
+        if getattr(request, 'limited', False):
+            security_logger = logging.getLogger('security.auth')
+            security_logger.warning(
+                'LOGIN_RATE_LIMITED: ip=%s path=%s',
+                request.META.get('REMOTE_ADDR', 'unknown'),
+                request.path,
+            )
+            message = 'Too many login attempts. Please wait a minute and try again.'
+            if request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': message}, status=429)
+            response = self.render_to_response(self.get_context_data(form=self.get_form()))
+            response.status_code = 429
+            if hasattr(response, 'context_data'):
+                response.context_data['error'] = message
+            return response
 
         timers = {}
         t_start = _time.time()
@@ -110,25 +208,154 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
 
         if is_valid:
             t0 = _time.time()
-            response = self.form_valid(form)  # calls login() + session save
-            timers['form_valid_login'] = (_time.time() - t0) * 1000
+            response = self.form_valid(form)
+            timers['form_valid_otp'] = (_time.time() - t0) * 1000
         else:
             response = self.form_invalid(form)
             timers['form_invalid'] = 0.0
             # Account lockout policy: surface a clear message via the template's
             # {{ error }} block (locked account vs. plain invalid credentials).
-            from .services import get_account_lock_message
-            lock_message = get_account_lock_message(request.POST.get('username', '').strip())
+            username = request.POST.get('username', '').strip()
             if hasattr(response, 'context_data'):
-                response.context_data['error'] = (
-                    lock_message or 'Invalid username or password. Please try again.'
-                )
+                response.context_data['error'] = self._login_error_message(form, username)
+            self._refresh_captcha_context_after_failed_login(response, username)
 
         total = (_time.time() - t_start) * 1000
         breakdown = ' | '.join(f'{k}={v:.2f}ms' for k, v in timers.items())
         if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
             logger.warning('LOGIN_POST_TIMING: total=%.2fms | %s', total, breakdown)
         return response
+
+
+def _email_otp_context(request, message=None, error=None):
+    from .otp_service import get_resend_cooldown_remaining
+
+    remaining = get_resend_cooldown_remaining(request)
+    return {
+        'error': error,
+        'message': message,
+        'resend_remaining_seconds': remaining,
+        'resend_cooldown_active': remaining > 0,
+    }
+
+
+def verify_email_otp(request):
+    from .otp_service import (
+        clear_pending_otp_session,
+        validate_pending_otp_session,
+    )
+
+    pending_user_id = request.session.get('pending_mfa_user_id')
+    if not pending_user_id:
+        return redirect('login')
+
+    context = _email_otp_context(request)
+
+    if request.method == 'POST':
+        if getattr(settings, 'DEBUG', False):
+            logger.info('OTP_VERIFY_FORM_POST: path=%s', request.path)
+        raw_otp = request.POST.get('otp', '').strip()
+        otp = ''.join(ch for ch in raw_otp if ch.isdigit())
+        if getattr(settings, 'DEBUG', False) and otp:
+            logger.info('OTP_SUBMITTED_DEBUG_SUFFIX: otp_last2=%s', otp[-2:])
+
+        if not otp:
+            context['error'] = 'Invalid verification code.'
+            return render(request, 'two_step_auth/verify_email_otp.html', context)
+        if len(otp) != 6:
+            context['error'] = 'Invalid verification code.'
+            return render(request, 'two_step_auth/verify_email_otp.html', context)
+
+        is_valid, reason = validate_pending_otp_session(request, otp)
+
+        if not is_valid:
+            if reason == 'expired':
+                return redirect('/accounts/login/?otp_error=expired')
+
+            if reason == 'max_attempts':
+                return redirect('login')
+
+            context['error'] = 'Invalid verification code.'
+            return render(request, 'two_step_auth/verify_email_otp.html', context)
+
+        User = get_user_model()
+        try:
+            user = User.objects.get(pk=pending_user_id)
+        except User.DoesNotExist:
+            clear_pending_otp_session(request)
+            logger.warning('MFA_LOGIN_FAILED_USER_MISSING: user_id=%s', pending_user_id)
+            return redirect('login')
+
+        next_url = request.session.get('pending_mfa_next_url') or '/home/'
+        login(request, user)
+        clear_pending_otp_session(request)
+        request.session.pop('pending_mfa_next_url', None)
+        request.session['mfa_verified'] = True
+        request.session.modified = True
+        logger.info(
+            'MFA_LOGIN_SUCCESS: user_id=%s username=%s',
+            getattr(user, 'id', None),
+            getattr(user, 'username', 'unknown'),
+        )
+
+        if not url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            next_url = '/home/'
+
+        return redirect(next_url)
+
+    if getattr(settings, 'DEBUG', False):
+        logger.info('OTP_VERIFY_FORM_RENDERED: path=%s', request.path)
+    return render(request, 'two_step_auth/verify_email_otp.html', context)
+
+
+@require_POST
+def resend_email_otp(request):
+    from .otp_service import (
+        OTPResendCooldownError,
+        clear_pending_otp_session,
+        resend_pending_otp_session,
+    )
+
+    pending_user_id = request.session.get('pending_mfa_user_id')
+    if not pending_user_id:
+        return redirect('login')
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(pk=pending_user_id)
+    except User.DoesNotExist:
+        clear_pending_otp_session(request)
+        logger.warning('OTP_RESEND_FAILED: user_id=%s reason=user_missing', pending_user_id)
+        return redirect('login')
+
+    context = _email_otp_context(request)
+
+    try:
+        resend_pending_otp_session(request, user)
+    except OTPResendCooldownError:
+        context = _email_otp_context(
+            request,
+            message='Please wait before requesting another code.',
+        )
+        return render(request, 'two_step_auth/verify_email_otp.html', context)
+    except Exception:
+        logger.exception(
+            'OTP_RESEND_FAILED: user_id=%s username=%s',
+            getattr(user, 'id', None),
+            getattr(user, 'username', 'unknown'),
+        )
+        context = _email_otp_context(
+            request,
+            error='Unable to resend verification code. Please try again.',
+        )
+        return render(request, 'two_step_auth/verify_email_otp.html', context)
+
+    messages.success(request, 'A new verification code has been sent.')
+    return redirect('verify_email_otp')
 
 
 @method_decorator(login_required(login_url='login'), name='dispatch')
@@ -2713,6 +2940,31 @@ def _serialize_user_groups(user):
     }
 
 
+PERSON_NAME_VALIDATION_ERROR = "Only letters, spaces, apostrophes, hyphens and dots are allowed."
+PERSON_NAME_ALLOWED_PUNCTUATION = {" ", "'", "-", "."}
+
+
+def validate_person_name(value):
+    name = str(value or "").strip()
+
+    if not name:
+        raise ValueError(PERSON_NAME_VALIDATION_ERROR)
+
+    if not any(ch.isalpha() for ch in name):
+        raise ValueError(PERSON_NAME_VALIDATION_ERROR)
+
+    for ch in name:
+        if ch.isalpha():
+            continue
+
+        if ch in PERSON_NAME_ALLOWED_PUNCTUATION:
+            continue
+
+        raise ValueError(PERSON_NAME_VALIDATION_ERROR)
+
+    return name
+
+
 # Class for User Creation API - Fixed
 
 class UserCreateAPIView(APIView):
@@ -2724,8 +2976,11 @@ class UserCreateAPIView(APIView):
 
         data = request.data or {}
         email = (data.get('email') or '').strip()
-        first_name = (data.get('first_name') or '').strip()
-        last_name = (data.get('last_name') or '').strip()
+        try:
+            first_name = validate_person_name(data.get('first_name'))
+            last_name = validate_person_name(data.get('last_name'))
+        except ValueError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         password = data.get('password')
         department_id = data.get('department')
         role_id = data.get('role')
@@ -3141,13 +3396,21 @@ class UserUpdateAPIView(APIView):
         password = data.get('password')
 
         try:
+            if new_first_name is not None:
+                new_first_name = validate_person_name(new_first_name)
+            if new_last_name is not None:
+                new_last_name = validate_person_name(new_last_name)
+        except ValueError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
             user = User.objects.get(id=user_id)
             if new_username is not None:
                 user.username = str(new_username).strip()
             if new_first_name is not None:
-                user.first_name = str(new_first_name).strip()
+                user.first_name = new_first_name
             if new_last_name is not None:
-                user.last_name = str(new_last_name).strip()
+                user.last_name = new_last_name
             if new_email is not None:
                 user.email = str(new_email).strip()
 

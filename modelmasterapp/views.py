@@ -40,6 +40,9 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from adminportal.forms import AdaptiveCaptchaAuthenticationForm
 
 class BaseAPIView(APIView):
     """
@@ -259,11 +262,27 @@ class LoginAPIView(APIView):
     template_name = 'login.html'
 
     def get(self, request, *args, **kwargs):
-        # Render the login page on GET
         return Response({}, template_name=self.template_name)
 
+    @method_decorator(
+        ratelimit(
+            key='ip',
+            rate='10/m',
+            method='POST',
+            block=False
+        )
+    )
     def post(self, request, *args, **kwargs):
         import time
+
+        if getattr(request, 'limited', False):
+            return JsonResponse(
+            {
+                'success': False,
+                'error': 'Too many login attempts. Please wait a minute and try again.'
+            },
+            status=429
+        )
 
         def record_timer(name, milliseconds):
             django_request = getattr(request, '_request', request)
@@ -289,12 +308,45 @@ class LoginAPIView(APIView):
                 'message': error_msg
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        from adminportal.services import (
+            get_account_lock_message,
+            is_recaptcha_configured,
+            should_require_login_captcha,
+        )
+
+        captcha_required = should_require_login_captcha(username)
+        django_request = getattr(request, '_request', request)
+        auth_form = AdaptiveCaptchaAuthenticationForm(
+            django_request,
+            data=request.data or request.POST,
+            require_captcha=captcha_required,
+        )
+
         # Checkpoint 2: Authenticate
         t2 = time.time()
-        user = authenticate(request, username=username, password=password)
+        form_is_valid = auth_form.is_valid()
         t3 = time.time()
         auth_ms = (t3 - t2) * 1000
         record_timer('authentication', auth_ms)
+
+        captcha_error = auth_form.get_captcha_error_message()
+        if not form_is_valid and captcha_error:
+            error_msg = captcha_error
+            if request.accepted_renderer.format == 'html':
+                return Response({
+                    'error': error_msg,
+                    'username': username,
+                    'show_captcha': captcha_required,
+                    'captcha_configured': is_recaptcha_configured(),
+                    'form': auth_form,
+                }, template_name=self.template_name, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'success': False,
+                'message': error_msg,
+                'captcha_required': True,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user = auth_form.get_user() if form_is_valid else None
         
         if user is not None:
             if user.is_active:
@@ -324,19 +376,30 @@ class LoginAPIView(APIView):
                 }, status=status.HTTP_401_UNAUTHORIZED)
         else:
             # Invalid credentials — or account locked by the lockout policy.
-            from adminportal.services import get_account_lock_message
             lock_message = get_account_lock_message(username)
             error_msg = lock_message or 'Invalid username or password. Please try again.'
             error_status = status.HTTP_403_FORBIDDEN if lock_message else status.HTTP_401_UNAUTHORIZED
+            captcha_required_after_failure = should_require_login_captcha(username)
+            render_form = auth_form
+            if captcha_required_after_failure and not getattr(auth_form, 'require_captcha', False):
+                render_form = AdaptiveCaptchaAuthenticationForm(
+                    django_request,
+                    require_captcha=True,
+                    initial={'username': username},
+                )
             if request.accepted_renderer.format == 'html':
                 return Response({
                     'error': error_msg,
-                    'username': username
+                    'username': username,
+                    'show_captcha': captcha_required_after_failure,
+                    'captcha_configured': is_recaptcha_configured(),
+                    'form': render_form,
                 }, template_name=self.template_name, status=error_status)
             return Response({
                 'success': False,
                 'message': error_msg,
-                'account_locked': bool(lock_message)
+                'account_locked': bool(lock_message),
+                'captcha_required': captcha_required_after_failure,
             }, status=error_status)
 
 def logout_view(request):

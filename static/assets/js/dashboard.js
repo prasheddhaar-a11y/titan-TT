@@ -310,7 +310,10 @@ $.fn.dataTable.ext.errMode = 'none';
       if (navbar) navbar.classList.remove('mt-3');
       var date = new Date();
       date.setTime(date.getTime() + 24 * 60 * 60 * 1000); 
-      $.cookie('skydash-pro-banner', "true", { expires: date });
+      $.cookie('skydash-pro-banner', "true", {
+        expires: date,
+        secure: window.location.protocol === 'https:'
+      });
     });
     }
 

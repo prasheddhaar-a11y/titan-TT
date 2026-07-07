@@ -2909,6 +2909,20 @@ def iqf_validate_tray_scan(request):
             'message': 'Invalid Tray ID',
         })
 
+    # ── RULE 2.5: Block trays that are REJECTED in Input Screening ──
+    # IPTrayId.rejected_tray=True means the tray was explicitly rejected by IS.
+    # Such trays must NEVER be accepted or reused in IQF (or any downstream module)
+    # regardless of TrayId master state (delinked, cleared, etc.).
+    from InputScreening.models import IPTrayId as _IPTrayId
+    if _IPTrayId.objects.filter(tray_id=tray_id, rejected_tray=True, delink_tray=False).exists():
+        print(f"🚫 [TRAY_VALIDATION] {tray_id}: IS-rejected tray — cannot be reused or accepted")
+        return Response({
+            'success': True,
+            'status': 'invalid_format',
+            'message': 'Tray was rejected in Input Screening — cannot be accepted or reused',
+            'tray_id': tray_id,
+        })
+
     # ── RULE 3a: Compute max reuse limit from rejection qty ──
     iqf_rej_str = request.GET.get('iqf_rejection_total', '')
     reuse_count_str = request.GET.get('reuse_count', '0')

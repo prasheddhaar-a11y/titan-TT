@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.db.models import F
 from django.core.exceptions import ValidationError
 import datetime
+import os
+import uuid
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 from django.db.models import JSONField
@@ -29,10 +31,33 @@ class RowAccessLock(models.Model):
         
         
 
+def model_image_upload_path(instance, filename):
+    """
+    Build the storage path for an uploaded ModelImage file.
+
+    Task 5 hardening: the client-supplied filename is never used as the
+    on-disk name. Only the extension is kept (it has already been checked
+    against the allowlist and against the detected file signature by
+    ModelImageSerializer.validate_master_image() in
+    adminportal/serializers.py before this function ever runs), and the
+    base name is replaced with a UUID4 hex string so the stored filename
+    is fully opaque and not attacker/user controlled.
+
+    Result: model_images/<uuid4hex>.<ext>
+    e.g.   model_images/9f1c52de9f7a4aa9854c72564a09a671.png
+
+    This function only affects new uploads. Existing ModelImage rows keep
+    the path already stored in the database and continue to resolve via
+    MEDIA_ROOT/MEDIA_URL exactly as before.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    return f'model_images/{uuid.uuid4().hex}{ext}'
+
+
 # API for Model Images Masters
 class ModelImage(models.Model):
   #give master_image field for mulitple image slection
-    master_image = models.ImageField(upload_to='model_images/')
+    master_image = models.ImageField(upload_to=model_image_upload_path)
     date_time = models.DateTimeField(default=timezone.now)
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 

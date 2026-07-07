@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/allocate-trays/', allocate_audit_trays, name='brass_audit_allocate_trays'),
     path('api/submit/', submit_brass_audit, name='brass_audit_submit'),
     path('api/toggle-verified/', brass_audit_toggle_verified, name='brass_audit_toggle_verified'),
+    path('api/delete-batch/', brass_audit_delete_batch, name='brass_audit_delete_batch'),
     path('api/hold-unhold/', brass_audit_hold_unhold, name='brass_audit_hold_unhold'),
     path('api/rejection-reasons/', get_audit_rejection_reasons, name='brass_audit_rejection_reasons'),
     path('api/validate-tray/', validate_audit_tray_id, name='brass_audit_validate_tray'),

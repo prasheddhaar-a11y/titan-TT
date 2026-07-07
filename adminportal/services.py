@@ -632,6 +632,7 @@ def refresh_dashboard_cache():
 from .models import AccountLockout
 
 ACCOUNT_LOCKOUT_THRESHOLD = 5
+LOGIN_CAPTCHA_FAILED_ATTEMPTS = 2
 ACCOUNT_LOCKED_MESSAGE = (
     'Your account has been locked due to too many failed login attempts. '
     'Please contact an administrator to unlock it.'
@@ -660,6 +661,58 @@ def get_account_lock_message(username):
     if AccountLockout.objects.filter(user__username=username, is_locked=True).exists():
         return ACCOUNT_LOCKED_MESSAGE
     return None
+
+
+def get_failed_login_attempts(username):
+    """Return the current failed-login count for an existing username."""
+    if not username:
+        return 0
+    lockout = AccountLockout.objects.filter(user__username=username).first()
+    return lockout.failed_attempts if lockout else 0
+
+
+def should_require_login_captcha(username):
+    """
+    Require CAPTCHA after repeated failed login attempts.
+
+    A threshold of 2 means failed attempts 1 and 2 do not require CAPTCHA.
+    Once the counter reaches 2, the next attempt must pass CAPTCHA before
+    password authentication can run.
+    """
+    from django.conf import settings
+
+    if not is_recaptcha_configured():
+        attempts = get_failed_login_attempts(username)
+        threshold = getattr(
+            settings,
+            'LOGIN_CAPTCHA_FAILED_ATTEMPTS',
+            LOGIN_CAPTCHA_FAILED_ATTEMPTS,
+        )
+        if attempts >= threshold:
+            security_logger.warning(
+                'LOGIN_CAPTCHA_DISABLED_NOT_CONFIGURED: username=%s attempts=%s threshold=%s',
+                username,
+                attempts,
+                threshold,
+            )
+        return False
+
+    threshold = getattr(
+        settings,
+        'LOGIN_CAPTCHA_FAILED_ATTEMPTS',
+        LOGIN_CAPTCHA_FAILED_ATTEMPTS,
+    )
+    return get_failed_login_attempts(username) >= threshold
+
+
+def is_recaptcha_configured():
+    """Return True only when both environment-backed reCAPTCHA keys exist."""
+    from django.conf import settings
+
+    return bool(
+        getattr(settings, 'RECAPTCHA_PUBLIC_KEY', '')
+        and getattr(settings, 'RECAPTCHA_PRIVATE_KEY', '')
+    )
 
 
 def record_failed_login_attempt(user, request=None):

@@ -1453,9 +1453,9 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
           >
             <div class="tray-scan-modal-content" style="position: relative;">
               <span id="closeTrayScanModal" class="tray-scan-close" style="position: absolute;
-    top: -5px;
+    top: 5px;
     right: 20px;
-    font-size: 22px;
+    font-size: 22px !important;
     cursor: pointer;
     color: #f75e5e;
     z-index: 100;"
@@ -4250,6 +4250,23 @@ function getCurrentTrayData() {
     return data;
 }
 
+function deleteDraftTrayEntry(batchId, position) {
+    if (!batchId || position === undefined || position === null || position === '') {
+        return;
+    }
+
+    fetch(`/dayplanning/draft_tray_delete/?batch_id=${encodeURIComponent(batchId)}&position=${encodeURIComponent(position)}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    }).then(res => res.json()).then(data => {
+        if (data.success) {
+            console.log(`🗑️ Deleted draft tray at position ${position}`);
+        }
+    }).catch(err => console.error('Error deleting draft tray:', err));
+}
+
 function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQtyVerified, buttonElement) {
     const detailsDiv = document.getElementById("trayScanDetails");
     if (!detailsDiv) return;
@@ -4330,7 +4347,7 @@ function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQty
     detailsDiv.innerHTML = html;
     console.log('✅ Table rebuilt successfully with checkbox state preservation');
 
-    // Add event listeners for draft tray deletion on clear AND checkbox unchecking
+    // Add event listeners for tray ID editing and commit-based draft clearing
     const trayIdInputs = detailsDiv.querySelectorAll('.tray-id-input');
     trayIdInputs.forEach(input => {
       input.addEventListener('input', function() {
@@ -4350,21 +4367,12 @@ function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQty
         if (errorFooter) {
           errorFooter.textContent = '';
         }
-        
-        if (this.value.trim() === '') {
-          const batchId = buttonElement ? buttonElement.getAttribute('data-batch-id') : '';
-          if (batchId && this.dataset.position !== undefined) {
-            fetch(`/dayplanning/draft_tray_delete/?batch_id=${batchId}&position=${this.dataset.position}`, {
-              method: 'DELETE',
-              headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-              }
-            }).then(res => res.json()).then(data => {
-              if (data.success) {
-                console.log(`🗑️ Deleted draft tray at position ${this.dataset.position}`);
-              }
-            }).catch(err => console.error('Error deleting draft tray:', err));
-          }
+      });
+
+      input.addEventListener('blur', function() {
+        const batchId = buttonElement ? buttonElement.getAttribute('data-batch-id') : '';
+        if (batchId && this.dataset.position !== undefined && this.value.trim() === '') {
+          deleteDraftTrayEntry(batchId, this.dataset.position);
         }
       });
     });
