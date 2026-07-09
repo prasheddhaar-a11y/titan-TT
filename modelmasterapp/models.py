@@ -941,3 +941,32 @@ class LotTraySnapshot(models.Model):
         return (f"Snapshot: {self.tray_id}{top} qty={self.tray_qty} "
                 f"order={self.tray_order} [{self.tray_status}]"
                 f" → {self.lot.lot_id}")
+
+
+class SSOAccount(models.Model):
+    """
+    Stores the mapping between a Django user and a social/SSO identity.
+    Used by watchcase_tracker.sso_pipeline to link Microsoft Entra ID logins
+    to existing local accounts.
+    """
+    user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sso_accounts')
+    provider       = models.CharField(max_length=100, help_text='SSO provider name, e.g. "azuread-oauth2"')
+    uid            = models.CharField(max_length=255, help_text='Unique ID from the provider')
+    email          = models.EmailField(blank=True, default='')
+    name           = models.CharField(max_length=255, blank=True, default='')
+    email_verified = models.BooleanField(default=False)
+    extra_data     = models.JSONField(default=dict, blank=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('provider', 'uid')
+        indexes = [
+            models.Index(fields=['provider', 'uid']),
+            models.Index(fields=['user']),
+        ]
+        verbose_name = 'SSO Account'
+        verbose_name_plural = 'SSO Accounts'
+
+    def __str__(self):
+        return f"{self.provider}:{self.uid} → {self.user.username}"

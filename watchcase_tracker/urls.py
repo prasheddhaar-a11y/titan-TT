@@ -22,10 +22,20 @@ from django.contrib.auth import views as auth_views
 from adminportal.views import IndexView, TimedLoginView
 from django.conf.urls import handler404, handler500, handler403, handler400
 from importlib.util import find_spec
+import logging
+
+_urls_logger = logging.getLogger(__name__)
 try:
     from watchcase_tracker import sso as _sso_module
 except ImportError:
+    # Never fail silently: an import problem (e.g. missing "msal" package in
+    # the active environment) previously made the Microsoft button bounce
+    # straight back to the login page with no explanation.
     _sso_module = None
+    _urls_logger.exception(
+        'watchcase_tracker.sso failed to import - Microsoft SSO routes are '
+        'disabled. Fix the import error below (usually a missing dependency).'
+    )
 _social_django_available = find_spec('social_django') is not None
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -37,7 +47,8 @@ def root_redirect(request):
 
 
 def sso_unavailable(request):
-    return redirect('login')
+    _urls_logger.error('SSO route hit but SSO module is unavailable: %s', request.path)
+    return redirect(settings.LOGIN_URL + '?sso_error=unavailable')
 
 
 urlpatterns = [
@@ -99,9 +110,13 @@ urlpatterns += [
         name='microsoft_login',
     ),
     path(
-        'auth/microsoft/callback/',
+        'auth/microsoft/callback',
         _sso_module.microsoft_callback if _sso_module else sso_unavailable,
         name='microsoft_callback',
+    ),
+    path(
+        'auth/microsoft/callback/',
+        _sso_module.microsoft_callback if _sso_module else sso_unavailable,
     ),
 ]
 

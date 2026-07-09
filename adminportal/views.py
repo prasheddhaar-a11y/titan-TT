@@ -108,8 +108,19 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
             username = self.request.POST.get('username', '').strip()
 
         context['enable_microsoft_login'] = getattr(settings, 'ENABLE_MICROSOFT_LOGIN', False)
+        # One-shot flag set by the SSO callback when the Microsoft account has
+        # no matching user in User Management.
+        context['sso_access_denied'] = self.request.session.pop('sso_access_denied', False)
         if self.request.GET.get('otp_error') == 'expired':
             context['error'] = 'Verification code expired.'
+        # Surfaced by the SSO routes when Microsoft sign-in cannot start/finish,
+        # so the failure is visible instead of silently returning to this page.
+        sso_error = self.request.GET.get('sso_error')
+        if sso_error:
+            context['error'] = {
+                'unavailable': 'Microsoft sign-in is temporarily unavailable. Please contact the administrator.',
+                'not_configured': 'Microsoft sign-in is not configured. Please contact the administrator.',
+            }.get(sso_error, 'Microsoft sign-in failed. Please try again or contact the administrator.')
         context['show_captcha'] = bool(
             getattr(form, 'require_captcha', False)
             or should_require_login_captcha(username)
@@ -2991,6 +3002,19 @@ class UserCreateAPIView(APIView):
             with transaction.atomic():
                 # If user exists, update instead of failing
                 existing = User.objects.filter(username=username).first()
+
+                # One email = one user: reject if the email already belongs
+                # to a different account (case-insensitive).
+                if email:
+                    email_clash = User.objects.filter(email__iexact=email)
+                    if existing:
+                        email_clash = email_clash.exclude(id=existing.id)
+                    if email_clash.exists():
+                        return Response(
+                            {'success': False, 'error': 'This email is already assigned to another user.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
                 if existing:
                     user = existing
                     if first_name:
@@ -3412,7 +3436,13 @@ class UserUpdateAPIView(APIView):
             if new_last_name is not None:
                 user.last_name = new_last_name
             if new_email is not None:
-                user.email = str(new_email).strip()
+                new_email = str(new_email).strip()
+                if new_email and User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
+                    return Response(
+                        {'success': False, 'error': 'This email is already assigned to another user.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                user.email = new_email
 
             if password and str(password).strip():
                 password = str(password).strip()

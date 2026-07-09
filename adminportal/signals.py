@@ -13,8 +13,17 @@ def _get_client_ip(request):
     """Best-effort client IP, honoring a reverse proxy's X-Forwarded-For."""
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
     if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        ip = xff.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', '') or ''
+
+    # On IIS/some WSGI servers, REMOTE_ADDR includes the port ("1.2.3.4:5678").
+    # GenericIPAddressField / PostgreSQL inet type rejects the port — strip it.
+    # IPv4 with port has exactly one colon; IPv6 has multiple colons (safe to leave).
+    if ip and ip.count(':') == 1:
+        ip = ip.split(':')[0]
+
+    return ip or None
 
 
 def _get_login_source(request):

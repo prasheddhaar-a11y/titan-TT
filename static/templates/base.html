@@ -1339,7 +1339,7 @@
                   <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" href="#"
                      data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false">
                      <img src="{% static 'assets/icons/52.png' %}" alt="Profile" class="nb-icon" />
-                     <small>{{ request.user.username }}</small>
+                     <small>{{ request.user.first_name|default:request.user.username }}</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"

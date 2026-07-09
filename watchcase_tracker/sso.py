@@ -1,40 +1,119 @@
-import os
 import uuid
 import logging
 from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib.auth import login
-from django.contrib.auth.models import User, Group
-from django.http import HttpResponseBadRequest, HttpResponse
+from django.contrib.auth.models import User
+from django.db.models import Q
+from django.http import HttpResponseBadRequest
 import msal
 
 logger = logging.getLogger(__name__)
+
+
+def _get_redirect_uri(request):
+    """
+    Build the OAuth redirect URI dynamically from the configured callback route.
+
+    This keeps the redirect URI aligned with the registered Azure callback URL
+    without hardcoding a path, and lets the app work correctly across local,
+    dev-tunnel, and production hostnames.
+    """
+    base = settings.MSAL_REDIRECT_URI_BASE.strip().rstrip('/') if settings.MSAL_REDIRECT_URI_BASE else ""
+    # The path must byte-for-byte match the URI registered in Azure (AADSTS50011
+    # is raised on any mismatch, including a trailing slash). MSAL_REDIRECT_PATH
+    # is the configured/registered form (env-overridable); reverse() is only a
+    # fallback when the setting is not defined.
+    path = (getattr(settings, 'MSAL_REDIRECT_PATH', '') or '').strip() or reverse('microsoft_callback')
+    if not path.startswith('/'):
+        path = f'/{path}'
+    if base:
+        return f"{base}{path}"
+    return request.build_absolute_uri(path)
+
+
+def _resolve_local_user_for_sso(email, preferred_name=''):
+    """
+    Find the local user that owns this SSO identity.
+
+    STRICT matching by design: the Microsoft account's email/UPN must exactly
+    equal a local user's email (or, for legacy accounts, the username that was
+    stored as the full email address). No matching by display name or by the
+    local part of the address — that could sign the person into someone
+    else's (e.g. an admin's) account. If no exact match exists, the caller
+    shows the "Contact Admin" message.
+    """
+    normalized_email = (email or '').strip().lower()
+    if not normalized_email or '@' not in normalized_email:
+        return None
+
+    candidates = list(
+        User.objects.filter(is_active=True)
+        .filter(Q(email__iexact=normalized_email) | Q(username__iexact=normalized_email))
+        .order_by('id')
+    )
+    if not candidates:
+        return None
+
+    # Duplicates (legacy data): prefer the account whose *email field* matches
+    # over a username-only match, then the oldest. Never prefer by privilege.
+    def rank(u):
+        return (0 if (u.email or '').strip().lower() == normalized_email else 1, u.id)
+
+    best = sorted(candidates, key=rank)[0]
+    if len(candidates) > 1:
+        logger.warning(
+            "SSO email %s matched %d local accounts; using user_id=%s (%s). "
+            "Please deduplicate in User Management.",
+            normalized_email, len(candidates), best.id, best.username,
+        )
+    return best
+
+
+def _get_authority():
+    """Authority URL built from settings (env-driven), never hardcoded."""
+    tenant = (getattr(settings, 'MSAL_TENANT_ID', '') or 'common').strip()
+    return f"https://login.microsoftonline.com/{tenant}"
 
 
 def microsoft_login(request):
     """Start the Microsoft OIDC Authorization Code flow by redirecting user."""
     if not settings.MSAL_CLIENT_ID or not settings.MSAL_CLIENT_SECRET:
         logger.error("MSAL client id/secret not configured in settings.")
-        return HttpResponseBadRequest("SSO not configured.")
+        return redirect(f"{settings.LOGIN_URL}?sso_error=not_configured")
 
-    # create and persist state to protect against CSRF
+    # Create and persist state to protect against CSRF. A small list of recent
+    # states is kept (not a single value) because browsers may prefetch or the
+    # user may double-click the sign-in link, issuing two login requests before
+    # the callback returns; the callback consumes whichever state it matches.
     state = str(uuid.uuid4())
-    request.session['msal_state'] = state
+    pending_states = request.session.get('msal_states') or []
+    pending_states = (pending_states + [state])[-5:]
+    request.session['msal_states'] = pending_states
+    request.session['msal_state'] = state  # kept for backward compatibility
 
-    authority = "https://login.microsoftonline.com/04132f71-f746-4a5b-a30e-66ea6d16714c"
-    app = msal.ConfidentialClientApplication(
-        client_id=settings.MSAL_CLIENT_ID,
-        client_credential=settings.MSAL_CLIENT_SECRET,
-        authority=authority,
-    )
+    # MSAL performs network calls (OpenID configuration discovery) here.
+    # If Microsoft's endpoints are unreachable (no internet/DNS/proxy), fail
+    # gracefully back to the login page instead of raising a 500.
+    try:
+        authority = _get_authority()
+        app = msal.ConfidentialClientApplication(
+            client_id=settings.MSAL_CLIENT_ID,
+            client_credential=settings.MSAL_CLIENT_SECRET,
+            authority=authority,
+        )
 
-    redirect_uri = request.build_absolute_uri(settings.MSAL_REDIRECT_PATH)
-    auth_url = app.get_authorization_request_url(
-        scopes=settings.MSAL_SCOPES,
-        state=state,
-        redirect_uri=redirect_uri,
-    )
+        redirect_uri = _get_redirect_uri(request)
+        logger.debug("MSAL login redirect_uri=%s", redirect_uri)
+        auth_url = app.get_authorization_request_url(
+            scopes=settings.MSAL_SCOPES,
+            state=state,
+            redirect_uri=redirect_uri,
+        )
+    except Exception:
+        logger.exception("Microsoft SSO unreachable during login initiation.")
+        return redirect(f"{settings.LOGIN_URL}?sso_error=unavailable")
 
     return redirect(auth_url)
 
@@ -49,24 +128,27 @@ def microsoft_callback(request):
 
     state = request.GET.get('state')
     session_state = request.session.get('msal_state')
-    if not state or not session_state or state != session_state:
-        logger.warning("State mismatch in MSAL callback (session=%s, returned=%s)", session_state, state)
+    pending_states = request.session.get('msal_states') or ([session_state] if session_state else [])
+    if not state or state not in pending_states:
+        logger.warning("State mismatch in MSAL callback (session=%s, returned=%s)", pending_states, state)
         return HttpResponseBadRequest("State mismatch or missing. Potential CSRF detected.")
+    # One-time use: consume the matched state so it cannot be replayed.
+    request.session['msal_states'] = [s for s in pending_states if s != state]
 
     code = request.GET.get('code')
     if not code:
         logger.error("No authorization code received in callback.")
         return HttpResponseBadRequest("Authorization code not found in callback.")
 
-    authority = "https://login.microsoftonline.com/04132f71-f746-4a5b-a30e-66ea6d16714c"
-    app = msal.ConfidentialClientApplication(
-        client_id=settings.MSAL_CLIENT_ID,
-        client_credential=settings.MSAL_CLIENT_SECRET,
-        authority=authority,
-    )
-
-    redirect_uri = request.build_absolute_uri(settings.MSAL_REDIRECT_PATH)
     try:
+        authority = _get_authority()
+        app = msal.ConfidentialClientApplication(
+            client_id=settings.MSAL_CLIENT_ID,
+            client_credential=settings.MSAL_CLIENT_SECRET,
+            authority=authority,
+        )
+
+        redirect_uri = _get_redirect_uri(request)
         result = app.acquire_token_by_authorization_code(
             code,
             scopes=settings.MSAL_SCOPES,
@@ -74,7 +156,7 @@ def microsoft_callback(request):
         )
     except Exception as e:
         logger.exception("Exception while acquiring token: %s", e)
-        return HttpResponseBadRequest("Token exchange failed.")
+        return redirect(f"{settings.LOGIN_URL}?sso_error=unavailable")
 
     if not result or 'error' in result:
         logger.error("Token acquisition failed: %s", result)
@@ -89,36 +171,39 @@ def microsoft_callback(request):
         logger.error("ID token did not contain an email/username claim: %s", id_token_claims)
         return HttpResponseBadRequest("Unable to determine user identity from ID token.")
 
-    # Create or get Django user. Use email as username to keep uniqueness.
-    first_name = ''
-    last_name = ''
-    if name:
-        parts = name.split()
-        first_name = parts[0]
-        last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+    # SSO signs in only users that already exist in User Management.
+    # Match by email/UPN first, then by username/local part and by name tokens.
+    user = _resolve_local_user_for_sso(email, name)
 
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={'email': email, 'first_name': first_name, 'last_name': last_name, 'is_active': True},
-    )
+    if user is None:
+        logger.warning("SSO login denied: no active local user for %s", email)
+        request.session['sso_access_denied'] = True
+        return redirect(settings.LOGIN_URL)
 
-    if created:
-        # New user: optionally set unusable password and add to default group
-        user.set_unusable_password()
-        default_group = os.environ.get('MSAL_DEFAULT_GROUP')
-        if default_group:
-            grp, _ = Group.objects.get_or_create(name=default_group)
-            user.groups.add(grp)
-        user.save()
+    # Log the user in via Django session-based auth.
+    # The backend MUST be one listed in settings.AUTHENTICATION_BACKENDS:
+    # django.contrib.auth.get_user() drops the session (AnonymousUser) on the
+    # next request if the stored backend path is not in that list, which sent
+    # SSO users straight back to the login page.
+    login(request, user, backend=settings.AUTHENTICATION_BACKENDS[0])
 
-    # Log the user in via Django session-based auth
-    login(request, user)
+    # Parity with the username/password login flow (TimedLoginView.form_valid):
+    # mark this session as MFA-verified so any MFA-enforcing middleware treats
+    # SSO logins the same as form logins.
+    request.session['mfa_verified'] = True
+    request.session.modified = True
 
-    # Clean up state cookie
+    # Ensure the sidebar/dashboard reflect the latest admin-assigned module
+    # provisions immediately (module names are cached per user).
     try:
-        del request.session['msal_state']
+        from adminportal.services import invalidate_user_modules_cache
+        invalidate_user_modules_cache(user.id)
     except Exception:
-        pass
+        logger.debug("Could not invalidate module cache for user_id=%s", user.id)
+
+    # Clean up pending states (one-time use)
+    for key in ('msal_state', 'msal_states'):
+        request.session.pop(key, None)
 
     # Redirect to dashboard / home
     return redirect(settings.LOGIN_REDIRECT_URL or '/home/')

@@ -13,10 +13,13 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from the project root so .env is picked up even
+# when Django is launched from a different working directory (for example IIS).
+load_dotenv(BASE_DIR / '.env', override=False)
 
 
 # Quick-start development settings - unsuitable for production
@@ -101,7 +104,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
-    'watchcase_tracker.sso_pipelin-e.link_sso_by_email_or_username',
+    'watchcase_tracker.sso_pipeline.link_sso_by_email_or_username',
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
@@ -259,7 +262,8 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = True   # Issue #4: require HTTPS for session cookie
+# SESSION_COOKIE_SECURE = False   # Issue #4: require HTTPS for session cookie
+SESSION_COOKIE_SECURE = False if DEBUG else True
 SESSION_COOKIE_AGE = 900      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
 
 # ---------------------------------------------------------------------------
@@ -350,8 +354,19 @@ LOGGING = {
 }
 
 # Microsoft (Entra ID) / MSAL settings
-MSAL_CLIENT_ID = "54a2fd19-0009-4e29-9d7b-b33e9ae8fbfa"
+MSAL_CLIENT_ID = os.getenv("MSAL_CLIENT_ID", "54a2fd19-0009-4e29-9d7b-b33e9ae8fbfa")
 MSAL_CLIENT_SECRET = os.getenv("MSAL_CLIENT_SECRET")
-MSAL_TENANT_ID = "common"
+MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID", "common")
+# Use the callback path without a trailing slash so it is compatible with the
+# common Azure App Registration redirect URI format.
+
 MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
+
+# Optional fixed origin (scheme+host[:port]) for the OAuth redirect URI, e.g.
+# "http://localhost:8000" or "https://titan.example.com". When unset, the
+# redirect URI is derived from the incoming request's host, which only works
+# if that exact origin+MSAL_REDIRECT_PATH is registered in the Azure App
+# Registration's "Redirect URIs". Set this to pin the app to one Azure-registered
+# URI regardless of how a browser reaches it (127.0.0.1 vs localhost, etc).
+MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE", "http://localhost:8000")
 MSAL_SCOPES = ["User.Read"]

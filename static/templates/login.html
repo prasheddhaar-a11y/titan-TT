@@ -343,6 +343,46 @@
         to { transform: rotate(360deg); }
       }
 
+      /* SSO access-denied modal (shown when Microsoft account has no portal user) */
+      .sso-denied-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(8, 17, 26, 0.82);
+        backdrop-filter: blur(6px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .sso-denied-overlay.hidden {
+        display: none;
+      }
+      .sso-denied-card {
+        width: min(420px, 92%);
+        background: linear-gradient(135deg, rgba(12, 23, 34, 0.97), rgba(20, 35, 50, 0.95));
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        padding: 30px 28px;
+        text-align: center;
+        color: #f4f7fb;
+      }
+      .sso-denied-card h5 {
+        color: #ffb4b4;
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0 0 10px;
+      }
+      .sso-denied-card p {
+        color: #b8d8ea;
+        font-size: 1rem;
+        margin: 0 0 22px;
+      }
+
       /* Input icon styles */
       .input-with-icon {
         position: relative;
@@ -709,6 +749,15 @@
                   {{ error }}
                 </div>
                 {% endif %}
+                {% if sso_access_denied %}
+                <div class="sso-denied-overlay" id="ssoDeniedOverlay" role="alertdialog" aria-modal="true" aria-labelledby="ssoDeniedTitle">
+                  <div class="sso-denied-card">
+                    <h5 id="ssoDeniedTitle">Access Restricted</h5>
+                    <p>Contact Admin to access the portal</p>
+                    <button type="button" class="btn btn-primary auth-form-btn" id="ssoDeniedCloseBtn">OK</button>
+                  </div>
+                </div>
+                {% endif %}
                 <form class="pt-3" method="post" action="">
                   {% csrf_token %}
                   <div class="form-group input-with-icon">
@@ -853,6 +902,15 @@
         const loginForm = document.querySelector("form");
         const loadingOverlay = document.getElementById("loadingOverlay");
         let visible = false;
+
+        // SSO access-denied modal close
+        const ssoDeniedOverlay = document.getElementById("ssoDeniedOverlay");
+        const ssoDeniedCloseBtn = document.getElementById("ssoDeniedCloseBtn");
+        if (ssoDeniedOverlay && ssoDeniedCloseBtn) {
+          ssoDeniedCloseBtn.addEventListener("click", function () {
+            ssoDeniedOverlay.classList.add("hidden");
+          });
+        }
         
         // Show loading overlay on form submit
         if (loginForm && loadingOverlay) {
