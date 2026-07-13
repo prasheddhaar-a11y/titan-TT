@@ -1712,7 +1712,7 @@
 
                       <td class="{{ data.ui.row_blur }}">
                     <span style="display:flex; align-items:center; gap:3px;">
-                      {% if is_admin %} 
+                      {% if can_hold_release %} 
                         <!-- Admin users: Show toggle switch -->
                         <label class="hold-toggle-switch" style="margin-bottom:0;">
                           {% if not data.ui.hold_lot %}
@@ -2897,7 +2897,10 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrftoken || ''
               },
-              body: JSON.stringify({ lot_id: lotId, action: 'draft', items: items, accepted_trays: acceptedTraysForDraft, rejected_trays: rejectedTraysForDraft, remark: draftRemark })
+              // 'compute': live recompute on every keystroke â same validation/total calc as
+              // 'draft' but performs NO backend persistence (no auto-save). Explicit Save Draft
+              // button still uses action:'draft' via submitAudit() below, unchanged.
+              body: JSON.stringify({ lot_id: lotId, action: 'compute', items: items, accepted_trays: acceptedTraysForDraft, rejected_trays: rejectedTraysForDraft, remark: draftRemark })
             }).then(function(resp){
               return resp.json().catch(function(){ return { success: false, error: 'Invalid JSON' }; });
             }).then(function(body){
@@ -3228,6 +3231,10 @@
       card.style.boxShadow = 'none';
     });
   }
+  // Exposed globally: accepted-tray-slots script calls this whenever the slot table
+  // is rebuilt (i.e. on every rejection-qty change), so "tap to fill" cards used
+  // against the OLD slots don't stay permanently blurred once those slots are gone.
+  window._iqfResetExistingTrayCards = resetExistingTrayCards;
 
   function resetRenderedTrayInputs(){
     var acceptSection = document.getElementById('iqf-accepted-tray-section');
@@ -3884,6 +3891,13 @@ document.addEventListener('click', function(evt){
     var tbody = document.getElementById('iqf-accepted-tray-slots-body');
     var badge = document.getElementById('iqfAcceptedQtyBadge');
     if(!section || !tbody) return;
+
+    // Slot table is about to be rebuilt for the new qty â any "tap to fill" cards
+    // marked used against the OLD slots must go back to available, otherwise they
+    // stay permanently blurred even though no slot references them anymore.
+    if(typeof window._iqfResetExistingTrayCards === 'function'){
+      window._iqfResetExistingTrayCards();
+    }
 
     var wrapper = document.getElementById('iqf-tray-columns-wrapper');
     if(!lotId || rejTotal <= 0){

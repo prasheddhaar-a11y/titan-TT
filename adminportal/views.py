@@ -129,6 +129,8 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         return context
 
     def get_form_kwargs(self):
+        import time as _time
+        t0 = _time.time()
         kwargs = super().get_form_kwargs()
         from .services import should_require_login_captcha
 
@@ -136,7 +138,13 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         data = kwargs.get('data')
         if data:
             username = data.get('username', '').strip()
+        t1 = _time.time()
         kwargs['require_captcha'] = should_require_login_captcha(username)
+        if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+            logger.warning(
+                'LOGIN_FORM_KWARGS_TIMING: super_get_form_kwargs=%.2fms | should_require_login_captcha=%.2fms',
+                (t1 - t0) * 1000, (_time.time() - t1) * 1000,
+            )
         return kwargs
 
     def _login_error_message(self, form, username):
@@ -397,14 +405,20 @@ class IndexView(APIView):
         t4 = time.time()
         if hasattr(request, 'timers'):
             request.timers['dashboard_stats'] = f'{(t4-t3)*1000:.2f}ms'
-        
+
+        # One-shot: only the landing page right after an SSO redirect shows
+        # the "no modules assigned" alert, not every dashboard visit.
+        sso_just_logged_in = request.session.pop('sso_just_logged_in', False)
+        show_sso_no_modules_alert = bool(sso_just_logged_in and not allowed_modules)
+
         # Build context
-        context = { 
+        context = {
             'user': request.user,
             'allowed_modules': allowed_modules,
             'dashboard_stats': dashboard_stats,
             'dashboard_stats_loading': True,
             'current_date': timezone.now().strftime('%d %b %Y'),
+            'show_sso_no_modules_alert': show_sso_no_modules_alert,
         }
         
         # Create response (DRF handles rendering)
@@ -2918,14 +2932,37 @@ def _normalize_group_ids_from_payload(data):
     return group_ids
 
 
+def _group_ids_field_present(data):
+    """True if the request payload actually included a groups field (even if empty).
+
+    Distinguishes "admin explicitly cleared all groups" (groups: []) from
+    "this request doesn't touch groups at all" (key omitted entirely), so
+    callers only reset group membership when the admin meant to.
+    """
+    if not data:
+        return False
+    for key in ('group_ids', 'groups', 'group'):
+        if key in data:
+            return True
+    return False
+
+
 def _apply_user_groups(user, group_ids, apply_admin_flags=False):
-    """Replace user categories with the selected, valid groups without duplicates."""
+    """Replace user categories with the selected, valid groups without duplicates.
+
+    An empty group_ids list clears the user's groups. Callers must only invoke
+    this when the admin actually submitted a groups field (see
+    _group_ids_field_present) - otherwise a user's existing groups would be
+    wiped by unrelated partial updates (e.g. a password-only change).
+    """
     if not group_ids:
+        user.groups.clear()
         return []
 
     groups_by_id = Group.objects.filter(id__in=group_ids).in_bulk()
     selected_groups = [groups_by_id[group_id] for group_id in group_ids if group_id in groups_by_id]
     if not selected_groups:
+        user.groups.clear()
         return []
 
     user.groups.set(selected_groups)
@@ -3028,8 +3065,8 @@ class UserCreateAPIView(APIView):
                         user.set_password(password)
                     user.save()
 
-                    selected_groups = _apply_user_groups(user, group_ids)
-                    if selected_groups:
+                    if _group_ids_field_present(data):
+                        _apply_user_groups(user, group_ids)
                         if not sync_user_module_provisions_from_group(user):
                             invalidate_user_modules_cache(user.id)
 
@@ -3311,6 +3348,16 @@ def user_allowed_modules(request):
     return Response({"modules": get_user_allowed_module_payload(target_user)})
 
 
+# Lightweight self-check used by the post-SSO "no modules assigned" alert to
+# detect that an admin has since granted access, without a full page reload.
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_allowed_modules_status(request):
+    from .services import get_user_allowed_module_names
+
+    modules = get_user_allowed_module_names(request.user)
+    return Response({'has_modules': bool(modules)})
+
 
 #Class for User Deletion API (inactive — route is commented out in urls.py)
 class UserDeleteAPIView(APIView):
@@ -3466,8 +3513,8 @@ class UserUpdateAPIView(APIView):
                 profile.employment_status = data.get('employment_status', profile.employment_status)
                 profile.save()
 
-            selected_groups = _apply_user_groups(user, _normalize_group_ids_from_payload(data))
-            if selected_groups:
+            if _group_ids_field_present(data):
+                _apply_user_groups(user, _normalize_group_ids_from_payload(data))
                 if not sync_user_module_provisions_from_group(user):
                     invalidate_user_modules_cache(user.id)
 

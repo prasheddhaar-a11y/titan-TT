@@ -1,7 +1,13 @@
+import logging
+import time as _time
+
 from django import forms
+from django.conf import settings
 from django.contrib.auth.forms import AuthenticationForm
 
 from .services import is_recaptcha_configured
+
+logger = logging.getLogger(__name__)
 
 
 try:
@@ -22,32 +28,50 @@ class AdaptiveCaptchaAuthenticationForm(AuthenticationForm):
     )
 
     def __init__(self, request=None, *args, require_captcha=False, **kwargs):
+        # Perf instrumentation (LOGIN_POST_TIMING breakdown): the enclosing
+        # TimedLoginView.post() only times the *total* get_form() call. These
+        # sub-timers pinpoint whether the cost is Django's own AuthenticationForm
+        # __init__ (field/widget setup) or the reCAPTCHA field construction.
+        t0 = _time.time()
         self.require_captcha = bool(require_captcha and is_recaptcha_configured())
         super().__init__(request, *args, **kwargs)
+        super_init_ms = (_time.time() - t0) * 1000
 
         if not self.require_captcha:
+            if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+                logger.warning(
+                    'LOGIN_FORM_INIT_TIMING: super_init=%.2fms | captcha_field=skipped',
+                    super_init_ms,
+                )
             return
 
+        t0 = _time.time()
         if ReCaptchaField is None or ReCaptchaV2Checkbox is None:
             self.fields['captcha'] = forms.CharField(
                 required=False,
                 widget=forms.HiddenInput,
             )
-            return
+        else:
+            self.fields['captcha'] = ReCaptchaField(
+                label='',
+                widget=ReCaptchaV2Checkbox(
+                    attrs={
+                        'data-theme': 'light',
+                        'data-size': 'normal',
+                    }
+                ),
+                error_messages={
+                    'required': 'Please complete the CAPTCHA verification.',
+                    'captcha_invalid': 'CAPTCHA verification failed. Please try again.',
+                },
+            )
+        captcha_field_ms = (_time.time() - t0) * 1000
 
-        self.fields['captcha'] = ReCaptchaField(
-            label='',
-            widget=ReCaptchaV2Checkbox(
-                attrs={
-                    'data-theme': 'light',
-                    'data-size': 'normal',
-                }
-            ),
-            error_messages={
-                'required': 'Please complete the CAPTCHA verification.',
-                'captcha_invalid': 'CAPTCHA verification failed. Please try again.',
-            },
-        )
+        if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+            logger.warning(
+                'LOGIN_FORM_INIT_TIMING: super_init=%.2fms | captcha_field=%.2fms',
+                super_init_ms, captcha_field_ms,
+            )
 
     def clean(self):
         if self.require_captcha and self.errors.get('captcha'):

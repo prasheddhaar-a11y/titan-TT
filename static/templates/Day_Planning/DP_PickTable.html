@@ -1148,7 +1148,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
 
             <!-- Table Section -->
             <div class="table-responsive">
-<table id="order-listing" class="table">
+<table id="order-listing" class="table" data-lock-module="DAY_PLANNING">
 <thead>
   <tr> 
     {% for heading in visible_headings %}
@@ -1177,7 +1177,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
         data-model-no="{{ data.model_stock_no__model_no }}">
       <td class="{% if not is_admin and not visible_headings|get_item:'S.No' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}">
         <span class="dp-sno-cell">
-          {% if is_admin %}
+          {% if can_hold_release %}
             <label class="hold-toggle-switch" style="margin-bottom:0;">
               {% if not data.hold_lot %}
                 <input type="checkbox" class="hold-toggle-btn" checked />
@@ -7431,6 +7431,9 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log('✅ ERR 2 FIXED: D key delete mode loaded - press D to select row, arrows to navigate, Enter to confirm');
 });
 </script>
+
+  <!-- Centralized pick-row lock guard (backend-authoritative) -->
+  <script nonce="{{ csp_nonce }}" src="{% static 'js/row_lock_guard.js' %}"></script>
 
   {% endblock %} {% endblock content %}
 </div>

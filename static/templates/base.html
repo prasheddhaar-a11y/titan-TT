@@ -1064,6 +1064,9 @@
       <script src="{% static 'js/colormapping.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- Global HTML escaping helpers (XSS / HTML-injection prevention) -->
       <script src="{% static 'js/escape_utils.js' %}" nonce="{{ csp_nonce }}"></script>
+      <!-- Global idle-session expiry guard (shows "Session Expired" alert on 401 / idle timeout) -->
+      <meta name="session-expiry-seconds" content="{{ session_cookie_age|default:900 }}">
+      <script src="{% static 'js/session_guard.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- endinject -->
       <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">
@@ -1205,7 +1208,8 @@
       </style>
       <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=tabdebug-20260604-3">
    </head>
-   <body>
+   <body> 
+      {% csrf_token %}
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
@@ -1223,7 +1227,6 @@
                   <img src="{% static 'assets/logo/t_t.png' %}" class="me-1" alt="logo" style="height:53px; width:auto; margin-top: -15px;"/>
                   </a>
                   <a class="navbar-brand brand-logo me-2" href="{% url 'index' %}">
-                  <img src="{% static 'assets/logo/beta.png' %}" class="me-1" alt="logo" style="height:10px; width:auto;margin-top: 10px"/>
                   </a>
                </div>
             </div>
@@ -4533,6 +4536,64 @@
   }
 })();
 </script>
+
+{% if show_sso_no_modules_alert %}
+<!-- Post-SSO "no modules assigned" notice: shown once right after an SSO
+     redirect when the sidebar has no modules besides Dashboard. Polls a
+     lightweight self-status endpoint so the message can switch to
+     "Refresh to access" the moment an admin grants access, without the
+     user having to guess or repeatedly reload. -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var STATUS_URL = '/adminportal/api/my-allowed-modules-status/';
+  var POLL_INTERVAL_MS = 15000;
+  var pollTimerId = null;
+  var accessGranted = false;
+
+  function stopPolling() {
+    if (pollTimerId) { clearInterval(pollTimerId); pollTimerId = null; }
+  }
+
+  function showRefreshAlert() {
+    if (accessGranted) { return; }
+    accessGranted = true;
+    stopPolling();
+    Swal.fire({
+      icon: 'success',
+      title: 'Access Granted',
+      text: 'Refresh to access',
+      confirmButtonText: 'Refresh',
+      confirmButtonColor: '#028084',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(function() {
+      window.location.reload();
+    });
+  }
+
+  function pollModuleStatus() {
+    if (accessGranted || !window.fetch) { return; }
+    fetch(STATUS_URL, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function(response) { return response.ok ? response.json() : null; })
+      .then(function(data) {
+        if (data && data.has_modules) { showRefreshAlert(); }
+      })
+      .catch(function() { /* transient network error — retry on next tick */ });
+  }
+
+  Swal.fire({
+    icon: 'info',
+    title: 'Access Restricted',
+    text: 'Contact admin to access the portal',
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#028084',
+    allowOutsideClick: false
+  });
+
+  pollTimerId = setInterval(pollModuleStatus, POLL_INTERVAL_MS);
+})();
+</script>
+{% endif %}
 
    </body>
 </html>

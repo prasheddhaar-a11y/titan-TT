@@ -34,6 +34,56 @@
   }
 }
 
+
+/* Site-wide tablet font baseline: applies 22px tablet font beyond DP/Input Screening pages. */
+html.ttt-viewport-tablet body,
+html.ttt-viewport-tablet :where(
+  .navbar,
+  .navbar *,
+  .dropdown-menu,
+  .dropdown-menu *,
+  .sidebar,
+  .sidebar *,
+  .main-panel,
+  .content-wrapper,
+  .card,
+  .card *,
+  .table,
+  .table *,
+  table,
+  table *,
+  button,
+  .btn,
+  input,
+  select,
+  textarea,
+  label,
+  span,
+  div,
+  a,
+  p,
+  small,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .form-control,
+  .dropdown-item,
+  .nav-link,
+  .menu-title,
+  .badge,
+  .modal,
+  .modal *
+) {
+  font-size: var(--ttt-font-size-tablet, 22px) !important;
+}
+
+html.ttt-viewport-tablet .dropdown-menu .dropdown-item {
+  line-height: 1.35 !important;
+  min-height: 48px !important;
+}
 .dp-bulk-upload-page,
 .dp-bulk-upload-page :where(.card-body, .table-responsive, #order-listing, #order-listing th, #order-listing td, h4, h5, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill) {
   font-size: var(--titan-ui-font-size) !important;
@@ -111,6 +161,94 @@ html:not(.ttt-viewport-tablet) :is(.dp-pick-table-page, .dp-completed-table-page
   font-size: 14px !important;
 }
 
+/* Shared sticky-column repair for non-Input-Screening tables.
+   Input Screening has page-specific sticky rules, so keep it excluded here. */
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(-n+3),
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(-n+3) {
+  position: sticky !important;
+  background: #f7fafd !important;
+  background-clip: padding-box !important;
+  z-index: 32 !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(1),
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(1) {
+  left: 0 !important;
+  width: 78px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(2) {
+  left: 78px !important;
+  width: 165px !important;
+  min-width: 165px !important;
+  max-width: 165px !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(3),
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(3) {
+  left: 243px !important;
+  width: 175px !important;
+  min-width: 175px !important;
+  max-width: 175px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th:nth-child(3),
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(3) {
+  width: 225px !important;
+  min-width: 225px !important;
+  max-width: 225px !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing thead th:nth-child(-n+3) {
+  background: #028084 !important;
+  color: #e5fcff !important;
+  z-index: 60 !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing tbody tr.dp-row-action-highlight > td:nth-child(-n+3) {
+  background: #fff5bd !important;
+  z-index: 45 !important;
+}
+
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing tbody tr.row-inactive > td:nth-child(-n+3),
+.content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing tbody tr.row-inactive-blur > td:nth-child(-n+3) {
+  background: #f7fafd !important;
+}
+
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(1),
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(1) {
+  left: 0 !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+}
+
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(2) {
+  left: 92px !important;
+  width: 168px !important;
+  min-width: 168px !important;
+  max-width: 168px !important;
+}
+
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(3) {
+  left: 260px !important;
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
+}
+
+html.ttt-viewport-tablet .dp-pick-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .dp-pick-table-page #order-listing td:nth-child(3) {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+}
+
 /* Input Screening shared font and tablet alignment fallback. */
 :is(.is-pick-table-page, .is-completed-table-page),
 :is(.is-pick-table-page, .is-completed-table-page) :where(.card-body, .table-responsive, #order-listing, #order-listing th, #order-listing td, h4, h5, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge, .avatar, .remark-circle) {
@@ -176,6 +314,101 @@ html.ttt-viewport-tablet :is(.is-pick-table-page, .is-completed-table-page) #ord
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
+}
+
+/* IS Pick Table tablet layout: keep wide columns scrollable instead of squeezed. */
+html.ttt-viewport-tablet .is-pick-table-page .table-responsive {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  max-width: 100% !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing {
+  width: max-content !important;
+  min-width: 3400px !important;
+  table-layout: fixed !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing thead th {
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  padding-left: 10px !important;
+  padding-right: 32px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing tbody td {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th .fa-filter {
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(1),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(1) { width: 95px !important; min-width: 95px !important; max-width: 95px !important; left: 0 !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(2) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; left: 95px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(3) { width: 210px !important; min-width: 210px !important; max-width: 210px !important; left: 285px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(4) { width: 320px !important; min-width: 320px !important; max-width: 320px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(5),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(5) { width: 140px !important; min-width: 140px !important; max-width: 140px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(6),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(6) { width: 165px !important; min-width: 165px !important; max-width: 165px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(7),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(7),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(8),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(8) { width: 160px !important; min-width: 160px !important; max-width: 160px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(9),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(9) { width: 210px !important; min-width: 210px !important; max-width: 210px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(10),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(10) { width: 185px !important; min-width: 185px !important; max-width: 185px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(11),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(11) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(12),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(12) { width: 230px !important; min-width: 230px !important; max-width: 230px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(13),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(13) { width: 255px !important; min-width: 255px !important; max-width: 255px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(14),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(14) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(15),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(15) { width: 165px !important; min-width: 165px !important; max-width: 165px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(16),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(16) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(17),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(17) { width: 170px !important; min-width: 170px !important; max-width: 170px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(18),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(18) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(19),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(19) { width: 170px !important; min-width: 170px !important; max-width: 170px !important; }
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(4) > * {
+  white-space: nowrap !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(4) {
+  position: static !important;
+  left: auto !important;
+  z-index: auto !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page .btn-accept-is,
+html.ttt-viewport-tablet .is-pick-table-page .btn-reject-is {
+  min-width: 118px !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  line-height: 1.1 !important;
 }
 
 html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) :is(
@@ -274,4 +507,468 @@ html.ttt-viewport-tablet body :is(
   .table-grid > div
 ) {
   font-size: 22px !important;
+}
+/* Input Screening Accepted Table: override shared pick-table tablet widths. */
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing td:nth-child(2) {
+  left: 95px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing td:nth-child(3) {
+  left: 245px !important;
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page.is-accept-table-page #order-listing td:nth-child(4) {
+  left: auto !important;
+}
+/* Input Screening Reject Table: compact tablet columns after shared pick-table rules. */
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing {
+  min-width: 1495px !important;
+  table-layout: fixed !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(1),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(2) {
+  position: sticky !important;
+  left: 92px !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 156px !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(4) {
+  position: sticky !important;
+  left: 296px !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(5),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(5),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(6),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(6) {
+  width: 105px !important;
+  min-width: 105px !important;
+  max-width: 105px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(7),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(7) {
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+  white-space: normal !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(8),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(8),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(9),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(9),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(12),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(12) {
+  width: 135px !important;
+  min-width: 135px !important;
+  max-width: 135px !important;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(10),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(10),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(11),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(11) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+}
+/* Safety reset: do not apply Input Screening table layouts to unrelated modules. */
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing {
+  width: max-content !important;
+  min-width: max-content !important;
+  table-layout: auto !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(n+4),
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(n+4) {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(-n+3),
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(-n+3) {
+  position: sticky !important;
+  background: #f7fafd !important;
+  background-clip: padding-box !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(1),
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(1) {
+  left: 0 !important;
+  z-index: 35 !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(2) {
+  left: 78px !important;
+  z-index: 35 !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(3),
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(3) {
+  left: 243px !important;
+  z-index: 35 !important;
+}
+
+html body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing thead th:nth-child(-n+3) {
+  background: #028084 !important;
+  color: #e5fcff !important;
+  z-index: 65 !important;
+}
+
+html body .dp-pick-table-page #order-listing th:nth-child(3),
+html body .dp-pick-table-page #order-listing td:nth-child(3) {
+  width: 225px !important;
+  min-width: 225px !important;
+  max-width: 225px !important;
+}
+
+html body .dp-completed-table-page #order-listing th:nth-child(1),
+html body .dp-completed-table-page #order-listing td:nth-child(1) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
+html body .dp-completed-table-page #order-listing th:nth-child(2),
+html body .dp-completed-table-page #order-listing td:nth-child(2) {
+  left: 80px !important;
+}
+
+html body .dp-completed-table-page #order-listing th:nth-child(3),
+html body .dp-completed-table-page #order-listing td:nth-child(3) {
+  left: 245px !important;
+}
+
+html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
+html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(2) {
+  left: 92px !important;
+}
+
+html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(3),
+html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(3) {
+  left: 260px !important;
+}
+/* Footer bottom fix for short table pages only. */
+body.force-footer-bottom-page .container-scroller,
+body.force-footer-bottom-page .page-body-wrapper,
+body.force-footer-bottom-page .main-panel {
+  min-height: calc(100vh - var(--ttt-navbar-height, 60px)) !important;
+}
+
+body.force-footer-bottom-page .main-panel {
+  padding-bottom: var(--ttt-footer-height, 32px) !important;
+}
+
+body.force-footer-bottom-page .main-panel > .content-wrapper.force-footer-bottom-page {
+  min-height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body.force-footer-bottom-page .main-panel > footer.footer {
+  position: fixed !important;
+  left: var(--ttt-sidebar-width, 250px) !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: auto !important;
+  z-index: 10000 !important;
+  margin: 0 !important;
+}
+
+body.force-footer-bottom-page.sidebar-icon-only .main-panel > footer.footer {
+  left: var(--ttt-sidebar-collapsed-width, 70px) !important;
+}
+
+@media (max-width: 991.98px) {
+  body.force-footer-bottom-page .main-panel > footer.footer {
+    left: 0 !important;
+    width: 100% !important;
+  }
+}
+/* Shared tablet table layout for Jig Loading and Spider Spindle pick tables. */
+html.ttt-viewport-tablet .module-pick-table-page,
+html.ttt-viewport-tablet .module-pick-table-page :where(.card-body, .table-responsive, #order-listing, #order-listing th, #order-listing td, h4, h5, button, .btn, input, select, textarea, label, span, div, a, p, small, .badge, .rounded-pill) {
+  font-size: var(--ttt-font-size-tablet, 22px) !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page .table-responsive {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing {
+  width: max-content !important;
+  min-width: 2850px !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th,
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td {
+  height: 58px !important;
+  min-height: 58px !important;
+  padding: 8px 12px !important;
+  line-height: 1.12 !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing thead th {
+  height: 70px !important;
+  min-height: 70px !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  padding-right: 34px !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing tbody td {
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th .fa-filter {
+  right: 10px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(1),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  width: 155px !important;
+  min-width: 155px !important;
+  max-width: 155px !important;
+  z-index: 45 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(2) {
+  position: sticky !important;
+  left: 155px !important;
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+  z-index: 45 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 345px !important;
+  width: 280px !important;
+  min-width: 275px !important;
+  max-width: 275px !important;
+  z-index: 45 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing thead th:nth-child(-n+3) {
+  z-index: 60 !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(-n+3) {
+  background: #fff !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(4) {
+  width: 315px !important;
+  min-width: 315px !important;
+  max-width: 315px !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(5),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(5) {
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(6),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(6) {
+  width: 185px !important;
+  min-width: 185px !important;
+  max-width: 185px !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(n+7),
+html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(n+7) {
+  width: 210px !important;
+  min-width: 210px !important;
+  max-width: 210px !important;
+}
+
+html.ttt-viewport-tablet .module-pick-table-page #order-listing :is(.btn, button, .rounded-pill, .badge, .status-badge) {
+  min-height: 0 !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+}
+/* Desktop fix: Input Screening pick/completed sticky columns must stay continuous. */
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing th:nth-child(1),
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing td:nth-child(1) {
+  position: sticky !important;
+  left: 0 !important;
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+  z-index: 45 !important;
+}
+
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing th:nth-child(2),
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing td:nth-child(2) {
+  position: sticky !important;
+  left: 100px !important;
+  width: 125px !important;
+  min-width: 125px !important;
+  max-width: 125px !important;
+  z-index: 45 !important;
+}
+
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing th:nth-child(3),
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 225px !important;
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
+  z-index: 45 !important;
+}
+
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing th:nth-child(4),
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing td:nth-child(4) {
+  position: static !important;
+  left: auto !important;
+}
+
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing thead th:nth-child(-n+3) {
+  z-index: 60 !important;
+  background: #028084 !important;
+}
+
+html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing tbody td:nth-child(-n+3) {
+  background: #fff !important;
+}
+/* Desktop fix: give Input Screening Pick Table action buttons enough room. */
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing th:nth-child(4),
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4) {
+  width: 280px !important;
+  min-width: 275px !important;
+  max-width: 275px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4) :is(button, .btn, a) {
+  white-space: nowrap !important;
+}
+/* Desktop fix: widen Input Screening Pick Table Process Status column. */
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing th:nth-child(9),
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(9) {
+  width: 125px !important;
+  min-width: 125px !important;
+  max-width: 125px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(9) :is(.avatar, .badge, .rounded-pill, .status-badge, span, div) {
+  white-space: nowrap !important;
+}
+
+/* Tablet fix: widen Input Screening Completed Table Action column. */
+html.ttt-viewport-tablet .is-completed-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-completed-table-page #order-listing td:nth-child(4) {
+  width: 300px !important;
+  min-width: 300px !important;
+  max-width: 300px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+html.ttt-viewport-tablet .is-completed-table-page #order-listing td:nth-child(4) :is(button, .btn, a, .badge, .rounded-pill, .status-badge, span, div) {
+  white-space: nowrap !important;
+}
+/* DP Pick Table remark popup: keep the typed remark textbox wide enough on server/desktop. */
+.dp-pick-table-page #order-listing .remark-tooltip:has(textarea) {
+  width: 380px !important;
+  max-width: calc(100vw - 48px) !important;
+  box-sizing: border-box !important;
+}
+
+.dp-pick-table-page #order-listing .remark-tooltip textarea {
+  width: 100% !important;
+  min-width: 100% !important;
+  height: 88px !important;
+  min-height: 88px !important;
+  box-sizing: border-box !important;
+  display: block !important;
+}
+
+.dp-pick-table-page #order-listing .remark-tooltip textarea + div {
+  margin-top: 10px !important;
+  text-align: right !important;
+}
+
+.dp-pick-table-page #order-listing td:last-child .remark-tooltip:has(textarea) {
+  left: auto !important;
+  right: 0 !important;
+  transform: none !important;
 }

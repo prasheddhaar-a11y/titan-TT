@@ -1005,7 +1005,7 @@ tr.row-inactive td.action-td {
                       data-send-brass-audit-to-qc="{{ data.send_brass_audit_to_qc|yesno:'True,False' }}">
                     <td>
                         <span style="display:flex; align-items:center; gap:3px;">
-                          {% if is_admin %}
+                          {% if can_hold_release %}
                             <!-- Admin users: Toggle switch -->
                             <label class="hold-toggle-switch" style="margin-bottom:0;">
                               {% if not data.brass_hold_lot %}

@@ -924,7 +924,7 @@ tr.row-inactive td.action-td {
                       data-aql-limit="{{ data.aql_limit|default:'0' }}">
                     <td>
                         <span style="display:flex; align-items:center; gap:3px;">
-                          {% if is_admin %}
+                          {% if can_hold_release %}
                             <!-- Admin users: Toggle switch -->
                             <label class="hold-toggle-switch" style="margin-bottom:0;">
                               {% if not data.brass_audit_hold_lot %}

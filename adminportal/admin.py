@@ -137,9 +137,27 @@ class UserModuleProvisionAdmin(admin.ModelAdmin):
         )
         return form
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        from .services import invalidate_user_modules_cache
+        invalidate_user_modules_cache(obj.user_id)
+
+    def delete_model(self, request, obj):
+        user_id = obj.user_id
+        super().delete_model(request, obj)
+        from .services import invalidate_user_modules_cache
+        invalidate_user_modules_cache(user_id)
+
+    def delete_queryset(self, request, queryset):
+        from .services import invalidate_user_modules_cache
+        user_ids = list(queryset.values_list('user_id', flat=True).distinct())
+        super().delete_queryset(request, queryset)
+        for user_id in user_ids:
+            invalidate_user_modules_cache(user_id)
 
 
-        
+
+
 # Django Admin Panel - User Management Table with all details
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):

@@ -1,4 +1,6 @@
 import base64
+from django.contrib.sessions.exceptions import SessionInterrupted
+from django.contrib.sessions.middleware import SessionMiddleware as DjangoSessionMiddleware
 from django.utils.crypto import get_random_string
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
@@ -7,6 +9,8 @@ from django.contrib.auth import logout as auth_logout
 from django.contrib import messages
 import time
 import logging
+
+from watchcase_tracker.perf_logger import time_stage
 
 logger = logging.getLogger(__name__)
 
@@ -114,41 +118,53 @@ class ModuleAccessMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        path = request.path.lstrip('/')
+        # Perf instrumentation: this middleware runs on every module-prefixed
+        # request and is a named suspect for MIDDLEWARE_AUTH slowness (permission
+        # checks on every request). Wrapping it in time_stage surfaces its own
+        # cost (cache/DB lookups below) separately from the rest of the
+        # MIDDLEWARE_AUTH bucket whenever a request ends up slow.
+        with time_stage(request, 'MW_MODULE_ACCESS'):
+            path = request.path.lstrip('/')
 
-        # Determine which module group this URL belongs to.
-        required_modules = None
-        for prefix, modules in _MODULE_URL_MAP.items():
-            if path.startswith(prefix):
-                required_modules = modules
-                break
+            # Determine which module group this URL belongs to.
+            required_modules = None
+            for prefix, modules in _MODULE_URL_MAP.items():
+                if path.startswith(prefix):
+                    required_modules = modules
+                    break
 
-        if required_modules is None:
-            # Not a module URL — skip.
-            return self.get_response(request)
+            if required_modules is None:
+                # Not a module URL — skip.
+                return self.get_response(request)
 
-        user = getattr(request, 'user', None)
-        if user is None or not getattr(user, 'is_authenticated', False):
-            # Not authenticated; let login_required redirect handle it.
-            return self.get_response(request)
+            user = getattr(request, 'user', None)
+            if user is None or not getattr(user, 'is_authenticated', False):
+                # Not authenticated; let login_required redirect handle it.
+                return self.get_response(request)
 
-        # Lazy import to avoid circular imports at module load time.
-        from adminportal.services import get_user_allowed_module_names, is_admin_user
+            # Lazy import to avoid circular imports at module load time.
+            from adminportal.services import get_user_allowed_module_names, is_admin_user
 
-        if is_admin_user(user):
-            return self.get_response(request)
+            is_admin = is_admin_user(user)
+            # Stash on request so adminportal.context_processors.user_permissions
+            # (used by every template render) reuses this result instead of
+            # repeating the same cache lookups for the same request.
+            request._ttt_is_admin = is_admin
+            if is_admin:
+                return self.get_response(request)
 
-        allowed = set(get_user_allowed_module_names(user))
-        if allowed.intersection(required_modules):
-            return self.get_response(request)
+            allowed = set(get_user_allowed_module_names(user))
+            request._ttt_allowed_modules = allowed
+            if allowed.intersection(required_modules):
+                return self.get_response(request)
 
-        # Access denied.
-        logger.warning(
-            'MODULE_ACCESS_DENIED: user=%s path=%s required=%s',
-            user.username,
-            request.path,
-            required_modules,
-        )
+            # Access denied.
+            logger.warning(
+                'MODULE_ACCESS_DENIED: user=%s path=%s required=%s',
+                user.username,
+                request.path,
+                required_modules,
+            )
 
         wants_json = (
             'application/json' in request.META.get('HTTP_ACCEPT', '')
@@ -160,6 +176,113 @@ class ModuleAccessMiddleware:
 
         html = _MODULE_ACCESS_DENIED_HTML.format(message=_MODULE_ACCESS_DENIED_MSG)
         return HttpResponse(html, status=403, content_type='text/html; charset=utf-8')
+
+
+class SafeSessionMiddleware(DjangoSessionMiddleware):
+    """
+    Drop-in replacement for django.contrib.sessions.middleware.SessionMiddleware.
+
+    With SESSION_SAVE_EVERY_REQUEST = True (sliding inactivity timeout), every
+    request re-saves the session when the response is built. If the session
+    row was deleted while the request was in flight — a concurrent logout,
+    session expiry in another tab, or the single-session-per-account signal
+    deleting the old session on a new login — Django raises SessionInterrupted,
+    which surfaces as an error page to the user.
+
+    This subclass converts that benign race into the standard session-expired
+    handling: JSON 401 (code=SESSION_EXPIRED) for fetch/AJAX requests so the
+    global session guard shows the "Session Expired" alert, or a redirect to
+    the login page for normal browser navigations.
+    """
+
+    def process_response(self, request, response):
+        try:
+            return super().process_response(request, response)
+        except SessionInterrupted:
+            logger.warning(
+                'SESSION_INTERRUPTED_RECOVERED: path=%s method=%s',
+                request.path, request.method,
+            )
+            if SessionExpiredAjaxMiddleware._is_background_request(request):
+                return JsonResponse(
+                    {
+                        'success': False,
+                        'error': 'Your session has expired due to inactivity. Please log in again to continue.',
+                        'code': 'SESSION_EXPIRED',
+                    },
+                    status=401,
+                )
+            return redirect(getattr(settings, 'LOGIN_URL', '/accounts/login/'))
+
+
+class SessionExpiredAjaxMiddleware:
+    """
+    Session Expiry Handling for AJAX/fetch requests.
+
+    Problem it solves:
+    SESSION_COOKIE_AGE expires an idle user's session. The next background
+    fetch() (e.g. tray-ID scan validation) is answered by login_required with
+    a 302 redirect to the login page. fetch() silently follows the redirect,
+    receives the login HTML, response.json() fails, and the page shows a
+    misleading "Validation Error" instead of telling the user to log in again.
+
+    What it does:
+    Detects when an UNAUTHENTICATED, NON-NAVIGATION request (fetch/XHR/JSON)
+    is being redirected to the login page, and converts that redirect into a
+    structured JSON 401 with code 'SESSION_EXPIRED'. The global frontend
+    session guard (static/js/session_guard.js) recognises this code, shows a
+    professional "session expired" alert and returns the user to login.
+
+    Normal browser navigations are untouched (they still get the redirect).
+    Must be registered AFTER AuthenticationMiddleware so request.user exists.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    @staticmethod
+    def _is_background_request(request):
+        """True for fetch/XHR/API-style requests, False for page navigations."""
+        # Modern browsers: fetch()/XHR send Sec-Fetch-Mode 'cors' or
+        # 'same-origin'; real page navigations send 'navigate'.
+        sec_fetch_mode = request.META.get('HTTP_SEC_FETCH_MODE', '')
+        if sec_fetch_mode and sec_fetch_mode != 'navigate':
+            return True
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return True
+        if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return True
+        if 'application/json' in (request.META.get('CONTENT_TYPE') or ''):
+            return True
+        return False
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            return response
+
+        login_url = getattr(settings, 'LOGIN_URL', '/accounts/login/')
+        is_login_redirect = (
+            response.status_code in (301, 302)
+            and login_url in (response.get('Location') or '')
+        )
+        if is_login_redirect and self._is_background_request(request):
+            logger.info(
+                'SESSION_EXPIRED_AJAX_401: path=%s method=%s',
+                request.path, request.method,
+            )
+            return JsonResponse(
+                {
+                    'success': False,
+                    'error': 'Your session has expired due to inactivity. Please log in again to continue.',
+                    'code': 'SESSION_EXPIRED',
+                },
+                status=401,
+            )
+        return response
+
 
 class CSPMiddleware:
     """

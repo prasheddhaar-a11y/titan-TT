@@ -1111,10 +1111,14 @@ def validate_scanned_tray(
                 "valid": False,
                 "reason": f"Tray {tid} is not an active tray of this lot – cannot delink.",
             }
-        if emptied_count and already_reused_count >= emptied_count:
+        if already_reused_count >= emptied_count:
             return {
                 "valid": False,
                 "reason": (
+                    f"Reuse / delink quota reached "
+                    f"({already_reused_count}/{emptied_count}). "
+                    "No tray is fully emptied yet at this reject quantity."
+                    if emptied_count == 0 else
                     f"Reuse / delink quota reached "
                     f"({already_reused_count}/{emptied_count}). "
                     "Remove an existing scan before picking another active tray."
@@ -1134,10 +1138,13 @@ def validate_scanned_tray(
             # Count-based cap: reject can reuse at most ``emptied_count``
             # active trays.  Any specific tray is allowed, the constraint
             # is on the total count of reused trays.
-            if slot_type == "reject" and emptied_count and already_reused_count >= emptied_count:
+            if slot_type == "reject" and already_reused_count >= emptied_count:
                 return {
                     "valid": False,
                     "reason": (
+                        f"Reuse quota reached ({already_reused_count}/{emptied_count}). "
+                        "No tray is fully emptied yet at this reject quantity."
+                        if emptied_count == 0 else
                         f"Reuse quota reached ({already_reused_count}/{emptied_count}). "
                         "Only as many active trays may be reused as are emptied "
                         "by the current reject qty."

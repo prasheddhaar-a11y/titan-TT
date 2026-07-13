@@ -26,6 +26,7 @@ from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
 from modelmasterapp.models import RowAccessLock, DraftTrayId
+from watchcase_tracker.perf_logger import time_stage
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
 _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
@@ -1395,18 +1396,14 @@ class DayPlanningPickTableAPIView(APIView):
  
     def get(self, request, *args, **kwargs):
         user = request.user
-        # is_admin = user.groups.filter(name='Admin').exists() if user.is_authenticated else False
-        is_admin = is_admin_user(user)
-        
-        # ✅ NEW: Get all globally used trays for real-time validation across lots
-        draft_trays = DraftTrayId.objects.filter(
-            delink_tray=False
-        ).values_list('tray_id', flat=True).distinct()
-        submitted_trays = TrayId.objects.filter(
-            delink_tray=False
-        ).values_list('tray_id', flat=True).distinct()
-        globally_used_trays = list(set(list(draft_trays) + list(submitted_trays)))
- 
+        with time_stage(request, 'DP_PERMISSION_CHECK'):
+            # is_admin = user.groups.filter(name='Admin').exists() if user.is_authenticated else False
+            is_admin = is_admin_user(user)
+            module_name = "DP Pick Table"
+            visible_headings = get_visible_headings_for_user(user, module_name)
+            # Only include headings that are True (checked)
+            allowed_headings = [h for h, v in visible_headings.items() if v]
+
         # Handle sorting parameters
         sort = request.GET.get('sort')
         order = request.GET.get('order', 'asc')  # Default to ascending
@@ -1427,13 +1424,9 @@ class DayPlanningPickTableAPIView(APIView):
             'total_batch_quantity': 'total_batch_quantity',
             'dp_pick_remarks': 'dp_pick_remarks'
         }
- 
-        module_name = "DP Pick Table"
-        visible_headings = get_visible_headings_for_user(user, module_name)
-        # Only include headings that are True (checked)
-        allowed_headings = [h for h, v in visible_headings.items() if v]
-        print(f"🔍 Allowed headings for user {user.username} in module '{module_name}': {allowed_headings}")
-        print(f"🔍 Visible headings for user {user.username} in module '{module_name}': {visible_headings}")
+
+        dp_data_fetch = time_stage(request, 'DP_DATA_FETCH')
+        dp_data_fetch.__enter__()
         # Subqueries for annotations
         last_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
@@ -1534,7 +1527,37 @@ class DayPlanningPickTableAPIView(APIView):
             'accepted_Ip_stock',
             'tray_scan_status',
         ))
- 
+        dp_data_fetch.__exit__(None, None, None)
+
+        dp_processing = time_stage(request, 'DP_PROCESSING')
+        dp_processing.__enter__()
+        # ✅ PERF: Batch-fetch per-batch data ONCE for the whole page instead of
+        # issuing separate queries inside the row loop (was 3 queries per row →
+        # N+1). Behaviour is identical; only the number of DB round-trips changes.
+        page_batch_ids = [d['batch_id'] for d in master_data]
+
+        # Batch ids that have a zero-quantity top tray (replaces per-row .exists()).
+        zero_top_tray_batch_ids = set(
+            TrayId.objects.filter(
+                batch_id__batch_id__in=page_batch_ids,
+                top_tray=True,
+                tray_quantity=0,
+            ).values_list('batch_id__batch_id', flat=True)
+        )
+
+        # Model images per batch (replaces per-row ModelMasterCreation fetch +
+        # images.all()). One query for the rows, one for the M2M via prefetch.
+        images_by_batch = {}
+        for mmc in ModelMasterCreation.objects.filter(
+            batch_id__in=page_batch_ids
+        ).prefetch_related('images'):
+            urls = [
+                img.master_image.url
+                for img in mmc.images.all()
+                if getattr(img, 'master_image', None)
+            ]
+            images_by_batch[mmc.batch_id] = urls
+
         # Helper: normalize tray type string to pre-jig category and capacity
         def _get_prejig_tray(tray_type_str):
             tt = (tray_type_str or '').upper()
@@ -1557,23 +1580,13 @@ class DayPlanningPickTableAPIView(APIView):
             moved_to_d_picker = data.get('Moved_to_D_Picker', False)
             draft_saved = data.get('Draft_Saved', False)
             # ✅ ENHANCED: Check if there are any trays with quantity 0 in the first position
-            has_zero_top_tray = False
-            try:
-                # Check if there are TrayId records for this batch where top_tray=True and tray_quantity=0
-                zero_top_tray_exists = TrayId.objects.filter(
-                    batch_id__batch_id=data['batch_id'],
-                    top_tray=True,
-                    tray_quantity=0
-                ).exists()
-                has_zero_top_tray = zero_top_tray_exists
-            except:
-                has_zero_top_tray = False
+            # (precomputed once above — no per-row query).
+            has_zero_top_tray = data['batch_id'] in zero_top_tray_batch_ids
             # ✅ ENHANCED: Multiple conditions for needing top tray scan
             data['needs_top_tray_scan'] = bool(
                 (tray_scan_status and not moved_to_d_picker and not draft_saved) or  # Original condition, exclude draft
                 (has_zero_top_tray and not draft_saved)  # New condition: zero quantity top tray exists, exclude draft
             )
-            print(f"🔍 Batch {data['batch_id']}: tray_scan_status={tray_scan_status}, moved_to_d_picker={moved_to_d_picker}, has_zero_top_tray={has_zero_top_tray}, needs_top_tray_scan={data['needs_top_tray_scan']}")
             if tray_capacity > 0:
                 no_of_trays = math.ceil(total_batch_quantity / tray_capacity)
                 data['no_of_trays'] = no_of_trays
@@ -1593,18 +1606,14 @@ class DayPlanningPickTableAPIView(APIView):
             else:
                 data['no_of_trays'] = 0
                 data['tray_qty_list'] = []
-            # Add model images
-            mmc = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
-            images = []
-            if mmc:
-                for img in getattr(mmc, 'images', []).all():
-                    if getattr(img, 'master_image', None):
-                        images.append(img.master_image.url)
+            # Add model images (precomputed once above — no per-row query).
+            images = list(images_by_batch.get(data['batch_id'], []))
             if not images:
                 from django.templatetags.static import static
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images
- 
+        dp_processing.__exit__(None, None, None)
+
         # ✅ ENHANCED: Define correct column order for table headers
         correct_column_order = [
             'S.No',
@@ -3145,6 +3154,20 @@ class DPCompletedTableView(APIView):
             'draft_tray_verify'
         ))
 
+        # ✅ PERF: Batch-fetch model images ONCE for the whole page instead of a
+        # per-row ModelMasterCreation query inside the loop (was N+1).
+        page_batch_ids = [d['batch_id'] for d in master_data]
+        images_by_batch = {}
+        for mmc in ModelMasterCreation.objects.filter(
+            batch_id__in=page_batch_ids
+        ).prefetch_related('images'):
+            urls = [
+                img.master_image.url
+                for img in mmc.images.all()
+                if getattr(img, 'master_image', None)
+            ]
+            images_by_batch[mmc.batch_id] = urls
+
         # Calculate no_of_trays dynamically and add tray_qty_list
         for data in master_data:
             total_batch_quantity = data.get('total_batch_quantity', 0)
@@ -3172,14 +3195,9 @@ class DPCompletedTableView(APIView):
             else:
                 data['no_of_trays'] = 0
                 data['tray_qty_list'] = []
-                
-            # Add model images
-            mmc = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
-            images = []
-            if mmc:
-                for img in getattr(mmc, 'images', []).all():
-                    if getattr(img, 'master_image', None):
-                        images.append(img.master_image.url)
+
+            # Add model images (precomputed once above — no per-row query).
+            images = list(images_by_batch.get(data['batch_id'], []))
             if not images:
                 from django.templatetags.static import static
                 images = [static('assets/images/imagePlaceholder.jpg')]

@@ -1311,7 +1311,7 @@
                         <!-- S.No -->
                         <td>
                            <span style="display:flex; align-items:center; gap:0px;">
-                              {% if is_admin %}
+                              {% if can_hold_release %}
                               <!-- Admin users: Show toggle switch -->
                               <label class="hold-toggle-switch" style="margin-bottom:0;">
                               {% if not jig_detail.inprocess_hold_lot %}

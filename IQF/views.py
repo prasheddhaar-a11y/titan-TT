@@ -926,7 +926,11 @@ def iqf_submit_audit(request):
     action = data.get('action')
     items = data.get('items') or []
     remark = (data.get('remark') or '').strip()
-    if not lot_id or not action or action not in ('draft', 'proceed'):
+    # 'compute' = live total/validation recompute triggered on every qty keystroke.
+    # It shares the exact validation path as 'draft' but performs NO database write
+    # (no IQF_Draft_Store persistence) â only an explicit 'draft' (Save Draft button)
+    # or 'proceed' (Proceed button) persists data.
+    if not lot_id or not action or action not in ('draft', 'proceed', 'compute'):
         return Response({'success': False, 'error': 'Missing or invalid parameters'}, status=400)
 
     # Remark is mandatory when proceeding
@@ -1111,20 +1115,23 @@ def iqf_submit_audit(request):
 
             print(f'[IQF REJECTION COMPUTED] total_iqf_rejection={total_iqf}, is_full_lot_reject={is_full_lot_reject}')
 
-            # ─── 5. DRAFT SAVE ───
-            if action == 'draft':
-                accepted_trays_payload = data.get('accepted_trays') or []
-                rejected_trays_payload = data.get('rejected_trays') or []
-                IQF_Draft_Store.objects.update_or_create(
-                    lot_id=lot_id,
-                    draft_type='batch_rejection',
-                    defaults={
-                        'batch_id': batch_id_val,
-                        'user': request.user,
-                        'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf, 'accepted_trays': accepted_trays_payload, 'rejected_trays': rejected_trays_payload, 'remark': remark},
-                    }
-                )
-                return Response({'success': True, 'draft': True, 'rw_qty': iqf_incoming_qty, 'rejection_rows': parsed_items, 'total_iqf_qty': total_iqf})
+            # ─── 5. DRAFT SAVE / LIVE COMPUTE ───
+            # 'draft'   â persists to IQF_Draft_Store (Save Draft button, explicit user action).
+            # 'compute' â same validation/total calc, NO persistence (live keystroke recompute).
+            if action in ('draft', 'compute'):
+                if action == 'draft':
+                    accepted_trays_payload = data.get('accepted_trays') or []
+                    rejected_trays_payload = data.get('rejected_trays') or []
+                    IQF_Draft_Store.objects.update_or_create(
+                        lot_id=lot_id,
+                        draft_type='batch_rejection',
+                        defaults={
+                            'batch_id': batch_id_val,
+                            'user': request.user,
+                            'draft_data': {'is_draft': True, 'items': parsed_items, 'total_iqf': total_iqf, 'accepted_trays': accepted_trays_payload, 'rejected_trays': rejected_trays_payload, 'remark': remark},
+                        }
+                    )
+                return Response({'success': True, 'draft': action == 'draft', 'rw_qty': iqf_incoming_qty, 'rejection_rows': parsed_items, 'total_iqf_qty': total_iqf})
 
             # ─── 6. DECISION ENGINE (action == 'proceed') ───
             rejected_qty = int(total_iqf)
