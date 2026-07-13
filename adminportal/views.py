@@ -12,6 +12,7 @@ from django.conf import settings
 import json
 import re
 import logging
+import time as perf_time
 from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 from .forms import AdaptiveCaptchaAuthenticationForm
@@ -49,6 +50,37 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Module, UserModuleProvision
 from Recovery_DP.models import *
+from watchcase_tracker.performance_logging.logger import emit_perf_event
+from watchcase_tracker.performance_logging.sanitizer import hash_value
+from .image_performance_logging import (
+    duration_ms as image_duration_ms,
+    emit_image_error,
+    emit_image_event,
+    emit_lookup_not_found,
+    emit_lookup_start,
+    emit_media_delete,
+    emit_media_read,
+    emit_media_write,
+    perf_counter as image_perf_counter,
+)
+
+
+def _perf_username(username):
+    return hash_value((username or '').strip().lower()) if username else None
+
+
+def _emit_auth_event(request, event_type, level, message, metadata=None):
+    try:
+        emit_perf_event(
+            'AUTH',
+            event_type,
+            level,
+            message,
+            metadata=metadata or {},
+            request=request,
+        )
+    except Exception:
+        return
 
 
 def get_allowed_modules_for_user(user):
@@ -189,6 +221,18 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         from django.conf import settings
         import time as _time
 
+        login_start = perf_time.perf_counter()
+        username = request.POST.get('username', '').strip()
+        _emit_auth_event(
+            request,
+            'AUTH.LOGIN.START',
+            'INFO',
+            'Login attempt started',
+            {
+                'username_hash': _perf_username(username),
+                'authentication_method': 'password',
+            },
+        )
         # request.limited is set by the ratelimit decorator above.
         if getattr(request, 'limited', False):
             security_logger = logging.getLogger('security.auth')
@@ -196,6 +240,18 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
                 'LOGIN_RATE_LIMITED: ip=%s path=%s',
                 request.META.get('REMOTE_ADDR', 'unknown'),
                 request.path,
+            )
+            _emit_auth_event(
+                request,
+                'AUTH.LOGIN.FAILED',
+                'WARNING',
+                'Login attempt failed',
+                {
+                    'username_hash': _perf_username(username),
+                    'reason_category': 'unknown_failure',
+                    'rate_limited': True,
+                    'duration_ms': round((perf_time.perf_counter() - login_start) * 1000, 3),
+                },
             )
             message = 'Too many login attempts. Please wait a minute and try again.'
             if request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -221,6 +277,20 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
             t0 = _time.time()
             response = self.form_valid(form)
             timers['form_valid_otp'] = (_time.time() - t0) * 1000
+            user = form.get_user()
+            _emit_auth_event(
+                request,
+                'AUTH.LOGIN.SUCCESS',
+                'INFO',
+                'Login attempt succeeded',
+                {
+                    'user_id': getattr(user, 'pk', None),
+                    'username_hash': _perf_username(getattr(user, 'username', username)),
+                    'duration_ms': round((perf_time.perf_counter() - login_start) * 1000, 3),
+                    'created': bool(getattr(request.session, 'session_key', None)),
+                    'authentication_backend': getattr(user, 'backend', None),
+                },
+            )
         else:
             response = self.form_invalid(form)
             timers['form_invalid'] = 0.0
@@ -230,6 +300,19 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
             if hasattr(response, 'context_data'):
                 response.context_data['error'] = self._login_error_message(form, username)
             self._refresh_captcha_context_after_failed_login(response, username)
+            error_message = self._login_error_message(form, username)
+            reason = 'locked_account' if error_message and 'locked' in error_message.lower() else 'invalid_credentials'
+            _emit_auth_event(
+                request,
+                'AUTH.LOGIN.FAILED',
+                'WARNING',
+                'Login attempt failed',
+                {
+                    'username_hash': _perf_username(username),
+                    'reason_category': reason,
+                    'duration_ms': round((perf_time.perf_counter() - login_start) * 1000, 3),
+                },
+            )
 
         total = (_time.time() - t_start) * 1000
         breakdown = ' | '.join(f'{k}={v:.2f}ms' for k, v in timers.items())
@@ -481,6 +564,18 @@ class Visual_AidView(APIView):
         context = {
             'user': request.user,
         }
+        visual_aid_started = image_perf_counter()
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.START',
+            'INFO',
+            'Visual Aid image request started',
+            {
+                'lookup_source': 'visual_aid',
+                'stock_hash': hash_value((plating_stk_no or batch_id or '').strip().upper(), prefix='stock')
+                if (plating_stk_no or batch_id) else None,
+            },
+        )
 
         # Import required models
         from modelmasterapp.models import ModelMasterCreation, LookLikeModel, ModelMaster, TotalStockModel
@@ -667,6 +762,18 @@ class Visual_AidView(APIView):
             else:
                 context['error'] = "Please provide either lot_id, batch_id, or plating_stk_no parameter"
 
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.END',
+            'INFO',
+            'Visual Aid image request completed',
+            {
+                'lookup_source': 'visual_aid',
+                'duration_ms': image_duration_ms(visual_aid_started),
+                'images_returned': len(context.get('image_urls', []) or []),
+                'result': 'error' if context.get('error') else 'completed',
+            },
+        )
         return Response(context)
     
 _STOCK_NO_RE = re.compile(r'^[A-Z0-9/_-]{1,50}$', re.IGNORECASE)
@@ -759,6 +866,11 @@ def _build_image_payload(request, images):
     payload = []
     for img in images:
         try:
+            emit_media_read(
+                request,
+                img.master_image,
+                lookup_source='image_payload',
+            )
             image_url = request.build_absolute_uri(img.master_image.url)
         except Exception:
             continue
@@ -772,10 +884,38 @@ def _build_image_payload(request, images):
     return payload
 
 
+def _build_image_url_list(request, images, lookup_source='visual_aid_direct_images'):
+    image_urls = []
+    for img in images:
+        if img.master_image:
+            emit_media_read(
+                request,
+                img.master_image,
+                lookup_source=lookup_source,
+            )
+            image_urls.append(img.master_image.url)
+    return image_urls
+
+
 def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
+    feature_started = image_perf_counter()
     stock_parts = _parse_stock_no(raw_stock_no)
     if not stock_parts:
+        emit_lookup_not_found(
+            request,
+            'hover_preview_payload',
+            image_duration_ms(feature_started),
+            'invalid_stock_number',
+        )
         return None
+
+    emit_lookup_start(
+        request,
+        'hover_preview_payload',
+        stock_no=stock_parts['canonical'],
+        model_no=stock_parts['model_no'],
+        view_requested='hover',
+    )
 
     model_master = (
         ModelMaster.objects
@@ -789,9 +929,19 @@ def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
             .prefetch_related('images')
             .filter(model_no=stock_parts['model_no'])
             .first()
-        )
+    )
 
     if not model_master:
+        emit_lookup_not_found(
+            request,
+            'hover_preview_payload',
+            image_duration_ms(feature_started),
+            'model_master_not_found',
+            {
+                'stock_hash': hash_value(stock_parts['canonical'], prefix='stock'),
+                'model_hash': hash_value(stock_parts['model_no'], prefix='model'),
+            },
+        )
         return {
             'found': False,
             'stock_no': stock_parts['canonical'],
@@ -834,7 +984,11 @@ class ModelHoverPreviewAPIView(APIView):
 
     def get(self, request, stock_no=None, format=None):
         stock_no = stock_no or request.GET.get('stock_no', '')
-        payload = _get_model_hover_payload(request, stock_no)
+        try:
+            payload = _get_model_hover_payload(request, stock_no)
+        except Exception as exc:
+            emit_image_error(request, 'hover_preview_payload', exc)
+            raise
         if payload is None:
             return Response({'error': 'Invalid stock number'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(payload, status=status.HTTP_200_OK)
@@ -853,6 +1007,18 @@ class Rec_Visual_AidView(APIView):
         context = {
             'user': request.user,
         }
+        visual_aid_started = image_perf_counter()
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.START',
+            'INFO',
+            'Visual Aid image request started',
+            {
+                'lookup_source': 'recovery_visual_aid',
+                'stock_hash': hash_value((plating_stk_no or batch_id or '').strip().upper(), prefix='stock')
+                if (plating_stk_no or batch_id) else None,
+            },
+        )
 
 
         batch_obj = None
@@ -894,7 +1060,11 @@ class Rec_Visual_AidView(APIView):
             if data_source == "RecoveryMasterCreation" and batch_obj:
                 # Use RecoveryMasterCreation data (preferred)
                 images = batch_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                image_urls = _build_image_url_list(
+                    request,
+                    images,
+                    lookup_source='recovery_visual_aid.batch_images',
+                )
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -910,7 +1080,11 @@ class Rec_Visual_AidView(APIView):
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
                 images = model_master_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                image_urls = _build_image_url_list(
+                    request,
+                    images,
+                    lookup_source='recovery_visual_aid.model_master_images',
+                )
                 
                 context.update({
                     'batch_id': None,
@@ -979,6 +1153,18 @@ class Rec_Visual_AidView(APIView):
             else:
                 context['error'] = "Please provide either batch_id or plating_stk_no parameter"
 
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.END',
+            'INFO',
+            'Visual Aid image request completed',
+            {
+                'lookup_source': 'recovery_visual_aid',
+                'duration_ms': image_duration_ms(visual_aid_started),
+                'images_returned': len(context.get('image_urls', []) or []),
+                'result': 'error' if context.get('error') else 'completed',
+            },
+        )
         return Response(context)
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
@@ -995,6 +1181,18 @@ class Other_Visual_AidView(APIView):
         context = {
             'user': request.user,
         }
+        visual_aid_started = image_perf_counter()
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.START',
+            'INFO',
+            'Visual Aid image request started',
+            {
+                'lookup_source': 'other_visual_aid',
+                'stock_hash': hash_value((plating_stk_no or batch_id or model_no or '').strip().upper(), prefix='stock')
+                if (plating_stk_no or batch_id or model_no) else None,
+            },
+        )
 
         # Import required models
         from modelmasterapp.models import ModelMasterCreation, LookLikeModel, ModelMaster
@@ -1059,7 +1257,11 @@ class Other_Visual_AidView(APIView):
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
                 images = batch_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                image_urls = _build_image_url_list(
+                    request,
+                    images,
+                    lookup_source='other_visual_aid.batch_images',
+                )
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -1075,7 +1277,11 @@ class Other_Visual_AidView(APIView):
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
                 images = model_master_obj.images.all()
-                image_urls = [img.master_image.url for img in images if img.master_image]
+                image_urls = _build_image_url_list(
+                    request,
+                    images,
+                    lookup_source='other_visual_aid.model_master_images',
+                )
                 
                 context.update({
                     'batch_id': None,
@@ -1144,6 +1350,18 @@ class Other_Visual_AidView(APIView):
             else:
                 context['error'] = "Please provide either batch_id or plating_stk_no parameter"
 
+        emit_image_event(
+            request,
+            'IMAGE.VISUAL_AID.END',
+            'INFO',
+            'Visual Aid image request completed',
+            {
+                'lookup_source': 'other_visual_aid',
+                'duration_ms': image_duration_ms(visual_aid_started),
+                'images_returned': len(context.get('image_urls', []) or []),
+                'result': 'error' if context.get('error') else 'completed',
+            },
+        )
         return Response(context)
 
 
@@ -1833,7 +2051,14 @@ class ModelImageAPIView(APIView):
                     }
                     serializer = ModelImageSerializer(data=image_data)
                     if serializer.is_valid():
+                        write_started = image_perf_counter()
                         model_image = serializer.save()
+                        emit_media_write(
+                            request,
+                            image,
+                            image_duration_ms(write_started),
+                            result='saved',
+                        )
                         uploaded_images.append(ModelImageSerializer(model_image).data)
                     else:
                         return Response({
@@ -1854,6 +2079,7 @@ class ModelImageAPIView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
+            emit_image_error(request, 'model_image_upload', e)
             logger.exception('ModelImageAPIView.post upload error')
             return Response({
                 'success': False,
@@ -1866,13 +2092,22 @@ class ModelImageAPIView(APIView):
             model_image = get_object_or_404(ModelImage, pk=pk)
             # Delete the actual file
             if model_image.master_image:
+                delete_started = image_perf_counter()
+                file_field = model_image.master_image
                 model_image.master_image.delete()
+                emit_media_delete(
+                    request,
+                    file_field,
+                    image_duration_ms(delete_started),
+                    result='file_deleted',
+                )
             model_image.delete()
             return Response({
                 'success': True,
                 'message': 'Model image deleted successfully!'
             }, status=status.HTTP_200_OK)
         except Exception as e:
+            emit_image_error(request, 'model_image_delete', e)
             return Response({
                 'success': False,
                 'message': 'Unable to process the request. Please verify the submitted data and try again.'

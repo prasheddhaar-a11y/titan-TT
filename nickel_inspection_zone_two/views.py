@@ -540,7 +540,7 @@ class NQ_Zone_RejectTableView(APIView):
                             data["nickel_rejection_total_qty"] = 0
                         print(f"⚠️ No rejection record found for {stock_lot_id}")
                 except Exception as e:
-                    logger.error(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}", exc_info=True)
+                    print(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}")
                     data["nickel_rejection_total_qty"] = data.get("nickel_rejection_total_qty", 0)
             else:
                 data["nickel_rejection_total_qty"] = 0

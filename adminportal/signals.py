@@ -1,12 +1,28 @@
 import logging
+import time
 
 from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.contrib.sessions.models import Session
 from django.dispatch import receiver
 
 from .models import UserActiveSession
+from watchcase_tracker.performance_logging.logger import emit_perf_event
 
 logger = logging.getLogger(__name__)
+
+
+def _emit_auth_event(request, event_type, level, message, metadata=None):
+    try:
+        emit_perf_event(
+            'AUTH',
+            event_type,
+            level,
+            message,
+            metadata=metadata or {},
+            request=request,
+        )
+    except Exception:
+        return
 
 
 def _get_client_ip(request):
@@ -48,19 +64,53 @@ def enforce_single_session_on_login(sender, request, user, **kwargs):
     if request is None:
         return
 
+    signal_start = time.perf_counter()
+    _emit_auth_event(
+        request,
+        'AUTH.SIGNAL.LOGIN',
+        'INFO',
+        'Login signal started',
+        {
+            'phase': 'start',
+            'user_id': getattr(user, 'pk', None),
+        },
+    )
     session = getattr(request, 'session', None)
     new_session_key = getattr(session, 'session_key', None) if session else None
     if not new_session_key:
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGIN',
+            'WARNING',
+            'Login signal ended without session key',
+            {
+                'phase': 'end',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+                'created': False,
+            },
+        )
         return
 
     try:
         active_session = UserActiveSession.objects.filter(user=user).first()
         old_session_key = active_session.session_key if active_session else None
+        replaced_existing_record = bool(old_session_key and old_session_key != new_session_key)
 
-        if old_session_key and old_session_key != new_session_key:
+        if replaced_existing_record:
             Session.objects.filter(pk=old_session_key).delete()
+            _emit_auth_event(
+                request,
+                'AUTH.SINGLE_SESSION.REPLACED',
+                'WARNING',
+                'Existing active record replaced',
+                {
+                    'user_id': getattr(user, 'pk', None),
+                    'old_record_removed': True,
+                },
+            )
 
-        UserActiveSession.objects.update_or_create(
+        _, created = UserActiveSession.objects.update_or_create(
             user=user,
             defaults={
                 'session_key': new_session_key,
@@ -69,8 +119,44 @@ def enforce_single_session_on_login(sender, request, user, **kwargs):
                 'login_source': _get_login_source(request),
             },
         )
+        _emit_auth_event(
+            request,
+            'AUTH.SESSION.CREATED',
+            'INFO',
+            'Active session recorded',
+            {
+                'user_id': getattr(user, 'pk', None),
+                'created': True,
+                'active_record_created': created,
+                'login_source': _get_login_source(request),
+            },
+        )
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGIN',
+            'INFO',
+            'Login signal completed',
+            {
+                'phase': 'end',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+                'created': True,
+                'replaced_existing_record': replaced_existing_record,
+            },
+        )
     except Exception:
         # Session bookkeeping must never block a successful login.
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGIN',
+            'ERROR',
+            'Login signal failed',
+            {
+                'phase': 'error',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+            },
+        )
         logger.exception(
             "Failed to enforce single-session-per-account for user_id=%s",
             getattr(user, 'pk', None),
@@ -88,16 +174,74 @@ def clear_active_session_on_logout(sender, request, user, **kwargs):
     if request is None or user is None:
         return
 
+    signal_start = time.perf_counter()
+    _emit_auth_event(
+        request,
+        'AUTH.SIGNAL.LOGOUT',
+        'INFO',
+        'Logout signal started',
+        {
+            'phase': 'start',
+            'user_id': getattr(user, 'pk', None),
+        },
+    )
     session = getattr(request, 'session', None)
     current_session_key = getattr(session, 'session_key', None) if session else None
     if not current_session_key:
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGOUT',
+            'WARNING',
+            'Logout signal ended without session key',
+            {
+                'phase': 'end',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+                'terminated': False,
+            },
+        )
         return
 
     try:
-        UserActiveSession.objects.filter(
+        deleted_count, _ = UserActiveSession.objects.filter(
             user=user, session_key=current_session_key
         ).delete()
+        _emit_auth_event(
+            request,
+            'AUTH.LOGOUT',
+            'INFO',
+            'User logged out',
+            {
+                'user_id': getattr(user, 'pk', None),
+                'terminated': bool(deleted_count),
+                'logout_source': _get_login_source(request),
+                'duration_seconds': None,
+            },
+        )
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGOUT',
+            'INFO',
+            'Logout signal completed',
+            {
+                'phase': 'end',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+                'terminated': bool(deleted_count),
+            },
+        )
     except Exception:
+        _emit_auth_event(
+            request,
+            'AUTH.SIGNAL.LOGOUT',
+            'ERROR',
+            'Logout signal failed',
+            {
+                'phase': 'error',
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - signal_start) * 1000, 3),
+            },
+        )
         logger.exception(
             "Failed to clear active session on logout for user_id=%s",
             getattr(user, 'pk', None),

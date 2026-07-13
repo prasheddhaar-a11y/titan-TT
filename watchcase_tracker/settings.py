@@ -29,9 +29,10 @@ load_dotenv(BASE_DIR / '.env', override=False)
 SECRET_KEY = 'django-insecure-gjye57-rx)^o3)f$ix_jy#802*56@oljtx1zrpo6_$-hzvb#mv'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
+    "trackandtrace.titan.in",
     "192.168.1.2",
     "localhost",
     "127.0.0.1",
@@ -41,6 +42,7 @@ ALLOWED_HOSTS = [
 # Required for Django 4.0+ CSRF Origin validation.
 # Extend this list with production hostname/IP when deploying.
 CSRF_TRUSTED_ORIGINS = [
+    "https://trackandtrace.titan.in",
     'http://127.0.0.1:8000',
     'http://localhost:8000',
     'http://127.0.0.1',
@@ -202,10 +204,10 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     }
-}
+} 
 
 # UAT Database
-""" DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'watchcasetrack',
@@ -215,7 +217,7 @@ DATABASES = {
         'PORT':'5432',
         'CONN_MAX_AGE':60,
     }
-} """
+}"""
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

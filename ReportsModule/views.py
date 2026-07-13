@@ -23,6 +23,38 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+def _autofit_excel_columns(writer, max_width=60):
+    """
+    Auto-fit every column in every sheet of the workbook so no value is
+    cropped. Multi-line cells (e.g. Current/Next Stage) get wrap_text and
+    are sized to their longest line. Must be called inside the
+    pd.ExcelWriter context, after all sheets are written.
+    """
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment
+
+    for ws in writer.book.worksheets:
+        for idx, column_cells in enumerate(ws.columns, start=1):
+            max_len = 0
+            has_multiline = False
+            for cell in column_cells:
+                if cell.value is None:
+                    continue
+                text = str(cell.value)
+                if '\n' in text:
+                    has_multiline = True
+                    line_len = max(len(line) for line in text.split('\n'))
+                else:
+                    line_len = len(text)
+                max_len = max(max_len, line_len)
+            ws.column_dimensions[get_column_letter(idx)].width = min(
+                max_len + 2, max_width
+            )
+            if has_multiline:
+                for cell in column_cells:
+                    cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+
 def convert_datetimes(data):
     for item in data:
         for key, value in item.items():
@@ -1378,6 +1410,8 @@ def download_report(request):
         elif module == 'spider-spindle-z2':
             _write_spider_spindle_report(writer, zone=2)
 
+        _autofit_excel_columns(writer)
+
     output.seek(0)
     response = HttpResponse(
         output.getvalue(),
@@ -2629,3 +2663,117 @@ def _write_spider_spindle_report(writer, zone):
     _report_write_sheet(
         writer, 'Completed Table', completed_columns, completed_rows
     )
+
+
+# ---------------------------------------------------------------------------
+# Consolidated Report (Preview + Download share the same selector)
+# ---------------------------------------------------------------------------
+
+CONSOLIDATED_COLUMNS = [
+    'S.No', 'Plating Stock No.', 'Lot Qty', 'Accept / Reject',
+    'Current Stage', 'Next Stage', 'Remarks',
+]
+
+
+def _parse_report_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), '%Y-%m-%d').date()
+    except (ValueError, AttributeError):
+        return None
+
+
+def _consolidated_rows_from_request(request):
+    from .selectors import get_consolidated_report_rows
+
+    date_from = _parse_report_date(request.GET.get('date_from'))
+    date_to = _parse_report_date(request.GET.get('date_to'))
+    plating_stock_no = (request.GET.get('plating_stk_no') or '').strip()
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+    return get_consolidated_report_rows(
+        date_from=date_from,
+        date_to=date_to,
+        plating_stock_no=plating_stock_no,
+    )
+
+
+@login_required(login_url='login')
+@require_admin
+def consolidated_report_preview(request):
+    """Paginated JSON preview — 10 rows per page, same data as download."""
+    try:
+        rows = _consolidated_rows_from_request(request)
+    except Exception:
+        logger.exception('Consolidated report preview failed')
+        return JsonResponse({'error': 'Failed to build preview'}, status=500)
+
+    paginator = Paginator(rows, 10)
+    try:
+        page_number = int(request.GET.get('page', 1))
+    except (TypeError, ValueError):
+        page_number = 1
+    page = paginator.get_page(page_number)
+
+    return JsonResponse({
+        'results': list(page.object_list),
+        'page': page.number,
+        'num_pages': paginator.num_pages,
+        'total_records': paginator.count,
+        'has_previous': page.has_previous(),
+        'has_next': page.has_next(),
+    })
+
+
+@login_required(login_url='login')
+@require_admin
+def consolidated_report_download(request):
+    """Excel download for the consolidated journey report."""
+    try:
+        rows = _consolidated_rows_from_request(request)
+    except Exception:
+        logger.exception('Consolidated report download failed')
+        return HttpResponse('Failed to build report', status=500)
+
+    excel_rows = [
+        {
+            'S.No': row['s_no'],
+            'Plating Stock No.': row['plating_stk_no'],
+            'Lot Qty': row['lot_qty'],
+            'Accept / Reject': row['accept_reject'],
+            'Current Stage': row['current_stage'],
+            'Next Stage': row['next_stage'],
+            'Remarks': row['remarks'],
+        }
+        for row in rows
+    ]
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(excel_rows, columns=CONSOLIDATED_COLUMNS).to_excel(
+            writer, sheet_name='Consolidated Report', index=False
+        )
+        _autofit_excel_columns(writer)
+    output.seek(0)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename=consolidated_report.xlsx'
+    response['Content-Length'] = len(output.getvalue())
+    output.close()
+    return response
+
+
+@login_required(login_url='login')
+@require_admin
+def plating_stock_autocomplete(request):
+    """Partial-match autocomplete for Plating Stock No."""
+    from .selectors import search_plating_stock
+
+    try:
+        results = search_plating_stock(request.GET.get('q', ''))
+    except Exception:
+        logger.exception('Plating stock autocomplete failed')
+        results = []
+    return JsonResponse({'results': results})

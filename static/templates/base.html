@@ -111,6 +111,12 @@
          vertical-align: middle;
          font-weight: 700;
          }
+         /* Tablet: top-level sidebar menu titles should match sub-menu at 22px */
+         html.ttt-viewport-tablet .sidebar .nav .nav-item .nav-link .menu-title {
+         font-size: 22px !important;
+         line-height: 1.4 !important;
+         font-weight: 400 !important;
+         }
          /* Sidebar scroll fix: keep the full menu visible between fixed header/footer */
          .sidebar {
          overflow-y: auto !important;
@@ -155,6 +161,11 @@
          .sidebar .nav .nav-item .nav-link .menu-title {
          font-size: 13px !important;
          line-height: 1.15 !important;
+         }
+         html.ttt-viewport-tablet .sidebar .nav .nav-item .nav-link .menu-title {
+         font-size: 22px !important;
+         line-height: 1.4 !important;
+         font-weight: 400 !important;
          }
          }
          /* Force sidebar menu icons/titles to display in a single vertical column, never wrap */
@@ -1203,9 +1214,29 @@
           }
         }
       </style>
-      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=tabdebug-20260604-3">
+      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=dp-remark-textbox-20260708-1">
    </head>
-   <body>
+   <body class="{% block body_class %}{% endblock %}">
+        <style nonce="{{ csp_nonce }}">
+          html.ttt-viewport-tablet .navbar .nb-btn,
+          html.ttt-viewport-tablet .navbar .nb-btn small,
+          html.ttt-viewport-tablet .navbar .nav-link,
+          html.ttt-viewport-tablet .navbar .dropdown-toggle,
+          html.ttt-viewport-tablet .navbar .dropdown-item,
+          html.ttt-viewport-tablet .navbar .dropdown-menu,
+          html.ttt-viewport-tablet .navbar .dropdown-menu *,
+          html.ttt-viewport-tablet .navbar .admin-name,
+          html.ttt-viewport-tablet .navbar span,
+          html.ttt-viewport-tablet .navbar a,
+          html.ttt-viewport-tablet .navbar button {
+            font-size: var(--ttt-font-size-tablet, 22px) !important;
+            line-height: 1.25 !important;
+          }
+          html.ttt-viewport-tablet .navbar .nb-btn {
+            min-height: 52px !important;
+            padding: 10px 18px !important;
+          }
+        </style>
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
@@ -1339,7 +1370,7 @@
                   <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" href="#"
                      data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false">
                      <img src="{% static 'assets/icons/52.png' %}" alt="Profile" class="nb-icon" />
-                     <small>{{ request.user.first_name|default:request.user.username }}</small>
+                     <small>{{ request.user.username }}</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -2113,7 +2144,90 @@
       <div class="main-panel">
          {% block page_title %}{% endblock %}
          {% block content %}{% endblock %}
-        <footer class="footer">
+                <style nonce="{{ csp_nonce }}">
+          footer.footer.force-footer-bottom-page {
+            position: fixed !important;
+            left: var(--ttt-sidebar-width, 250px) !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: auto !important;
+            margin: 0 !important;
+            z-index: 2147483000 !important;
+          }
+          body.sidebar-icon-only footer.footer.force-footer-bottom-page {
+            left: var(--ttt-sidebar-collapsed-width, 70px) !important;
+          }
+          body.force-footer-bottom-page .main-panel {
+            padding-bottom: 78px !important;
+          }
+          body.force-footer-bottom-page .content-wrapper.force-footer-bottom-page {
+            padding-bottom: 78px !important;
+          }
+          body.force-footer-bottom-page .dataTables_wrapper,
+          body.force-footer-bottom-page .dataTables_paginate,
+          body.force-footer-bottom-page .pagination {
+            margin-bottom: 18px !important;
+          }
+          @media (max-width: 991.98px) {
+            footer.footer.force-footer-bottom-page {
+              left: 0 !important;
+              width: 100% !important;
+            }
+          }
+        </style>
+        <style nonce="{{ csp_nonce }}">
+          html.ttt-viewport-tablet body.module-pick-table-page,
+          html.ttt-viewport-tablet body.module-pick-table-page .content-wrapper,
+          html.ttt-viewport-tablet body.module-pick-table-page .content-wrapper *,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing th,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing td,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing th *,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing td *,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing button,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .btn,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing input,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing select,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing textarea,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .badge,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .rounded-pill,
+          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .status-badge {
+            font-size: var(--ttt-font-size-tablet, 22px) !important;
+          }
+        </style>                <style nonce="{{ csp_nonce }}">
+          html.ttt-viewport-tablet body.module-completed-table-page,
+          html.ttt-viewport-tablet body.module-completed-table-page .content-wrapper,
+          html.ttt-viewport-tablet body.module-completed-table-page .content-wrapper *,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th *,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td *,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing button,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .btn,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing input,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing select,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing textarea,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .badge,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .rounded-pill,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .status-badge {
+            font-size: var(--ttt-font-size-tablet, 22px) !important;
+            line-height: 1.15 !important;
+          }
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th,
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td {
+            min-height: 58px !important;
+            height: 58px !important;
+            padding: 8px 12px !important;
+            vertical-align: middle !important;
+          }
+          html.ttt-viewport-tablet body.module-completed-table-page #order-listing thead th {
+            min-height: 70px !important;
+            height: 70px !important;
+            white-space: normal !important;
+            padding-right: 34px !important;
+          }
+        </style>        <footer class="footer {% block footer_class %}{% endblock %}">
           <span>
           &copy; 2026 Pinesphere. All rights reserved.
           </span>

@@ -15,6 +15,24 @@ import time
 from .selectors import get_dashboard_stat_labels, get_dashboard_stats_for_labels
 from .models import Module, ShortcutConfiguration, UserModuleProvision
 from .module_registry import LEGACY_MODULE_NAME_MAP, MODULE_REGISTRY, USER_CATEGORY_MODULES
+from .service_performance_logging import (
+    duration_ms as service_duration_ms,
+    emit_background_end,
+    emit_background_error,
+    emit_background_start,
+    emit_cache_delete,
+    emit_cache_expire,
+    emit_cache_get,
+    emit_cache_set,
+    emit_service_end,
+    emit_service_error,
+    emit_service_start,
+    emit_thread_end,
+    emit_thread_error,
+    emit_thread_start,
+    estimate_size,
+    perf_counter as service_perf_counter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -294,41 +312,86 @@ def get_active_shortcut_configurations():
     Cache is shared within the same process worker. On cache miss the DB hit is one
     simple index-scan on (is_active, sort_order).
     """
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.get_active_shortcut_configurations',
+        caller='adminportal.services',
+    )
+    cache_started = service_perf_counter()
     cached = cache.get(SHORTCUT_CACHE_KEY)
+    cache_lookup_ms = service_duration_ms(cache_started)
+    emit_cache_get(
+        'shortcut_configurations.get',
+        SHORTCUT_CACHE_KEY,
+        cache_lookup_ms,
+        hit=cached is not None,
+        size=estimate_size(cached),
+    )
     if cached is not None:
+        emit_service_end(
+            'adminportal.get_active_shortcut_configurations',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={'source': 'cache'},
+        )
         return cached
 
-    t0 = time.time()
-    raw = list(
-        ShortcutConfiguration.objects
-        .filter(is_active=True)
-        .order_by('sort_order', 'label', 'code')
-        .values(*_SHORTCUT_VALUES_FIELDS)
-    )
-    elapsed_ms = (time.time() - t0) * 1000
-    logger.debug('shortcuts DB query: %.2fms rows=%d', elapsed_ms, len(raw))
+    try:
+        t0 = time.time()
+        raw = list(
+            ShortcutConfiguration.objects
+            .filter(is_active=True)
+            .order_by('sort_order', 'label', 'code')
+            .values(*_SHORTCUT_VALUES_FIELDS)
+        )
+        elapsed_ms = (time.time() - t0) * 1000
+        logger.debug('shortcuts DB query: %.2fms rows=%d', elapsed_ms, len(raw))
 
-    # Normalise None values that blank=True fields can return.
-    shortcuts = [
-        {
-            'code': row['code'],
-            'keys': row['keys'] or [],
-            'key_display': row['key_display'],
-            'label': row['label'],
-            'description': row['description'] or '',
-            'action_type': row['action_type'],
-            'target_selector': row['target_selector'] or '',
-            'fallback_selector': row['fallback_selector'] or '',
-            'contexts': row['contexts'] or [],
-            'allow_in_modal': row['allow_in_modal'],
-            'allow_when_typing': row['allow_when_typing'],
-            'sort_order': row['sort_order'],
-        }
-        for row in raw
-    ]
+        # Normalise None values that blank=True fields can return.
+        shortcuts = [
+            {
+                'code': row['code'],
+                'keys': row['keys'] or [],
+                'key_display': row['key_display'],
+                'label': row['label'],
+                'description': row['description'] or '',
+                'action_type': row['action_type'],
+                'target_selector': row['target_selector'] or '',
+                'fallback_selector': row['fallback_selector'] or '',
+                'contexts': row['contexts'] or [],
+                'allow_in_modal': row['allow_in_modal'],
+                'allow_when_typing': row['allow_when_typing'],
+                'sort_order': row['sort_order'],
+            }
+            for row in raw
+        ]
 
-    cache.set(SHORTCUT_CACHE_KEY, shortcuts, timeout=SHORTCUT_CACHE_TTL)
-    return shortcuts
+        cache_started = service_perf_counter()
+        cache.set(SHORTCUT_CACHE_KEY, shortcuts, timeout=SHORTCUT_CACHE_TTL)
+        emit_cache_set(
+            'shortcut_configurations.set',
+            SHORTCUT_CACHE_KEY,
+            service_duration_ms(cache_started),
+            size=estimate_size(shortcuts),
+            metadata={'timeout_seconds': SHORTCUT_CACHE_TTL},
+        )
+        emit_service_end(
+            'adminportal.get_active_shortcut_configurations',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={'source': 'database', 'rows': len(shortcuts)},
+        )
+        return shortcuts
+    except Exception as exc:
+        emit_service_error(
+            'adminportal.get_active_shortcut_configurations',
+            exc,
+            duration=service_duration_ms(service_started),
+            caller='adminportal.services',
+        )
+        raise
 
 
 def sync_user_module_provisions_from_group(user):
@@ -384,12 +447,24 @@ def _dashboard_refresh_lock_key(labels):
 
 def get_dashboard_cache_snapshot(allowed_module_names=None):
     """Return currently cached dashboard stats without calculating on miss."""
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.get_dashboard_cache_snapshot',
+        caller='dashboard_stats_api',
+    )
     labels = (
         get_dashboard_labels_for_modules(allowed_module_names)
         if allowed_module_names is not None
         else get_dashboard_stat_labels()
     )
     if not labels:
+        emit_service_end(
+            'adminportal.get_dashboard_cache_snapshot',
+            service_duration_ms(service_started),
+            success=True,
+            caller='dashboard_stats_api',
+            metadata={'label_count': 0, 'result': 'no_labels'},
+        )
         return [], [], [], 0.0
 
     cache_keys = {label: _dashboard_cache_key(label) for label in labels}
@@ -397,6 +472,17 @@ def get_dashboard_cache_snapshot(allowed_module_names=None):
     t1 = time.time()
     cached_by_key = cache.get_many(cache_keys.values())
     cache_lookup_ms = (time.time() - t1) * 1000
+    emit_cache_get(
+        'dashboard_cache_snapshot.get_many',
+        cache_keys,
+        cache_lookup_ms,
+        hit=len(cached_by_key) == len(cache_keys),
+        size=estimate_size(cached_by_key),
+        metadata={
+            'requested_count': len(cache_keys),
+            'returned_count': len(cached_by_key),
+        },
+    )
 
     stats_by_label = {}
     stale_labels = []
@@ -414,20 +500,85 @@ def get_dashboard_cache_snapshot(allowed_module_names=None):
 
     missing_labels = [label for label in labels if label not in stats_by_label]
     stats = [stats_by_label[label] for label in labels if label in stats_by_label]
+    emit_service_end(
+        'adminportal.get_dashboard_cache_snapshot',
+        service_duration_ms(service_started),
+        success=True,
+        caller='dashboard_stats_api',
+        metadata={
+            'label_count': len(labels),
+            'hit_count': len(stats_by_label),
+            'miss_count': len(missing_labels),
+            'stale_count': len(stale_labels),
+        },
+    )
     return stats, labels, missing_labels, cache_lookup_ms
 
 
 def refresh_dashboard_stats_async(labels):
     """Warm missing dashboard stats in a daemon thread without blocking API TTFB."""
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.refresh_dashboard_stats_async',
+        caller='dashboard_stats_api',
+    )
     labels = list(dict.fromkeys(labels or []))
     if not labels:
+        emit_service_end(
+            'adminportal.refresh_dashboard_stats_async',
+            service_duration_ms(service_started),
+            success=True,
+            caller='dashboard_stats_api',
+            metadata={'label_count': 0, 'result': 'no_labels'},
+        )
         return False
 
     lock_key = _dashboard_refresh_lock_key(labels)
+    cache_started = service_perf_counter()
     if not cache.add(lock_key, True, timeout=60):
+        lock_ms = service_duration_ms(cache_started)
+        emit_cache_set(
+            'dashboard_refresh_lock.add',
+            lock_key,
+            lock_ms,
+            size=1,
+            metadata={'lock_acquired': False, 'timeout_seconds': 60},
+        )
+        emit_cache_get(
+            'dashboard_refresh_lock.exists',
+            lock_key,
+            lock_ms,
+            hit=True,
+            size=1,
+        )
+        emit_service_end(
+            'adminportal.refresh_dashboard_stats_async',
+            service_duration_ms(service_started),
+            success=True,
+            caller='dashboard_stats_api',
+            metadata={'label_count': len(labels), 'started': False, 'reason': 'lock_exists'},
+        )
         return False
+    emit_cache_set(
+        'dashboard_refresh_lock.add',
+        lock_key,
+        service_duration_ms(cache_started),
+        size=1,
+        metadata={'lock_acquired': True, 'timeout_seconds': 60},
+    )
 
     def refresh_cache():
+        thread_started = service_perf_counter()
+        task_name = 'dashboard_stats_refresh'
+        emit_thread_start(
+            thread_name='dashboard-stats-refresh',
+            metadata={'label_count': len(labels)},
+        )
+        emit_background_start(
+            task_name,
+            trigger='dashboard_cache_miss',
+            metadata={'label_count': len(labels)},
+        )
         try:
             close_old_connections()
             fresh_stats = get_dashboard_stats_for_labels(labels)
@@ -438,23 +589,63 @@ def refresh_dashboard_stats_async(labels):
                     cache_payload[_dashboard_cache_key(label)] = stat
 
             if cache_payload:
+                cache_started = service_perf_counter()
                 cache.set_many(cache_payload, timeout=DASHBOARD_STATS_CACHE_TTL)
+                emit_cache_set(
+                    'dashboard_async_stats.set_many',
+                    cache_payload,
+                    service_duration_ms(cache_started),
+                    size=estimate_size(cache_payload),
+                    metadata={'timeout_seconds': DASHBOARD_STATS_CACHE_TTL},
+                )
                 if _dashboard_latency_logs_enabled():
                     logger.warning(
                         f'ASYNC_STATS_CACHED: labels={list(cache_payload.keys())} '
                         f'TTL={DASHBOARD_STATS_CACHE_TTL}s'
                     )
+            elapsed = service_duration_ms(thread_started)
+            emit_background_end(
+                task_name,
+                duration=elapsed,
+                result='cached',
+                metadata={'cached_count': len(cache_payload)},
+            )
+            emit_thread_end(
+                thread_name='dashboard-stats-refresh',
+                duration=elapsed,
+                result='completed',
+                metadata={'cached_count': len(cache_payload)},
+            )
         except RuntimeError as exc:
+            elapsed = service_duration_ms(thread_started)
+            emit_background_error(task_name, exc, duration=elapsed)
+            emit_thread_error('dashboard-stats-refresh', exc, duration=elapsed)
             if 'interpreter shutdown' not in str(exc):
                 logger.exception(f'Error refreshing dashboard stats asynchronously: {exc}')
         except Exception as exc:
+            elapsed = service_duration_ms(thread_started)
+            emit_background_error(task_name, exc, duration=elapsed)
+            emit_thread_error('dashboard-stats-refresh', exc, duration=elapsed)
             logger.exception(f'Error refreshing dashboard stats asynchronously: {exc}')
         finally:
+            cache_started = service_perf_counter()
             cache.delete(lock_key)
+            emit_cache_delete(
+                'dashboard_refresh_lock.delete',
+                lock_key,
+                service_duration_ms(cache_started),
+            )
             close_old_connections()
 
     thread = threading.Thread(target=refresh_cache, name='dashboard-stats-refresh', daemon=True)
     thread.start()
+    emit_service_end(
+        'adminportal.refresh_dashboard_stats_async',
+        service_duration_ms(service_started),
+        success=True,
+        caller='dashboard_stats_api',
+        metadata={'label_count': len(labels), 'started': True},
+    )
     return True
 
 
@@ -462,12 +653,25 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculat
     """
     Fetch dashboard stats from cache, calculating only visible cards on miss.
     """
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.get_cached_dashboard_stats',
+        caller='adminportal.services',
+        metadata={'calculate_on_miss': bool(calculate_on_miss)},
+    )
     labels = (
         get_dashboard_labels_for_modules(allowed_module_names)
         if allowed_module_names is not None
         else get_dashboard_stat_labels()
     )
     if not labels:
+        emit_service_end(
+            'adminportal.get_cached_dashboard_stats',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={'label_count': 0, 'result': 'no_labels'},
+        )
         return []
 
     cache_keys = {label: _dashboard_cache_key(label) for label in labels}
@@ -476,6 +680,17 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculat
     cached_by_key = cache.get_many(cache_keys.values())
     t2 = time.time()
     cache_lookup_ms = (t2 - t1) * 1000
+    emit_cache_get(
+        'dashboard_stats.get_many',
+        cache_keys,
+        cache_lookup_ms,
+        hit=len(cached_by_key) == len(cache_keys),
+        size=estimate_size(cached_by_key),
+        metadata={
+            'requested_count': len(cache_keys),
+            'returned_count': len(cached_by_key),
+        },
+    )
 
     stats_by_label = {}
     stale_labels = []
@@ -496,6 +711,13 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculat
     if not missing_labels:
         if _dashboard_latency_logs_enabled():
             logger.warning(f'CACHE_HIT: dashboard_stats labels={labels} (lookup={cache_lookup_ms:.2f}ms)')
+        emit_service_end(
+            'adminportal.get_cached_dashboard_stats',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={'label_count': len(labels), 'miss_count': 0, 'source': 'cache'},
+        )
         return [stats_by_label[label] for label in labels]
 
     if not calculate_on_miss:
@@ -504,6 +726,17 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculat
                 f'CACHE_PARTIAL: dashboard_stats missing={missing_labels} '
                 f'(lookup={cache_lookup_ms:.2f}ms), skipped synchronous calculation'
             )
+        emit_service_end(
+            'adminportal.get_cached_dashboard_stats',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={
+                'label_count': len(labels),
+                'miss_count': len(missing_labels),
+                'source': 'partial_cache',
+            },
+        )
         return [stats_by_label[label] for label in labels if label in stats_by_label]
 
     if _dashboard_latency_logs_enabled():
@@ -530,12 +763,38 @@ def get_cached_dashboard_stats(user_id=None, allowed_module_names=None, calculat
             cache_payload[_dashboard_cache_key(label)] = stat
 
         if cache_payload:
+            cache_started = service_perf_counter()
             cache.set_many(cache_payload, timeout=DASHBOARD_STATS_CACHE_TTL)
+            emit_cache_set(
+                'dashboard_stats.set_many',
+                cache_payload,
+                service_duration_ms(cache_started),
+                size=estimate_size(cache_payload),
+                metadata={'timeout_seconds': DASHBOARD_STATS_CACHE_TTL},
+            )
             if _dashboard_latency_logs_enabled():
                 logger.warning(f'STATS_CACHED: labels={list(cache_payload.keys())} TTL={DASHBOARD_STATS_CACHE_TTL}s')
 
+        emit_service_end(
+            'adminportal.get_cached_dashboard_stats',
+            service_duration_ms(service_started),
+            success=True,
+            caller='adminportal.services',
+            metadata={
+                'label_count': len(labels),
+                'miss_count': len(missing_labels),
+                'source': 'calculated',
+            },
+        )
         return [stats_by_label[label] for label in labels if label in stats_by_label]
     except Exception as e:
+        emit_service_error(
+            'adminportal.get_cached_dashboard_stats',
+            e,
+            duration=service_duration_ms(service_started),
+            caller='adminportal.services',
+            metadata={'label_count': len(labels)},
+        )
         logger.exception(f'Error calculating dashboard stats: {e}')
         # Return empty list on error instead of failing
         return [stats_by_label[label] for label in labels if label in stats_by_label]
@@ -547,16 +806,58 @@ def invalidate_dashboard_cache():
     Call this after data-modifying operations (accept/reject/submit).
     Also increments cache version to invalidate HTML page cache.
     """
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.invalidate_dashboard_cache',
+        caller='adminportal.services',
+    )
     cache_key = 'dashboard_stats_global'
+    cache_started = service_perf_counter()
     cache.delete(cache_key)
-    cache.delete_many([_dashboard_cache_key(label) for label in get_dashboard_stat_labels()])
+    emit_cache_delete(
+        'dashboard_stats_global.delete',
+        cache_key,
+        service_duration_ms(cache_started),
+    )
+    dashboard_keys = [_dashboard_cache_key(label) for label in get_dashboard_stat_labels()]
+    cache_started = service_perf_counter()
+    cache.delete_many(dashboard_keys)
+    emit_cache_expire(
+        'dashboard_stats.delete_many',
+        dashboard_keys,
+        service_duration_ms(cache_started),
+        metadata={'deleted_count': len(dashboard_keys)},
+    )
     
     # Increment version to invalidate all HTML caches
     version_key = 'dashboard_cache_version'
+    cache_started = service_perf_counter()
     current_version = cache.get(version_key, 0)
+    emit_cache_get(
+        'dashboard_cache_version.get',
+        version_key,
+        service_duration_ms(cache_started),
+        hit=current_version is not None,
+        size=1,
+    )
+    cache_started = service_perf_counter()
     cache.set(version_key, current_version + 1, timeout=None)  # No expiry
+    emit_cache_set(
+        'dashboard_cache_version.set',
+        version_key,
+        service_duration_ms(cache_started),
+        size=1,
+        metadata={'timeout_seconds': None},
+    )
     
     logger.warning(f'CACHE_INVALIDATED: dashboard_stats + HTML cache (v{current_version + 1})')
+    emit_service_end(
+        'adminportal.invalidate_dashboard_cache',
+        service_duration_ms(service_started),
+        success=True,
+        caller='adminportal.services',
+        metadata={'deleted_count': len(dashboard_keys) + 1},
+    )
 
 
 def invalidate_user_modules_cache(user_id=None):
@@ -587,17 +888,57 @@ def refresh_dashboard_cache():
     Proactively refresh dashboard cache.
     Can be called by background tasks or scheduled jobs.
     """
-    invalidate_dashboard_cache()
-    t1 = time.time()
-    stats = get_dashboard_stats_for_labels()
-    t2 = time.time()
-    query_ms = (t2 - t1) * 1000
-
-    cache.set_many(
-        {_dashboard_cache_key(stat['label']): stat for stat in stats if stat.get('label')},
-        timeout=DASHBOARD_STATS_CACHE_TTL,
+    service_started = service_perf_counter()
+    emit_background_start('dashboard_cache_refresh', trigger='manual_or_scheduled')
+    emit_service_start(
+        'adminportal.refresh_dashboard_cache',
+        caller='adminportal.services',
     )
-    logger.warning(f'CACHE_REFRESHED: {query_ms:.2f}ms for {len(stats)} modules')
+    try:
+        invalidate_dashboard_cache()
+        t1 = time.time()
+        stats = get_dashboard_stats_for_labels()
+        t2 = time.time()
+        query_ms = (t2 - t1) * 1000
+
+        cache_payload = {_dashboard_cache_key(stat['label']): stat for stat in stats if stat.get('label')}
+        cache_started = service_perf_counter()
+        cache.set_many(
+            cache_payload,
+            timeout=DASHBOARD_STATS_CACHE_TTL,
+        )
+        emit_cache_set(
+            'dashboard_refresh.set_many',
+            cache_payload,
+            service_duration_ms(cache_started),
+            size=estimate_size(cache_payload),
+            metadata={'timeout_seconds': DASHBOARD_STATS_CACHE_TTL},
+        )
+        logger.warning(f'CACHE_REFRESHED: {query_ms:.2f}ms for {len(stats)} modules')
+        elapsed = service_duration_ms(service_started)
+        emit_background_end(
+            'dashboard_cache_refresh',
+            duration=elapsed,
+            result='refreshed',
+            metadata={'stats_count': len(stats)},
+        )
+        emit_service_end(
+            'adminportal.refresh_dashboard_cache',
+            elapsed,
+            success=True,
+            caller='adminportal.services',
+            metadata={'stats_count': len(stats)},
+        )
+    except Exception as exc:
+        elapsed = service_duration_ms(service_started)
+        emit_background_error('dashboard_cache_refresh', exc, duration=elapsed)
+        emit_service_error(
+            'adminportal.refresh_dashboard_cache',
+            exc,
+            duration=elapsed,
+            caller='adminportal.services',
+        )
+        raise
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

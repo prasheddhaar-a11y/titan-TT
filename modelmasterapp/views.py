@@ -38,6 +38,16 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.decorators import login_required
+from adminportal.image_performance_logging import (
+    duration_ms as image_duration_ms,
+    emit_image_error,
+    emit_lookup_end,
+    emit_lookup_not_found,
+    emit_lookup_start,
+    emit_media_read,
+    perf_counter as image_perf_counter,
+)
+from watchcase_tracker.performance_logging.sanitizer import hash_value
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -510,23 +520,68 @@ from django.views.decorators.http import require_GET as _require_GET
 @_require_GET
 def get_plating_images(request):
     """Return images for a given plating_stk_no from ModelMaster."""
+    lookup_started = image_perf_counter()
     plating_stk_no = request.GET.get('plating_stk_no', '').strip()
     if not plating_stk_no:
+        emit_lookup_not_found(
+            request,
+            'modelmaster.get_plating_images',
+            image_duration_ms(lookup_started),
+            'empty_plating_stock_number',
+        )
         return JsonResponse({'images': []})
 
     import re as _re
-    mm = ModelMaster.objects.prefetch_related('images').filter(plating_stk_no=plating_stk_no).first()
+    emit_lookup_start(
+        request,
+        'modelmaster.get_plating_images',
+        stock_no=plating_stk_no,
+        view_requested='plating_images',
+    )
+    try:
+        mm = ModelMaster.objects.prefetch_related('images').filter(plating_stk_no=plating_stk_no).first()
 
-    # Fallback: try numeric prefix match (e.g. '1805' matches '1805NAK02')
-    if not mm:
-        _m = _re.match(r'^(\d+)', plating_stk_no)
-        if _m:
-            mm = ModelMaster.objects.prefetch_related('images').filter(
-                plating_stk_no__startswith=_m.group(1)
-            ).first()
+        # Fallback: try numeric prefix match (e.g. '1805' matches '1805NAK02')
+        if not mm:
+            _m = _re.match(r'^(\d+)', plating_stk_no)
+            if _m:
+                mm = ModelMaster.objects.prefetch_related('images').filter(
+                    plating_stk_no__startswith=_m.group(1)
+                ).first()
 
-    if mm and mm.images.exists():
-        image_urls = [img.master_image.url for img in mm.images.all() if img.master_image]
-        return JsonResponse({'images': image_urls})
+        if mm and mm.images.exists():
+            image_urls = []
+            for img in mm.images.all():
+                if img.master_image:
+                    emit_media_read(
+                        request,
+                        img.master_image,
+                        lookup_source='modelmaster.get_plating_images',
+                    )
+                    image_urls.append(img.master_image.url)
+            emit_lookup_end(
+                request,
+                'modelmaster.get_plating_images',
+                image_duration_ms(lookup_started),
+                len(image_urls),
+                model_found=True,
+                extra={'stock_hash': hash_value(plating_stk_no, prefix='stock')},
+            )
+            return JsonResponse({'images': image_urls})
 
-    return JsonResponse({'images': []})
+        emit_lookup_not_found(
+            request,
+            'modelmaster.get_plating_images',
+            image_duration_ms(lookup_started),
+            'no_plating_images',
+            {'stock_hash': hash_value(plating_stk_no, prefix='stock')},
+        )
+        return JsonResponse({'images': []})
+    except Exception as exc:
+        emit_image_error(
+            request,
+            'modelmaster.get_plating_images',
+            exc,
+            image_duration_ms(lookup_started),
+        )
+        raise

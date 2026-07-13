@@ -449,34 +449,17 @@ class BrassAuditCompletedView(APIView):
             has_valid_submission
         )
 
-        # BUG2 FIX: Exclude child lots from partial splits — only parent summary row.
-        # ✅ FIX (Issue 2): Re-entry lots (child lots that later submitted their own BA
-        # FULL_ACCEPT or FULL_REJECT) MUST NOT be excluded even if they appear in
-        # _child_accept_ids/_child_reject_ids from an earlier BA PARTIAL cycle.
-        _child_accept_ids = set(
-            Brass_Audit_Submission.objects.filter(
-                submission_type='PARTIAL', is_completed=True,
-                transition_accept_lot_id__isnull=False
-            ).values_list('transition_accept_lot_id', flat=True)
-        )
-        _child_reject_ids = set(
-            Brass_Audit_Submission.objects.filter(
-                submission_type='PARTIAL', is_completed=True,
-                transition_reject_lot_id__isnull=False
-            ).values_list('transition_reject_lot_id', flat=True)
-        )
-        # Lots that submitted their own BA result (FULL_ACCEPT / FULL_REJECT) are re-entry
-        # lots — they must appear in BA CT regardless of being a historical child.
-        _reentry_ids = set(
-            Brass_Audit_Submission.objects.filter(
-                submission_type__in=['FULL_ACCEPT', 'FULL_REJECT'],
-                is_completed=True,
-            ).values_list('lot_id', flat=True)
-        )
-        _exclude_accept = _child_accept_ids - _reentry_ids
-        _exclude_reject = _child_reject_ids - _reentry_ids
+        # BUG2 FIX: Exclude child lots from partial splits — only parent summary row
+        _child_accept_ids = Brass_Audit_Submission.objects.filter(
+            submission_type='PARTIAL', is_completed=True,
+            transition_accept_lot_id__isnull=False
+        ).values_list('transition_accept_lot_id', flat=True)
+        _child_reject_ids = Brass_Audit_Submission.objects.filter(
+            submission_type='PARTIAL', is_completed=True,
+            transition_reject_lot_id__isnull=False
+        ).values_list('transition_reject_lot_id', flat=True)
         queryset = queryset.exclude(
-            Q(lot_id__in=_exclude_accept) | Q(lot_id__in=_exclude_reject)
+            Q(lot_id__in=_child_accept_ids) | Q(lot_id__in=_child_reject_ids)
         )
 
         if sort and sort in sort_field_mapping:
@@ -980,69 +963,12 @@ def brass_audit_toggle_verified(request):
 
     ts.save(update_fields=update_fields)
 
-    # ── Bin icon activation rule (mirrors pick-table can_delete) ──
-    can_delete = (
-        not ts.brass_audit_accptance and
-        not ts.brass_audit_rejection and
-        not ts.brass_accepted_tray_scan_status and
-        not ts.brass_audit_few_cases_accptance and
-        ts.brass_audit_accepted_qty_verified
-    )
-
     return JsonResponse({
         "success": True,
         "lot_id": lot_id,
         "brass_audit_accepted_qty_verified": ts.brass_audit_accepted_qty_verified,
         "last_process_module": ts.last_process_module,
-        "can_delete": can_delete,
     })
-
-
-# ═══════════════════════════════════════════════════════════════
-# Hard Delete: Bin icon action (admin-gated, can_delete-gated)
-# ═══════════════════════════════════════════════════════════════
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def brass_audit_delete_batch(request):
-    """
-    Permanently deletes a lot's TotalStockModel row (and its tray
-    assignments) from the Brass Audit pick table.
-
-    Only allowed when:
-      - the requesting user is in the Admin group, AND
-      - the lot satisfies the same can_delete rule shown on the pick table
-        (not accepted / not rejected / not tray-scanned / qty verified)
-    Both checks are enforced here — the frontend Bin icon is a display
-    affordance only, never the source of truth.
-    """
-    is_admin = request.user.groups.filter(name='Admin').exists()
-    if not is_admin:
-        return JsonResponse({"success": False, "error": "Admin access required."}, status=403)
-
-    lot_id = (request.data.get('stock_lot_id') or request.data.get('lot_id') or '').strip()
-    if not lot_id:
-        return JsonResponse({"success": False, "error": "stock_lot_id is required"}, status=400)
-
-    ts = TotalStockModel.objects.filter(lot_id=lot_id).first()
-    if not ts:
-        return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
-
-    can_delete = (
-        not ts.brass_audit_accptance and
-        not ts.brass_audit_rejection and
-        not ts.brass_accepted_tray_scan_status and
-        not ts.brass_audit_few_cases_accptance and
-        ts.brass_audit_accepted_qty_verified
-    )
-    if not can_delete:
-        return JsonResponse({"success": False, "error": "This lot can no longer be deleted."}, status=409)
-
-    with transaction.atomic():
-        BrassAuditTrayId.objects.filter(lot_id=lot_id).delete()
-        ts.delete()  # cascades related rows via TotalStockModel.delete() override
-
-    logger.info("Brass Audit Delete Batch: lot_id=%s deleted by user=%s", lot_id, request.user)
-    return JsonResponse({"success": True, "message": "Lot deleted successfully.", "lot_id": lot_id})
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1987,10 +1913,10 @@ def _handle_audit_submission(request, action):
             stock.iqf_acceptance = False
             stock.iqf_rejection = False
             stock.iqf_few_cases_acceptance = False
-            # ✅ FIX: Do NOT clear brass_qc_accptance/rejection/few_cases here.
-            # These are historical Completed-Table flags — clearing them removes the lot
-            # from BQC CT (regression: Issues 1 & 3).
-            # remove_lot=True is sufficient to prevent re-entry into pick tables.
+            # Clear Brass QC flags so parent never re-enters Brass QC pick table
+            stock.brass_qc_accptance = False
+            stock.brass_qc_rejection = False
+            stock.brass_qc_few_cases_accptance = False
             stock.brass_qc_accepted_qty_verified = False
             stock.remove_lot = True
             stock.save(update_fields=[
@@ -2015,6 +1941,9 @@ def _handle_audit_submission(request, action):
                 "iqf_acceptance",
                 "iqf_rejection",
                 "iqf_few_cases_acceptance",
+                "brass_qc_accptance",
+                "brass_qc_rejection",
+                "brass_qc_few_cases_accptance",
                 "brass_qc_accepted_qty_verified",
                 "remove_lot",
                 "current_stage",

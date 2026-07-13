@@ -721,7 +721,7 @@ class NickelQcRejectTableView(APIView):
                             data["nickel_rejection_total_qty"] = 0
                         print(f"⚠️ No rejection record found for {stock_lot_id}")
                 except Exception as e:
-                    logger.error(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}", exc_info=True)
+                    print(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}")
                     data["nickel_rejection_total_qty"] = data.get("nickel_rejection_total_qty", 0)
             else:
                 data["nickel_rejection_total_qty"] = 0
@@ -768,7 +768,7 @@ def nq_toggle_verified(request):
         return Response({'success': True, 'last_process_module': obj.last_process_module or ''})
     except Exception as e:
         logger.exception("[nq_toggle_verified] error lot=%s", lot_id)
-        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+        return Response({'success': False, 'error': str(e)}, status=500)
 
 
 @api_view(['POST'])
@@ -889,19 +889,19 @@ def nq_action(request):
             return _nq_do_submit_reject(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action SUBMIT_REJECT] lot=%s", lot_id)
-            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+            return Response({'success': False, 'error': str(e)}, status=500)
     if action == 'SUBMIT_ACCEPT':
         try:
             return _nq_do_submit_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action SUBMIT_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+            return Response({'success': False, 'error': str(e)}, status=500)
     if action == 'FULL_ACCEPT':
         try:
             return _nq_do_full_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action FULL_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+            return Response({'success': False, 'error': str(e)}, status=500)
     if action == 'SAVE_DRAFT':
         from django.db import transaction as _tx
         draft_data = _nq_build_draft_snapshot(request.data.get('draft_data', {}), juat, request)
@@ -1388,7 +1388,7 @@ def nq_delink_selected_trays(request):
         return Response({'success': True, 'updated': updated, 'lots_processed': lots_processed})
     except Exception as e:
         logger.exception("[nq_delink_selected_trays] error")
-        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+        return Response({'success': False, 'error': str(e)}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')

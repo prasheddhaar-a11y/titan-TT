@@ -1,714 +1,293 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 {% load stock_filters %} 
 
-  <style nonce="{{ csp_nonce }}">
-        /* Glassmorphism effect for rejection details table modal */
+  <!-- Input Screening page styles moved to static/assets/css/titan-style.css. -->
+ 
 
+<style>
+/* ================================================================
+   IS REJECT TABLE — STICKY COLUMNS + SCROLL + WIDTH FIX
+   Reject table has 12 columns:
+     col1 = Select All (checkbox)
+     col2 = S.No
+     col3 = Last Updated
+     col4 = Plating Stk No   ← last frozen column
+     col5 = Reject Qty
+     col6 = No of Trays
+     col7 = Rejection Reasons
+     col8 = Tray Cate-Capacity
+     col9 = Plating Color
+     col10 = Category
+     col11 = Polish Finish
+     col12 = Input Source
 
-        /* Reduce rejection modal table width and header padding */
-    /* Rejection Modal - Responsive sizing */
-    .new-popup-modal,
-    #rejectionPopupModal {
-      max-width: 600px !important;
-      min-width: 320px !important;
-      width: 90vw !important;
-    }
-    
-    .rejection-modal-header {
-      padding: 12px 16px 8px 16px !important;
-      font-size: 16px !important;
-      min-height: 40px !important;
-    }
-    
-    .rejection-content {
-      padding: 12px 16px 16px 16px !important;
-    }
-    
-    .rejection-table,
-    .rejection-remarks-table {
-      width: 100% !important;
-      margin: 0 auto !important;
-      font-size: 13px !important;
-    }
-    
-    /* Small screen adaptation */
-    @media (max-width: 480px) {
-      .new-popup-modal,
-      #rejectionPopupModal {
-        max-width: 95vw !important;
-        min-width: 280px !important;
-        width: 95vw !important;
-      }
-      
-      .rejection-modal-header {
-        padding: 10px 12px 6px 12px !important;
-        font-size: 14px !important;
-      }
-      
-      .rejection-content {
-        padding: 10px 12px 12px 12px !important;
-      }
-      
-      .rejection-table,
-      .rejection-remarks-table {
-        font-size: 12px !important;
-      }
-    }
+   Shared titan-style.css rules set col1=120px, col2 left=120px etc.
+   ttt-responsive-system.css sets overflow-x:visible on non-tablet.
+   Both cause cropping + broken scroll. This block wins all of them.
+   ================================================================ */
 
-.remark-circle {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-  margin-right: 2px;
-}
-.remark-circle:active { transform: scale(0.98); }
-.remark-circle:hover { transform: scale(1.08); }
-
-/* Rejection Table Cell Styling */
-.rejection-table th,
-.rejection-table td {
-  padding: 10px 12px !important;
-  border-bottom: 1px solid #e0e0e0 !important;
-  text-align: left !important;
-  vertical-align: middle !important;
-  word-wrap: break-word !important;
-}
-
-.rejection-table th {
-  background-color: #f5f5f5 !important;
-  font-weight: 600 !important;
-  color: #333 !important;
-  font-size: 13px !important;
-}
-
-.rejection-table td {
-  font-size: 13px !important;
-  color: #555 !important;
-}
-.rejection-remarks-modal {
-  display: none;
-  position: fixed;
-  z-index: 10000;
-  left: 0; top: 0; width: 100%; height: 100%;
-  background-color: rgba(0,0,0,0.4);
-}
-.rejection-remarks-modal-content {
-  background-color: #fefefe;
-  margin: 5% auto;
-  padding: 20px;
-  border-radius: 8px;
-  width: 80%;
-  max-width: 340px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-.rejection-remarks-close {
-  color: #aaa;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.rejection-remarks-close:hover { color: #000; }
-.rejection-remarks-table { width:100%; border-collapse:collapse; }
-.rejection-remarks-table th, .rejection-remarks-table td { padding:8px 10px; border-bottom:1px solid #eee; text-align:left; font-size:13px; vertical-align:middle; }
-.rejection-remarks-table th { background:#f6f9f9; font-weight:600; color:#20343b; }
-.rejection-remarks-no-data { text-align:center; padding:18px; color:#7f8c8d; font-style:italic; }
-
-
-    
-
-/* ========== Tablet override — paste at file end (after other table styles) ========== */
-/* --- Tablet: freeze first 3 columns consistently with desktop --- */
-@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
-
-*{
-  font-size: 20px !important; /* Increase font size for better readability */
-}
-
-:root { --app-font-size: 20px; }
-.rounded-circle{
-  padding: 17px !important;
-}
-.model-image-tooltip{
-  transform: translateX(-25%) !important;
-  top: 45% !important;
-  z-index: 500000 !important; /* high so it sits above table & scrollbar */
-
-}
-
-
-  /* Core layout blocks */
-  .content-wrapper,
-  .card, .card-body,
-  .table-responsive,
-  #order-listing,
-  #trayScanModal_DayPlanning,
-  .tray-scan-modal-DayPlanning,
-  .pagination-wrapper {
-    font-size: var(--app-font-size) !important;
-    line-height: 1.35 !important;
-  }
-
-  /* Table headings / cells / icons */
-  #order-listing th,
-  #order-listing td,
-  #order-listing thead th {
-    font-size: var(--app-font-size) !important;
-    vertical-align: middle !important;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-
-  /* Ensure heading/title and date controls match */
-  h4.text-left.mt-0.mb-3,
-  .calendar-bar .date-input-group label,
-  .calendar-bar .date-input-group input,
-  #search-date-range-simple,
-  #clear-date-filter-simple,
-  .calendar-btn,
-  #trayScanModal_DayPlanning input.form-control,#trayValidateBtn,
-  #trayScanModal_DayPlanning table th, #trayScanModal_DayPlanning table td,
-  #modalModelNo_DayPlanning
- {
-    font-size: var(--app-font-size) !important;
-  }  
-
-  /* Reserve space for filter icons in header cells */
-#order-listing th {
+/* 1. Scroll container */
+html .is-pick-table-page.is-reject-table-page .table-responsive {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch;
   position: relative;
-  overflow: visible !important;
-  white-space: normal !important; /* allow wrapping */
 }
 
-/* Ensure filter icons always stay to the right */
-#order-listing th .fa-filter {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px !important;
-  opacity: 0.8;
-  cursor: pointer;
-}
-
-  /* Column 1 */
-  #order-listing th:nth-child(1),
-  #order-listing td:nth-child(1) {
-    position: sticky;
-    left: 0 !important;
-    min-width: 110px !important;
-    max-width: 110px !important;
-    background: #f7fafd;
-    z-index: 30;
-  }
-
-  /* Column 2 */
-  #order-listing th:nth-child(2),
-  #order-listing td:nth-child(2) {
-    position: sticky;
-    left: 110px !important;   /* = width of col1 */
-    min-width: 125px !important;
-    max-width: 125px !important;
-    background: #f7fafd;
-    z-index: 25;
-  }
-
-  /* Column 3 */
-  #order-listing th:nth-child(3),
-  #order-listing td:nth-child(3) {
-    position: sticky;
-    left: 235px !important;  /* 90 (col1) + 125 (col2 min) */
-    min-width: 140px !important;
-    max-width: 140px !important;
-    background: #f7fafd;
-    z-index: 20;
-  }
-
-  /* Sticky header */
-  #order-listing thead th {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: #028084 !important;
-    color: #e5fcff !important;
-  }
-}
-
-@media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
-  .table-container {
-    overflow-x: auto;
-  }
-
-  /* Other columns (fit remaining space) */
-  #order-listing th:nth-child(4)  { min-width: 135px !important; max-width: 135px !important; }
-  #order-listing th:nth-child(5)  { min-width: 115px !important; max-width: 115px !important; }
-  #order-listing th:nth-child(6)  { min-width: 135px !important; max-width: 135px !important; }
-  #order-listing th:nth-child(7)  { min-width: 105px !important; max-width: 105px !important; }
-  #order-listing th:nth-child(8)  { min-width: 140px !important; max-width: 140px !important; }
-  #order-listing th:nth-child(9)  { min-width: 140px !important; max-width: 145px !important; }
-  #order-listing th:nth-child(10) { min-width: 120px !important; max-width: 120px !important; }
-  #order-listing th:nth-child(11) { min-width: 120px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(12) { min-width: 140px !important; max-width: 140px !important; }
-  #order-listing th:nth-child(13) { min-width: 140px !important; max-width: 150px !important; }
-  #order-listing th:nth-child(14) { min-width: 130px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(15) { min-width: 110px !important; max-width: 100px !important; }
-  #order-listing th:nth-child(16) { min-width: 120px !important; max-width: 150px !important; }
-  #order-listing th:nth-child(17) { min-width: 130px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(18) { min-width: 130px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(19) { min-width: 140px !important; max-width: 140px !important; }
-  #order-listing th:nth-child(20) { min-width: 130px !important; max-width: 130px !important; }
-
-
-  /* Prevent overlap */
-  #order-listing th:nth-child(-n+3),
-  #order-listing td:nth-child(-n+3) {
-    z-index: 45 !important;
-  }
-
-  /* Hide hidden columns */
-  #order-listing th[hidden],
-  #order-listing td[hidden] {
-    display: none !important;
-  }
-}
-    /* Force SweetAlert to always be on top of all modals/tooltips */
-.swal2-container {
-  z-index: 2147483647 !important;
-  position: fixed !important;
-} 
-      /* Add to your CSS file for Excel-like grid lines */
-.table-bordered th, .table-bordered td {
-  border: 1px solid #d9dedf !important;
-}
-  /* Make the table header sticky */
-thead th {
-  position: sticky;
-  top: 0;
-  background-color: white; /* or your table header bg color */
-  z-index: 5; /* ensure it stays above the table rows */
-  
-}
-
-#order-listing thead th {
-  height: 38px !important; /* Increase as needed */
-  background: #028084 !important;
-  color: #e5fcff !important;
-  vertical-align: middle !important;
-  border-bottom: 2.5px solid #bdbdbd !important; /* Thicker grey line below heading */
-}
-/* style for hol/unhold row - blurred bg */
-#order-listing tr:last-child td {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  /* background: #f4f3f3 !important; */
-}
-/* Gird line color combination */
-#order-listing th,
-#order-listing td {
-  border-right: 1.5px solid #bababa !important; /* Vertical lines: blue */
-  border-bottom: 1.5px solid #121413 !important; /* Horizontal lines: green */
-}
-
-  
-/* Default: Desktop/Laptop (wider columns for larger font) - server */
-/* #order-listing th:nth-child(1) {
-  min-width: 90px;
-  max-width: 90px;
-} */ /* S.No */
-/* #order-listing th:nth-child(2) {
-  min-width: 90px;
-  max-width: 100px;
-} */ /* Last Updated */
-/* #order-listing th:nth-child(3) {
-  min-width: 90px;
-  max-width: 120px;
-} */ /* Plating */
-#order-listing th:nth-child(4) {
-  min-width: 110px;
-  max-width: 120px;
-} /* Polishing Stk No */
-#order-listing th:nth-child(5) {
-  min-width: 90px;
-  max-width: 100px;
-} /* Plating Color */
-#order-listing th:nth-child(6) {
-  min-width: 100px;
-  max-width: 110px;
-} /* Category */
-#order-listing th:nth-child(7) {
-  min-width: 85px;
-  max-width: 95px;
-} /* Polish Finish */
-#order-listing th:nth-child(8) {
-  min-width: 110px;
-  max-width: 110px;
-} /* Version */
-#order-listing th:nth-child(9) {
-  min-width: 90px;
-  max-width: 95px;
-} /* Tray Cate-Capacity */
-#order-listing th:nth-child(10) {
-  min-width: 90px;
-  max-width: 100px;
-} /* Source */
-#order-listing th:nth-child(11) {
-  min-width: 80px;
-  max-width: 80px;
-} /* No of Trays */
-#order-listing th:nth-child(12) {
-  min-width: 100px;
-  max-width: 105px;
-} /* Input Qty */
-#order-listing th:nth-child(13) {
-  min-width: 95px;
-  max-width: 100px;
-} /* Process Status */
-#order-listing th:nth-child(14) {
-  min-width: 90px;
-  max-width: 100px;
-} /*  Action */
-#order-listing th:nth-child(15) {
-  min-width: 90px;
-  max-width: 100px;
-} /* Lot Status */
-#order-listing th:nth-child(16) {
-  min-width: 160px;
-  max-width: 170px;
-} /* Current Stage */
-#order-listing th:nth-child(17) {
-  min-width: 110px;
-  max-width: 100px;
-} /* Remarks */
-#order-listing th:nth-child(18) {
-  min-width: 100px;
-  max-width: 110px;
-}
-
-@media (min-width: 600px) and (max-width: 900px) {
-  #order-listing {
-    table-layout: auto !important; /* Let columns auto-fit content */
-    width: 100% !important;
-    min-width: unset !important;
-    max-width: 100vw !important;
-  }
-  /* Adjust width for all headings (th) and cells (td) */
-  #order-listing th,
-  #order-listing td {
-    min-width: 160px !important;
-    max-width: 260px !important;
-    width: 180px !important;
-  }
-  #order-listing th {
-    position: relative;
-    padding-right: 48px !important; /* More space for filter icon */
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: ellipsis;
-  }
-  #order-listing th .fa-filter {
-    position: absolute;
-    right: 18px !important;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
-    background: transparent;
-    pointer-events: auto;
-  }
-}
-/* Right-align filter icons */
-#order-listing th .fa-filter {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 11px;
-  opacity: 0.7;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-#order-listing th .fa-filter:hover {
-  opacity: 1;
-}
-
-
-  
-#order-listing th:last-child,
-#order-listing td:last-child {
-  border-right: none;
-  max-width: 95px;
-  min-width: 100px;
-}
-/* Overall Table Shrink */
-#order-listing tr,
-#order-listing td,
-#order-listing th {
-  height: 20px !important;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
-  padding-left: 6px !important;
-  padding-right: 6px !important;
-}
-/* Table heading font size */
-/* Add this at the end of your <style> block in DP_PickTable.html */
-
-/* Professional table header styling with proper text wrapping */
-#order-listing th {
-  position: relative;
-  padding: 8px 12px 8px 16px !important;
-  text-align: left !important;
-  vertical-align: middle !important;
-  white-space: normal !important;
-  line-height: 1.3 !important;
-  word-break: keep-all !important;
-  hyphens: none !important;
-  /* font-size: 13px; */
-  /* font-weight: 600 !important; */
-  background: #028084 !important;
-  color: #e5fcff !important;
-  border-bottom: 2.5px solid #bdbdbd !important;
-  /* min-width: 80px;
-  max-width: 140px; */
-   overflow-wrap: break-word;
-  word-wrap: break-word;
-   z-index: 20 !important;
-}
-
-/* Make sure header cells for sticky columns are always above body cells */
-/* Fix: Prevent shadow/rows from showing behind sticky columns while scrolling */
-#order-listing th:nth-child(-n+3),
-#order-listing td:nth-child(-n+3) {
-  z-index: 30 !important; 
-box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-}
-
-/* Prevent sticky columns from overlapping sticky header */
-#order-listing td:nth-child(-n+3) {
-  z-index: 11 !important;
-}
-  /* Make the first column sticky and opaque */
-#order-listing td:first-child,
-#order-listing th:first-child {
-  position: sticky;
-  left: 0;
-  background: #fff;      /* Or match your table background */
-  z-index: 2;            /* Above blurred rows */
-  box-shadow: 2px 0 4px rgba(0,0,0,0.03); /* Optional: subtle shadow */
-}
-/* Force specific table headers to wrap onto two lines */
-#order-listing th:nth-child(4),   /* Polishing Stk No */
-#order-listing th:nth-child(5),   /* Plating Color */
-#order-listing th:nth-child(7),   /* Polish Finish */
-#order-listing th:nth-child(9),   /* Tray Cate-Capacity */
-#order-listing th:nth-child(11),  /* No of Tray */
-#order-listing th:nth-child(12),  /* Input Qty */
-#order-listing th:nth-child(13)   /* Process Status */ {
-  white-space: normal !important;
-  line-height: 1.2 !important;
-  word-break: break-word !important;
-
-  text-align: center;
-  vertical-align: middle;
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
-}
-/* Freeze style for 1st - 3 columns */
-/* --- Freeze first 3 columns and table header for #order-listing --- */
-#order-listing {
-  position: relative;
+/* 2. Table — static so sticky works inside scroll container */
+html .is-pick-table-page.is-reject-table-page #order-listing {
+  position: static !important;
   border-collapse: separate !important;
-  border-spacing: 0;
-  background: #fff;
-  /* Ensure enough left padding for sticky columns */
+  border-spacing: 0 !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: fixed !important;
 }
 
-#order-listing th,
-#order-listing td {
-  background-clip: padding-box;
-  /* Prevent overlap artifacts */
-  z-index: 1;
-}
-
-/* Sticky header */
-#order-listing thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+/* 3. Sticky header */
+html .is-pick-table-page.is-reject-table-page #order-listing thead th {
+  position: sticky !important;
+  top: 0 !important;
   background: #028084 !important;
   color: #e5fcff !important;
 }
 
-/* Freeze 1st column */
-#order-listing th:nth-child(1),
-#order-listing td:nth-child(1) {
-  position: sticky;
+/* --- FROZEN COLUMNS (desktop) ---
+   col1 Select All  = 60px   left: 0
+   col2 S.No        = 70px   left: 60px
+   col3 Last Updated= 120px  left: 130px
+   col4 Plating StNo= 150px  left: 250px
+   ------------------------------------------ */
+
+/* col1 — Select All */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(1),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(1) {
+  position: sticky !important;
   left: 0 !important;
-  z-index: 12; /* Above header */
-  background: #f7fafd;
-  min-width: 75px;
-  max-width: 75px;
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+  background: #f7fafd !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.08);
+}
+html .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(1) {
+  z-index: 44 !important;
+  background: #028084 !important;
+}
+html .is-pick-table-page.is-reject-table-page #order-listing tbody td:nth-child(1) {
+  z-index: 24 !important;
 }
 
-/* Freeze 2nd column - Last Updated*/
-#order-listing th:nth-child(2),
-#order-listing td:nth-child(2) {
-  position: sticky;
-  left: 75px; /* Match min-width of 1st col */
-  z-index: 12;
-  background: #f7fafd;
-  min-width: 75px; /* Increased width */
-  max-width: 75px; /* Increased width */
+/* col2 — S.No */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(2),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(2) {
+  position: sticky !important;
+  left: 110px !important;
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  background: #f7fafd !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+}
+html .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(2) {
+  z-index: 43 !important;
+  background: #028084 !important;
+}
+html .is-pick-table-page.is-reject-table-page #order-listing tbody td:nth-child(2) {
+  z-index: 23 !important;
 }
 
-/* Freeze 3rd column */
-#order-listing th:nth-child(3),
-#order-listing td:nth-child(3) {
-  position: sticky;
-  left: 150px; /* 100px (1st) + 90px (2nd) */
-  z-index: 12;
-  background: #f7fafd;
-  min-width: 100px; /* Increased width 100 - old value*/
-  max-width: 100px; /* Increased width  110 - old value*/
+/* col3 — Last Updated */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(3),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(3) {
+  position: sticky !important;
+  left: 180px !important;   /* 110 + 70 */
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  background: #f7fafd !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+}
+html .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(3) {
+  z-index: 42 !important;
+  background: #028084 !important;
+}
+html .is-pick-table-page.is-reject-table-page #order-listing tbody td:nth-child(3) {
+  z-index: 22 !important;
 }
 
-
-
-/* Prevent sticky columns from overlapping sticky header */
-#order-listing th:nth-child(-n + 3) {
-  z-index: 12;
+/* col4 — Plating Stk No */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(4),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(4) {
+  position: sticky !important;
+  left: 300px !important;   /* 110 + 70 + 120 */
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  background: #f7fafd !important;
+  box-shadow: 3px 0 8px rgba(0,0,0,0.10);
 }
-#order-listing td:nth-child(-n + 3) {
-  z-index: 11;
+html .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(4) {
+  z-index: 41 !important;
+  background: #028084 !important;
+}
+html .is-pick-table-page.is-reject-table-page #order-listing tbody td:nth-child(4) {
+  z-index: 21 !important;
 }
 
-/* Ensure sticky columns and header work together */
-#order-listing th,
-#order-listing td {
-  box-sizing: border-box;
-  /* Prevent content shake */
-  /* overflow: hidden; */
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* --- SCROLLABLE COLUMNS — wider to stop cropping --- */
+
+/* col5 — Reject Qty */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(5),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(5) {
+  position: static !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+  z-index: 1 !important;
 }
 
+/* col6 — No of Trays */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(6),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(6) {
+  position: static !important;
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+  z-index: 1 !important;
+}
 
+/* col7 — Rejection Reasons (avatar badges + info icon — needs most room) */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(7),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(7) {
+  position: static !important;
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+  overflow: visible !important;
+  z-index: 1 !important;
+}
 
-    .blurred-heading, .blurred-cell {
-    filter: blur(2px) grayscale(0.7) opacity(0.6);
-    pointer-events: none !important;
-    user-select: none;
-    cursor: not-allowed;
-    background: #f5f5f5 !important;
-  }
-    /* Show remark tooltip above the trigger instead of below */
-  .remark-tooltip {
-    top: auto !important;
-    bottom: 110% !important;
-  }
-#trayScanDetails.table-grid {
-  display: grid !important;
-  grid-template-columns: 94px 175px 150px !important;
-  gap: 0px !important;
-  max-height: 300px !important;
+/* col8 — Tray Cate-Capacity */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(8),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(8) {
+  position: static !important;
+  width: 155px !important;
+  min-width: 155px !important;
+  max-width: 155px !important;
+  z-index: 1 !important;
+}
+
+/* col9 — Plating Color */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(9),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(9) {
+  position: static !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  z-index: 1 !important;
+}
+
+/* col10 — Category */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(10),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(10) {
+  position: static !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+  z-index: 1 !important;
+}
+
+/* col11 — Polish Finish */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(11),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(11) {
+  position: static !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  z-index: 1 !important;
+}
+
+/* col12 — Input Source */
+html .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(12),
+html .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(12) {
+  position: static !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  z-index: 1 !important;
+}
+
+/* Also widen the avatar rejection reason container so it doesn't clip */
+html .is-pick-table-page.is-reject-table-page #order-listing .is-inline-css-249 {
+  max-width: 180px !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: unset !important;
+}
+
+/* ── TABLET overrides ── */
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page .table-responsive {
+  overflow-x: auto !important;
   overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding-right: 10px;
-  margin-top: 10px;
-  border: 1px solid #ddd;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100% !important;
 }
 
-#trayScanDetails.table-grid::-webkit-scrollbar {
-  width: 8px;
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing {
+  position: static !important;
+  width: max-content !important;
+  table-layout: fixed !important;
 }
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(1),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(1) {
+  position: sticky !important; left: 0 !important;
+  width: 120px !important; min-width: 120px !important; max-width: 120px !important;
+  z-index: 44 !important; background: #f7fafd !important;
 }
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(1) { background: #028084 !important; }
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(2),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(2) {
+  position: sticky !important; left: 120px !important;
+  width: 95px !important; min-width: 95px !important; max-width: 95px !important;
+  z-index: 43 !important; background: #f7fafd !important;
 }
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-thumb:hover {
-  background: #555;
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(2) { background: #028084 !important; }
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(3) {
+  position: sticky !important; left: 215px !important;  /* 120+95 */
+  width: 160px !important; min-width: 160px !important; max-width: 160px !important;
+  z-index: 42 !important; background: #f7fafd !important;
 }
- 
- 
-.tray-scan-modal.open {
-  width:500px !important;
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(3) { background: #028084 !important; }
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(4) {
+  position: sticky !important; left: 375px !important;  /* 120+95+160 */
+  width: 170px !important; min-width: 170px !important; max-width: 170px !important;
+  z-index: 41 !important; background: #f7fafd !important;
+  box-shadow: 3px 0 8px rgba(0,0,0,0.10);
 }
-/* For the 4-column layout (with validation status) */
-#trayScanDetails.table-grid.four-column {
-  grid-template-columns: 50px 1fr 100px 140px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-}
- 
-/* Styling individual grid cells, only inside trayScanDetails */
-#trayScanDetails.table-grid > div {
-  background: #f7f7f7;
-  padding: 8px 12px;
-  font-size: 12px;
-  border: 1px solid #ddd;
-  margin: 0; /* reset any margin from <p> or others */
-}
- 
-/* S.no column specific styling */
-#trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
-  text-align: center;
-  font-weight: 600;
-  padding: 8px 4px; /* Reduced horizontal padding for S.no */
-}
- 
-/* For mobile responsiveness */
-@media (max-width: 768px) {
-  #trayScanDetails.table-grid {
-    grid-template-columns: 45px 1fr 1fr !important; /* Even smaller S.no column on mobile */
-  }
-  #trayScanDetails.table-grid.four-column {
-    grid-template-columns: 40px 1fr 80px 100px !important;
-  }
-  #trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
-    padding: 6px 2px; /* Further reduced padding on mobile */
-    font-size: 11px;
-  }
-}
- 
-/* For very small screens */
-@media (max-width: 480px) {
-  #trayScanDetails.table-grid {
-    grid-template-columns: 35px 1fr 80px !important; /* Minimal S.no column */
-  }
-  #trayScanDetails.table-grid.four-column {
-    grid-template-columns: 30px 1fr 70px 90px !important;
-  }
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing thead th:nth-child(4) { background: #028084 !important; }
+
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing th:nth-child(n+5),
+html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing td:nth-child(n+5) {
+  position: static !important; left: auto !important; z-index: 1 !important;
 }
 </style>
- 
 
-<div class="content-wrapper is-pick-table-page">
+<div class="content-wrapper is-pick-table-page is-reject-table-page">
   <div class="row">
     <div class="col-12 grid-margin stretch-card">
       <div class="card">
-         <div class="card-body" style="padding-bottom:12px;">
-              <div style="margin-bottom: 12px;display: flex;flex-wrap: wrap;align-items: baseline;gap: 28px !important;">
-              <h5 class="text-left mt-0 mb-4" style="font-weight:700;">Input Screening Rejected Table</h5>
-              <span id="selected-count" style="color: #2e7d32; font-weight: 600;">0 items selected</span>
-              <button id="delink-selected-btn" class="btn btn-secondary" style="margin-left: 0px;padding: 8px;border-radius: 30px !important;" disabled>Delink Selected</button>
+         <div class="card-body is-inline-css-001">
+              <div class="is-inline-css-243">
+              <h5 class="text-left mt-0 mb-4 is-inline-css-002">Input Screening Rejected Table</h5>
+              <span id="selected-count" class="is-inline-css-220">0 items selected</span>
+              <button id="delink-selected-btn" class="btn btn-secondary is-inline-css-244" disabled>Delink Selected</button>
             </div>
                     
             <!-- Table Section -->
@@ -719,10 +298,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
               <table id="order-listing" class="table">
                 <thead>
                   <tr>
-                    <th style="background: #008080; color: #fff; text-align: center; vertical-align: middle;">
-                      <div style="display: flex;align-items: center;justify-content: center;flex-direction: row;">
-                        <input type="checkbox" id="select-all-checkbox" style="transform: scale(1.2); margin: 5px;" />
-                        <label for="select-all-checkbox" style="font-weight: 600; color: #fff; font-size: 11px; margin: 0; cursor:pointer;text-align: center;">Select All</label>
+                    <th class="is-inline-css-245">
+                      <div class="is-inline-css-246">
+                        <input type="checkbox" id="select-all-checkbox" class="is-inline-css-247" />
+                        <label for="select-all-checkbox" class="is-inline-css-248">Select All</label>
                       </div>
                     </th>
                     <th>S.No <i class="fa fa-filter" aria-hidden="true"></i></th>
@@ -754,67 +333,67 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
                     <td>{{ data.last_process_date_time|date:"Y-m-d" }}<br>
-                        <span style="display:inline-block; margin-top:4px;">{{ data.last_process_date_time|date:"h:i A" }}</span>
+                        <span class="is-inline-css-155">{{ data.last_process_date_time|date:"h:i A" }}</span>
                     </td>
                     <td>
-                        <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                        <span class="model-hover-trigger is-inline-css-017">
                           {{ data.plating_stk_no|highlight_plating_color|safe_html }}
-                          <div class="model-image-tooltip" style="position: absolute; left: 50%; top: 90%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s;">
+                          <div class="model-image-tooltip is-inline-css-156">
                             <button class="info-btn">Info</button>
                             <button class="close-btn">Close</button>
-                            <button class="img-scroll-left" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                              <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                                <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                            <button class="img-scroll-left is-inline-css-023">&#8592;</button>
+                            <div class="is-inline-css-022">
+                              <div class="img-gallery is-inline-css-024">
+                                <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" class="is-inline-css-025" />
                               </div>
                             </div>
-                            <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
+                            <button class="img-scroll-right is-inline-css-023">&#8594;</button>
                           </div>
                         </span>
                     </td>
                     <td>
                       {{data.ip_rejection_total_qty}}
-                      <a href="#" title="View" class="text-primary tray-scan-btn-Jig" style="text-decoration: underline; margin-left: 8px;"
+                      <a href="#" title="View" class="text-primary tray-scan-btn-Jig is-inline-css-212"
                         data-stock-lot-id="{{ data.stock_lot_id }}" data-batch-id="{{ data.batch_id }}" data-model-no="{{ data.plating_stk_no }}"
                         data-no-of-trays="{{ data.no_of_trays }}" data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                         data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}" data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
                         data-accepted-ip-stock="{{ data.accepted_Ip_stock|yesno:'true,false' }}" data-rejected-ip-stock="{{ data.rejected_ip_stock|yesno:'true,false' }}"
                         data-model-image="{{ data.model_images.0|default:'' }}" data-few-cases-accepted-ip-stock="{{ data.few_cases_accepted_Ip_stock|yesno:'true,false' }}"
                         data-total-batch-quantity="{{ data.ip_rejection_total_qty }}">
-                        <img src="{% static 'assets/icons/view.png' %}" alt="View" style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
+                        <img src="{% static 'assets/icons/view.png' %}" alt="View" class="is-inline-css-028" />
                       </a>
                     </td>
                     <td>{{data.no_of_trays}}</td>
                     <td>
-                      <div class="avatar-group rejection-popup-trigger"
-                          style="cursor:pointer; max-width:120px; white-space:nowrap; word-break:break-word; overflow:hidden; text-overflow:ellipsis; display:flex; flex-direction:column; align-items:flex-start; gap:2px;"
+                      <div class="avatar-group rejection-popup-trigger is-inline-css-249"
+                         
                           onmouseover="this.style.overflow='visible'; this.style.whiteSpace='nowrap'; this.style.background='#f9f9f9'; this.style.zIndex='10';"
                           onmouseout="this.style.overflow='hidden'; this.style.whiteSpace='nowrap'; this.style.background=''; this.style.zIndex='';">
-                        <div style="display:flex; align-items:center; gap:4px;">
+                        <div class="is-inline-css-250">
                           {% if data.rejection_reason_letters %}
                             {% for letter in data.rejection_reason_letters %}
-                              <a href="#" class="avatar blue"
-                                style="color: #fff; cursor: pointer; background: #01802a; padding: 4px 0; width:18px; height:18px; border-radius: 50%; font-size: 11px; display:inline-flex; align-items:center; justify-content:center;">
+                              <a href="#" class="avatar blue is-inline-css-251"
+                               >
                                 {{ letter }}
                               </a>
                             {% endfor %}
                           {% elif data.dp_missing_qty and data.dp_missing_qty > 0 %}
-                            <div class="avatar orange" title="Shortage" style="width:20px; height:20px; padding:6px !important; font-size:11px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">S</div>
+                            <div class="avatar orange is-inline-css-252" title="Shortage">S</div>
                           {% else %}
-                            <span style="color:#888; font-size:12px; font-style:italic;">No rejection reason</span>
+                            <span class="is-inline-css-253">No rejection reason</span>
                           {% endif %}
                         </div>
-                        <div style="margin-top:2px;">
+                        <div class="is-inline-css-254">
                           {% if data.lot_rejected_comment %}
-                            <i class="fa fa-info-circle lot-rej-info"
-                              style="color:#d32f2f; font-size:15px; cursor:pointer;"
+                            <i class="fa fa-info-circle lot-rej-info is-inline-css-255"
+                             
                               tabindex="0"
                               data-lot-comment="{{ data.lot_rejected_comment|default:''|escape }}"
                               data-lot-id="{{ data.stock_lot_id }}"
                               onclick="showRejectionRemarksModal('{{ data.stock_lot_id }}')"
                               onkeypress="if(event.key==='Enter') showRejectionRemarksModal('{{ data.stock_lot_id }}')"></i>
                           {% else %}
-                            <i class="fa fa-info-circle" style="color:#bdbdbd; font-size:15px; cursor:not-allowed; opacity:0.5;" title="No lot remarks"></i>
+                            <i class="fa fa-info-circle is-inline-css-256" title="No lot remarks"></i>
                           {% endif %}
                         </div>
                       </div>
@@ -831,42 +410,42 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
         </table>
 <div
   id="trayScanModal_DayPlanning"
-  class="tray-scan-modal-DayPlanning"
-  style="display:none"
+  class="tray-scan-modal-DayPlanning is-inline-css-011"
+ 
 >
   <div class="tray-scan-modal-DayPlanning-content">
     <span id="closeTrayScanModal_DayPlanning" class="tray-scan-close-readonly">&times;</span>
     
-    <div class="modal-top-header" style="display: flex; align-items: center; gap: 20px; padding-bottom: 10px;">
-      <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
-        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
+    <div class="modal-top-header is-inline-css-077">
+      <div class="user-profile is-inline-css-022">
+        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" class="is-inline-css-052" />
         <!-- Model No and Lot Qty in same line -->
-        <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-weight: bold; color: #666;">Model No:</span>
-              <h6 id="modalModelNo_DayPlanning" style="margin: 0; color: #028084; font-weight: bold;">(Fetch Dynamically)</h6>
+        <div class="is-inline-css-053">
+          <div class="is-inline-css-054">
+            <div class="is-inline-css-022">
+              <span class="is-inline-css-055">Model No:</span>
+              <h6 id="modalModelNo_DayPlanning" class="is-inline-css-056">(Fetch Dynamically)</h6>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-weight: bold; color: #666;">Rejected Qty:</span>
-              <h6 id="modalLotQty_DayPlanning" style="margin: 0; color: #e67e22; font-weight: bold;">(Fetch Dynamically)</h6>
+            <div class="is-inline-css-022">
+              <span class="is-inline-css-055">Rejected Qty:</span>
+              <h6 id="modalLotQty_DayPlanning" class="is-inline-css-057">(Fetch Dynamically)</h6>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-      <h5 style="text-align: center; margin: 0; flex: 1; font-weight: 600; color:#595959">
+    <div class="is-inline-css-058">
+      <h5 class="is-inline-css-059">
         Input Screening - Tray Scan 
       </h5>
-      <button id="trayValidateBtn" type="button" style="display: flex; align-items: center; gap: 6px; background: #f5faff; border: 1px solid #023E4DCC; color: #023E4DCC; border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 500; cursor: pointer;">
+      <button id="trayValidateBtn" type="button" class="is-inline-css-060">
         
         Tray Validate
       </button>
-      <input id="trayValidateInput" type="text" placeholder="Enter validation info..." style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" />
-      <img src="{% static 'assets/icons/redo2.png' %}" alt="Redo" id="trayScanRedoBtn" style="width: 24px; height: 24px; cursor: pointer; margin-left: 8px;" title="Clear Tray IDs" />
+      <input id="trayValidateInput" type="text" placeholder="Enter validation info..." class="is-inline-css-063" />
+      <img src="{% static 'assets/icons/redo2.png' %}" alt="Redo" id="trayScanRedoBtn" title="Clear Tray IDs" class="is-inline-css-257" />
     </div>
-    <div id="trayErrorMessage" style="display: none; background-color: #ffebee; border: 1px solid #f44336; color: #c62828; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; text-align: center;">
+    <div id="trayErrorMessage" class="is-inline-css-066">
       <span id="trayErrorText"></span>
     </div>
     <div id="trayScanDetails_DayPlanning" class="table-grid">
@@ -876,18 +455,18 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 </div>
               <!-- Rejection Popup Modal -->
   <div id="rejectionPopupModal"
-     class="new-popup-modal"
+     class="new-popup-modal is-inline-css-258"
      tabindex="-1"
      aria-modal="true"
      role="dialog"
-     style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);min-width:320px !important;max-width:500px;width:90%;background:#fff;border-radius:16px;box-shadow: 0 8px 32px rgb(0 0 0 / 76%);z-index:10001;">
+    >
   <div class="rejection-modal-header">
-    <h3 class="modal-title"> <i class="fa fa-exclamation-triangle" style="color:#e74c3c; margin-right:6px;"></i>Rejection Details</h3>
+    <h3 class="modal-title"> <i class="fa fa-exclamation-triangle is-inline-css-259"></i>Rejection Details</h3>
 
     <span class="tray-scan-close" id="closeRejectionPopup" title="Close">&times;</span>
   </div>
   <div class="rejection-content">
-    <div id="rejection-details-loader" class="rejection-loader" style="display:none;">Loading...</div>
+    <div id="rejection-details-loader" class="rejection-loader is-inline-css-011">Loading...</div>
     <div class="table-responsive rejection-table-responsive">
       <table class="rejection-table">
         <thead>
@@ -906,11 +485,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
 
 <!-- Add modal for rejection remarks (place before scripts, at end of file) -->
-<div id="rejectionRemarksModal" class="rejection-remarks-modal" style="display:none;">
+<div id="rejectionRemarksModal" class="rejection-remarks-modal is-inline-css-011">
   <div class="rejection-remarks-modal-content">
-    <span class="rejection-remarks-close" style="cursor:pointer;">&times;</span>
-    <h4 style="margin-bottom:12px; color:#2c3e50;">
-      <i class="fa fa-exclamation-triangle" style="color:#e74c3c; margin-right:6px;"></i>
+    <span class="rejection-remarks-close is-inline-css-260">&times;</span>
+    <h4 class="is-inline-css-261">
+      <i class="fa fa-exclamation-triangle is-inline-css-259"></i>
       Rejection Remarks
     </h4>
     <div id="rejectionRemarksContent">
@@ -1060,9 +639,9 @@ function showRejectionRemarksModal(lotId) {
         content += `<table class="rejection-remarks-table" role="table" aria-label="Rejection remarks">
           <thead>
             <tr>
-              <th style="width:56px;">Mark</th>
+              <th class="is-inline-css-262">Mark</th>
               <th>Reason</th>
-              <th style="width:90px;">Quantity</th>
+              <th class="is-inline-css-263">Quantity</th>
             </tr>
           </thead>
           <tbody>`;
@@ -1092,44 +671,53 @@ function showRejectionRemarksModal(lotId) {
 
 // Hover tooltip for lot rejection info icons (show full remark on hover)
 document.addEventListener('DOMContentLoaded', function() {
+  let activeLotRejectTooltip = null;
+
+  function removeLotRejectTooltip() {
+    document.querySelectorAll('.lot-rej-tooltip').forEach(function(tip) {
+      tip.remove();
+    });
+    activeLotRejectTooltip = null;
+  }
+
+  function showLotRejectTooltip(icon) {
+    removeLotRejectTooltip();
+
+    const text = icon.getAttribute('data-lot-comment') || 'No remarks';
+    const tooltipEl = document.createElement('div');
+    tooltipEl.className = 'lot-rej-tooltip';
+    tooltipEl.style.position = 'absolute';
+    tooltipEl.style.background = '#fff';
+    tooltipEl.style.border = '1px solid #ddd';
+    tooltipEl.style.padding = '8px 10px';
+    tooltipEl.style.borderRadius = '6px';
+    tooltipEl.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+    tooltipEl.style.zIndex = 20000;
+    tooltipEl.style.maxWidth = '360px';
+    tooltipEl.style.fontSize = '13px';
+    tooltipEl.style.lineHeight = '1.35';
+    tooltipEl.style.pointerEvents = 'none';
+    tooltipEl.textContent = text;
+    document.body.appendChild(tooltipEl);
+    activeLotRejectTooltip = tooltipEl;
+
+    const rect = icon.getBoundingClientRect();
+    const top = window.scrollY + rect.top - tooltipEl.offsetHeight - 8;
+    const left = window.scrollX + rect.left + (rect.width / 2) - (tooltipEl.offsetWidth / 2);
+    tooltipEl.style.top = (top > window.scrollY + 8 ? top : window.scrollY + rect.bottom + 8) + 'px';
+    tooltipEl.style.left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - tooltipEl.offsetWidth - 8)) + 'px';
+  }
+
   document.querySelectorAll('.lot-rej-info').forEach(function(icon) {
-    let tooltipEl = null;
-    function createTooltip(text) {
-      tooltipEl = document.createElement('div');
-      tooltipEl.className = 'lot-rej-tooltip';
-      tooltipEl.style.position = 'absolute';
-      tooltipEl.style.background = '#fff';
-      tooltipEl.style.border = '1px solid #ddd';
-      tooltipEl.style.padding = '8px 10px';
-      tooltipEl.style.borderRadius = '6px';
-      tooltipEl.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
-      tooltipEl.style.zIndex = 20000;
-      tooltipEl.style.maxWidth = '360px';
-      tooltipEl.style.fontSize = '13px';
-      tooltipEl.textContent = text;
-      document.body.appendChild(tooltipEl);
-      return tooltipEl;
-    }
-    function showTooltip() {
-      const text = icon.getAttribute('data-lot-comment') || icon.getAttribute('title') || 'No remarks';
-      createTooltip(text);
-      const rect = icon.getBoundingClientRect();
-      const top = window.scrollY + rect.top - (tooltipEl.offsetHeight || 44) - 8;
-      const left = window.scrollX + rect.left + (rect.width / 2) - (tooltipEl.offsetWidth / 2);
-      tooltipEl.style.top = (top > 8 ? top : window.scrollY + rect.bottom + 8) + 'px';
-      tooltipEl.style.left = (Math.max(8, left)) + 'px';
-    }
-    function hideTooltip() {
-      if (tooltipEl && tooltipEl.parentNode) {
-        tooltipEl.parentNode.removeChild(tooltipEl);
-        tooltipEl = null;
-      }
-    }
-    icon.addEventListener('mouseenter', showTooltip);
-    icon.addEventListener('mouseleave', hideTooltip);
-    icon.addEventListener('focus', showTooltip);
-    icon.addEventListener('blur', hideTooltip);
+    icon.removeAttribute('title');
+    icon.addEventListener('mouseenter', function() { showLotRejectTooltip(icon); });
+    icon.addEventListener('mouseleave', removeLotRejectTooltip);
+    icon.addEventListener('focus', function() { showLotRejectTooltip(icon); });
+    icon.addEventListener('blur', removeLotRejectTooltip);
   });
+
+  document.addEventListener('scroll', removeLotRejectTooltip, true);
+  window.addEventListener('resize', removeLotRejectTooltip);
 });
 </script>
 
@@ -1174,10 +762,10 @@ document.addEventListener("DOMContentLoaded", function () {
             statusCell.innerHTML = `
               <div class="validation-status">
                 <div class="status-icon fail">
-                  <img src="{% static 'assets/icons/fail.png' %}" alt="Fail" title="Fail" style="width:18px; height:18px;" />
+                  <img src="{% static 'assets/icons/fail.png' %}" alt="Fail" title="Fail" class="is-inline-css-014" />
                 </div>
                 <div class="status-icon pass">
-                  <img src="{% static 'assets/icons/pass.png' %}" alt="Pass" title="Pass" style="width:18px; height:18px;" />
+                  <img src="{% static 'assets/icons/pass.png' %}" alt="Pass" title="Pass" class="is-inline-css-014" />
                 </div>
               </div>
             `;
@@ -1188,9 +776,9 @@ document.addEventListener("DOMContentLoaded", function () {
         detailsDiv.querySelectorAll('.tray-validation-status-header, .tray-validation-status-cell').forEach(cell => {
           cell.innerHTML = `
             Tray Validation Status
-            <span style="margin-left: 10px;">
-              <img src="{% static 'assets/icons/fail.png' %}" alt="Cross" title="Fail" style="width:18px; height:18px; margin-right:6px; vertical-align:middle;" />
-              <img src="{% static 'assets/icons/pass.png' %}" alt="Pass" title="Pass" style="width:18px; height:18px; vertical-align:middle;" />
+            <span class="is-inline-css-174">
+              <img src="{% static 'assets/icons/fail.png' %}" alt="Cross" title="Fail" class="is-inline-css-175" />
+              <img src="{% static 'assets/icons/pass.png' %}" alt="Pass" title="Pass" class="is-inline-css-176" />
             </span>
           `;
         });
@@ -1326,7 +914,7 @@ document.addEventListener("DOMContentLoaded", function () {
       errorMessage.style.setProperty('padding', '8px 12px', 'important');
       errorMessage.style.setProperty('border-radius', '4px', 'important');
       errorMessage.style.setProperty('margin-bottom', '10px', 'important');
-      errorMessage.style.setProperty('font-size', '12px', 'important');
+      errorMessage.style.setProperty('font-size', 'var(--titan-ui-font-size)', 'important');
       errorMessage.style.setProperty('text-align', 'center', 'important');
       errorMessage.style.setProperty('width', '100%', 'important');
       
@@ -1449,10 +1037,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     statusCell.innerHTML = `
                       <div class="validation-status">
                         <div class="status-icon fail inactive">
-                          <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" style="width:18px; height:18px;" />
+                          <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" class="is-inline-css-014" />
                         </div>
                         <div class="status-icon pass active">
-                          <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" style="width:18px; height:18px;" />
+                          <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" class="is-inline-css-014" />
                         </div>
                       </div>
                     `;
@@ -1470,10 +1058,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     statusCell.innerHTML = `
                       <div class="validation-status">
                         <div class="status-icon fail active">
-                          <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" style="width:18px; height:18px;" />
+                          <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" class="is-inline-css-014" />
                         </div>
                         <div class="status-icon pass inactive">
-                          <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" style="width:18px; height:18px;" />
+                          <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" class="is-inline-css-014" />
                         </div>
                       </div>
                     `;
@@ -1617,13 +1205,13 @@ document.addEventListener("DOMContentLoaded", function () {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       }
       function _renderTraySnapshot(trays) {
-        if (!trays || !trays.length) return '<div style="color:#888;font-size:12px;padding:6px;">No trays</div>';
+        if (!trays || !trays.length) return '<div class="is-inline-css-177">No trays</div>';
         // Filter out pure delink entries (source="reused" + qty=0) — those are shown in Delinked Trays section
         const rejectTrays = trays.filter(t => !(t.source === 'reused' && (t.qty === 0 || t.qty === '0')));
-        if (!rejectTrays.length) return '<div style="color:#888;font-size:12px;padding:6px;">No trays</div>';
+        if (!rejectTrays.length) return '<div class="is-inline-css-177">No trays</div>';
         const rows = rejectTrays.map((t, i) => {
-          const top = t.top_tray ? '<span style="background:#0288d1;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">TOP</span>' : '';
-          const reason = t.reason_text ? `<span style="background:#b71c1c;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">${_esc(t.reason_text)}</span>` : '';
+          const top = t.top_tray ? '<span class="is-inline-css-178">TOP</span>' : '';
+          const reason = t.reason_text ? `<span class="is-inline-css-179">${_esc(t.reason_text)}</span>` : '';
           // Source label: new → "rejected with new tray", reused (qty>0) → "rejected with tray reuse"
           let _srcLabel = '';
           if (t.source === 'new') {
@@ -1633,54 +1221,54 @@ document.addEventListener("DOMContentLoaded", function () {
           } else if (t.source === 'existing') {
             _srcLabel = 'existing';
           }
-          const src = _srcLabel ? `<span style="color:#666;font-size:10px;margin-left:6px;">(${_esc(_srcLabel)})</span>` : '';
-          return `<tr><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:center;">${i+1}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;font-family:monospace;">${_esc(t.tray_id)}${top}${reason}${src}</td><td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;">${_esc(t.qty)}</td></tr>`;
+          const src = _srcLabel ? `<span class="is-inline-css-180">(${_esc(_srcLabel)})</span>` : '';
+          return `<tr><td class="is-inline-css-181">${i+1}</td><td class="is-inline-css-182">${_esc(t.tray_id)}${top}${reason}${src}</td><td class="is-inline-css-183">${_esc(t.qty)}</td></tr>`;
         }).join('');
-        return `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;background:#fff;"><thead><tr style="background:#f5f5f5;"><th style="padding:4px 8px;border:1px solid #e0e0e0;width:40px;">#</th><th style="padding:4px 8px;border:1px solid #e0e0e0;text-align:left;">Tray ID</th><th style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;width:80px;">Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
+        return `<table class="is-inline-css-184"><thead><tr class="is-inline-css-185"><th class="is-inline-css-186">#</th><th class="is-inline-css-187">Tray ID</th><th class="is-inline-css-188">Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
       }
       function _renderRejectPanel(rl, isFullReject) {
         const typeLabel = isFullReject ? 'FULL REJECT' : 'PARTIAL REJECT';
-        const typeBg = isFullReject ? '#b71c1c' : '#c62828';
+        const typeClass = isFullReject ? 'is-panel-chip-reject-full' : 'is-panel-chip-reject-partial';
         const reasons = rl.rejection_reasons || {};
         const reasonChips = Object.keys(reasons).map(k => {
           const r = reasons[k] || {};
           if (r.is_shortage) {
-            return `<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;">Shortage = ${_esc(r.qty)}</span>`;
+            return `<span class="is-inline-css-264">Shortage = ${_esc(r.qty)}</span>`;
           }
-          return `<span style="background:#ffcdd2;color:#b71c1c;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;">${_esc(r.reason || k)}: ${_esc(r.qty)}</span>`;
-        }).join('') || '<span style="color:#888;font-size:11px;">None</span>';
-        const delinkList = (rl.delinked_tray_ids || []).map(t => `<span style="font-family:monospace;background:#eceff1;padding:1px 6px;border-radius:6px;margin-right:4px;font-size:11px;">${_esc(t)}</span>`).join('') || '<span style="color:#888;font-size:11px;">None</span>';
+          return `<span class="is-inline-css-265">${_esc(r.reason || k)}: ${_esc(r.qty)}</span>`;
+        }).join('') || '<span class="is-inline-css-266">None</span>';
+        const delinkList = (rl.delinked_tray_ids || []).map(t => `<span class="is-inline-css-267">${_esc(t)}</span>`).join('') || '<span class="is-inline-css-266">None</span>';
         // Compute actual reject trays count excluding pure delink entries (source="reused", qty=0)
         const allTrays = rl.trays || [];
         const actualRejectCount = allTrays.filter(t => !(t.source === 'reused' && (t.qty === 0 || t.qty === '0'))).length || rl.reject_trays_count;
-        return `<div style="border:1px solid #ffcdd2;background:#ffebee;border-radius:6px;padding:10px;margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;">${typeLabel}</span>
-              <span style="font-family:monospace;color:#b71c1c;font-weight:bold;">${_esc(rl.new_lot_id)}</span>
+        return `<div class="is-inline-css-268">
+          <div class="is-inline-css-190">
+            <div class="is-inline-css-022">
+              <span class="is-panel-chip is-panel-chip-bold ${typeClass}">${typeLabel}</span>
+              <span class="is-inline-css-269">${_esc(rl.new_lot_id)}</span>
             </div>
-            <div style="font-size:11px;color:#555;">${_esc(rl.created_at || '')}</div>
+            <div class="is-inline-css-192">${_esc(rl.created_at || '')}</div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
-            <div><strong>Rejected Qty:</strong> <span style="color:#c62828;font-weight:bold;">${_esc(rl.rejected_qty)}</span></div>
+          <div class="is-inline-css-193">
+            <div><strong>Rejected Qty:</strong> <span class="is-inline-css-270">${_esc(rl.rejected_qty)}</span></div>
             <div><strong>Reject Trays Count:</strong> ${_esc(actualRejectCount)}</div>
             <div><strong>Delink Count:</strong> ${_esc(rl.delink_count)}</div>
-            <div style="grid-column:1/-1;"><strong>Reasons:</strong> ${reasonChips}</div>
+            <div class="is-inline-css-229"><strong>Reasons:</strong> ${reasonChips}</div>
           </div>
-          <div style="margin-top:6px;font-size:12px;"><strong>Delinked Trays:</strong> ${delinkList}</div>
-          <div style="margin-top:6px;"><strong style="font-size:12px;">Trays Snapshot:</strong>${_renderTraySnapshot(rl.trays || [])}</div>
-          ${rl.remarks ? `<div style="margin-top:6px;font-size:12px;"><strong>Remarks:</strong> ${_esc(rl.remarks)}</div>` : ''}
+          <div class="is-inline-css-230"><strong>Delinked Trays:</strong> ${delinkList}</div>
+          <div class="is-inline-css-195"><strong class="is-inline-css-196">Trays Snapshot:</strong>${_renderTraySnapshot(rl.trays || [])}</div>
+          ${rl.remarks ? `<div class="is-inline-css-230"><strong>Remarks:</strong> ${_esc(rl.remarks)}</div>` : ''}
         </div>`;
       }
       function buildTableHTML() {
         if (!result || !result.success) {
-          return '<div style="padding:20px;text-align:center;color:#c62828;font-size:13px;">No submitted detail available for this lot.</div>';
+          return '<div class="is-inline-css-197">No submitted detail available for this lot.</div>';
         }
         const isFullReject = !!(result.is_full_reject);
-        let html = '<div style="padding:8px;">';
+        let html = '<div class="is-inline-css-198">';
         (result.reject_lots || []).forEach(rl => { html += _renderRejectPanel(rl, isFullReject); });
         if (!result.reject_lots || !result.reject_lots.length) {
-          html += '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">No reject lot data found.</div>';
+          html += '<div class="is-inline-css-199">No reject lot data found.</div>';
         }
         html += '</div>';
         return html;
@@ -1798,7 +1386,7 @@ document.addEventListener("DOMContentLoaded", function () {
               if (item.reason === "Lot Rejection" && item.lot_rejected_comment) {
                 // Show only the remark and qty, no "Lot Rejection" label
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td style="color:#fb8c00; font-weight:500;">${item.lot_rejected_comment}</td><td>${item.qty}</td>`;
+                tr.innerHTML = `<td class="is-inline-css-271">${item.lot_rejected_comment}</td><td>${item.qty}</td>`;
                 tbody.appendChild(tr);
               
               } else {

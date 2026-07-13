@@ -13,6 +13,16 @@ from Jig_Loading.models import JigCompleted, JigLoadingManualDraft
 from Jig_Unloading.models import JigUnloadAfterTable, JigUnloadDraft
 import logging
 import time
+from .service_performance_logging import (
+    duration_ms as service_duration_ms,
+    emit_service_end,
+    emit_service_error,
+    emit_service_start,
+    emit_thread_end,
+    emit_thread_error,
+    emit_thread_start,
+    perf_counter as service_perf_counter,
+)
 
 logger = logging.getLogger(__name__)
 DASHBOARD_STATS_MAX_WORKERS = 6
@@ -382,6 +392,11 @@ def get_dashboard_stats_for_labels(labels=None):
     Fetch dashboard stats for the requested labels only.
     This keeps login/dashboard rendering from calculating cards the user cannot see.
     """
+    service_started = service_perf_counter()
+    emit_service_start(
+        'adminportal.get_dashboard_stats_for_labels',
+        caller='dashboard_stats_provider_pool',
+    )
     requested_labels = set(labels or get_dashboard_stat_labels())
     requested_providers = [
         (module_name, func)
@@ -393,32 +408,97 @@ def get_dashboard_stats_for_labels(labels=None):
     total_start = time.time()
 
     def run_provider(index, module_name, func):
+        provider_started = service_perf_counter()
+        emit_thread_start(
+            thread_name='dashboard-stats-provider',
+            metadata={'provider_name': module_name},
+        )
+        emit_service_start(
+            'adminportal.dashboard_stat_provider',
+            caller='dashboard_stats_provider_pool',
+            metadata={'provider_name': module_name},
+        )
         close_old_connections()
         t1 = time.time()
         try:
             stat = func()
+            provider_elapsed = service_duration_ms(provider_started)
+            emit_service_end(
+                'adminportal.dashboard_stat_provider',
+                provider_elapsed,
+                success=True,
+                caller='dashboard_stats_provider_pool',
+                metadata={'provider_name': module_name},
+            )
+            emit_thread_end(
+                thread_name='dashboard-stats-provider',
+                duration=provider_elapsed,
+                result='completed',
+                metadata={'provider_name': module_name},
+            )
             return index, module_name, stat, (time.time() - t1) * 1000
+        except Exception as exc:
+            provider_elapsed = service_duration_ms(provider_started)
+            emit_service_error(
+                'adminportal.dashboard_stat_provider',
+                exc,
+                duration=provider_elapsed,
+                caller='dashboard_stats_provider_pool',
+                metadata={'provider_name': module_name},
+            )
+            emit_thread_error(
+                'dashboard-stats-provider',
+                exc,
+                duration=provider_elapsed,
+                metadata={'provider_name': module_name},
+            )
+            raise
         finally:
             close_old_connections()
 
-    if requested_providers:
-        max_workers = min(DASHBOARD_STATS_MAX_WORKERS, len(requested_providers))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_map = {
-                executor.submit(run_provider, index, module_name, func): index
-                for index, (module_name, func) in enumerate(requested_providers)
-            }
-            for future in as_completed(future_map):
-                index, module_name, stat, elapsed_ms = future.result()
-                if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
-                    logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
-                stats_by_index[index] = stat
+    try:
+        if requested_providers:
+            max_workers = min(DASHBOARD_STATS_MAX_WORKERS, len(requested_providers))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {
+                    executor.submit(run_provider, index, module_name, func): index
+                    for index, (module_name, func) in enumerate(requested_providers)
+                }
+                for future in as_completed(future_map):
+                    index, module_name, stat, elapsed_ms = future.result()
+                    if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
+                        logger.warning(f'MODULE_QUERY: {module_name} = {elapsed_ms:.2f}ms')
+                    stats_by_index[index] = stat
 
-    total_ms = (time.time() - total_start) * 1000
-    if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
-        logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
+        total_ms = (time.time() - total_start) * 1000
+        if getattr(settings, 'ENABLE_DASHBOARD_LATENCY_LOGS', False):
+            logger.warning(f'REQUESTED_MODULES_TOTAL: {total_ms:.2f}ms labels={list(requested_labels)}')
 
-    return [stat for stat in stats_by_index if stat is not None]
+        stats = [stat for stat in stats_by_index if stat is not None]
+        emit_service_end(
+            'adminportal.get_dashboard_stats_for_labels',
+            service_duration_ms(service_started),
+            success=True,
+            caller='dashboard_stats_provider_pool',
+            metadata={
+                'requested_count': len(requested_labels),
+                'provider_count': len(requested_providers),
+                'stats_count': len(stats),
+            },
+        )
+        return stats
+    except Exception as exc:
+        emit_service_error(
+            'adminportal.get_dashboard_stats_for_labels',
+            exc,
+            duration=service_duration_ms(service_started),
+            caller='dashboard_stats_provider_pool',
+            metadata={
+                'requested_count': len(requested_labels),
+                'provider_count': len(requested_providers),
+            },
+        )
+        raise
 
 
 def get_all_dashboard_stats():

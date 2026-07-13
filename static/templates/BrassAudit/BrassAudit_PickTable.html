@@ -2118,25 +2118,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn('[BrassAudit] Failed to update Q/QC UI immediately', uiErr);
           }
 
-          // ── Activate Bin (delete) icon per backend-computed can_delete flag ──
-          if (result.can_delete && row) {
-            const binPlaceholder = row.querySelector('.action-td span[title="Delete Disabled"]');
-            if (binPlaceholder) {
-              const binLink = document.createElement('a');
-              binLink.href = '#';
-              binLink.className = 'delete-batch-btn';
-              binLink.title = 'Delete';
-              binLink.setAttribute('data-batch-id', row.getAttribute('data-batch-id'));
-              binLink.setAttribute('data-stock-lot-id', row.getAttribute('data-stock-lot-id'));
-              binLink.innerHTML = binPlaceholder.innerHTML;
-              const binImg = binLink.querySelector('img');
-              if (binImg) {
-                binImg.style.filter = 'none';
-              }
-              binPlaceholder.replaceWith(binLink);
-            }
-          }
-
           console.log(`[BrassAudit] Verified lot ${lotId} ✓`);
         } else {
           cb.checked = !verified; // revert on failure
@@ -2147,57 +2128,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('[BrassAudit] Toggle verified error:', err);
         alert('Network error saving checkbox.');
       }
-    });
-  });
-
-  // ── Bin (delete) icon: permanently remove lot from pick table ──
-  // Delegated so it also works for icons activated dynamically by the checkbox handler above.
-  document.addEventListener('click', function(e) {
-    const deleteBtn = e.target.closest('.delete-batch-btn');
-    if (!deleteBtn) return;
-    e.preventDefault();
-
-    const row = deleteBtn.closest('tr');
-    const batchId = deleteBtn.getAttribute('data-batch-id');
-    const stockLotId = deleteBtn.getAttribute('data-stock-lot-id');
-    if (!stockLotId) {
-      Swal.fire('Error', 'Stock Lot ID not found!', 'error');
-      return;
-    }
-
-    Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you really want to permanently delete this lot?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    }).then(function(result) {
-      if (!result.isConfirmed) return;
-
-      fetch('/brass_audit/api/delete-batch/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify({ batch_id: batchId, stock_lot_id: stockLotId }),
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.success) {
-            if (row) row.remove();
-            Swal.fire({ icon: 'success', title: 'Deleted!', text: data.message || 'Lot deleted successfully.', timer: 2000, showConfirmButton: false });
-          } else {
-            Swal.fire('Error', data.error || 'Failed to delete lot', 'error');
-          }
-        })
-        .catch(function(err) {
-          console.error('[BrassAudit] Delete error:', err);
-          Swal.fire('Error', 'An error occurred while deleting the lot', 'error');
-        });
     });
   });
 

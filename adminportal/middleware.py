@@ -7,9 +7,22 @@ from django.contrib.auth import logout as auth_logout
 from django.contrib import messages
 import time
 import logging
+from watchcase_tracker.performance_logging.logger import emit_perf_event
 
 logger = logging.getLogger(__name__)
 
+def _emit_auth_event(request, event_type, level, message, metadata=None):
+    try:
+        emit_perf_event(
+            'AUTH',
+            event_type,
+            level,
+            message,
+            metadata=metadata or {},
+            request=request,
+        )
+    except Exception:
+        return
 
 class BlockOptionsMiddleware:
     """
@@ -131,7 +144,7 @@ class ModuleAccessMiddleware:
         if user is None or not getattr(user, 'is_authenticated', False):
             # Not authenticated; let login_required redirect handle it.
             return self.get_response(request)
-
+        check_start = time.perf_counter()
         # Lazy import to avoid circular imports at module load time.
         from adminportal.services import get_user_allowed_module_names, is_admin_user
 
@@ -321,13 +334,38 @@ class SingleSessionMiddleware:
         user = getattr(request, 'user', None)
         if user is None or not getattr(user, 'is_authenticated', False):
             return self.get_response(request)
-
+        
+        check_start = time.perf_counter()
         current_session_key = getattr(request.session, 'session_key', None)
         if not current_session_key:
             logger.warning(
                 'SINGLE_SESSION_NO_SESSION_KEY_REJECT: user=%s path=%s',
                 user.username, request.path,
             )
+            self._emit_single_session_check(
+                request,
+                check_start,
+                active_record_found=None,
+                conflict_detected=False,
+                result='lookup_failed',
+            )
+            self._emit_single_session_check(
+                request,
+                check_start,
+                active_record_found=False,
+                conflict_detected=True,
+                result='missing_session_key',
+            )
+            self._emit_session_invalid(request, 'missing_session_key')
+
+            self._emit_single_session_check(
+                request,
+                check_start,
+                active_record_found=False,
+                conflict_detected=True,
+                result='no_active_session_record',
+            )
+            self._emit_session_expired(request, 'no_active_session_record')
             return self._reject(request)
 
         # Lazy import to avoid circular/app-registry import issues.
@@ -355,6 +393,23 @@ class SingleSessionMiddleware:
             return self._reject(request)
 
         if active_session.session_key == current_session_key:
+            self._emit_single_session_check(
+                request,
+                check_start,
+                active_record_found=True,
+                conflict_detected=False,
+                result='validated',
+            )
+            _emit_auth_event(
+                request,
+                'AUTH.SESSION.VALIDATED',
+                'INFO',
+                'Session validated',
+                {
+                    'user_id': getattr(user, 'pk', None),
+                    'valid': True,
+                },
+            )
             return self.get_response(request)
 
         logger.warning(
@@ -362,8 +417,66 @@ class SingleSessionMiddleware:
             'request_session=%s active_session=%s',
             user.username, request.path, current_session_key, active_session.session_key,
         )
+        self._emit_single_session_check(
+            request,
+            check_start,
+            active_record_found=True,
+            conflict_detected=True,
+            result='stale_session',
+        )
+        self._emit_session_expired(request, 'stale_session')
         return self._reject(request)
+    def _emit_single_session_check(
+        self,
+        request,
+        check_start,
+        active_record_found,
+        conflict_detected,
+        result,
+    ):
+        user = getattr(request, 'user', None)
+        _emit_auth_event(
+            request,
+            'AUTH.SINGLE_SESSION.CHECK',
+            'INFO' if not conflict_detected else 'WARNING',
+            'Single-session validation checked',
+            {
+                'user_id': getattr(user, 'pk', None),
+                'duration_ms': round((time.perf_counter() - check_start) * 1000, 3),
+                'active_record_found': active_record_found,
+                'conflict_detected': conflict_detected,
+                'result': result,
+            },
+        )
 
+    @staticmethod
+    def _emit_session_expired(request, reason):
+        user = getattr(request, 'user', None)
+        _emit_auth_event(
+            request,
+            'AUTH.SESSION.EXPIRED',
+            'WARNING',
+            'Session expired or stale',
+            {
+                'user_id': getattr(user, 'pk', None),
+                'reason': reason,
+            },
+        )
+
+    @staticmethod
+    def _emit_session_invalid(request, reason):
+        user = getattr(request, 'user', None)
+        _emit_auth_event(
+            request,
+            'AUTH.SESSION.INVALID',
+            'WARNING',
+            'Session invalid',
+            {
+                'user_id': getattr(user, 'pk', None),
+                'reason': reason,
+            },
+        )
+        
     def _login_url(self):
         return getattr(settings, 'LOGIN_URL', '/accounts/login/')
 
