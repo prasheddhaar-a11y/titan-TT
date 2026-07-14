@@ -1,3 +1,13 @@
+// Shared alert helper - SweetAlert2 (loaded globally in base.html),
+// falls back to the browser alert if Swal is unavailable.
+function reportsNotify(icon, title, text) {
+  if (typeof Swal !== "undefined") {
+    Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: "#028084" });
+  } else {
+    alert(title + (text ? " - " + text : ""));
+  }
+}
+
 // Smart Download — module report OR consolidated report from one button
 document.addEventListener("DOMContentLoaded", function () {
   const smartBtn = document.getElementById("smartDownloadBtn");
@@ -41,7 +51,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
       smartBtn.disabled = true;
       fetch(url)
-        .then((r) => { if (!r.ok) throw new Error("failed"); return r.blob(); })
+        .then((r) => {
+          if (r.status === 404) throw new Error("nodata");
+          if (!r.ok) throw new Error("failed");
+          return r.blob();
+        })
         .then((blob) => {
           const a = document.createElement("a");
           a.href = window.URL.createObjectURL(blob);
@@ -52,7 +66,13 @@ document.addEventListener("DOMContentLoaded", function () {
           window.URL.revokeObjectURL(a.href);
           if (successMsg) successMsg.style.display = "block";
         })
-        .catch(() => alert("Failed to download report. Please try again."))
+        .catch((e) => {
+          if (e.message === "nodata") {
+            reportsNotify("info", "No data found", "No records match the selected module / filters.");
+          } else {
+            reportsNotify("error", "Download failed", "Please try again.");
+          }
+        })
         .finally(() => { smartBtn.disabled = false; });
     });
   }
@@ -212,7 +232,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .then(renderPreview)
       .catch(function () {
-        alert("Failed to load preview. Please try again.");
+        reportsNotify("error", "Preview failed", "Please try again.");
       })
       .finally(function () {
         previewBtn.disabled = false;

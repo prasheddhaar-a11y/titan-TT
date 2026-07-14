@@ -55,6 +55,11 @@ def _autofit_excel_columns(writer, max_width=60):
                     cell.alignment = Alignment(wrap_text=True, vertical='top')
 
 
+def _workbook_has_data(writer):
+    """True when at least one sheet has a data row (row 1 is the header)."""
+    return any(ws.max_row > 1 for ws in writer.book.worksheets)
+
+
 def convert_datetimes(data):
     for item in data:
         for key, value in item.items():
@@ -1410,7 +1415,12 @@ def download_report(request):
         elif module == 'spider-spindle-z2':
             _write_spider_spindle_report(writer, zone=2)
 
+        has_data = _workbook_has_data(writer)
         _autofit_excel_columns(writer)
+
+    if not has_data:
+        output.close()
+        return HttpResponse('No data found', status=404)
 
     output.seek(0)
     response = HttpResponse(
@@ -2735,6 +2745,9 @@ def consolidated_report_download(request):
     except Exception:
         logger.exception('Consolidated report download failed')
         return HttpResponse('Failed to build report', status=500)
+
+    if not rows:
+        return HttpResponse('No data found', status=404)
 
     excel_rows = [
         {

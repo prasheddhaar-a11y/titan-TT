@@ -191,6 +191,10 @@ def microsoft_callback(request):
     # mark this session as MFA-verified so any MFA-enforcing middleware treats
     # SSO logins the same as form logins.
     request.session['mfa_verified'] = True
+    # One-shot flag: lets the next page decide whether to show the
+    # "no modules assigned" alert. Popped on read so it never reappears
+    # on later navigation within the same session.
+    request.session['sso_just_logged_in'] = True
     request.session.modified = True
 
     # Ensure the sidebar/dashboard reflect the latest admin-assigned module

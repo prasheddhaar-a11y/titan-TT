@@ -29,7 +29,13 @@ load_dotenv(BASE_DIR / '.env', override=False)
 SECRET_KEY = 'django-insecure-gjye57-rx)^o3)f$ix_jy#802*56@oljtx1zrpo6_$-hzvb#mv'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# Driven by the DJANGO_DEBUG environment variable (defaults to False so the
+# production IIS deployment is always safe). With DEBUG=True Django keeps every
+# executed SQL statement in connection.queries for the life of the worker
+# process, which on a long-lived IIS worker leaks memory and makes every
+# request progressively slower (root cause of the escalating login latency).
+# Set DJANGO_DEBUG=True in your local .env for development.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
 
 ALLOWED_HOSTS = [
     "trackandtrace.titan.in",
@@ -115,17 +121,28 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 MIDDLEWARE = [
+    # First in the chain so it wraps everything below it (security, session,
+    # auth, view, template) and can attribute the full request time to a
+    # per-request breakdown. See watchcase_tracker/perf_logger.py.
+    'watchcase_tracker.middleware.performance_middleware.PerformanceProfilerMiddleware',
     'adminportal.middleware.BlockOptionsMiddleware',
     # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
     'adminportal.middleware.SecurityHeadersMiddleware',
     # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
-    'adminportal.middleware.AdminIPRestrictionMiddleware',
+    'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    # SafeSessionMiddleware = Django's SessionMiddleware + graceful handling of
+    # SessionInterrupted (session deleted mid-request by a concurrent
+    # logout/login or expiry) instead of an error page.
+    'adminportal.middleware.SafeSessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Idle-session fix: convert login-page redirects into JSON 401
+    # (code=SESSION_EXPIRED) for fetch/AJAX requests so scan/validate calls
+    # show a proper "session expired" alert instead of "Validation Error".
+    'adminportal.middleware.SessionExpiredAjaxMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adminportal.middleware.CSPMiddleware',
@@ -204,10 +221,10 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     }
-} 
+}
 
 # UAT Database
-"""DATABASES = {
+""" DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'watchcasetrack',
@@ -217,7 +234,7 @@ DATABASES = {
         'PORT':'5432',
         'CONN_MAX_AGE':60,
     }
-}"""
+} """
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -261,12 +278,28 @@ CACHES = {
 # falling back to PostgreSQL only on a miss. This removes one DB round-trip
 # from every authenticated request compared to the plain 'db' backend.
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
-SESSION_SAVE_EVERY_REQUEST = False
+# True = sliding inactivity timeout: every request refreshes the session
+# cookie, so users are only logged out after SESSION_COOKIE_AGE seconds of
+# real inactivity (not a hard cutoff measured from login time).
+SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 # SESSION_COOKIE_SECURE = False   # Issue #4: require HTTPS for session cookie
-SESSION_COOKIE_SECURE = False if DEBUG else True
-SESSION_COOKIE_AGE = 900      # Issue #28: 30-minute session timeout (was 86400 / 24 h)
+#
+# Perf/session fix: this used to be hard-tied to DEBUG (False if DEBUG else
+# True), which silently assumes production == always-HTTPS. ALLOWED_HOSTS
+# includes "192.168.1.2" (a plain-IP host), so if that host is ever reached
+# over HTTP instead of the HTTPS domain, a Secure cookie is never sent back
+# by the browser - the session never "sticks", every request looks logged
+# out, and the session-expired alert fires constantly even for a fresh
+# login. DJANGO_SESSION_COOKIE_SECURE lets ops correct this from the
+# deployed .env alone (no code/web.config change) if that turns out to be
+# the case; unset, behavior is unchanged from before.
+SESSION_COOKIE_SECURE = os.environ.get(
+    'DJANGO_SESSION_COOKIE_SECURE',
+    'False' if DEBUG else 'True',
+).strip().lower() in ('1', 'true', 'yes', 'on')
+SESSION_COOKIE_AGE = 900       #15 -minute session timeout (was 86400 sec / 24 h)
 
 # ---------------------------------------------------------------------------
 # HSTS — HTTP Strict-Transport-Security (VAPT Finding #7)
@@ -280,7 +313,17 @@ SESSION_COOKIE_AGE = 900      # Issue #28: 30-minute session timeout (was 86400 
 SECURE_HSTS_SECONDS = 63072000          # 2 years
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 # SECURE_HSTS_PRELOAD = True
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+#
+# Off by default (matches the previous commented-out state - no behavior
+# change unless explicitly enabled). If IIS is confirmed to forward
+# X-Forwarded-Proto for TLS-terminated requests, set
+# DJANGO_TRUST_X_FORWARDED_PROTO=True in the server's .env so
+# request.is_secure() correctly reports True behind IIS. This affects the
+# post-OTP-login redirect safety check (adminportal/views.py:
+# verify_email_otp -> url_has_allowed_host_and_scheme(require_https=...))
+# and any other code that branches on request.is_secure().
+if os.environ.get('DJANGO_TRUST_X_FORWARDED_PROTO', 'False').strip().lower() in ('1', 'true', 'yes', 'on'):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ENABLE_MICROSOFT_LOGIN = True
 ENABLE_LOGIN_LATENCY_LOGS = False
@@ -321,6 +364,13 @@ LOGGING = {
             'format': '{asctime} {levelname} {name} {message}',
             'style': '{',
         },
+        # Kept minimal on purpose: perf_logger already formats the
+        # REQUEST_ID | PATH | STAGE | DURATION | DB_QUERIES | STATUS line;
+        # this formatter just prefixes it with a timestamp.
+        'performance': {
+            'format': '{asctime} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'django.server': {
@@ -339,6 +389,14 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'logs', 'security_audit.log'),
             'formatter': 'security',
         },
+        # Separate from security/django logs on purpose - see
+        # watchcase_tracker/perf_logger.py and middleware/performance_middleware.py.
+        'performance_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'application_performance.log'),
+            'formatter': 'performance',
+        },
     },
     'loggers': {
         'django.server': {
@@ -349,6 +407,12 @@ LOGGING = {
         # Audit trail for login failures, account lock and unlock events.
         'security': {
             'handlers': ['security_console', 'security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Per-request stage breakdown for slow requests (PerformanceProfilerMiddleware).
+        'performance': {
+            'handlers': ['performance_file'],
             'level': 'INFO',
             'propagate': False,
         },
