@@ -2,7 +2,6 @@ from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from modelmasterapp.models import *
-from modelmasterapp.image_utils import sort_images_front_first
 from rest_framework import status
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404, redirect, render
@@ -589,8 +588,7 @@ class Visual_AidView(APIView):
                     stock_for_images,
                     fallback_images=batch_obj.images.all(),
                 )
-                images_payload = hover_payload.get('images', []) if hover_payload else []
-                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
+                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -611,8 +609,7 @@ class Visual_AidView(APIView):
                     model_master_obj.plating_stk_no,
                     fallback_images=model_master_obj.images.all(),
                 )
-                images_payload = hover_payload.get('images', []) if hover_payload else []
-                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
+                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
                 
                 context.update({
                     'batch_id': None,
@@ -709,14 +706,6 @@ _IMAGE_VIEW_ORDER = {
     'BV': 6,
 }
 
-_ALLOWED_MODEL_IMAGE_VIEWS = {'TV', 'FV', 'FSV', 'IV', 'RSV'}
-
-# Preference order for the single hover "Front View" preview image: an exact
-# Front View wins; Front-Side View is the closest available substitute when a
-# model has no dedicated FV upload yet. Any other view code is never used as
-# the preview so the wrong angle can never be shown for the requested feature.
-_FRONT_VIEW_PREFERENCE = ('FV', 'FSV')
-
 
 def _parse_stock_no(raw_stock_no):
     stock_no = (raw_stock_no or '').strip().upper()
@@ -748,172 +737,53 @@ def _detect_image_view(image_name):
             return suffix, _IMAGE_VIEW_LABELS[suffix]
     return 'VIEW', 'View'
 
-def _get_model_image_lookup_name(img):
-    return (
-        getattr(img, 'original_filename', '')
-        or getattr(getattr(img, 'master_image', None), 'name', '')
-        or ''
-    )
-
-
-def _image_matches_key(img, image_key):
-    return image_key.lower() in _get_model_image_lookup_name(img).lower()
-
-
-def _filter_images_by_key(images, image_key):
-    return [
-        img
-        for img in images
-        if getattr(img, 'master_image', None)
-        and _image_matches_key(img, image_key)
-    ]
-
-
-def _get_no_image_placeholder():
-    placeholder_filenames = (
-        'NO_IMAGE.jpg',
-        'NO_IMAGE.jpeg',
-        'NO_IMAGE.png',
-        'noimage.jpg',
-        'noimage.jpeg',
-        'noimage.png',
-        'no_image.jpg',
-        'no_image.jpeg',
-        'no_image.png',
-    )
-
-    for filename in placeholder_filenames:
-        placeholder = ModelImage.objects.filter(
-            original_filename__iexact=filename
-        ).first()
-
-        if placeholder and getattr(placeholder, 'master_image', None):
-            return placeholder
-
-    for filename in placeholder_filenames:
-        placeholder = ModelImage.objects.filter(
-            master_image__iendswith=filename
-        ).first()
-
-        if placeholder and getattr(placeholder, 'master_image', None):
-            return placeholder
-
-    return None
 
 def _sort_model_images(images):
-    selected_by_view = {}
-
-    def sort_key(img):
-        lookup_name = _get_model_image_lookup_name(img)
-        return (
-            _IMAGE_VIEW_ORDER.get(
-                _detect_image_view(lookup_name)[0],
-                99,
-            ),
-            os.path.basename(lookup_name).lower(),
-        )
-
-    valid_images = [
-        img
-        for img in images
-        if getattr(img, 'master_image', None)
-    ]
-
-    for img in sorted(valid_images, key=sort_key):
-        lookup_name = _get_model_image_lookup_name(img)
-        view_code = _detect_image_view(lookup_name)[0]
-
-        if view_code not in _ALLOWED_MODEL_IMAGE_VIEWS:
-            continue
-
-        selected_by_view.setdefault(view_code, img)
-
-    return [
-        selected_by_view[view_code]
-        for view_code in ('TV', 'FV', 'FSV', 'IV', 'RSV')
-        if view_code in selected_by_view
-    ]
-
-
-def _get_images_for_stock(
-    stock_parts,
-    model_master=None,
-    fallback_images=None,
-):
-    keyed_images = ModelImage.objects.filter(
-        original_filename__icontains=stock_parts['image_key']
+    return sorted(
+        [img for img in images if getattr(img, 'master_image', None)],
+        key=lambda img: (
+            _IMAGE_VIEW_ORDER.get(_detect_image_view(img.master_image.name)[0], 99),
+            os.path.basename(img.master_image.name).lower(),
+        ),
     )
 
-    if keyed_images.exists():
-        return _sort_model_images(keyed_images)
 
-    # Backward compatibility for older files whose stored filename
-    # still contains the image key.
+def _get_images_for_stock(stock_parts, model_master=None, fallback_images=None):
     keyed_images = ModelImage.objects.filter(
         master_image__icontains=stock_parts['image_key']
     )
-
     if keyed_images.exists():
         return _sort_model_images(keyed_images)
 
     if model_master:
-        model_images = _filter_images_by_key(
-            model_master.images.all(),
-            stock_parts['image_key'],
-        )
-
-        if model_images:
+        model_images = model_master.images.all()
+        if model_images.exists():
             return _sort_model_images(model_images)
 
     if fallback_images is not None:
-        matched_fallback_images = _filter_images_by_key(
-            fallback_images,
-            stock_parts['image_key'],
-        )
+        fallback_images = list(fallback_images)
+        if fallback_images:
+            return _sort_model_images(fallback_images)
 
-        if matched_fallback_images:
-            return _sort_model_images(matched_fallback_images)
-
-    placeholder = _get_no_image_placeholder()
-
-    if placeholder:
-        return [placeholder]
-
-    return []
+    model_images = ModelImage.objects.filter(master_image__icontains=stock_parts['model_no'])
+    return _sort_model_images(model_images)
 
 
 def _build_image_payload(request, images):
     payload = []
-
     for img in images:
         try:
-            image_url = img.master_image.url
+            image_url = request.build_absolute_uri(img.master_image.url)
         except Exception:
             continue
-
-        lookup_name = _get_model_image_lookup_name(img)
-        view_code, view_label = _detect_image_view(lookup_name)
-
+        view_code, view_label = _detect_image_view(img.master_image.name)
         payload.append({
             'id': img.id,
             'url': image_url,
             'view_code': view_code,
             'view': view_label,
         })
-
     return payload
-
-
-def _only_isometric_view(images_payload):
-    """
-    Visual Aid page must show a single Isometric View image only (no
-    multi-view gallery). Falls back to the first available image if the
-    model has no dedicated IV upload, so the page never renders blank.
-    """
-    iv_images = [img for img in images_payload if img.get('view_code') == 'IV']
-    if iv_images:
-        return [iv_images[0]]
-    return images_payload[:1]
 
 
 def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
@@ -948,13 +818,7 @@ def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
         request,
         _get_images_for_stock(stock_parts, model_master=model_master, fallback_images=fallback_images),
     )
-    preview = {}
-    for view_code in _FRONT_VIEW_PREFERENCE:
-        preview = next((img for img in images_payload if img['view_code'] == view_code), None)
-        if preview:
-            break
-    if not preview:
-        preview = images_payload[0] if images_payload else {}
+    preview = images_payload[0] if images_payload else {}
 
     return {
         'found': True,
@@ -1043,7 +907,7 @@ class Rec_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "RecoveryMasterCreation" and batch_obj:
                 # Use RecoveryMasterCreation data (preferred)
-                images = sort_images_front_first(batch_obj.images.all())
+                images = batch_obj.images.all()
                 image_urls = [img.master_image.url for img in images if img.master_image]
                 
                 context.update({
@@ -1059,7 +923,7 @@ class Rec_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-                images = sort_images_front_first(model_master_obj.images.all())
+                images = model_master_obj.images.all()
                 image_urls = [img.master_image.url for img in images if img.master_image]
                 
                 context.update({
@@ -1208,7 +1072,7 @@ class Other_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
-                images = sort_images_front_first(batch_obj.images.all())
+                images = batch_obj.images.all()
                 image_urls = [img.master_image.url for img in images if img.master_image]
                 
                 context.update({
@@ -1224,7 +1088,7 @@ class Other_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-                images = sort_images_front_first(model_master_obj.images.all())
+                images = model_master_obj.images.all()
                 image_urls = [img.master_image.url for img in images if img.master_image]
                 
                 context.update({

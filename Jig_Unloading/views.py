@@ -622,8 +622,9 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
             clean_model_images = {}
             plating_stk_images = {}  # plating_stk_no -> image data
             seen_clean = set()
+            from modelmasterapp.image_utils import sort_images_front_first
             for model_master in model_masters:
-                images = list(model_master.images.all())
+                images = sort_images_front_first(model_master.images.all())
                 img_urls_mm = [img.master_image.url for img in images if img.master_image]
 
                 # Always record by plating_stk_no (exact match for fallback)
@@ -665,7 +666,8 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
                         plating_stk_no=orig_no
                     ).prefetch_related('images').first()
                     if _mmc_direct and _mmc_direct.images.exists():
-                        _mmc_urls = [img.master_image.url for img in _mmc_direct.images.all() if img.master_image]
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        _mmc_urls = [img.master_image.url for img in sort_images_front_first(_mmc_direct.images.all()) if img.master_image]
                         if _mmc_urls:
                             model_images_map[orig_no] = {'images': _mmc_urls, 'first_image': _mmc_urls[0]}
                             missing_images.discard(orig_no)
@@ -684,7 +686,7 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
                             # Match: exact plating_stk_no equality OR plating_stk_no starts with numeric prefix
                             if (mm.plating_stk_no == orig_no or
                                     (_numeric_no and str(mm.plating_stk_no).startswith(_numeric_no))) and mm.images.exists():
-                                img_list = list(mm.images.all())
+                                img_list = sort_images_front_first(mm.images.all())
                                 img_urls_fb = [img.master_image.url for img in img_list if img.master_image]
                                 if img_urls_fb:
                                     model_images_map[orig_no] = {'images': img_urls_fb, 'first_image': img_urls_fb[0]}
@@ -711,10 +713,11 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
                 if _bmmc.polish_finish:
                     batch_polish_finish_map[_bmmc.batch_id] = _bmmc.polish_finish
                 # Prefer ModelMasterCreation.images directly
-                _bimgs = [img.master_image.url for img in _bmmc.images.all() if img.master_image]
+                from modelmasterapp.image_utils import sort_images_front_first
+                _bimgs = [img.master_image.url for img in sort_images_front_first(_bmmc.images.all()) if img.master_image]
                 if not _bimgs and _bmmc.model_stock_no:
                     # Fall back to ModelMaster.images via FK
-                    _bimgs = [img.master_image.url for img in _bmmc.model_stock_no.images.all() if img.master_image]
+                    _bimgs = [img.master_image.url for img in sort_images_front_first(_bmmc.model_stock_no.images.all()) if img.master_image]
                 if _bimgs:
                     batch_images_map[_bmmc.batch_id] = {'images': _bimgs, 'first_image': _bimgs[0]}
                     print(f"📦 batch_images: {_bmmc.batch_id} -> {len(_bimgs)} images")
@@ -2139,8 +2142,9 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
                 Q(model_no__in=clean_model_numbers) | Q(plating_stk_no__in=all_model_numbers)
             ).prefetch_related('images')
             
+            from modelmasterapp.image_utils import sort_images_front_first
             for model_master in model_masters:
-                images = list(model_master.images.all())
+                images = sort_images_front_first(model_master.images.all())
                 image_urls = []
                 first_image = "/static/assets/images/imagePlaceholder.jpg"
                 
@@ -2423,7 +2427,8 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
                                 Q(model_no=clean_model_no) | Q(plating_stk_no=normalized_model_no)
                             ).prefetch_related('images').first()
                             if model_master:
-                                for image in model_master.images.all():
+                                from modelmasterapp.image_utils import sort_images_front_first
+                                for image in sort_images_front_first(model_master.images.all()):
                                     if image.master_image:
                                         image_urls.append(image.master_image.url)
                             image_payload = {
@@ -2533,7 +2538,10 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
                 'jig_capacity': tray_capacity,  # Using calculated dynamic capacity
                 'no_of_trays': no_of_trays,
                 'calculated_no_of_trays': no_of_trays,
-                'last_process_module': unload.last_process_module,
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': unload.current_stage or unload.last_process_module,
                 
                 # Dates
                 'created_at': unload.created_at,
@@ -2719,10 +2727,11 @@ class GetUnloadModelsZ1View(APIView):
                 model_stock = plating_model if plating_model else mmc.model_stock_no
                 tray_type, tray_capacity, tray_code, tray_color = self._get_tray_info_z1(model_stock)
                 images = []
+                from modelmasterapp.image_utils import sort_images_front_first
                 if model_stock:
-                    images = [img.master_image.url for img in model_stock.images.all() if img.master_image]
+                    images = [img.master_image.url for img in sort_images_front_first(model_stock.images.all()) if img.master_image]
                 if not images:
-                    images = [img.master_image.url for img in mmc.images.all() if img.master_image]
+                    images = [img.master_image.url for img in sort_images_front_first(mmc.images.all()) if img.master_image]
             else:
                 plating_stk_no   = model_hint or draft_data.get('plating_stock_num', lot_id)
                 polishing_stk_no = ''
@@ -2957,10 +2966,11 @@ class GetUnloadModelsZ1View(APIView):
                         a_model_stock = plating_model if plating_model else a_mmc.model_stock_no
                         a_tt, a_tc, a_tcode, a_tcolor = self._get_tray_info_z1(a_model_stock)
                         a_images = []
+                        from modelmasterapp.image_utils import sort_images_front_first
                         if a_model_stock:
-                            a_images = [img.master_image.url for img in a_model_stock.images.all() if img.master_image]
+                            a_images = [img.master_image.url for img in sort_images_front_first(a_model_stock.images.all()) if img.master_image]
                         if not a_images:
-                            a_images = [img.master_image.url for img in a_mmc.images.all() if img.master_image]
+                            a_images = [img.master_image.url for img in sort_images_front_first(a_mmc.images.all()) if img.master_image]
                     else:
                         a_tt, a_tc, a_tcode, a_tcolor = 'Normal', 20, 'N', ''
                         a_images = []
@@ -4146,7 +4156,8 @@ def jig_unload_get_model_images_z1(request):
         if not model:
             return JsonResponse({'success': False, 'image': None, 'error': f'No model found for lot_id: {lot_id}'})
 
-        images = [img.master_image.url for img in model.images.all() if img.master_image]
+        from modelmasterapp.image_utils import sort_images_front_first
+        images = [img.master_image.url for img in sort_images_front_first(model.images.all()) if img.master_image]
         if images:
             return JsonResponse({
                 'success': True, 'image': images[0],

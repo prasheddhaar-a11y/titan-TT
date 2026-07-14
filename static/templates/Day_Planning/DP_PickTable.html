@@ -3318,7 +3318,7 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
 
     qtyCell.innerHTML = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
       <input type="number" min="1" class="form-control qty-input" value="${oldQty}" placeholder="Enter quantity" style="width: 80px; display:inline-block; padding: 4px 6px; font-size: 13px;" />
-      <small style="color: #666; font-size: 11px; font-weight: 500; margin-top: -2px;">Press Enter to update</small>
+      <small style="color: #666; font-size: 8px !important; font-weight: 500; margin-top: -2px;">Press Enter to update</small>
     </div>`;
 
     const qtyInput = qtyCell.querySelector('.qty-input');

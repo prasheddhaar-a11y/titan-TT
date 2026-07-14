@@ -195,7 +195,8 @@ class RecoveryBrassAuditPickTableView(APIView):
             images = []
             if batch_obj:
                 model_master = batch_obj.model_stock_no
-                for img in model_master.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(model_master.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -3174,7 +3175,8 @@ class RecoveryBrassAuditCompletedView(APIView):
             batch_obj = RecoveryMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if batch_obj and batch_obj.model_stock_no:
-                for img in batch_obj.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -4152,7 +4154,8 @@ class RecoveryBrassAuditRejectTableView(APIView):
             batch_obj = RecoveryMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if batch_obj and batch_obj.model_stock_no:
-                for img in batch_obj.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:

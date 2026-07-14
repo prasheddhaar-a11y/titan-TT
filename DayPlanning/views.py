@@ -1548,12 +1548,13 @@ class DayPlanningPickTableAPIView(APIView):
         # Model images per batch (replaces per-row ModelMasterCreation fetch +
         # images.all()). One query for the rows, one for the M2M via prefetch.
         images_by_batch = {}
+        from modelmasterapp.image_utils import sort_images_front_first
         for mmc in ModelMasterCreation.objects.filter(
             batch_id__in=page_batch_ids
         ).prefetch_related('images'):
             urls = [
                 img.master_image.url
-                for img in mmc.images.all()
+                for img in sort_images_front_first(mmc.images.all())
                 if getattr(img, 'master_image', None)
             ]
             images_by_batch[mmc.batch_id] = urls
@@ -3092,6 +3093,12 @@ class DPCompletedTableView(APIView):
         draft_tray_verify_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
         ).values('draft_tray_verify')[:1]
+        # Live "current stage" SSOT — updated on real downstream processing
+        # (draft/verify/submit), so this reflects where the lot actually IS now
+        # rather than where Day Planning last touched it (last_process_module).
+        current_stage_subquery = TotalStockModel.objects.filter(
+            batch_id=OuterRef('pk'),
+        ).values('current_stage')[:1]
 
         queryset = ModelMasterCreation.objects.filter(
             total_batch_quantity__gt=0,
@@ -3099,6 +3106,7 @@ class DPCompletedTableView(APIView):
         ).annotate(
             last_process_module=Subquery(last_process_module_subquery),
             next_process_module=Subquery(next_process_module_subquery),
+            current_stage=Subquery(current_stage_subquery),
             created_at=Subquery(created_at_subquery),
             accepted_Ip_stock=Subquery(accepted_Ip_stock_subquery),
             ip_person_qty_verified=Subquery(ip_person_qty_verified_subquery),
@@ -3139,6 +3147,7 @@ class DPCompletedTableView(APIView):
             'Moved_to_D_Picker',
             'last_process_module',
             'next_process_module',
+            'current_stage',
             'Draft_Saved',
             'top_tray_qty_verified',
             'created_at',
@@ -3158,12 +3167,13 @@ class DPCompletedTableView(APIView):
         # per-row ModelMasterCreation query inside the loop (was N+1).
         page_batch_ids = [d['batch_id'] for d in master_data]
         images_by_batch = {}
+        from modelmasterapp.image_utils import sort_images_front_first
         for mmc in ModelMasterCreation.objects.filter(
             batch_id__in=page_batch_ids
         ).prefetch_related('images'):
             urls = [
                 img.master_image.url
-                for img in mmc.images.all()
+                for img in sort_images_front_first(mmc.images.all())
                 if getattr(img, 'master_image', None)
             ]
             images_by_batch[mmc.batch_id] = urls
@@ -3173,11 +3183,20 @@ class DPCompletedTableView(APIView):
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            
+            # Backend-owned "Current Stage" display: prefer the live current_stage
+            # SSOT (updated on real downstream processing), fall back to
+            # next_process_module (routed destination), then last_process_module.
+            data['current_stage_display'] = (
+                data.get('current_stage')
+                or data.get('next_process_module')
+                or data.get('last_process_module')
+                or 'N/A'
+            )
+
             if tray_capacity > 0:
                 no_of_trays = math.ceil(total_batch_quantity / tray_capacity)
                 data['no_of_trays'] = no_of_trays
-                
+
                 # Calculate tray_qty_list (same logic as DP_PickTable)
                 tray_qty_list = []
                 remainder = total_batch_quantity % tray_capacity

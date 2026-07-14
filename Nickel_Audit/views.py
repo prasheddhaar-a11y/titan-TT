@@ -587,7 +587,10 @@ class NA_PickTableView(APIView):
                 'plating_stk_no': jig_unload_obj.plating_stk_no or '',
                 'polishing_stk_no': jig_unload_obj.polish_stk_no or '',
                 'category': jig_unload_obj.category or '',
-                'last_process_module': jig_unload_obj.last_process_module or 'Jig Unload',
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': jig_unload_obj.current_stage or jig_unload_obj.last_process_module or 'Jig Unload',
                 'combine_lot_ids': jig_unload_obj.combine_lot_ids,  # Show which lots were combined
                 'unload_lot_id': jig_unload_obj.unload_lot_id,  # Additional identifier
                 # Nickel-specific fields
@@ -617,7 +620,8 @@ class NA_PickTableView(APIView):
                         if model_master:
                             print(f"✅ NA Pick View - Found ModelMaster for images: {model_master.model_no}")
                             # Get images from ModelMaster
-                            for img in model_master.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(f"📸 NA Pick View - Added image from ModelMaster: {img.master_image.url}")
@@ -635,7 +639,8 @@ class NA_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-                            for img in batch_obj.model_stock_no.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(f"📸 NA Pick View - Added image from TotalStockModel: {img.master_image.url}")
@@ -1554,7 +1559,10 @@ class NACompletedView(APIView):
                 'tray_type': jig_unload_obj.tray_type or '',
                 'tray_capacity': jig_unload_obj.tray_capacity or 0,
                 'stock_lot_id': jig_unload_obj.lot_id,
-                'last_process_module': jig_unload_obj.last_process_module or 'Jig Unload',
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': jig_unload_obj.current_stage or jig_unload_obj.last_process_module or 'Jig Unload',
                 'total_IP_accpeted_quantity': jig_unload_obj.total_case_qty,
                 'na_qc_accptance': jig_unload_obj.na_qc_accptance,
                 'na_qc_rejection': jig_unload_obj.na_qc_rejection,
@@ -1600,7 +1608,8 @@ class NACompletedView(APIView):
                         .first()
                     )
                     if model_master:
-                        for img in model_master.images.all():
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        for img in sort_images_front_first(model_master.images.all()):
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images and data['combine_lot_ids']:
@@ -1608,7 +1617,8 @@ class NACompletedView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-                        for img in total_stock.batch_id.model_stock_no.images.all():
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:

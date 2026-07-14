@@ -116,7 +116,8 @@ def _get_model_images(jig_unload_obj):
                     model_no__startswith=model_no_prefix
                 ).prefetch_related('images').first()
                 if model_master:
-                    for img in model_master.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(model_master.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
             except Exception:
@@ -126,7 +127,8 @@ def _get_model_images(jig_unload_obj):
         if first_lot_id:
             total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
             if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-                for img in total_stock.batch_id.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
     return images
@@ -324,6 +326,12 @@ class SSZ1AddSpiderAPIView(APIView):
             jig_obj.save(update_fields=[
                 'ss_z1_completed', 'ss_z1_tray_id', 'ss_z1_completed_at', 'ss_z1_completed_by'
             ])
+
+            # Real processing activity — advance the shared current_stage SSOT
+            # so the previous module (Jig Unloading) shows "Spider Spindle" as
+            # the Current Location instead of a stale value.
+            from modelmasterapp.stage_service import update_juat_stage
+            update_juat_stage(lot_id, 'Spider Spindle')
 
         return Response({
             'success': True,

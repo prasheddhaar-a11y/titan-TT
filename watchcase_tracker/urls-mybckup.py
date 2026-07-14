@@ -14,12 +14,10 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-import sys
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.static import serve
 from django.contrib.auth import views as auth_views
 from adminportal.views import IndexView, TimedLoginView
 from django.conf.urls import handler404, handler500, handler403, handler400
@@ -122,22 +120,9 @@ urlpatterns += [
     ),
 ]
 
-serve_local_media = settings.DEBUG or 'runserver' in sys.argv
-
-if serve_local_media:
-    urlpatterns += [
-        re_path(
-            r'^media/(?P<path>.*)$',
-            serve,
-            {'document_root': settings.MEDIA_ROOT},
-        ),
-    ]
-
 if settings.DEBUG:
-    urlpatterns += static(
-        settings.STATIC_URL,
-        document_root=settings.STATICFILES_DIRS[0],
-    )
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
 def custom_404(request, exception):
     return render(request, "pages/samples/error-404.html", status=404)
 

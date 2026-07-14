@@ -553,7 +553,8 @@ class IQFPickTableView(APIView):
             images = []
             if batch_obj:
                 model_master = batch_obj.model_stock_no
-                for img in model_master.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(model_master.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -2014,20 +2015,25 @@ class IQFCompletedPageView(APIView):
                 .values_list('lot_id', 'IQF_pick_remarks')
             )
 
-            # Also fetch next_process_module + brass_qc activity flags for all lot_ids
+            # Also fetch current_stage (live SSOT) + next_process_module + brass_qc activity flags for all lot_ids
             _own_stock_qs = TotalStockModel.objects.filter(lot_id__in=all_lot_ids).values(
-                'lot_id', 'next_process_module',
+                'lot_id', 'next_process_module', 'current_stage',
                 'brass_draft', 'brass_qc_accptance', 'brass_qc_rejection', 'brass_qc_few_cases_accptance',
                 'iqf_acceptance', 'iqf_rejection', 'iqf_few_cases_acceptance',
+                'brass_qc_accepted_qty_verified',
             )
             own_stage_map = {}           # lot_id → next_process_module
+            own_current_stage_map = {}   # lot_id → current_stage (live SSOT)
             own_bq_active_map = {}       # lot_id → bool (brass qc started?)
+            own_bq_released_map = {}     # lot_id → bool (brass qc released — SSOT: brass_qc_accepted_qty_verified)
             for row in _own_stock_qs:
                 own_stage_map[row['lot_id']] = row['next_process_module']
+                own_current_stage_map[row['lot_id']] = row['current_stage']
                 own_bq_active_map[row['lot_id']] = bool(
                     row['brass_draft'] or row['brass_qc_accptance'] or
                     row['brass_qc_rejection'] or row['brass_qc_few_cases_accptance']
                 )
+                own_bq_released_map[row['lot_id']] = bool(row['brass_qc_accepted_qty_verified'])
 
             # For PARTIAL lots: look up child accept lot's live stage via IQF_PartialAcceptLot
             partial_lot_ids = list(
@@ -2040,18 +2046,23 @@ class IQFCompletedPageView(APIView):
 
             child_lot_ids = list(parent_to_child_map.values())
             child_stage_map = {}       # child_lot_id → next_process_module
+            child_current_stage_map = {}  # child_lot_id → current_stage (live SSOT)
             child_bq_active_map = {}   # child_lot_id → bool (brass qc started?)
+            child_bq_released_map = {} # child_lot_id → bool (brass qc released — SSOT: brass_qc_accepted_qty_verified)
             if child_lot_ids:
                 _child_stock_qs = TotalStockModel.objects.filter(lot_id__in=child_lot_ids).values(
-                    'lot_id', 'next_process_module',
+                    'lot_id', 'next_process_module', 'current_stage',
                     'brass_draft', 'brass_qc_accptance', 'brass_qc_rejection', 'brass_qc_few_cases_accptance',
+                    'brass_qc_accepted_qty_verified',
                 )
                 for row in _child_stock_qs:
                     child_stage_map[row['lot_id']] = row['next_process_module']
+                    child_current_stage_map[row['lot_id']] = row['current_stage']
                     child_bq_active_map[row['lot_id']] = bool(
                         row['brass_draft'] or row['brass_qc_accptance'] or
                         row['brass_qc_rejection'] or row['brass_qc_few_cases_accptance']
                     )
+                    child_bq_released_map[row['lot_id']] = bool(row['brass_qc_accepted_qty_verified'])
 
             _IQF_VALID_STAGES = {
                 'Input Screening', 'IQF', 'Brass QC', 'Brass Audit',
@@ -2079,7 +2090,8 @@ class IQFCompletedPageView(APIView):
                 # Model images
                 images = []
                 if batch.model_stock_no:
-                    for img in batch.model_stock_no.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(batch.model_stock_no.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
                 if not images:
@@ -2092,21 +2104,36 @@ class IQFCompletedPageView(APIView):
                 reject_trays = (reject_data or {}).get('trays', [])
                 total_trays = len([t for t in accept_trays if int(t.get('qty', 0)) > 0]) + len([t for t in reject_trays if int(t.get('qty', 0)) > 0])
 
-                # Determine live Current Stage dynamically with activity guard:
-                # Only advance to next stage if the lot has actually been worked on there.
-                # While sitting in the pick table → show 'IQF'.
+                # Determine live Current Stage. Prefer the centralized current_stage
+                # SSOT (modelmasterapp/stage_service.py) — the same field every other
+                # Completed Table (Day Planning, Input Screening, Brass QC, Brass Audit)
+                # reads — so this lot shows the identical stage everywhere. Fall back to
+                # the legacy dynamic next_process_module + activity-guard computation
+                # only for rows that pre-date the current_stage field.
                 _own_stage = own_stage_map.get(sub.lot_id)
+                _own_current = own_current_stage_map.get(sub.lot_id)
                 if sub.submission_type == 'PARTIAL':
                     _child_lot_id = parent_to_child_map.get(sub.lot_id)
                     _child_stage = child_stage_map.get(_child_lot_id) if _child_lot_id else None
+                    _child_current = child_current_stage_map.get(_child_lot_id) if _child_lot_id else None
+                    _live_current = _child_current or _own_current
                     _resolved = _child_stage or _own_stage
                     _bq_active = child_bq_active_map.get(_child_lot_id, False) if _child_lot_id else False
+                    _bq_released = child_bq_released_map.get(_child_lot_id, False) if _child_lot_id else False
                 else:
+                    _live_current = _own_current
                     _resolved = _own_stage
                     _bq_active = own_bq_active_map.get(sub.lot_id, False)
+                    _bq_released = own_bq_released_map.get(sub.lot_id, False)
 
                 _fallback = 'IQF'
-                if _resolved and _resolved in _IQF_VALID_STAGES:
+                if _live_current and _live_current in _IQF_VALID_STAGES:
+                    _next_stage = _live_current
+                    # Keep the Brass QC "released" pill honest: only trust it once the
+                    # live stage has actually reached Brass QC.
+                    if _live_current == 'Brass QC':
+                        _bq_active = True
+                elif _resolved and _resolved in _IQF_VALID_STAGES:
                     if _resolved == 'Brass QC' and not _bq_active:
                         # Lot in Brass QC pick table but untouched → keep showing IQF
                         _next_stage = _fallback
@@ -2115,6 +2142,13 @@ class IQFCompletedPageView(APIView):
                         _next_stage = _resolved
                 else:
                     _next_stage = _fallback
+
+                # Only trust the verified flag when this lot's resolved destination is
+                # actually Brass QC — otherwise (e.g. FULL_REJECT lots, which terminate
+                # at IQF and never route back) a stale flag left over from an earlier
+                # Brass QC cycle must not be shown as "Released".
+                if _next_stage != 'Brass QC':
+                    _bq_released = False
 
                 master_data.append({
                     'batch_id': batch.batch_id,
@@ -2140,6 +2174,9 @@ class IQFCompletedPageView(APIView):
                     'iqf_hold_lot': False,
                     'brass_rejection_total_qty': sub.iqf_incoming_qty,
                     'brass_onhold_picking': False,
+                    # Live Brass QC release status (SSOT: brass_qc_accepted_qty_verified),
+                    # resolved via the same own-lot/child-accept-lot logic as next_process_module.
+                    'brass_qc_released': _bq_released,
                     'last_process_module': 'IQF',
                     'next_process_module': _next_stage,
                     'iqf_accepted_tray_scan_status': True,
@@ -2183,6 +2220,28 @@ class IQFAcceptTablePageView(APIView):
                 .values_list('lot_id', 'IQF_pick_remarks')
             )
 
+            # Live current_stage SSOT (modelmasterapp/stage_service.py) — same field every
+            # other Completed Table reads, so this lot shows the identical stage everywhere
+            # instead of the hardcoded "IQF" literal this view used to show.
+            own_current_stage_map = dict(
+                TotalStockModel.objects.filter(lot_id__in=all_lot_ids)
+                .values_list('lot_id', 'current_stage')
+            )
+            partial_lot_ids = list(
+                submitted_qs.filter(submission_type='PARTIAL').values_list('lot_id', flat=True)
+            )
+            parent_to_child_map = {}
+            if partial_lot_ids:
+                for pal in IQF_PartialAcceptLot.objects.filter(parent_lot_id__in=partial_lot_ids).values('parent_lot_id', 'new_lot_id'):
+                    parent_to_child_map[pal['parent_lot_id']] = pal['new_lot_id']
+            child_lot_ids = list(parent_to_child_map.values())
+            child_current_stage_map = {}
+            if child_lot_ids:
+                child_current_stage_map = dict(
+                    TotalStockModel.objects.filter(lot_id__in=child_lot_ids)
+                    .values_list('lot_id', 'current_stage')
+                )
+
             master_data = []
             for sub in submitted_qs:
                 batch = sub.batch_id
@@ -2192,7 +2251,8 @@ class IQFAcceptTablePageView(APIView):
                 # Model images
                 images = []
                 if batch.model_stock_no:
-                    for img in batch.model_stock_no.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(batch.model_stock_no.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
                 if not images:
@@ -2206,6 +2266,15 @@ class IQFAcceptTablePageView(APIView):
                 # Accepted comment from IQF_Accepted_TrayID_Store
                 comment_obj = IQF_Accepted_TrayID_Store.objects.filter(lot_id=sub.lot_id).first()
                 accepted_comment = comment_obj.accepted_comment if comment_obj else ''
+
+                if sub.submission_type == 'PARTIAL':
+                    _child_lot_id = parent_to_child_map.get(sub.lot_id)
+                    _live_current = (
+                        child_current_stage_map.get(_child_lot_id) if _child_lot_id else None
+                    ) or own_current_stage_map.get(sub.lot_id)
+                else:
+                    _live_current = own_current_stage_map.get(sub.lot_id)
+                _current_stage_display = _live_current or 'IQF'
 
                 master_data.append({
                     'batch_id': batch.batch_id,
@@ -2228,7 +2297,7 @@ class IQFAcceptTablePageView(APIView):
                     'iqf_missing_qty': 0,
                     'iqf_physical_qty': sub.iqf_incoming_qty,
                     'brass_onhold_picking': False,
-                    'last_process_module': 'IQF',
+                    'last_process_module': _current_stage_display,
                     'iqf_accepted_tray_scan_status': True,
                     'Moved_to_D_Picker': False,
                     'model_images': images,
@@ -2300,7 +2369,8 @@ class IQFRejectionTableView(APIView):
                 # Model images
                 images = []
                 if batch.model_stock_no:
-                    for img in batch.model_stock_no.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(batch.model_stock_no.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
                 if not images:

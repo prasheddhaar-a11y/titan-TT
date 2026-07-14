@@ -340,14 +340,11 @@ def _get_model_images(batch) -> List[str]:
     if not batch or not batch.model_stock_no_id:
         return []
     try:
-        from modelmasterapp.models import TotalStockModel
-        images = TotalStockModel.objects.filter(
-            batch_id=batch
-        ).values_list("batch_id__model_stock_no__model_image", flat=True)[:1]
+        from modelmasterapp.image_utils import sort_images_front_first
         result = []
-        for img in images:
-            if img:
-                result.append(f"/media/{img}")
+        for img in sort_images_front_first(batch.model_stock_no.images.all()):
+            if img.master_image:
+                result.append(img.master_image.url)
         return result
     except Exception:
         return []

@@ -170,7 +170,8 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         images: List[str] = []
         mmc = mmc_map.get(batch_id)
         if mmc and mmc.model_stock_no_id:
-            for img in mmc.model_stock_no.images.all():
+            from modelmasterapp.image_utils import sort_images_front_first
+            for img in sort_images_front_first(mmc.model_stock_no.images.all()):
                 if img.master_image:
                     images.append(img.master_image.url)
         data["model_images"] = images or placeholder

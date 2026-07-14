@@ -346,7 +346,8 @@ def get_model_images(batch_id_str):
     batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id_str).first()
     images = []
     if batch_obj and batch_obj.model_stock_no:
-        for img in batch_obj.model_stock_no.images.all():
+        from modelmasterapp.image_utils import sort_images_front_first
+        for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
             if img.master_image:
                 images.append(img.master_image.url)
     if not images:

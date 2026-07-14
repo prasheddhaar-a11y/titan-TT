@@ -202,7 +202,8 @@ class RIS_PickTable(APIView):
             if mmc:
                 # Get images from related ModelMaster (model_stock_no)
                 model_master = mmc.model_stock_no
-                for img in model_master.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(model_master.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             # If no images, add a placeholder
@@ -2868,7 +2869,8 @@ class RIS_Completed_Table(APIView):
             mmc = RecoveryMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if mmc and mmc.model_stock_no:
-                for img in mmc.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(mmc.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -3074,7 +3076,8 @@ class RIS_AcceptTable(APIView):
             mmc = RecoveryMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if mmc and mmc.model_stock_no:
-                for img in mmc.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(mmc.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -3322,7 +3325,8 @@ class RIS_RejectTable(APIView):
             mmc = RecoveryMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if mmc and mmc.model_stock_no:
-                for img in mmc.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(mmc.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:

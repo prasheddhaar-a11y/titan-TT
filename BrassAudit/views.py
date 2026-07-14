@@ -199,7 +199,8 @@ class BrassAuditPickTableView(APIView):
             images = []
             if batch_obj:
                 model_master = batch_obj.model_stock_no
-                for img in model_master.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(model_master.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -599,7 +600,8 @@ class BrassAuditCompletedView(APIView):
                 batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
                 images = []
                 if batch_obj and batch_obj.model_stock_no:
-                    for img in batch_obj.model_stock_no.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
                 if not images:
@@ -732,7 +734,8 @@ class BrassAuditRejectTableView(APIView):
             batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if batch_obj and batch_obj.model_stock_no:
-                for img in batch_obj.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:

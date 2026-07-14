@@ -47,6 +47,7 @@ class PolishFinishTypeSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        # Ensure date_time is set to current time when creating
         validated_data['date_time'] = timezone.now()
         return super().create(validated_data)
 
@@ -314,14 +315,6 @@ class ModelImageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Ensure date_time is set to current time when creating
         validated_data['date_time'] = timezone.now()
-
-        uploaded_file = validated_data.get('master_image')
-        if uploaded_file and not validated_data.get('original_filename'):
-            import os
-            validated_data['original_filename'] = os.path.basename(
-                uploaded_file.name or ''
-            )
-
         return super().create(validated_data)
 
 class ModelMasterSerializer(serializers.ModelSerializer):

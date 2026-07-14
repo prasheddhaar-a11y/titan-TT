@@ -417,7 +417,10 @@ class NQ_PickTableView(APIView):
                 "plating_stk_no": jig_unload_obj.plating_stk_no or "",
                 "polishing_stk_no": jig_unload_obj.polish_stk_no or "",
                 "category": jig_unload_obj.category or "",
-                "last_process_module": jig_unload_obj.last_process_module or "Jig Unload",
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                "last_process_module": jig_unload_obj.current_stage or jig_unload_obj.last_process_module or "Jig Unload",
                 "combine_lot_ids": jig_unload_obj.combine_lot_ids,  # Show which lots were combined
                 "unload_lot_id": jig_unload_obj.unload_lot_id,  # Additional identifier
                 # Nickel-specific fields
@@ -449,7 +452,8 @@ class NQ_PickTableView(APIView):
                                 f"✅ NQ View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            for img in model_master.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -470,7 +474,8 @@ class NQ_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-                            for img in batch_obj.model_stock_no.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -639,7 +644,8 @@ class NickelQcRejectTableView(APIView):
                                 f"✅ Nickel Reject View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            for img in model_master.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -662,7 +668,8 @@ class NickelQcRejectTableView(APIView):
                     if total_stock_obj and total_stock_obj.batch_id:
                         batch_obj = total_stock_obj.batch_id
                         if batch_obj.model_stock_no:
-                            for img in batch_obj.model_stock_no.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -1455,7 +1462,10 @@ class NQCompletedView(APIView):
                 'tray_type': obj.tray_type or '',
                 'tray_capacity': obj.tray_capacity or 0,
                 'category': obj.category or '',
-                'last_process_module': obj.last_process_module or '',
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': obj.current_stage or obj.last_process_module or '',
                 'combine_lot_ids': obj.combine_lot_ids,
                 'unload_lot_id': obj.unload_lot_id,
                 'stock_lot_id': obj.lot_id,
@@ -1495,13 +1505,15 @@ class NQCompletedView(APIView):
                 prefix = str(obj.plating_stk_no)[:4]
                 mm = ModelMaster.objects.filter(model_no__startswith=prefix).prefetch_related('images').first()
                 if mm:
-                    images = [img.master_image.url for img in mm.images.all() if img.master_image]
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    images = [img.master_image.url for img in sort_images_front_first(mm.images.all()) if img.master_image]
             if not images and obj.combine_lot_ids:
                 first_lid = obj.combine_lot_ids[0] if obj.combine_lot_ids else None
                 if first_lid:
                     ts = TotalStockModel.objects.filter(lot_id=first_lid).first()
                     if ts and ts.batch_id and ts.batch_id.model_stock_no:
-                        images = [img.master_image.url for img in ts.batch_id.model_stock_no.images.all() if img.master_image]
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        images = [img.master_image.url for img in sort_images_front_first(ts.batch_id.model_stock_no.images.all()) if img.master_image]
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images

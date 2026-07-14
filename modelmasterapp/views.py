@@ -91,7 +91,8 @@ class BaseAPIView(APIView):
 
                         # Fetch associated images
                         mmc = batch_id  # assuming batch_id is ModelMasterCreation instance
-                        model_images = [img.master_image.url for img in mmc.images.all()] if mmc else []
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        model_images = [img.master_image.url for img in sort_images_front_first(mmc.images.all())] if mmc else []
                         print(f"[DEBUG] ModelMasterCreation images fetched: {model_images}")
                         
                         # Add ModelMasterCreation details to the response
@@ -170,7 +171,8 @@ class GetLotByModelAPIView(APIView):
             batch = tray.batch_id
             if batch:
                 try:
-                    model_images = [img.master_image.url for img in batch.images.all()] if hasattr(batch, 'images') else []
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    model_images = [img.master_image.url for img in sort_images_front_first(batch.images.all())] if hasattr(batch, 'images') else []
                     # Determine vendor/internal source string: prefer batch.vendor_internal (explicit),
                     # otherwise try the related ModelMaster -> Vendor.vendor_internal
                     vendor_internal_value = None
@@ -526,7 +528,8 @@ def get_plating_images(request):
             ).first()
 
     if mm and mm.images.exists():
-        image_urls = [img.master_image.url for img in mm.images.all() if img.master_image]
+        from modelmasterapp.image_utils import sort_images_front_first
+        image_urls = [img.master_image.url for img in sort_images_front_first(mm.images.all()) if img.master_image]
         return JsonResponse({'images': image_urls})
 
     return JsonResponse({'images': []})

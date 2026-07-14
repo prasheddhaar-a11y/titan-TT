@@ -98,11 +98,6 @@ def model_image_upload_path(instance, filename):
 class ModelImage(models.Model):
   #give master_image field for mulitple image slection
     master_image = models.ImageField(upload_to=model_image_upload_path)
-    original_filename = models.CharField(
-        max_length=255,
-        blank=True,
-        db_index=True,
-    )
     date_time = models.DateTimeField(default=timezone.now)
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
