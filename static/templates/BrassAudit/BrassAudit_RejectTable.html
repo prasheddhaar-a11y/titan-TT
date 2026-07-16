@@ -653,6 +653,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Polish Finish
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
+                    <th>
+                      Type of Input
+                    </th>
                     <th class="sortable" data-column-index="7">
                       Source - Location
                       <i class="fa fa-sort" aria-hidden="true"></i>
@@ -741,6 +744,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td>{{ data.plating_color }}</td>
                     <td>{{data.polish_finish}}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.location__location_name}}</td>
                     <td>{{data.tray_type}} {{data.tray_capacity}}</td>
                     <td>{{data.no_of_trays}}</td>

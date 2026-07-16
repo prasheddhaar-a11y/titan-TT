@@ -722,6 +722,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Tray Cate- <br> Capacity
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
+                    <th>
+                      Type of Input
+                    </th>
                     <th class="remark-column">
                       Remark
                     </th>
@@ -860,7 +863,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     
                     <!-- 12. Tray Cate-Capacity -->
                     <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
-                    
+
+                    <!-- Type of Input -->
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
+
                     <!-- 13. Remark -->
                     <td class="remark-cell">
                       {% if data.BA_pick_remarks_has_text %}

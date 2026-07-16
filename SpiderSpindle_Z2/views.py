@@ -20,6 +20,7 @@ from modelmasterapp.models import *
 from datetime import datetime, timedelta  # re-import after wildcard (modelmasterapp shadows datetime)
 from Jig_Unloading.models import JigUnloadAfterTable
 from .models import SpiderSpindleZ2TrayId
+from modelmasterapp.type_of_input import get_type_of_input_map
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,9 @@ class SSZ2PickTableView(APIView):
         paginator = Paginator(queryset, 10)
         page_obj = paginator.get_page(page_number)
 
+        page_lot_ids = [obj.lot_id for obj in page_obj.object_list]
+        type_of_input_map = get_type_of_input_map(page_lot_ids)
+
         master_data = []
         for obj in page_obj.object_list:
             linked_tray = SpiderSpindleZ2TrayId.objects.filter(lot_id=obj.lot_id).first()
@@ -220,6 +224,7 @@ class SSZ2PickTableView(APIView):
                 'spider_release_reason': obj.spider_release_reason or '',
                 'linked_tray_id': linked_tray.tray_id if linked_tray else '',
                 'images': images,
+                'type_of_input': type_of_input_map.get(obj.lot_id, 'Fresh'),
             }
             master_data.append(data)
 
@@ -281,6 +286,8 @@ class SSZ2CompletedView(APIView):
         for tray in SpiderSpindleZ2TrayId.objects.filter(lot_id__in=page_lot_ids).order_by('linked_at', 'id'):
             linked_tray_map.setdefault(tray.lot_id, []).append(tray.tray_id)
 
+        type_of_input_map = get_type_of_input_map(page_lot_ids)
+
         master_data = []
         for obj in page_obj.object_list:
             linked_tray_ids = linked_tray_map.get(obj.lot_id) or _split_tray_ids(obj.ss_z2_tray_id)
@@ -304,6 +311,7 @@ class SSZ2CompletedView(APIView):
                 'linked_tray_count': len(linked_tray_ids),
                 'spider_pick_remarks': obj.spider_pick_remarks or '',
                 'images': images,
+                'type_of_input': type_of_input_map.get(obj.lot_id, 'Fresh'),
             }
             master_data.append(data)
 

@@ -26,6 +26,8 @@ from typing import Any, Dict, List, Tuple
 from django.db import IntegrityError, transaction
 from django.templatetags.static import static
 
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -197,6 +199,9 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         # Rejection total
         data["ip_rejection_total_qty"] = rejection_qty if lot_id else 0
+
+        # Type of Input (Fresh / Recovery)
+        data["type_of_input"] = get_type_of_input_for_batch(mmc)
 
     return rows
 

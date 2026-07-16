@@ -34,6 +34,7 @@ from Jig_Unloading.tray_utils import (
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.mixins import LoginRequiredMixin
+from modelmasterapp.type_of_input import get_type_of_input_map, label_for_upload_type
 
 logger = logging.getLogger(__name__)
 
@@ -1013,7 +1014,17 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             _jd_batch = getattr(jig_detail, 'batch_id', None)
             if _jd_batch:
                 all_batch_ids.add(str(_jd_batch).strip())
-                
+
+        # ✅ Type of Input (Fresh/Recovery): bulk-resolve via TotalStockModel.lot_id → batch_id.upload_type
+        # for every lot_id referenced, plus a batch_id-keyed fallback for Jig Loading-origin lots.
+        type_of_input_map = get_type_of_input_map(list(all_lot_ids))
+        batch_type_of_input_map = {}
+        if all_batch_ids:
+            for _row in ModelMasterCreation.objects.filter(
+                batch_id__in=list(all_batch_ids)
+            ).values('batch_id', 'upload_type'):
+                batch_type_of_input_map[_row['batch_id']] = label_for_upload_type(_row['upload_type'])
+
         # Define color palette for model circles
         color_palette = [
             "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
@@ -1433,6 +1444,18 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 else:
                     lot_id_quantities = {jig_detail.lot_id: getattr(jig_detail, 'updated_lot_qty', 0)}
             jig_detail.lot_id_quantities = lot_id_quantities
+
+            # Type of Input (Fresh/Recovery): prefer lot_id_quantities keys resolved via TotalStockModel,
+            # fall back to batch_id-keyed lookup for Jig Loading-origin lots.
+            jig_detail.type_of_input = 'Fresh'
+            for _jd_lid in lot_id_quantities.keys():
+                if _jd_lid in type_of_input_map:
+                    jig_detail.type_of_input = type_of_input_map[_jd_lid]
+                    break
+            else:
+                _jd_batch_id = getattr(jig_detail, 'batch_id', None)
+                if _jd_batch_id and _jd_batch_id in batch_type_of_input_map:
+                    jig_detail.type_of_input = batch_type_of_input_map[_jd_batch_id]
 
             # Rebuild lot_id_model_map from plating_stock_num if not already set
             if not getattr(jig_detail, 'lot_id_model_map', None) and lot_id_quantities:
@@ -4416,6 +4439,10 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
         print(f"[DEBUG] Found {len(all_model_numbers)} unique model numbers: {all_model_numbers}")
         print(f"[DEBUG] Found {len(all_lot_ids)} unique lot IDs")
 
+        # ✅ Type of Input (Fresh/Recovery): bulk-resolve via TotalStockModel.lot_id → batch_id.upload_type
+        # for every lot_id referenced by combine_lot_ids across all completed unload records.
+        type_of_input_map = get_type_of_input_map(list(all_lot_ids))
+
         # ✅ ENHANCED: Use same color palette as JU_Zone_MainTable
         color_palette = [
             "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
@@ -4808,6 +4835,18 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
 
             version_display = all_versions[0] if all_versions else "N/A"
 
+            # ✅ Type of Input (Fresh/Recovery): resolve from bulk map using combine_lot_ids,
+            # falling back to the record's own lot_id.
+            row_type_of_input = 'Fresh'
+            if unload.combine_lot_ids:
+                for _cid_toi in unload.combine_lot_ids:
+                    _lid_toi = _extract_lot_id(_cid_toi)
+                    if _lid_toi in type_of_input_map:
+                        row_type_of_input = type_of_input_map[_lid_toi]
+                        break
+            if row_type_of_input == 'Fresh' and unload.lot_id in type_of_input_map:
+                row_type_of_input = type_of_input_map[unload.lot_id]
+
             table_entry = {
                 'id': unload.id,
                 'lot_id': unload.lot_id,
@@ -4852,6 +4891,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 'lot_id_model_map': {},
                 'unloading_remarks': unloading_remarks,
                 'bath_numbers': {'bath_number': self._resolve_bath_number_for_completed(unload, jig_qr_id)},
+                'type_of_input': row_type_of_input,
             }
 
             print(f"[DEBUG] ✅ Created table entry for {unload.lot_id}")

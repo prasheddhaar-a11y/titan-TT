@@ -33,6 +33,7 @@ from Jig_Unloading.tray_utils import get_upstream_tray_distribution, get_model_m
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
 from Nickel_Audit.views import _na_latest_submission_qtys, _na_partial_accept_child_maps, _na_unique_completed_rows
+from modelmasterapp.type_of_input import get_type_of_input_map
 
 logger = logging.getLogger(__name__)
 
@@ -381,10 +382,12 @@ class NA_Zone_PickTableView(APIView):
             data['model_images'] = images
             master_data.append(data)
 
+        type_of_input_map = get_type_of_input_map([data.get('stock_lot_id') for data in master_data])
         for data in master_data:
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             lot_id = data.get('stock_lot_id')
+            data['type_of_input'] = type_of_input_map.get(lot_id, 'Fresh')
 
             total_rejection_qty = 0
             rejection_store = Nickel_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).first()
@@ -588,6 +591,10 @@ class NA_Zone_CompletedView(APIView):
                 images = [static("assets/images/imagePlaceholder.jpg")]
             data["model_images"] = images
             master_data.append(data)
+
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
+        for data in master_data:
+            data["type_of_input"] = type_of_input_map.get(data.get("stock_lot_id"), "Fresh")
 
         context = {
             "master_data": master_data,

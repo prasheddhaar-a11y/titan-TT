@@ -61,6 +61,7 @@ from .services.validators import (
     validate_accept_tray_current_lot,
     validate_tray_not_rejected_in_is,
 )
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 # Brass QC Pick Table View
 @method_decorator(login_required, name='dispatch')
@@ -167,10 +168,11 @@ class BrassPickTableView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'last_process_module': stock_obj.last_process_module,
+                'type_of_input': get_type_of_input_for_batch(batch),
             }
             master_data.append(data)
 
-        for data in master_data:   
+        for data in master_data:
             total_IP_accpeted_quantity = data.get('total_IP_accpeted_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
@@ -496,6 +498,7 @@ class BrassCompletedView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'no_of_trays': 0,
+                'type_of_input': get_type_of_input_for_batch(batch),
             }
             master_data.append(data)
 

@@ -1686,6 +1686,10 @@
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Type of Input
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Polish Finish
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -1976,6 +1980,7 @@
                     <td class="{{ data.ui.row_blur }}">{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td class="{{ data.ui.row_blur }}">{{ data.plating_color }}</td>
                     <td class="{{ data.ui.row_blur }}">{{ data.category }}</td>
+                    <td class="{{ data.ui.row_blur }}">{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td class="{{ data.ui.row_blur }}">{{data.polish_finish}}</td>
                     <td style="display: none;">{{data.version__version_name}}</td>
                     <td class="{{ data.ui.row_blur }}">{{data.location__location_name}}</td>

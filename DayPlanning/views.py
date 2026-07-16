@@ -26,6 +26,7 @@ from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
 from modelmasterapp.models import RowAccessLock, DraftTrayId
+from modelmasterapp.type_of_input import label_for_upload_type
 from watchcase_tracker.perf_logger import time_stage
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
@@ -1584,7 +1585,7 @@ class DayPlanningPickTableAPIView(APIView):
             data['tray_capacity'] = prejig_cap
             tray_capacity = prejig_cap
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            data['type_of_input'] = 'Recovery' if data.get('upload_type') == 'recovery' else 'Fresh'
+            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
 
             # ✅ ENHANCED: Determine if this lot needs top tray scan
             tray_scan_status = data.get('tray_scan_status', False)

@@ -33,6 +33,7 @@ import logging
 from django.db import transaction
 from .selectors import get_picktable_base_queryset
 from watchcase_tracker.perf_logger import time_stage
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +173,7 @@ class BrassAuditPickTableView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'last_process_module': stock_obj.last_process_module,
+                'type_of_input': get_type_of_input_for_batch(batch),
             }
 
             # AQL Sampling Plan
@@ -573,6 +575,7 @@ class BrassAuditCompletedView(APIView):
                     'polishing_stk_no': batch.polishing_stk_no,
                     'category': batch.category,
                     'no_of_trays': 0,
+                    'type_of_input': get_type_of_input_for_batch(batch),
                 }
                 master_data.append(data)
 
@@ -746,6 +749,7 @@ class BrassAuditRejectTableView(APIView):
                 'plating_stk_no': batch.plating_stk_no,
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
+                'type_of_input': get_type_of_input_for_batch(batch),
                 'brass_audit_last_process_date_time': stock_obj.brass_audit_last_process_date_time,
                 'brass_audit_physical_qty': stock_obj.brass_audit_physical_qty,
                 'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,

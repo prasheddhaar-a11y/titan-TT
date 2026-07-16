@@ -53,6 +53,7 @@ from Jig_Unloading.tray_utils import (
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
 from Nickel_Inspection.views import nq_toggle_verified, nq_action, _resolve_nq_previous_unloading_remark
+from modelmasterapp.type_of_input import get_type_of_input_map
 
 def _nq_tray_capacity(tray_type_name):
     """Return accept-tray capacity for a given tray_type string.
@@ -312,6 +313,7 @@ class NQ_Zone_PickTableView(APIView):
                 data["tray_type"] = "Normal"
             master_data.append(data)
         # ✅ Process the data (similar logic but adapted for JigUnloadAfterTable)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
         for data in master_data:
             total_IP_accpeted_quantity = data.get("total_IP_accpeted_quantity", 0)
             tray_capacity = data.get("tray_capacity", 0)
@@ -319,6 +321,7 @@ class NQ_Zone_PickTableView(APIView):
                 f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             )
             lot_id = data.get("stock_lot_id")
+            data["type_of_input"] = type_of_input_map.get(lot_id, "Fresh")
             # Calculate total rejection quantity for this lot
             total_rejection_qty = 0
             rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(lot_id=lot_id).first()
@@ -578,6 +581,9 @@ class NQ_Zone_RejectTableView(APIView):
             else:
                 data["no_of_trays"] = 0
             master_data.append(data)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
+        for data in master_data:
+            data["type_of_input"] = type_of_input_map.get(data.get("stock_lot_id"), "Fresh")
         print("✅ Nickel QC Reject data processing completed")
         print("Processed lot_ids:", [data["stock_lot_id"] for data in master_data])
         context = {
@@ -739,6 +745,7 @@ class NQ_Zone_CompletedView(APIView):
                 images = [static("assets/images/imagePlaceholder.jpg")]
             data["model_images"] = images
             master_data.append(data)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
         for data in master_data:
             total_ip_accepted_quantity = data.get("total_IP_accpeted_quantity", 0)
             tray_capacity = data.get("tray_capacity", 0)
@@ -746,6 +753,7 @@ class NQ_Zone_CompletedView(APIView):
                 f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             )
             lot_id = data.get("stock_lot_id")
+            data["type_of_input"] = type_of_input_map.get(lot_id, "Fresh")
             rejection_qty = data.get("nq_rejection_qty") or 0
             if not rejection_qty:
                 rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(

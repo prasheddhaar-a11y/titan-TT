@@ -145,6 +145,7 @@
                   <th>Version</th>
                   <th>Tray Type</th>
                   <th>Source</th>
+                  <th>Type of Input</th>
                   <th>Input Qty</th>
                   <th>Tray ID</th>
                   <th>Remarks</th>
@@ -171,6 +172,7 @@
                   <td>{{ item.version }}</td>
                   <td>{{ item.tray_type }}</td>
                   <td>{{ item.location }}</td>
+                  <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=item.type_of_input %}</td>
                   <td>{{ item.total_case_qty }}</td>
                   <td>
                     {% if item.linked_tray_ids %}
@@ -188,7 +190,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="14" class="text-center text-muted py-4">
+                  <td colspan="15" class="text-center text-muted py-4">
                     No completed Spider Spindle Z2 records found for selected date range.
                   </td>
                 </tr>

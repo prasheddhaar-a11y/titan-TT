@@ -94,8 +94,8 @@ def create_accept_child(
         iqf_last_process_date_time=timezone.now(),
     )
 
-    for tray in accepted_trays:
-        IQFTrayId.objects.create(
+    IQFTrayId.objects.bulk_create([
+        IQFTrayId(
             lot_id=accept_lot_id,
             tray_id=tray.get('tray_id', ''),
             tray_quantity=tray.get('qty', 0),
@@ -104,6 +104,8 @@ def create_accept_child(
             top_tray=tray.get('is_top', tray.get('top_tray', False)),
             IP_tray_verified=True,
         )
+        for tray in accepted_trays
+    ])
 
     IQF_Accepted_TrayScan.objects.create(
         lot_id=accept_lot_id,
@@ -173,8 +175,8 @@ def create_reject_child(
         iqf_last_process_date_time=timezone.now(),
     )
 
-    for tray in rejected_trays:
-        IQFTrayId.objects.create(
+    IQFTrayId.objects.bulk_create([
+        IQFTrayId(
             lot_id=reject_lot_id,
             tray_id=tray.get('tray_id', ''),
             tray_quantity=tray.get('qty', 0),
@@ -183,6 +185,8 @@ def create_reject_child(
             top_tray=tray.get('is_top', tray.get('top_tray', False)),
             rejected_tray=True,
         )
+        for tray in rejected_trays
+    ])
 
     # Store rejection reasons
     if rejection_reasons:

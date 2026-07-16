@@ -14,6 +14,7 @@ from BrassAudit.models import *
 from InputScreening.models import *
 from DayPlanning.models import *
 from modelmasterapp.models import TrayId
+from modelmasterapp.type_of_input import get_type_of_input_for_batch, get_type_of_input_map
 from .models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -450,7 +451,8 @@ class IQFPickTableView(APIView):
                 'plating_stk_no': batch.plating_stk_no,
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
-                
+                'type_of_input': get_type_of_input_for_batch(batch),
+
                 # ✅ Stock-related fields from TotalStockModel
                 'lot_id': stock_obj.lot_id,
                 'stock_lot_id': stock_obj.lot_id,
@@ -2186,6 +2188,7 @@ class IQFCompletedPageView(APIView):
                     'submission_type': sub.submission_type,
                     'IQF_pick_remarks': pick_remarks_map.get(sub.lot_id) or '',
                     'tray_qty_list': '',
+                    'type_of_input': get_type_of_input_for_batch(batch),
                 })
 
             return Response({'master_data': master_data}, template_name=self.template_name)
@@ -2306,6 +2309,7 @@ class IQFAcceptTablePageView(APIView):
                     'accepted_comment': accepted_comment or '',
                     'IQF_pick_remarks': pick_remarks_map.get(sub.lot_id) or '',
                     'tray_qty_list': '',
+                    'type_of_input': get_type_of_input_for_batch(batch),
                 })
 
             return Response({'master_data': master_data}, template_name=self.template_name)
@@ -2439,6 +2443,7 @@ class IQFRejectionTableView(APIView):
                     # Original lot quantity BEFORE any rejection (preferred for UI display)
                     'original_lot_qty': int(sub.original_lot_qty or (sub.batch_id.total_batch_quantity if sub.batch_id and getattr(sub.batch_id, 'total_batch_quantity', None) else 0)),
                     'IQF_pick_remarks': pick_remarks_map.get(sub.lot_id) or '',
+                    'type_of_input': get_type_of_input_for_batch(batch),
                 })
 
             # Pagination

@@ -675,6 +675,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Type of Input
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Remarks <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th style="display:none;">
@@ -913,6 +917,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.polish_finish}}</td>
                     <!-- Column 16: Input Source -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.location__location_name}}</td>
+                    <!-- Type of Input -->
+                    <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <!-- Column 17: Remarks -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
 

@@ -1260,6 +1260,10 @@
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Type of Input
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Tray Type - <br> Capacity
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -1417,6 +1421,8 @@
                     <td>{{ jig.plating_color|default:"N/A" }}</td>
                     <!-- Polish Finish -->
                     <td>{{ jig.polish_finish|default:"N/A" }}</td>
+                    <!-- Type of Input -->
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=jig.type_of_input %}</td>
                     <!-- Tray Type - Capacity -->
                     <td>
                       {% if jig.tray_type and jig.tray_capacity %}

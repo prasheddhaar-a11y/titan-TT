@@ -91,6 +91,10 @@
                            <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
                         <th>
+                           Type of Input
+                           <i class="fa fa-filter" aria-hidden="true"></i>
+                        </th>
+                        <th>
                            Polish Finish
                            <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
@@ -361,6 +365,8 @@
                         <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.plating_color }}</td>
                         <!-- Category Column -->
                         <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>{{ data.category }}</td>
+                        <!-- Type of Input Column -->
+                        <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                         <!-- Polish Finish Column -->
                         <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.polish_finish}}</td>
                         <!-- Input Source Column -->

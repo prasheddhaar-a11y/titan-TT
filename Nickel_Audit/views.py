@@ -56,6 +56,7 @@ def _sort_images_front_first_safe(images):
 
 
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
+from modelmasterapp.type_of_input import get_type_of_input_map
 
 
 def _get_input_source(jig_unload_obj):
@@ -546,8 +547,10 @@ class NA_PickTableView(APIView):
 
         # ✅ UPDATED: Get values from JigUnloadAfterTable
         master_data = []
+        jig_unload_by_lot = {}
         for jig_unload_obj in page_obj.object_list:
-            
+            jig_unload_by_lot[str(jig_unload_obj.lot_id or '').strip()] = jig_unload_obj
+
             data = {
                 'batch_id': jig_unload_obj.unload_lot_id,  # Using unload_lot_id as batch identifier
                 'lot_id': jig_unload_obj.lot_id,  # Auto-generated lot_id
@@ -625,29 +628,23 @@ class NA_PickTableView(APIView):
                 plating_stk_no = str(jig_unload_obj.plating_stk_no)
                 if len(plating_stk_no) >= 4:
                     model_no_prefix = plating_stk_no[:4]
-                    print(f"🎯 NA Pick View - Extracted model_no: {model_no_prefix} from plating_stk_no: {plating_stk_no}")
-                    
+
                     try:
                         # Find ModelMaster where model_no matches the prefix for images
                         model_master = ModelMaster.objects.filter(
                             model_no__startswith=model_no_prefix
                         ).prefetch_related('images').first()
-                        
+
                         if model_master:
-                            print(f"✅ NA Pick View - Found ModelMaster for images: {model_master.model_no}")
                             # Get images from ModelMaster
                             for img in _sort_images_front_first_safe(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
-                                    print(f"📸 NA Pick View - Added image from ModelMaster: {img.master_image.url}")
-                        else:
-                            print(f"⚠️ NA Pick View - No ModelMaster found for model_no: {model_no_prefix}")
                     except Exception as e:
-                        print(f"❌ NA Pick View - Error fetching ModelMaster: {e}")
+                        logger.warning("NA Pick View - Error fetching ModelMaster for %s: %s", model_no_prefix, e)
 
             # Priority 2: Fallback to existing combine_lot_ids logic if no ModelMaster images
             if not images and data['combine_lot_ids']:
-                print("🔄 NA Pick View - No ModelMaster images, trying combine_lot_ids fallback")
                 first_lot_id = data['combine_lot_ids'][0] if data['combine_lot_ids'] else None
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
@@ -657,35 +654,39 @@ class NA_PickTableView(APIView):
                             for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
-                                    print(f"📸 NA Pick View - Added image from TotalStockModel: {img.master_image.url}")
 
             # Priority 3: Use placeholder if no images found
             if not images:
-                print("📷 NA Pick View - No images found, using placeholder")
                 images = [static('assets/images/imagePlaceholder.jpg')]
-            
+
             data['model_images'] = images
-            print(f"📸 NA Pick View - Final images for lot {jig_unload_obj.lot_id}: {len(images)} images")
 
             master_data.append(data)
 
         # ✅ Process the data (similar logic but adapted for JigUnloadAfterTable)
-        for data in master_data:   
+        type_of_input_map = get_type_of_input_map([data.get('stock_lot_id') for data in master_data])
+        page_lot_ids = [data.get('stock_lot_id') for data in master_data]
+        rejection_store_by_lot = {
+            r.lot_id: r for r in Nickel_Audit_Rejection_ReasonStore.objects.filter(lot_id__in=page_lot_ids)
+        }
+        for data in master_data:
             total_IP_accpeted_quantity = data.get('total_IP_accpeted_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            
+
             lot_id = data.get('stock_lot_id')
-            
+            data['type_of_input'] = type_of_input_map.get(lot_id, 'Fresh')
+
             # Calculate display_accepted_qty
             total_rejection_qty = 0
-            rejection_store = Nickel_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).first()
+            rejection_store = rejection_store_by_lot.get(lot_id)
             if rejection_store and rejection_store.total_rejection_quantity:
                 total_rejection_qty = rejection_store.total_rejection_quantity
 
             # Use total_case_qty from JigUnloadAfterTable instead of TotalStockModel
-            jig_unload_obj = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
-            
+            # (already fetched above while building master_data — avoid re-querying)
+            jig_unload_obj = jig_unload_by_lot.get(lot_id)
+
             if jig_unload_obj and total_rejection_qty > 0:
                 data['display_accepted_qty'] = max(jig_unload_obj.nq_qc_accepted_qty - total_rejection_qty, 0)
             else:
@@ -1650,6 +1651,10 @@ class NACompletedView(APIView):
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images
             master_data.append(data)
+
+        type_of_input_map = get_type_of_input_map([data.get('stock_lot_id') for data in master_data])
+        for data in master_data:
+            data['type_of_input'] = type_of_input_map.get(data.get('stock_lot_id'), 'Fresh')
 
         context = {
             'master_data': master_data,

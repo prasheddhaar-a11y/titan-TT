@@ -313,6 +313,7 @@ html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing
                     <th>Tray Cate-<br>Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Plating Color <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Category <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish <br>Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Input Source <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
@@ -401,6 +402,7 @@ html.ttt-viewport-tablet .is-pick-table-page.is-reject-table-page #order-listing
                     <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.category }}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.polish_finish}}</td>
                     <td>{{data.location__location_name}}</td>
                   </tr>

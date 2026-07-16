@@ -298,6 +298,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <th>
                 Polish Finish <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
+              <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>In.p Info<i class="fa fa-filter" aria-hidden="true"></i></th>
               <th style="display: none">
@@ -531,6 +532,8 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <td>{{ data.plating_color }}</td>
               <!-- Polish Finish -->
               <td>{{ data.polish_finish }}</td>
+              <!-- Type of Input -->
+              <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
               <!-- Jig Type -->
               <td>{{ data.jig_capacity }} Jig</td>
               <!-- In.p Info -->
@@ -725,7 +728,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
             {% endfor %}
             {% if add_model_no_results %}
             <tr>
-              <td colspan="16" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
+              <td colspan="17" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
                 ⚠ No compatible models found for this selection.
               </td>
             </tr>

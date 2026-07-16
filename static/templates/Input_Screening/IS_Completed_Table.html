@@ -738,6 +738,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Type of Input
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Polish Finish
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -854,6 +858,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>{{data.polishing_stk_no}}</td>
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.category }}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.polish_finish}}</td>
                     <td>{{data.location__location_name}}</td>
                     <td>

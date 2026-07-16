@@ -695,6 +695,9 @@
                       <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
                       <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
+                    <th>
+                      Type of Input
+                    </th>
                     <th data-column-index="13" class="sortable">
                        Accepted Remarks
                       <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
@@ -949,6 +952,7 @@
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.polish_finish }}</td>
                     <td>{{ data.location__location_name }}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.accepted_comment}}</td>
                     <td>
                       {% if not data.iqf_acceptance and not data.iqf_rejection and not data.iqf_accepted_tray_scan_status and not data.iqf_few_cases_acceptance %}
