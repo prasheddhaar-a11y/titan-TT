@@ -492,6 +492,9 @@ class DPBulkUploadView(APIView):
         try:
             data = request.data
             rows = data.get('rows', [])
+            upload_type = data.get('upload_type', 'day_planning')
+            if upload_type not in dict(ModelMasterCreation.UPLOAD_TYPE_CHOICES):
+                upload_type = 'day_planning'
 
             if not rows:
                 return JsonResponse({
@@ -666,6 +669,7 @@ class DPBulkUploadView(APIView):
                         category=category_obj,
                         plating_stk_no=plating_stock_no,
                         polishing_stk_no=polishing_stock_no,
+                        upload_type=upload_type,
                     ))
                     success_count += 1
 
@@ -717,6 +721,9 @@ class DPBulkUploadView(APIView):
 
     def handle_file_upload(self, request):
         """Handle file upload with enhanced column validation"""
+        upload_type = request.POST.get('upload_type', 'day_planning')
+        if upload_type not in dict(ModelMasterCreation.UPLOAD_TYPE_CHOICES):
+            upload_type = 'day_planning'
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:
             messages.error(request, "❌ No file uploaded.")
@@ -940,7 +947,8 @@ class DPBulkUploadView(APIView):
                     'polish_finish': polish_obj if polish_obj else None,
                     'category': category_obj,  # Save category object instead of string
                     'plating_stk_no': plating_stock_no,           # <-- Save Plating Stk No
-                    'polishing_stk_no': polishing_stock_no,  # <-- Save Polishing Stk No   
+                    'polishing_stk_no': polishing_stock_no,  # <-- Save Polishing Stk No
+                    'upload_type': upload_type,
                 }
                 objects_to_create.append(ModelMasterCreation(**obj_data))
                 success_count += 1
@@ -1526,6 +1534,7 @@ class DayPlanningPickTableAPIView(APIView):
             'release_reason',
             'accepted_Ip_stock',
             'tray_scan_status',
+            'upload_type',
         ))
         dp_data_fetch.__exit__(None, None, None)
 
@@ -1575,7 +1584,8 @@ class DayPlanningPickTableAPIView(APIView):
             data['tray_capacity'] = prejig_cap
             tray_capacity = prejig_cap
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
- 
+            data['type_of_input'] = 'Recovery' if data.get('upload_type') == 'recovery' else 'Fresh'
+
             # ✅ ENHANCED: Determine if this lot needs top tray scan
             tray_scan_status = data.get('tray_scan_status', False)
             moved_to_d_picker = data.get('Moved_to_D_Picker', False)
@@ -1626,6 +1636,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status',
             'Lot Status',
             'Current Stage',
+            'Type of Input',
             'Polishing Stk No',
             'Plating Color',
             'Category',
@@ -1635,7 +1646,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Source',
             'Remarks',
         ]
-        
+
         # ✅ ENHANCED: Create display headings map for better presentation
         display_headings_map = {
             'S.No': 'S.No',
@@ -1647,6 +1658,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status': 'Process Status',
             'Lot Status': 'Lot Status',
             'Current Stage': 'Current Stage',
+            'Type of Input': 'Type of Input',
             'Polishing Stk No': 'Polishing Stk No',
             'Plating Color': 'Plating Color',
             'Category': 'Category',
@@ -3068,37 +3080,43 @@ class DPCompletedTableView(APIView):
         # Convert dates to datetime objects for filtering (include full day)
         from_datetime = timezone.make_aware(_dt.datetime.combine(from_date, _dt.datetime.min.time()))
         to_datetime = timezone.make_aware(_dt.datetime.combine(to_date, _dt.datetime.max.time()))
-        # Subqueries for annotations
+        # Subqueries for annotations.
+        # NOTE: a batch_id can have multiple TotalStockModel rows once a lot has
+        # been split (parent row + accept-child row + reject-child row all share
+        # the same batch_id). Without an explicit order_by, "[:1]" returns an
+        # arbitrary row, so the annotation could non-deterministically surface a
+        # sibling split row instead of the batch's own authoritative row. Ordering
+        # by "-id" makes this deterministic and picks the most recently written row.
         last_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('last_process_module')[:1]
+        ).order_by('-id').values('last_process_module')[:1]
         next_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('next_process_module')[:1]
+        ).order_by('-id').values('next_process_module')[:1]
         created_at_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('created_at')[:1]
+        ).order_by('-id').values('created_at')[:1]
         accepted_Ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('accepted_Ip_stock')[:1]
+        ).order_by('-id').values('accepted_Ip_stock')[:1]
         few_cases_accepted_Ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('few_cases_accepted_Ip_stock')[:1]
+        ).order_by('-id').values('few_cases_accepted_Ip_stock')[:1]
         rejected_ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('rejected_ip_stock')[:1]
+        ).order_by('-id').values('rejected_ip_stock')[:1]
         ip_person_qty_verified_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('ip_person_qty_verified')[:1]
+        ).order_by('-id').values('ip_person_qty_verified')[:1]
         draft_tray_verify_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('draft_tray_verify')[:1]
+        ).order_by('-id').values('draft_tray_verify')[:1]
         # Live "current stage" SSOT — updated on real downstream processing
         # (draft/verify/submit), so this reflects where the lot actually IS now
         # rather than where Day Planning last touched it (last_process_module).
         current_stage_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('current_stage')[:1]
+        ).order_by('-id').values('current_stage')[:1]
 
         queryset = ModelMasterCreation.objects.filter(
             total_batch_quantity__gt=0,
@@ -3183,12 +3201,17 @@ class DPCompletedTableView(APIView):
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            # Backend-owned "Current Stage" display: prefer the live current_stage
-            # SSOT (updated on real downstream processing), fall back to
-            # next_process_module (routed destination), then last_process_module.
+            # Backend-owned "Current Stage" display: use only the live
+            # current_stage SSOT (written by each module on its own real
+            # processing action — draft/verify/submit), falling back to
+            # last_process_module. next_process_module is deliberately excluded:
+            # it is a routing hint ("where this lot is headed next"), not
+            # confirmation that the target module has actually started the lot,
+            # and surfacing it here previously made a lot show e.g. "Brass QC"
+            # the instant a split/reject routed it there — before Brass QC had
+            # ever opened it.
             data['current_stage_display'] = (
                 data.get('current_stage')
-                or data.get('next_process_module')
                 or data.get('last_process_module')
                 or 'N/A'
             )

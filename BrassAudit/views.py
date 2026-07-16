@@ -37,6 +37,35 @@ from watchcase_tracker.perf_logger import time_stage
 logger = logging.getLogger(__name__)
 
 
+def _get_sorted_model_images(model_master):
+    """Return model images with front-view priority when helper is available.
+
+    The production server may not contain ``modelmasterapp.image_utils``.
+    In that case, use the existing ManyToMany ordering instead of crashing the
+    entire Brass Audit page.
+    """
+    if not model_master:
+        return []
+
+    model_images = model_master.images.all()
+
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default model image order"
+        )
+        return model_images
+
+    try:
+        return sort_images_front_first(model_images)
+    except Exception:
+        logger.exception(
+            "Unable to sort model images; using default model image order"
+        )
+        return model_images
+
+
 # ═══════════════════════════════════════════════════════════════
 # Brass Audit Pick Table View
 # ═══════════════════════════════════════════════════════════════
@@ -199,8 +228,7 @@ class BrassAuditPickTableView(APIView):
             images = []
             if batch_obj:
                 model_master = batch_obj.model_stock_no
-                from modelmasterapp.image_utils import sort_images_front_first
-                for img in sort_images_front_first(model_master.images.all()):
+                for img in _get_sorted_model_images(model_master):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -533,6 +561,7 @@ class BrassAuditCompletedView(APIView):
                     'few_cases_accepted_Ip_stock': stock_obj.few_cases_accepted_Ip_stock,
                     'accepted_tray_scan_status': stock_obj.accepted_tray_scan_status,
                     'BA_pick_remarks': stock_obj.BA_pick_remarks,
+                    'BA_pick_remarks_has_text': bool((stock_obj.BA_pick_remarks or '').strip()),
                     'brass_audit_accptance': stock_obj.brass_audit_accptance,
                     'brass_accepted_tray_scan_status': stock_obj.brass_accepted_tray_scan_status,
                     'brass_audit_rejection': stock_obj.brass_audit_rejection,
@@ -600,8 +629,7 @@ class BrassAuditCompletedView(APIView):
                 batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
                 images = []
                 if batch_obj and batch_obj.model_stock_no:
-                    from modelmasterapp.image_utils import sort_images_front_first
-                    for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+                    for img in _get_sorted_model_images(batch_obj.model_stock_no):
                         if img.master_image:
                             images.append(img.master_image.url)
                 if not images:
@@ -734,8 +762,7 @@ class BrassAuditRejectTableView(APIView):
             batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if batch_obj and batch_obj.model_stock_no:
-                from modelmasterapp.image_utils import sort_images_front_first
-                for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+                for img in _get_sorted_model_images(batch_obj.model_stock_no):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -2673,4 +2700,3 @@ def get_lot_id_for_tray(request):
         return JsonResponse({'success': False, 'error': f'Tray {tray_id} not found in system'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
-

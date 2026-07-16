@@ -941,7 +941,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <a
                               href="#"
                               title="Add Remark"
-                              class="remark-tooltip-trigger"
+                              class="saved-remark-tooltip-trigger"
+                              data-remark="{{ data.nq_pick_remarks|default_if_none:'' }}"
+                              aria-label="View saved remark"
                               data-jig-lot-id="{{ jig_detail.jig_lot_id }}"
                               style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
                             >

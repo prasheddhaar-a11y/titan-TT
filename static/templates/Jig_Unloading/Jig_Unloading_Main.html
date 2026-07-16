@@ -1905,7 +1905,7 @@ body.add-model-mode #selectAllCheckbox {
                           <textarea placeholder="Type your remark..." style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;" {% if jig_detail.unloading_remarks %}readonly{% endif %}>{{ jig_detail.unloading_remarks|default_if_none:"" }}</textarea>
                           <div style="text-align: right; margin-top: -35px">
                             {% if not jig_detail.unloading_remarks %}
-                            <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            <button type="button" class="remark-send-btn" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                               <i class="fa fa-send"></i>
                             </button>
                             {% else %}
@@ -3245,39 +3245,89 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.z1-view-btn').length, 'view buttons');
 
   // ========== ERR2: Remark send button handler ==========
-  document.querySelectorAll('.remark-tooltip-trigger[data-jig-lot-id]').forEach(function(trigger) {
-    const sendBtn = trigger.querySelector('button');
+  function showRemarkSavedModal() {
+    if (window.Swal && typeof Swal.fire === 'function') {
+      return Swal.fire({
+        icon: 'success',
+        title: 'Remark saved!',
+        timer: 1200,
+        showConfirmButton: false
+      });
+    }
+    alert('Remark saved!');
+    return Promise.resolve();
+  }
+
+  function closeRemarkTooltip(trigger) {
+    const tooltip = trigger ? trigger.querySelector('.remark-tooltip') : null;
+    if (!tooltip) return;
+    tooltip.classList.remove('pinned');
+    tooltip.style.opacity = '0';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display = 'none';
+  }
+
+  document.addEventListener('click', function(e) {
+    const sendBtn = e.target.closest('.remark-send-btn');
     if (!sendBtn) return;
-    sendBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const textarea = trigger.querySelector('textarea');
-      const remark = textarea ? textarea.value.trim() : '';
-      if (!remark) { alert('Please enter a remark before sending.'); return; }
-      // Find jig_completed_id from the closest table row
-      const row = trigger.closest('tr');
-      const jigCompletedId = row ? row.getAttribute('data-jig-completed-id') : null;
-      if (!jigCompletedId) { alert('Could not identify the jig record.'); return; }
-      fetch('/jig_unloading/api/save_jig_pick_remark_z1/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ jig_completed_id: jigCompletedId, unloading_remarks: remark })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          alert('Remark saved successfully.');
-          // Make textarea readonly and update icon color
-          textarea.readOnly = true;
-          const img = trigger.querySelector('img');
-          if (img) img.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)';
-          // Replace send button with info message
-          sendBtn.parentElement.innerHTML = '<div style="margin-top:40px;color:#31708f;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;padding:8px 12px;font-size:10px;text-align:left;"><i class="fa fa-info-circle" style="margin-right:6px;"></i>Remark already saved and cannot be edited.</div>';
-        } else {
-          alert('Failed to save remark: ' + (data.error || 'Unknown error'));
-        }
-      })
-      .catch(function(err) { alert('Network error: ' + err.message); });
+
+    const trigger = sendBtn.closest('.remark-tooltip-trigger[data-jig-lot-id]');
+    if (!trigger) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    if (sendBtn.disabled || sendBtn.dataset.saving === 'true') return;
+
+    const textarea = trigger.querySelector('textarea');
+    const remark = textarea ? textarea.value.trim() : '';
+    if (!remark) { alert('Please enter a remark before sending.'); return; }
+
+    const row = trigger.closest('tr');
+    const jigCompletedId = row ? row.getAttribute('data-jig-completed-id') : null;
+    if (!jigCompletedId) { alert('Could not identify the jig record.'); return; }
+
+    sendBtn.disabled = true;
+    sendBtn.dataset.saving = 'true';
+
+    fetch('/jig_unloading/api/save_jig_pick_remark_z1/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ jig_completed_id: jigCompletedId, unloading_remarks: remark })
+    })
+    .then(function(r) {
+      const contentType = r.headers.get('content-type') || '';
+      if (contentType.indexOf('application/json') !== -1) {
+        return r.json().then(function(data) {
+          if (!r.ok) {
+            throw new Error(data.error || ('HTTP ' + r.status + ' while saving remark.'));
+          }
+          return data;
+        });
+      }
+      return r.text().then(function(text) {
+        console.error('Unexpected non-JSON remark response:', text);
+        throw new Error('HTTP ' + r.status + ' while saving remark. The server returned a non-JSON response.');
+      });
+    })
+    .then(function(data) {
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save remark.');
+      }
+      if (textarea) textarea.readOnly = true;
+      const img = trigger.querySelector('img');
+      if (img) img.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)';
+      if (sendBtn.parentElement) {
+        sendBtn.parentElement.innerHTML = '<div style="margin-top:40px;color:#31708f;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;padding:8px 12px;font-size:10px;text-align:left;"><i class="fa fa-info-circle" style="margin-right:6px;"></i>Remark already saved and cannot be edited.</div>';
+      }
+      return showRemarkSavedModal().then(function() {
+        closeRemarkTooltip(trigger);
+      });
+    })
+    .catch(function(err) {
+      sendBtn.disabled = false;
+      sendBtn.dataset.saving = 'false';
+      alert('Failed to save remark: ' + err.message);
     });
   });
 

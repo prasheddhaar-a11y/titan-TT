@@ -3010,36 +3010,280 @@
       <!-- Previous-module remark tooltip handler (prev-remark-tooltip-trigger / dp-remark-tooltip-trigger) -->
       <script nonce="{{ csp_nonce }}">
       document.addEventListener("DOMContentLoaded", function () {
+        var _remarkHoverSelector = ".prev-remark-tooltip-trigger, .dp-remark-tooltip-trigger";
         var _activeTip = null;
-        function _removeTip() {
-          if (_activeTip) { _activeTip.remove(); _activeTip = null; }
+        var _activeTrigger = null;
+        var _closeTimer = null;
+
+        function _clearCloseTimer() {
+          if (_closeTimer) {
+            window.clearTimeout(_closeTimer);
+            _closeTimer = null;
+          }
         }
+
+        function _removeTip() {
+          _clearCloseTimer();
+          if (_activeTip) {
+            _activeTip.remove();
+            _activeTip = null;
+          }
+          if (_activeTrigger) {
+            _activeTrigger.removeAttribute("data-prev-open");
+            _activeTrigger = null;
+          }
+        }
+
+        function _scheduleClose(nextTarget) {
+          _clearCloseTimer();
+          if (
+            nextTarget &&
+            ((_activeTip && _activeTip.contains(nextTarget)) ||
+             (_activeTrigger && _activeTrigger.contains(nextTarget)))
+          ) {
+            return;
+          }
+          _closeTimer = window.setTimeout(_removeTip, 120);
+        }
+
+        function _positionTip(trigger, tip) {
+          var r = trigger.getBoundingClientRect();
+          var tw = tip.offsetWidth;
+          var th = tip.offsetHeight;
+          var left = Math.min(r.left, window.innerWidth - tw - 10);
+          var top = r.bottom + 6;
+          if (top + th > window.innerHeight) {
+            top = r.top - th - 6;
+          }
+          tip.style.left = Math.max(8, left) + "px";
+          tip.style.top = Math.max(8, top) + "px";
+        }
+
+        function _showTip(el) {
+          _clearCloseTimer();
+          var text = el.getAttribute("data-prev-remark") || "";
+          if (!text) {
+            text = "No previous remark available.";
+          }
+          if (_activeTrigger === el && _activeTip) {
+            return;
+          }
+          _removeTip();
+
+          var tip = document.createElement("div");
+          tip.className = "prev-remark-tooltip";
+          tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:99999;max-width:280px;font-size:13px;color:#333;pointer-events:auto;line-height:1.5;word-break:break-word;";
+
+          var heading = document.createElement("span");
+          heading.textContent = "PREVIOUS REMARK";
+          heading.style.cssText = "font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;";
+
+          var body = document.createElement("div");
+          body.textContent = text.trim() || "No previous remark available.";
+
+          tip.appendChild(heading);
+          tip.appendChild(body);
+          tip.addEventListener("mouseenter", _clearCloseTimer);
+          tip.addEventListener("mouseleave", function (event) {
+            _scheduleClose(event.relatedTarget);
+          });
+
+          document.body.appendChild(tip);
+          _activeTip = tip;
+          _activeTrigger = el;
+          el.setAttribute("data-prev-open", "true");
+          _positionTip(el, tip);
+        }
+
+        function _prepareTrigger(el) {
+          if (!el || el.getAttribute("data-prev-ready") === "true") {
+            return;
+          }
+          var dataAttr = "data-prev-remark";
+          var fallback = "No previous remark available.";
+          var remarkText = el.getAttribute(dataAttr) || el.getAttribute("title") || fallback;
+          el.removeAttribute("title");
+          el.setAttribute(dataAttr, remarkText);
+          el.setAttribute("data-prev-ready", "true");
+        }
+
         document.addEventListener("scroll", _removeTip, true);
         window.addEventListener("resize", _removeTip);
-        document.querySelectorAll(".prev-remark-tooltip-trigger, .dp-remark-tooltip-trigger").forEach(function (el) {
-          var remarkText = el.getAttribute("title") || "";
-          if (remarkText) el.removeAttribute("title");  /* prevent native browser tooltip */
-          el.setAttribute("data-prev-remark", remarkText);
-          el.addEventListener("mouseenter", function () {
-            _removeTip();
-            var text = el.getAttribute("data-prev-remark") || "";
-            if (!text) return;
-            var tip = document.createElement("div");
-            tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:99999;max-width:280px;font-size:13px;color:#333;pointer-events:none;line-height:1.5;word-break:break-word;";
-            tip.innerHTML = "<span style='font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;'>&#9432; Previous Remark</span>" + text;
-            document.body.appendChild(tip);
-            _activeTip = tip;
-            var r = el.getBoundingClientRect();
-            var tw = tip.offsetWidth, th = tip.offsetHeight;
-            var left = Math.min(r.left, window.innerWidth - tw - 10);
-            var top = r.bottom + 6;
-            if (top + th > window.innerHeight) { top = r.top - th - 6; }
-            tip.style.left = Math.max(8, left) + "px";
-            tip.style.top = top + "px";
-          });
-          el.addEventListener("mouseleave", _removeTip);
-          el.addEventListener("click", function (e) { e.preventDefault(); });
+
+        document.querySelectorAll(_remarkHoverSelector).forEach(function (el) {
+          _prepareTrigger(el);
         });
+
+        document.addEventListener("mouseover", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el || el.contains(event.relatedTarget)) {
+            return;
+          }
+          _prepareTrigger(el);
+          _showTip(el);
+        });
+
+        document.addEventListener("mouseout", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el || el.contains(event.relatedTarget)) {
+            return;
+          }
+          _scheduleClose(event.relatedTarget);
+        });
+
+        document.addEventListener("click", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el) {
+            return;
+          }
+          event.preventDefault();
+        });
+      });
+      </script>
+      <!-- Read-only saved current remark hover handler (saved-remark-tooltip-trigger) -->
+      <script nonce="{{ csp_nonce }}">
+      document.addEventListener("DOMContentLoaded", function () {
+        var savedRemarkSelector = ".saved-remark-tooltip-trigger";
+        var activeSavedRemarkTip = null;
+        var activeSavedRemarkTrigger = null;
+        var savedRemarkCloseTimer = null;
+
+        function clearSavedRemarkCloseTimer() {
+          if (savedRemarkCloseTimer) {
+            window.clearTimeout(savedRemarkCloseTimer);
+            savedRemarkCloseTimer = null;
+          }
+        }
+
+        function removeSavedRemarkTip() {
+          clearSavedRemarkCloseTimer();
+          if (activeSavedRemarkTip) {
+            activeSavedRemarkTip.remove();
+            activeSavedRemarkTip = null;
+          }
+          if (activeSavedRemarkTrigger) {
+            activeSavedRemarkTrigger.removeAttribute("data-current-remark-open");
+            activeSavedRemarkTrigger = null;
+          }
+        }
+
+        function scheduleSavedRemarkClose(nextTarget) {
+          clearSavedRemarkCloseTimer();
+          if (
+            nextTarget &&
+            ((activeSavedRemarkTip && activeSavedRemarkTip.contains(nextTarget)) ||
+             (activeSavedRemarkTrigger && activeSavedRemarkTrigger.contains(nextTarget)))
+          ) {
+            return;
+          }
+          savedRemarkCloseTimer = window.setTimeout(removeSavedRemarkTip, 120);
+        }
+
+        function positionSavedRemarkTip(trigger, tip) {
+          var rect = trigger.getBoundingClientRect();
+          var tipWidth = tip.offsetWidth;
+          var tipHeight = tip.offsetHeight;
+          var left = rect.left + (rect.width / 2) - (tipWidth / 2);
+          var top = rect.bottom + 8;
+
+          if (left + tipWidth > window.innerWidth - 10) {
+            left = window.innerWidth - tipWidth - 10;
+          }
+          if (left < 10) {
+            left = 10;
+          }
+          if (top + tipHeight > window.innerHeight - 10) {
+            top = rect.top - tipHeight - 8;
+          }
+          if (top < 10) {
+            top = 10;
+          }
+
+          tip.style.left = left + "px";
+          tip.style.top = top + "px";
+        }
+
+        function getSavedRemarkText(trigger) {
+          return (
+            trigger.getAttribute("data-current-remark") ||
+            trigger.getAttribute("data-remark") ||
+            ""
+          ).trim();
+        }
+
+        function showSavedRemarkTip(trigger) {
+          clearSavedRemarkCloseTimer();
+          if (activeSavedRemarkTrigger === trigger && activeSavedRemarkTip) {
+            return;
+          }
+
+          removeSavedRemarkTip();
+
+          var remarkText = getSavedRemarkText(trigger) || "No remark available.";
+          var tip = document.createElement("div");
+          tip.className = "saved-current-remark-tooltip";
+          tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:1000000;max-width:280px;font-size:13px;color:#333;pointer-events:auto;line-height:1.5;word-break:break-word;";
+
+          var heading = document.createElement("span");
+          heading.textContent = "CURRENT REMARK";
+          heading.style.cssText = "font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;";
+
+          var body = document.createElement("div");
+          body.textContent = remarkText;
+
+          tip.appendChild(heading);
+          tip.appendChild(body);
+          tip.addEventListener("pointerenter", clearSavedRemarkCloseTimer);
+          tip.addEventListener("pointerleave", function (event) {
+            scheduleSavedRemarkClose(event.relatedTarget);
+          });
+
+          document.body.appendChild(tip);
+          activeSavedRemarkTip = tip;
+          activeSavedRemarkTrigger = trigger;
+          trigger.setAttribute("data-current-remark-open", "true");
+          positionSavedRemarkTip(trigger, tip);
+        }
+
+        document.addEventListener("pointerover", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (!trigger || trigger.contains(event.relatedTarget)) {
+            return;
+          }
+          showSavedRemarkTip(trigger);
+        });
+
+        document.addEventListener("pointerout", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (!trigger || trigger.contains(event.relatedTarget)) {
+            return;
+          }
+          scheduleSavedRemarkClose(event.relatedTarget);
+        });
+
+        document.addEventListener("click", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (trigger) {
+            event.preventDefault();
+          }
+        });
+
+        document.addEventListener("focusin", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (trigger) {
+            showSavedRemarkTip(trigger);
+          }
+        });
+
+        document.addEventListener("focusout", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (trigger) {
+            scheduleSavedRemarkClose(event.relatedTarget);
+          }
+        });
+
+        document.addEventListener("scroll", removeSavedRemarkTip, true);
+        window.addEventListener("resize", removeSavedRemarkTip);
       });
       </script>
 

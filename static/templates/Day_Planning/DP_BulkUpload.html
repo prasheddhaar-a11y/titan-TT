@@ -103,7 +103,7 @@
     }
     
     /* Make table-header sticky to freeze during scroll */
-    #data-table-section .table-header {
+    [id^="data-table-section"] .table-header {
       position: sticky !important;
       top: 0 !important;
       z-index: 10 !important;
@@ -241,13 +241,13 @@
       margin: 18px 18px 18px 18px; /* Add outer space (adjust as needed) */
     }
     /* Add left padding to the data table section title */
-#data-table-section .table-header {
+[id^="data-table-section"] .table-header {
   padding-left: 24px !important;
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 
 }
-#data-table-section .table-container {
+[id^="data-table-section"] .table-container {
   margin-top: 0 !important;
   padding-top: 18px !important; /* Reduce if needed */
 }
@@ -609,7 +609,7 @@
       margin-bottom: 0 !important;
       border: 1px solid var(--clr-border);
     }
-        #data-table-section .card-body {
+        [id^="data-table-section"] .card-body {
       padding: 0 !important;
     }
       
@@ -776,8 +776,8 @@
     
 }
 
-/* Empty State Styling */
-#empty-state-section {
+/* Empty State Styling (id is suffixed per-tab: empty-state-section / empty-state-section-recovery) */
+[id^="empty-state-section"] {
   background: var(--clr-surface);
   border-radius: 12px;
   margin: 20px 0;
@@ -787,7 +787,7 @@
   display: none;
 }
 
-#empty-state-section.show {
+[id^="empty-state-section"].show {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -795,21 +795,21 @@
   min-height: 350px;
 }
 
-#empty-state-section img {
+[id^="empty-state-section"] img {
   max-width: 200px;
   height: auto;
   margin-bottom: 20px;
   opacity: 0.8;
 }
 
-#empty-state-section h3 {
+[id^="empty-state-section"] h3 {
   color: var(--clr-text);
   font-size: 1.2rem;
   font-weight: 600;
   margin: 0 0 10px 0;
 }
 
-#empty-state-section p {
+[id^="empty-state-section"] p {
   color: var(--clr-muted);
   font-size: 0.95rem;
   margin: 0;
@@ -898,25 +898,25 @@
     white-space: nowrap;
   }
 
-  .dp-bulk-upload-page #empty-state-section,
-  .dp-bulk-upload-page #data-table-section {
+  .dp-bulk-upload-page [id^="empty-state-section"],
+  .dp-bulk-upload-page[id^="data-table-section"] {
     width: 100%;
     max-width: 100%;
     margin: 16px 0 !important;
   }
 
-  .dp-bulk-upload-page #data-table-section .card-body {
+  .dp-bulk-upload-page[id^="data-table-section"] .card-body {
     margin: 0 !important;
     box-shadow: none;
   }
 
-  .dp-bulk-upload-page #data-table-section .table-header {
+  .dp-bulk-upload-page[id^="data-table-section"] .table-header {
     min-height: 58px;
     padding: 0.75rem 1rem !important;
     gap: 1rem;
   }
 
-  .dp-bulk-upload-page #data-table-section .table-header h4,
+  .dp-bulk-upload-page[id^="data-table-section"] .table-header h4,
   .dp-bulk-upload-page .table-actions .btn {
     font-size: var(--titan-ui-font-size) !important;
   }
@@ -958,47 +958,72 @@
     height: 40px;
   }
 }
+
+#dataUploadTabs {
+  margin: 0 0 0 0;
+  border-bottom: 2px solid var(--clr-border);
+  gap: 0.25rem;
+}
+#dataUploadTabs .nav-link {
+  font-weight: 600;
+  color: var(--clr-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 0.65rem 1.15rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+#dataUploadTabs .nav-link:hover {
+  color: var(--clr-text);
+  isolation: isolate;
+}
+#dataUploadTabs #dp-upload-tab.active {
+  color: var(--clr-primary);
+  background: transparent;
+  border-bottom-color: var(--clr-primary);
+}
+#dataUploadTabs #recovery-upload-tab.active {
+  color: var(--clr-secondary);
+  background: transparent;
+  border-bottom-color: var(--clr-secondary);
+}
+
+/* Subtle, single-hue (teal-family) per-tab accent: a faint top wash + thin left
+   accent bar. Same color family for both tabs, only shade/intensity differs -
+   avoids flooding the page with a flat, unrelated color (e.g. yellow). */
+.dp-tab-pane {
+  border-radius: 0 0 8px 8px;
+  padding: 14px 10px 4px 12px;
+}
+.dp-tab-pane-dayplanning {
+  background: linear-gradient(180deg, rgba(18, 106, 131, 0.035) 0%, rgba(18, 106, 131, 0) 140px);
+  border-left: 3px solid rgba(18, 106, 131, 0.25);
+}
+.dp-tab-pane-recovery {
+  background: linear-gradient(180deg, rgba(2, 62, 77, 0.045) 0%, rgba(2, 62, 77, 0) 140px);
+  border-left: 3px solid rgba(2, 62, 77, 0.3);
+}
 </style>
 
-<div class="dp-bulk-upload-page">
-    <!-- Header with Records, Buttons, Files, and Upload Area All in One Line -->
-    <div class="dp-header-controls">
-      <h7 style="font-weight: 500">Day Planning - Data Upload</h7>
-      <div class="dp-records-badge">
-        Records: <span id="top-record-count">0</span>
-      </div>
-      
-      <div class="dp-button-group">
-        <button id="download-template-btn" class="btn btn-outline" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(52, 211, 153, 0.3)); border: 1px solid rgba(52, 211, 153, 0.3); padding: 0.5rem 0.85rem; color: var(--clr-text); gap: 0.4rem;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Template
-        </button>
-        <button id="add-model-btn" class="btn btn-outline" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(20, 184, 166, 0.3)); border: 1px solid rgba(20, 184, 166, 0.3); padding: 0.5rem 0.85rem!important; color: var(--clr-text); gap: 0.4rem;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          Upload
-        </button>
-      </div>
-      
-      <!-- Drag and Drop Zone in Header -->
-      <div class="file-upload-area" id="file-upload-area" style="padding: 0.5rem 0.8rem;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--clr-primary);">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <p style="margin: 0; white-space: nowrap;">Drop files or browse</p>
-        <input type="file" id="file-upload" accept=".xlsx,.xls" hidden>
-      </div>
-      
-      <div class="dp-files-chips" id="dp-files-chips-container"></div>
-    </div>
-    
-
+<ul class="nav nav-tabs" id="dataUploadTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="dp-upload-tab" data-bs-toggle="tab" data-bs-target="#dp-upload-pane" type="button" role="tab" aria-controls="dp-upload-pane" aria-selected="true">Day Planning Upload</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="recovery-upload-tab" data-bs-toggle="tab" data-bs-target="#recovery-upload-pane" type="button" role="tab" aria-controls="recovery-upload-pane" aria-selected="false">Recovery Upload</button>
+  </li>
+</ul>
+<div class="tab-content" id="dataUploadTabsContent">
+  <div class="tab-pane fade show active dp-tab-pane dp-tab-pane-dayplanning" id="dp-upload-pane" role="tabpanel" aria-labelledby="dp-upload-tab">
+    {% include "Day_Planning/_DP_UploadTabPane.html" with id_suffix="" header_text="Day Planning - Data Upload" %}
+  </div>
+  <div class="tab-pane fade dp-tab-pane dp-tab-pane-recovery" id="recovery-upload-pane" role="tabpanel" aria-labelledby="recovery-upload-tab">
+    {% include "Day_Planning/_DP_UploadTabPane.html" with id_suffix="-recovery" header_text="Recovery - Data Upload" %}
+  </div>
 </div>
 
-<!-- Download Progress Overlay (hidden by default) -->
+<!-- Download Progress Overlay (hidden by default, shared across both tabs) -->
 <div id="downloadProgressOverlay" style="display:none; position:fixed; inset:0; z-index:220000; align-items:center; justify-content:center;">
   <div style="background:rgba(255,255,255,0.98); padding:18px 18px; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.12); min-width:300px; max-width:90vw; text-align:center;">
     <div id="downloadProgressLabel" style="font-weight:700;color:#0f766e;margin-bottom:10px;font-size:1rem">Preparing download...</div>
@@ -1009,676 +1034,515 @@
   </div>
 </div>
 
-<!-- Empty State Section - shown when no data uploaded -->
-<div id="empty-state-section" class="show">
-  <img src="{% static 'assets/images/notfound.jpg' %}" alt="No Data">
-  <h3>No Data Uploaded Yet</h3>
-  <p>Upload an Excel file to see your data here. Click "Upload" or drag files to get started.</p>
-</div>
-
-<div id="data-table-section" class="data-table-card dp-bulk-upload-page" style="display:none; background: var(--clr-surface); border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-  <div class="card-body" style="padding: 0;">
-    <div class="table-header" style="padding: 1px 24px; margin-bottom: 0; border-bottom: 1px solid var(--clr-border); display: flex; justify-content: space-between; align-items: center;">
-      <h4 style="margin: 0; color: var(--clr-text); font-weight: 600;">Data Table</h4>
-      <div class="table-actions"></div>
-    </div>
-    <div class="table-container" id="data-table-container" style="max-height: 400px; overflow-y: auto;"></div>
-  </div>
-</div>
 <div id="toast-container" class="toast-container"></div>
 
 
 <script nonce="{{ csp_nonce }}">
-  document.addEventListener('DOMContentLoaded', () => {
-    const fileUploadInput = document.getElementById('file-upload');
-    const fileListContainer = document.getElementById('file-list');
-    const addModelButton = document.getElementById('add-model-btn');
-    const dataTableSection = document.getElementById('data-table-section');
-    const dataTableContainer = document.getElementById('data-table-container');
-    const fileUploadArea = document.getElementById('file-upload-area');
+  // ================= SHARED MODULE-LEVEL STATE & HELPERS =================
+  // These are upload-type-agnostic (validation, dropdown data, CSRF, toasts) and are
+  // reused by both the Day Planning and Recovery upload tab controllers below.
+  let allowedVersionsCache = null;
+  let allowedVersionsPromise = null;
+  let categoriesCache = null;
+  let locationsCache = null;
 
-    let files = [];
-    let tableData = [];
-    let fileDataMap = new Map(); // Map to store file data for each file
-    // Updated column structure for new fields (removed ID since S.NO serves the same purpose)
-    let columns = ['S.NO', 'Plating Stk No', 'Polishing Stk No', 'Plating Colour', 'Category', 'Input Qty', 'Source'];
-    let sortColumn = null;
-    let sortDirection = 'asc';
-
-    // ========== DYNAMIC VERSION FETCHING SYSTEM ==========
-    let allowedVersionsCache = null; // Global cache for allowed versions
-    let allowedVersionsPromise = null; // Promise to avoid multiple simultaneous requests
-
-    /**
-     * Fetch allowed versions from backend dynamically
-     * Uses caching to avoid repeated API calls
-     */
-    async function fetchAllowedVersions() {
-      // Return cached versions if available
-      if (allowedVersionsCache) {
-        return allowedVersionsCache;
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
       }
+    }
+    return cookieValue;
+  }
 
-      // Return existing promise if already in progress
-      if (allowedVersionsPromise) {
-        return allowedVersionsPromise;
-      }
-
-      // Create new promise for fetching versions
-      allowedVersionsPromise = fetch('/dayplanning/get_allowed_versions/')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.success && Array.isArray(data.allowed_versions)) {
-            allowedVersionsCache = data.allowed_versions;
-            console.log('✅ Dynamic versions loaded:', allowedVersionsCache);
-            return allowedVersionsCache;
-          } else {
-            throw new Error(data.error || 'Invalid response format');
-          }
-        })
-        .catch(error => {
-          console.error('❌ Failed to fetch allowed versions:', error);
-          // Fallback to empty array - let backend handle validation
-          allowedVersionsCache = [];
-          return allowedVersionsCache;
-        })
-        .finally(() => {
-          allowedVersionsPromise = null; // Reset promise
-        });
-
+  function fetchAllowedVersions() {
+    if (allowedVersionsCache) {
+      return Promise.resolve(allowedVersionsCache);
+    }
+    if (allowedVersionsPromise) {
       return allowedVersionsPromise;
     }
+    allowedVersionsPromise = fetch('/dayplanning/get_allowed_versions/')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success && Array.isArray(data.allowed_versions)) {
+          allowedVersionsCache = data.allowed_versions;
+          console.log('✅ Dynamic versions loaded:', allowedVersionsCache);
+          return allowedVersionsCache;
+        } else {
+          throw new Error(data.error || 'Invalid response format');
+        }
+      })
+      .catch(error => {
+        console.error('❌ Failed to fetch allowed versions:', error);
+        allowedVersionsCache = [];
+        return allowedVersionsCache;
+      })
+      .finally(() => {
+        allowedVersionsPromise = null;
+      });
 
-    /**
-     * Validate version code against dynamically fetched allowed versions
-     * @param {string} versionCode - Version code to validate
-     * @returns {Promise<{isValid: boolean, message?: string}>}
-     */
-    async function validateVersionCode(versionCode) {
-      try {
-        const allowedVersions = await fetchAllowedVersions();
-        
-        // If no versions loaded (API error), skip frontend validation
-        // Backend will handle the validation
-        if (!allowedVersions || allowedVersions.length === 0) {
-          console.warn('⚠️ No allowed versions loaded, skipping frontend validation');
-          return { isValid: true };
+    return allowedVersionsPromise;
+  }
+
+  async function validateVersionCode(versionCode) {
+    try {
+      const allowedVersions = await fetchAllowedVersions();
+
+      if (!allowedVersions || allowedVersions.length === 0) {
+        console.warn('⚠️ No allowed versions loaded, skipping frontend validation');
+        return { isValid: true };
+      }
+
+      const isValid = allowedVersions.includes(versionCode);
+
+      if (!isValid) {
+        return {
+          isValid: false,
+          message: `Version code '${versionCode}' not available in Master Data. Available version codes: ${allowedVersions.join(', ')}`
+        };
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      console.error('❌ Version validation error:', error);
+      return { isValid: true };
+    }
+  }
+
+  function loadDropdownData(column) {
+    if (column === 'Category') {
+      if (categoriesCache) {
+        return Promise.resolve(categoriesCache);
+      }
+      return fetch('/dayplanning/get_categories/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            categoriesCache = data.categories;
+            return categoriesCache;
+          }
+          return [];
+        })
+        .catch(() => []);
+    }
+
+    if (column === 'Source') {
+      if (locationsCache) {
+        return Promise.resolve(locationsCache);
+      }
+      return fetch('/dayplanning/get_locations/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            locationsCache = data.locations;
+            return locationsCache;
+          }
+          return [];
+        })
+        .catch(() => []);
+    }
+
+    return Promise.resolve([]);
+  }
+
+  function createSimpleDropdown(td, row, column, currentValue) {
+    const select = document.createElement('select');
+    select.className = 'simple-dropdown';
+    select.style.cssText = `
+      width: 100%;
+      min-width: 150px;
+      padding: 8px 12px;
+      border: 2px solid #126a83;
+      border-radius: 6px;
+      background: white;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+    `;
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = `Choose ${column}...`;
+    select.appendChild(defaultOption);
+
+    td.innerHTML = '';
+    td.appendChild(select);
+
+    loadDropdownData(column).then(data => {
+      select.innerHTML = '';
+
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = `Choose ${column}...`;
+      select.appendChild(defaultOpt);
+
+      data.forEach(item => {
+        const option = document.createElement('option');
+        const fieldName = column === 'Category' ? 'category_name' : 'location_name';
+        option.value = item[fieldName];
+        option.textContent = item[fieldName];
+
+        if (item[fieldName] === currentValue) {
+          option.selected = true;
         }
 
-        const isValid = allowedVersions.includes(versionCode);
-        
-        if (!isValid) {
-          return {
-            isValid: false,
-            message: `Version code '${versionCode}' not available in Master Data. Available version codes: ${allowedVersions.join(', ')}`
-          };
-        }
+        select.appendChild(option);
+      });
 
-        return { isValid: true };
-      } catch (error) {
-        console.error('❌ Version validation error:', error);
-        // On error, skip frontend validation - let backend handle it
-        return { isValid: true };
-      }
-    }
-
-    // Initialize version loading on page load
-    fetchAllowedVersions();
-    
-    // ========== END DYNAMIC VERSION FETCHING SYSTEM ==========
-
-    // ========== BUG FIX: ADD THESE FUNCTIONS HERE ==========
-    
-    // Function to disable upload controls
-    function disableUploadControls() {
-      const fileUploadArea = document.getElementById('file-upload-area');
-      const fileUploadInput = document.getElementById('file-upload');
-      const addModelButton = document.getElementById('add-model-btn');
-      
-      // Disable file upload area
-      fileUploadArea.style.pointerEvents = 'none';
-      fileUploadArea.style.opacity = '0.5';
-      fileUploadArea.style.cursor = 'not-allowed';
-      
-      // Disable file input
-      fileUploadInput.disabled = true;
-      
-      // Disable Single Upload button
-      addModelButton.disabled = true;
-      addModelButton.style.opacity = '0.5';
-      addModelButton.style.cursor = 'not-allowed';
-      addModelButton.style.pointerEvents = 'none';
-      
-      // Update the upload area text to indicate it's disabled
-      const uploadText = fileUploadArea.querySelector('p');
-      if (uploadText) {
-        uploadText.innerHTML = 'Upload disabled';
-        uploadText.style.color = '#6C757D';
-      }
-    }
-
-    // Function to enable upload controls
-    function enableUploadControls() {
-      const fileUploadArea = document.getElementById('file-upload-area');
-      const fileUploadInput = document.getElementById('file-upload');
-      const addModelButton = document.getElementById('add-model-btn');
-      
-      // Enable file upload area
-      fileUploadArea.style.pointerEvents = 'auto';
-      fileUploadArea.style.opacity = '1';
-      fileUploadArea.style.cursor = 'pointer';
-      
-      // Enable file input
-      fileUploadInput.disabled = false;
-      
-      // Enable Single Upload button
-      addModelButton.disabled = false;
-      addModelButton.style.opacity = '1';
-      addModelButton.style.cursor = 'pointer';
-      addModelButton.style.pointerEvents = 'auto';
-      
-      // Restore original upload area text
-      const uploadText = fileUploadArea.querySelector('p');
-      if (uploadText) {
-        uploadText.innerHTML = 'Drag and drop Excel files here or <span class="upload-link">Click to Select</span>';
-        uploadText.style.color = 'var(--clr-muted)';
-      }
-    }
-    
-    // ========== FRESH SIMPLE DROPDOWN FUNCTIONALITY ==========
-    
-    let categoriesCache = null;
-    let locationsCache = null;
-    
-// Replace the createSimpleDropdown function with this fixed version:
-
-function createSimpleDropdown(td, row, column, currentValue) {
-  // Create a simple select element
-  const select = document.createElement('select');
-  select.className = 'simple-dropdown';
-  select.style.cssText = `
-    width: 100%;
-    min-width: 150px;
-    padding: 8px 12px;
-    border: 2px solid #126a83;
-    border-radius: 6px;
-    background: white;
-    font-size: 14px;
-    cursor: pointer;
-    outline: none;
-  `;
-  
-  // Add default option
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = `Choose ${column}...`;
-  select.appendChild(defaultOption);
-  
-  // Clear the cell and add select
-  td.innerHTML = '';
-  td.appendChild(select);
-  
-  // Load data and populate
-  loadDropdownData(column).then(data => {
-    // Clear existing options
-    select.innerHTML = '';
-    
-    // Add default option again
-    const defaultOpt = document.createElement('option');
-    defaultOpt.value = '';
-    defaultOpt.textContent = `Choose ${column}...`;
-    select.appendChild(defaultOpt);
-    
-    // Add data options
-    data.forEach(item => {
-      const option = document.createElement('option');
-      const fieldName = column === 'Category' ? 'category_name' : 'location_name';
-      option.value = item[fieldName];
-      option.textContent = item[fieldName];
-      
-      // Pre-select current value
-      if (item[fieldName] === currentValue) {
-        option.selected = true;
-      }
-      
-      select.appendChild(option);
-    });
-    
-    // Focus after loading and open dropdown
-    setTimeout(() => {
-      select.focus();
-      // Try to open the dropdown programmatically
-      if (select.showPicker) {
-        select.showPicker();
-      }
-    }, 100);
-  });
-  
-  // Flag to prevent immediate closure
-  let isSelecting = false;
-  
-  // Handle change event - when user actually selects something
-  select.addEventListener('change', function(e) {
-    e.stopPropagation();
-    const selectedValue = this.value;
-    
-    // Update the data
-    row[column] = selectedValue;
-    
-    // Update the display
-    td.textContent = selectedValue || currentValue || '';
-    
-    console.log(`Selected ${column}:`, selectedValue);
-    isSelecting = false;
-  });
-  
-  // Handle blur event - when dropdown loses focus
-  select.addEventListener('blur', function(e) {
-    // Only close if we're not in the middle of selecting
-    if (!isSelecting) {
       setTimeout(() => {
-        // If no selection was made, revert to original value
-        if (this.parentNode === td) {
-          td.textContent = currentValue || '';
+        select.focus();
+        if (select.showPicker) {
+          select.showPicker();
         }
-      }, 150);
-    }
-  });
-  
-  // Handle mousedown on select to indicate selection is starting
-  select.addEventListener('mousedown', function(e) {
-    isSelecting = true;
-  });
-  
-  // Handle keyboard events
-  select.addEventListener('keydown', function(e) {
-    e.stopPropagation();
-    
-    if (e.key === 'Escape') {
-      // Cancel and revert
-      td.textContent = currentValue || '';
-      isSelecting = false;
-    } else if (e.key === 'Enter') {
-      // Confirm selection
+      }, 100);
+    });
+
+    let isSelecting = false;
+
+    select.addEventListener('change', function(e) {
+      e.stopPropagation();
       const selectedValue = this.value;
       row[column] = selectedValue;
       td.textContent = selectedValue || currentValue || '';
+      console.log(`Selected ${column}:`, selectedValue);
       isSelecting = false;
-    } else {
-      // Any other key means user is navigating
+    });
+
+    select.addEventListener('blur', function(e) {
+      if (!isSelecting) {
+        setTimeout(() => {
+          if (this.parentNode === td) {
+            td.textContent = currentValue || '';
+          }
+        }, 150);
+      }
+    });
+
+    select.addEventListener('mousedown', function(e) {
       isSelecting = true;
-    }
-  });
-  
-  // Prevent cell click events from interfering
-  select.addEventListener('click', function(e) {
-    e.stopPropagation();
-    isSelecting = true;
-  });
-}
+    });
 
-    function loadDropdownData(column) {
-      /**
-       * Load data for dropdowns with caching
-       */
-      if (column === 'Category') {
-        if (categoriesCache) {
-          return Promise.resolve(categoriesCache);
-        }
-        
-        return fetch('/dayplanning/get_categories/')
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              categoriesCache = data.categories;
-              return categoriesCache;
-            }
-            return [];
-          })
-          .catch(() => []);
+    select.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+
+      if (e.key === 'Escape') {
+        td.textContent = currentValue || '';
+        isSelecting = false;
+      } else if (e.key === 'Enter') {
+        const selectedValue = this.value;
+        row[column] = selectedValue;
+        td.textContent = selectedValue || currentValue || '';
+        isSelecting = false;
+      } else {
+        isSelecting = true;
       }
-      
-      if (column === 'Source') {
-        if (locationsCache) {
-          return Promise.resolve(locationsCache);
-        }
-        
-        return fetch('/dayplanning/get_locations/')
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              locationsCache = data.locations;
-              return locationsCache;
-            }
-            return [];
-          })
-          .catch(() => []);
-      }
-      
-      return Promise.resolve([]);
+    });
+
+    select.addEventListener('click', function(e) {
+      e.stopPropagation();
+      isSelecting = true;
+    });
+  }
+
+  async function validatePlatingStockNo(platingStockNo) {
+    if (!platingStockNo || platingStockNo.length < 8) {
+      return {
+        isValid: false,
+        message: "Stock number must be at least 8 characters long"
+      };
     }
-    
-    // ========== END FRESH DROPDOWN FUNCTIONALITY ==========
-    
-    async function validatePlatingStockNo(platingStockNo) {
-      if (!platingStockNo || platingStockNo.length < 8) {
+
+    const platingBase = platingStockNo.split("/")[0];
+
+    if (!platingBase.endsWith("02")) {
+      return {
+        isValid: false,
+        message: "Stock number must end with '02'"
+      };
+    }
+
+    const match = platingBase.match(/^(\d+)([A-Z])([A-Z])([A-Z])02$/);
+    if (!match) {
+      return {
+        isValid: false,
+        message: "Invalid format. Expected: ModelNumber + ColorCode + LettersLetters02"
+      };
+    }
+
+    const [, modelNumber, colorCode, polish_code, version_code] = match;
+
+    const versionValidation = await validateVersionCode(version_code);
+    if (!versionValidation.isValid) {
+      return {
+        isValid: false,
+        message: versionValidation.message
+      };
+    }
+
+    try {
+      const response = await fetch(`/dayplanning/validate_plating_stk_no/?plating_stk_no=${encodeURIComponent(platingStockNo)}`);
+      const data = await response.json();
+
+      if (!data.success || !data.is_valid) {
         return {
           isValid: false,
-          message: "Stock number must be at least 8 characters long"
+          message: data.message || `Plating Stock No "${platingStockNo}" not found in database`
         };
       }
 
+      return {
+        isValid: true,
+        data: {
+          modelNumber,
+          colorCode,
+          polish_code,
+          version_code,
+          ...data.data
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Database validation error:', error);
+      return {
+        isValid: false,
+        message: 'Error checking plating stock number in database. Please try again.'
+      };
+    }
+  }
+
+  function fetchPlatingColour(colorCode, platingStockNo) {
+    return fetch('/dayplanning/get_plating_colour/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({
+        color_code: colorCode,
+        plating_stock_no: platingStockNo
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.plating_colour) {
+        return data.plating_colour;
+      } else {
+        console.warn('Could not fetch plating colour:', data.error || 'Unknown error');
+        return null;
+      }
+    })
+    .catch(error => {
+      console.error('API error:', error);
+      return null;
+    });
+  }
+
+  function showAutoFetchMessage(message, type = 'info') {
+    const messageElement = document.createElement('div');
+    messageElement.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: opacity 0.3s ease;
+    `;
+
+    switch(type) {
+      case 'success':
+        messageElement.style.backgroundColor = '#d4edda';
+        messageElement.style.color = '#155724';
+        messageElement.style.borderLeft = '4px solid #28a745';
+        break;
+      case 'warning':
+        messageElement.style.backgroundColor = '#fff3cd';
+        messageElement.style.color = '#856404';
+        messageElement.style.borderLeft = '4px solid #ffc107';
+        break;
+      case 'error':
+        messageElement.style.backgroundColor = '#f8d7da';
+        messageElement.style.color = '#721c24';
+        messageElement.style.borderLeft = '4px solid #dc3545';
+        break;
+      default:
+        messageElement.style.backgroundColor = '#d1ecf1';
+        messageElement.style.color = '#0c5460';
+        messageElement.style.borderLeft = '4px solid #17a2b8';
+    }
+
+    messageElement.textContent = message;
+    document.body.appendChild(messageElement);
+
+    setTimeout(() => {
+      messageElement.style.opacity = '0';
+      setTimeout(() => {
+        if (messageElement.parentNode) {
+          document.body.removeChild(messageElement);
+        }
+      }, 300);
+    }, 4000);
+  }
+
+  async function autoFetchRelatedFields(row, platingStockNo, onUpdated) {
+    if (!platingStockNo || platingStockNo.length < 8) {
+      return;
+    }
+
+    try {
       const platingBase = platingStockNo.split("/")[0];
-      
+
       if (!platingBase.endsWith("02")) {
-        return {
-          isValid: false,
-          message: "Stock number must end with '02'"
-        };
+        showAutoFetchMessage("Plating Stk No must end with '02'", 'warning');
+        return;
       }
 
       const match = platingBase.match(/^(\d+)([A-Z])([A-Z])([A-Z])02$/);
       if (!match) {
-        return {
-          isValid: false,
-          message: "Invalid format. Expected: ModelNumber + ColorCode + LettersLetters02"
-        };
+        showAutoFetchMessage("Invalid Plating Stk No format. Expected: ModelNumber + ColorCode + LettersLetters02", 'warning');
+        return;
       }
 
       const [, modelNumber, colorCode, polish_code, version_code] = match;
-      
-      // ✅ DYNAMIC VERSION VALIDATION - No more hardcoded arrays!
+
       const versionValidation = await validateVersionCode(version_code);
       if (!versionValidation.isValid) {
-        return {
-          isValid: false,
-          message: versionValidation.message
-        };
+        showAutoFetchMessage(`❌ ${versionValidation.message}`, 'error');
+        return;
       }
 
-      // ✅ NEW: Check if plating stock number exists in ModelMaster database
-      try {
-        const response = await fetch(`/dayplanning/validate_plating_stk_no/?plating_stk_no=${encodeURIComponent(platingStockNo)}`);
-        const data = await response.json();
-        
-        if (!data.success || !data.is_valid) {
-          return {
-            isValid: false,
-            message: data.message || `Plating Stock No "${platingStockNo}" not found in database`
-          };
-        }
-        
-        // Return validation success with database data
-        return {
-          isValid: true,
-          data: {
-            modelNumber,
-            colorCode,
-            polish_code,
-            version_code,
-            ...data.data  // Include database info (model_no, version, brand, etc.)
-          }
-        };
-        
-      } catch (error) {
-        console.error('❌ Database validation error:', error);
-        return {
-          isValid: false,
-          message: 'Error checking plating stock number in database. Please try again.'
-        };
-      }
-    }
+      const polishingStockNo = `${modelNumber}X${polish_code}${version_code}02`;
+      row['Polishing Stk No'] = polishingStockNo;
 
-    async function autoFetchRelatedFields(row, platingStockNo) {
-      /**
-       * Auto-populate Polishing Stk No and Plating Colour based on Plating Stk No
-       * 
-       * Logic:
-       * 1. Extract model number and color code from Plating Stk No
-       * 2. Generate Polishing Stk No by replacing color code with 'X'
-       * 3. Fetch Plating Colour from backend based on color code
-       * 
-       * Example:
-       * Input: 1805SAB02
-       * Output: Polishing Stk No = 1805XAB02, Plating Colour = [fetched from backend]
-       */
-      
-      if (!platingStockNo || platingStockNo.length < 8) {
-        return; // Too short to be valid
+      if (!row._autoFilled) row._autoFilled = [];
+      if (!row._autoFilled.includes('Polishing Stk No')) {
+        row._autoFilled.push('Polishing Stk No');
       }
-      
-      try {
-        // Validate format and extract components
-        const platingBase = platingStockNo.split("/")[0];
-        
-        // Check if ends with "02"
-        if (!platingBase.endsWith("02")) {
-          showAutoFetchMessage("Plating Stk No must end with '02'", 'warning');
-          return;
-        }
-        
-        // Extract model, color code, and suffix using regex with version code validation
-        const match = platingBase.match(/^(\d+)([A-Z])([A-Z])([A-Z])02$/);
-        if (!match) {
-          showAutoFetchMessage("Invalid Plating Stk No format. Expected: ModelNumber + ColorCode + LettersLetters02", 'warning');
-          return;
-        }
-        
-        const [, modelNumber, colorCode, polish_code, version_code] = match;
-        
-        // ✅ DYNAMIC VERSION VALIDATION - No more hardcoded arrays!
-        const versionValidation = await validateVersionCode(version_code);
-        if (!versionValidation.isValid) {
-          showAutoFetchMessage(`❌ ${versionValidation.message}`, 'error');
-          return;
-        }
 
-        // Generate Polishing Stk No by replacing color code with 'X'
-        const polishingStockNo = `${modelNumber}X${polish_code}${version_code}02`;
-        row['Polishing Stk No'] = polishingStockNo;
-        
-        // Mark as auto-filled for visual indication
-        if (!row._autoFilled) row._autoFilled = [];
-        if (!row._autoFilled.includes('Polishing Stk No')) {
-          row._autoFilled.push('Polishing Stk No');
-        }
-        
-        // Show loading state
-        showAutoFetchMessage("Auto-fetching plating colour...", 'info');
-        
-        // Fetch plating colour from backend
-        fetchPlatingColour(colorCode, platingStockNo)
-          .then(platingColour => {
-            if (platingColour) {
-              row['Plating Colour'] = platingColour;
-              // Mark plating colour as auto-filled
-              if (!row._autoFilled.includes('Plating Colour')) {
-                row._autoFilled.push('Plating Colour');
-              }
-              showAutoFetchMessage(`✅ Auto-filled: Polishing Stk No → ${polishingStockNo}, Plating Colour → ${platingColour}`, 'success');
-            } else {
-              showAutoFetchMessage(`✅ Polishing Stk No auto-filled → ${polishingStockNo}. Please manually enter Plating Colour.`, 'warning');
+      showAutoFetchMessage("Auto-fetching plating colour...", 'info');
+
+      fetchPlatingColour(colorCode, platingStockNo)
+        .then(platingColour => {
+          if (platingColour) {
+            row['Plating Colour'] = platingColour;
+            if (!row._autoFilled.includes('Plating Colour')) {
+              row._autoFilled.push('Plating Colour');
             }
-            // Re-render table to show updated values
-            renderTable();
-          })
-          .catch(error => {
-            console.error('Error fetching plating colour:', error);
-            showAutoFetchMessage(`✅ Polishing Stk No auto-filled → ${polishingStockNo}. Could not fetch Plating Colour.`, 'warning');
-            // Re-render table to show at least the polishing stock number
-            renderTable();
-          });
-        
-      } catch (error) {
-        console.error('Error in auto-fetch:', error);
-        showAutoFetchMessage("Error processing Plating Stk No", 'error');
-      }
-    }
-    
-    function fetchPlatingColour(colorCode, platingStockNo) {
-      /**
-       * Fetch plating colour from backend based on color code
-       * This makes an API call to validate and get the plating colour
-       */
-      return fetch('/dayplanning/get_plating_colour/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-          color_code: colorCode,
-          plating_stock_no: platingStockNo
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success && data.plating_colour) {
-          return data.plating_colour;
-        } else {
-          console.warn('Could not fetch plating colour:', data.error || 'Unknown error');
-          return null;
-        }
-      })
-      .catch(error => {
-        console.error('API error:', error);
-        return null;
-      });
-    }
-    
-    function showAutoFetchMessage(message, type = 'info') {
-      /**
-       * Show temporary message for auto-fetch operations
-       */
-      const messageElement = document.createElement('div');
-      messageElement.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        padding: 12px 20px;
-        border-radius: 6px;
-        font-weight: 500;
-        max-width: 400px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transition: opacity 0.3s ease;
-      `;
-      
-      // Style based on type
-      switch(type) {
-        case 'success':
-          messageElement.style.backgroundColor = '#d4edda';
-          messageElement.style.color = '#155724';
-          messageElement.style.borderLeft = '4px solid #28a745';
-          break;
-        case 'warning':
-          messageElement.style.backgroundColor = '#fff3cd';
-          messageElement.style.color = '#856404';
-          messageElement.style.borderLeft = '4px solid #ffc107';
-          break;
-        case 'error':
-          messageElement.style.backgroundColor = '#f8d7da';
-          messageElement.style.color = '#721c24';
-          messageElement.style.borderLeft = '4px solid #dc3545';
-          break;
-        default: // info
-          messageElement.style.backgroundColor = '#d1ecf1';
-          messageElement.style.color = '#0c5460';
-          messageElement.style.borderLeft = '4px solid #17a2b8';
-      }
-      
-      messageElement.textContent = message;
-      document.body.appendChild(messageElement);
-      
-      // Auto-remove after 4 seconds
-      setTimeout(() => {
-        messageElement.style.opacity = '0';
-        setTimeout(() => {
-          if (messageElement.parentNode) {
-            document.body.removeChild(messageElement);
+            showAutoFetchMessage(`✅ Auto-filled: Polishing Stk No → ${polishingStockNo}, Plating Colour → ${platingColour}`, 'success');
+          } else {
+            showAutoFetchMessage(`✅ Polishing Stk No auto-filled → ${polishingStockNo}. Please manually enter Plating Colour.`, 'warning');
           }
-        }, 300);
-      }, 4000);
+          if (typeof onUpdated === 'function') onUpdated();
+        })
+        .catch(error => {
+          console.error('Error fetching plating colour:', error);
+          showAutoFetchMessage(`✅ Polishing Stk No auto-filled → ${polishingStockNo}. Could not fetch Plating Colour.`, 'warning');
+          if (typeof onUpdated === 'function') onUpdated();
+        });
+
+    } catch (error) {
+      console.error('Error in auto-fetch:', error);
+      showAutoFetchMessage("Error processing Plating Stk No", 'error');
     }
-    
-    // ========== END AUTO-FETCH FUNCTIONALITY ==========
+  }
 
-    // Remove SweetAlert from new model; simply display an empty table.
-    addModelButton.addEventListener('click', handleAddModel);
-    fileUploadInput.addEventListener('change', handleFileSelect);
+  function formatFileSize(bytes) {
+    if (!bytes) return '0 Bytes';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  }
 
-        // Handle Download Template button click
-    const downloadTemplateBtn = document.getElementById('download-template-btn');
+  function showToast(title, message, type = 'default') {
+    const toastContainer = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-content">
+        <div class="toast-title">${title}</div>
+        <div class="toast-description">${message}</div>
+      </div>
+      <button class="toast-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="var(--clr-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    `;
+    toastContainer.appendChild(toast);
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+      toast.style.animation = 'fadeOut 0.3s forwards';
+      setTimeout(() => toastContainer.removeChild(toast), 300);
+    });
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.style.animation = 'fadeOut 0.3s forwards';
+        setTimeout(() => { if (toast.parentNode) toastContainer.removeChild(toast); }, 300);
+      }
+    }, 5000);
+  }
+
+  // Visual success card specifically for downloads (in case toast is missed)
+  function showDownloadSuccessVisual(message = 'Template downloaded successfully to your local') {
+    const id = 'downloadSuccessCard';
+    let card = document.getElementById(id);
+    if (card) {
+      card.parentNode.removeChild(card);
+    }
+    card = document.createElement('div');
+    card.id = id;
+    card.style.cssText = `position:fixed; right:20px; bottom:22px; z-index:230000; background:#e6fffa; border-left:6px solid #10b981; color:#064e3b; padding:12px 16px; border-radius:10px; box-shadow:0 8px 28px rgba(4,22,22,0.12); font-weight:700; display:flex; align-items:center; gap:10px;`;
+    card.innerHTML = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#065f46" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div style="font-size:0.95rem">${message}</div>
+    `;
+    document.body.appendChild(card);
+    setTimeout(()=>{ if (card && card.parentNode) card.style.opacity='0'; setTimeout(()=>{ if (card && card.parentNode) card.parentNode.removeChild(card); },300); }, 3600);
+  }
+
+  // Attach the "Download Template" behaviour to a given button id. Shared across both
+  // tabs since the template/endpoint/progress UI are identical regardless of upload type.
+  function attachDownloadTemplateHandler(buttonId) {
+    const downloadTemplateBtn = document.getElementById(buttonId);
+    if (!downloadTemplateBtn) return;
     const downloadOverlay = document.getElementById('downloadProgressOverlay');
     const downloadBar = document.getElementById('downloadProgressBar');
     const downloadPct = document.getElementById('downloadProgressPct');
     const downloadLabel = document.getElementById('downloadProgressLabel');
-    if (downloadTemplateBtn) {
-      downloadTemplateBtn.addEventListener('click', async function(e) {
-        e.preventDefault();
-        const endpoint = '/dayplanning/download_excel_template/';
-        const prevDisabled = downloadTemplateBtn.disabled;
-        downloadTemplateBtn.disabled = true;
-        try {
-          // show overlay
-          if (downloadOverlay) { downloadOverlay.style.display = 'flex'; }
-          downloadLabel.textContent = 'Starting download...';
-          downloadBar.style.width = '0%'; downloadPct.textContent = '0%';
 
-          const resp = await fetch(endpoint, { credentials: 'same-origin' });
-          if (!resp.ok) throw new Error('Server returned ' + resp.status);
+    downloadTemplateBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      const endpoint = '/dayplanning/download_excel_template/';
+      const prevDisabled = downloadTemplateBtn.disabled;
+      downloadTemplateBtn.disabled = true;
+      try {
+        if (downloadOverlay) { downloadOverlay.style.display = 'flex'; }
+        downloadLabel.textContent = 'Starting download...';
+        downloadBar.style.width = '0%'; downloadPct.textContent = '0%';
 
-          // get content-length if provided
-          const contentLength = resp.headers.get('Content-Length');
-          const total = contentLength ? parseInt(contentLength, 10) : null;
+        const resp = await fetch(endpoint, { credentials: 'same-origin' });
+        if (!resp.ok) throw new Error('Server returned ' + resp.status);
 
-          if (!resp.body) {
-            // fallback: read blob at once
-            const blob = await resp.blob();
-            const url = window.URL.createObjectURL(blob);
-            const disp = resp.headers.get('Content-Disposition');
-            let filename = 'DayPlanning_Template.xlsx';
-            if (disp) {
-              const m = disp.match(/filename\*=UTF-8''([^;\n]+)/i) || disp.match(/filename="?([^;\n"]+)"?/i);
-              if (m && m[1]) filename = decodeURIComponent(m[1].replace(/\"/g, ''));
-            }
-            const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-            if (downloadOverlay) downloadLabel.textContent = 'Download complete';
-            if (typeof showToast === 'function') showToast('Download Complete','Template downloaded successfully to your local','success');
-            showDownloadSuccessVisual('Template downloaded successfully to your local');
-            setTimeout(()=>{ if (downloadOverlay) downloadOverlay.style.display='none'; downloadTemplateBtn.disabled = prevDisabled; },900);
-            return;
-          }
+        const contentLength = resp.headers.get('Content-Length');
+        const total = contentLength ? parseInt(contentLength, 10) : null;
 
-          const reader = resp.body.getReader();
-          const chunks = [];
-          let received = 0;
-          while(true){
-            const {done, value} = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            received += value.length;
-            if (total) {
-              const pct = Math.round((received/total)*100);
-              downloadBar.style.width = pct + '%';
-              downloadPct.textContent = pct + '%';
-              downloadLabel.textContent = 'Downloading...';
-            } else {
-              // indeterminate progress animation
-              const approx = Math.min(98, Math.round((received/1024)/50));
-              downloadBar.style.width = approx + '%';
-              downloadPct.textContent = approx + '%';
-              downloadLabel.textContent = 'Downloading...';
-            }
-          }
-
-          // combine chunks
-          const blob = new Blob(chunks);
+        if (!resp.body) {
+          const blob = await resp.blob();
           const url = window.URL.createObjectURL(blob);
           const disp = resp.headers.get('Content-Disposition');
           let filename = 'DayPlanning_Template.xlsx';
@@ -1687,26 +1551,115 @@ function createSimpleDropdown(td, row, column, currentValue) {
             if (m && m[1]) filename = decodeURIComponent(m[1].replace(/\"/g, ''));
           }
           const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-
-          // success UI
-          downloadBar.style.width = '100%'; downloadPct.textContent = '100%'; downloadLabel.textContent = 'Download complete';
+          if (downloadOverlay) downloadLabel.textContent = 'Download complete';
           if (typeof showToast === 'function') showToast('Download Complete','Template downloaded successfully to your local','success');
           showDownloadSuccessVisual('Template downloaded successfully to your local');
           setTimeout(()=>{ if (downloadOverlay) downloadOverlay.style.display='none'; downloadTemplateBtn.disabled = prevDisabled; },900);
+          return;
+        }
 
-        } catch (err) {
-          if (downloadOverlay) downloadOverlay.style.display='none';
-          downloadTemplateBtn.disabled = prevDisabled;
-          const msg = err && err.message ? err.message : 'Download failed';
-          if (typeof showToast === 'function') {
-            showToast('Download Failed', msg, 'error');
+        const reader = resp.body.getReader();
+        const chunks = [];
+        let received = 0;
+        while(true){
+          const {done, value} = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total) {
+            const pct = Math.round((received/total)*100);
+            downloadBar.style.width = pct + '%';
+            downloadPct.textContent = pct + '%';
+            downloadLabel.textContent = 'Downloading...';
           } else {
-            alert('Download failed: ' + msg);
+            const approx = Math.min(98, Math.round((received/1024)/50));
+            downloadBar.style.width = approx + '%';
+            downloadPct.textContent = approx + '%';
+            downloadLabel.textContent = 'Downloading...';
           }
         }
-      });
+
+        const blob = new Blob(chunks);
+        const url = window.URL.createObjectURL(blob);
+        const disp = resp.headers.get('Content-Disposition');
+        let filename = 'DayPlanning_Template.xlsx';
+        if (disp) {
+          const m = disp.match(/filename\*=UTF-8''([^;\n]+)/i) || disp.match(/filename="?([^;\n"]+)"?/i);
+          if (m && m[1]) filename = decodeURIComponent(m[1].replace(/\"/g, ''));
+        }
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+
+        downloadBar.style.width = '100%'; downloadPct.textContent = '100%'; downloadLabel.textContent = 'Download complete';
+        if (typeof showToast === 'function') showToast('Download Complete','Template downloaded successfully to your local','success');
+        showDownloadSuccessVisual('Template downloaded successfully to your local');
+        setTimeout(()=>{ if (downloadOverlay) downloadOverlay.style.display='none'; downloadTemplateBtn.disabled = prevDisabled; },900);
+
+      } catch (err) {
+        if (downloadOverlay) downloadOverlay.style.display='none';
+        downloadTemplateBtn.disabled = prevDisabled;
+        const msg = err && err.message ? err.message : 'Download failed';
+        if (typeof showToast === 'function') {
+          showToast('Download Failed', msg, 'error');
+        } else {
+          alert('Download failed: ' + msg);
+        }
+      }
+    });
+  }
+
+  // ================= PER-TAB UPLOAD CONTROLLER =================
+  // Instantiated once per tab (Day Planning / Recovery). Each instance holds its own
+  // closed-over state (tableData/files/etc.) so the two tabs never interfere with
+  // each other, and posts its own `uploadType` to the shared bulk_upload endpoint.
+  function initUploadController(uploadType, idSuffix) {
+    const fileUploadInput = document.getElementById('file-upload' + idSuffix);
+    const addModelButton = document.getElementById('add-model-btn' + idSuffix);
+    const dataTableSection = document.getElementById('data-table-section' + idSuffix);
+    const dataTableContainer = document.getElementById('data-table-container' + idSuffix);
+    const fileUploadArea = document.getElementById('file-upload-area' + idSuffix);
+
+    let files = [];
+    let tableData = [];
+    let fileDataMap = new Map();
+    let columns = ['S.NO', 'Plating Stk No', 'Polishing Stk No', 'Plating Colour', 'Category', 'Input Qty', 'Source'];
+
+    function disableUploadControls() {
+      fileUploadArea.style.pointerEvents = 'none';
+      fileUploadArea.style.opacity = '0.5';
+      fileUploadArea.style.cursor = 'not-allowed';
+
+      fileUploadInput.disabled = true;
+
+      addModelButton.disabled = true;
+      addModelButton.style.opacity = '0.5';
+      addModelButton.style.cursor = 'not-allowed';
+      addModelButton.style.pointerEvents = 'none';
+
+      const uploadText = fileUploadArea.querySelector('p');
+      if (uploadText) {
+        uploadText.innerHTML = 'Upload disabled';
+        uploadText.style.color = '#6C757D';
+      }
     }
 
+    function enableUploadControls() {
+      fileUploadArea.style.pointerEvents = 'auto';
+      fileUploadArea.style.opacity = '1';
+      fileUploadArea.style.cursor = 'pointer';
+
+      fileUploadInput.disabled = false;
+
+      addModelButton.disabled = false;
+      addModelButton.style.opacity = '1';
+      addModelButton.style.cursor = 'pointer';
+      addModelButton.style.pointerEvents = 'auto';
+
+      const uploadText = fileUploadArea.querySelector('p');
+      if (uploadText) {
+        uploadText.innerHTML = 'Drag and drop Excel files here or <span class="upload-link">Click to Select</span>';
+        uploadText.style.color = 'var(--clr-muted)';
+      }
+    }
 
     function createEmptyRow() {
       return {
@@ -1720,184 +1673,150 @@ function createSimpleDropdown(td, row, column, currentValue) {
       };
     }
 
-    // Replace the handleFileSelect function with this enhanced version:
+    function handleFileSelect(e) {
+      const selectedFiles = Array.from(e.target.files);
+      if (!selectedFiles.length) return;
 
-function handleFileSelect(e) {
-  const selectedFiles = Array.from(e.target.files);
-  if (!selectedFiles.length) return;
-  
-  // Only allow one file - take the first one
-  const file = selectedFiles[0];
-  
-  const validTypes = [
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
-  ];
-  if (!validTypes.includes(file.type) && !file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Invalid file format',
-      text: 'Please upload only Excel files (.xlsx, .xls)',
-      width: '500px'
-    });
-    return;
-  }
+      const file = selectedFiles[0];
 
-  // Clear any existing data
-  files = [];
-  tableData = [];
-  fileDataMap.clear();
-
-  // Add the new file
-  files.push(file);
-
-
-
-  // Prepare FormData for AJAX upload
-  const formData = new FormData();
-  formData.append('file', file);
-
-  fetch('/dayplanning/bulk_upload/preview/', {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': getCookie('csrftoken')
-    },
-    body: formData
-  })
-  .then(response => response.json())
-  .then(data => {
-    Swal.close(); // Close loading dialog
-    
-    if (data.success) {
-      // Store file data in map
-      fileDataMap.set(file.name, data.data);
-      
-      // Add new rows with proper S.NO
-      const newRows = data.data.map((row, idx) => ({
-        ...row,
-        'S.NO': String(idx + 1),
-        _fileSource: file.name // Track which file this row came from
-      }));
-      tableData = newRows;
-      dataTableSection.style.display = 'block';
-      renderTable();
-      renderFileList(); // Update file list display
-      
-      // Disable upload controls after successful upload
-      disableUploadControls();
-      
-      // Show success with warnings if any
-      if (data.warnings && data.warnings.length > 0) {
-        const warningText = data.warnings.slice(0, 5).join('<br>');
-        const moreWarnings = data.warnings.length > 5 ? `<br><br>... and ${data.warnings.length - 5} more warnings.` : '';
-        
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+      if (!validTypes.includes(file.type) && !file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
         Swal.fire({
-          icon: 'warning',
-          title: '⚠️ File Loaded with Warnings',
-          html: `
-            <div style="text-align: left;">
-              <p><strong>Excel data loaded successfully, but some rows have issues:</strong></p>
-              <div style="margin-top: 10px; font-size: 14px;">
-                ${warningText}${moreWarnings}
-              </div>
-              <p style="margin-top: 15px;"><strong>Please review and correct the data before submitting.</strong></p>
-            </div>
-          `,
-          width: '600px',
-          showConfirmButton: true
+          icon: 'error',
+          title: 'Invalid file format',
+          text: 'Please upload only Excel files (.xlsx, .xls)',
+          width: '500px'
         });
-      } else {
-        Swal.fire({
-          icon: 'success',
-          title: 'File Loaded Successfully!',
-          text: `${data.data.length} rows loaded for preview.`,
-          showConfirmButton: false,
-          timer: 2000
-        });
+        return;
       }
-    } else {
-      // Clear everything if processing failed
+
       files = [];
       tableData = [];
       fileDataMap.clear();
-      renderFileList();
-      
-      // Enhanced error display for column validation
-      const isColumnError = data.error.includes('Column Name Mismatch') || 
-                           data.error.includes('Missing') && data.error.includes('column');
-      
-      if (isColumnError) {
-        Swal.fire({
-          icon: 'error',
-          title: '❌ Excel Format Error',
-          html: `
-            <div style="text-align: left;">
-              <div style="margin-bottom: 15px;">
-                ${data.error.replace(/\n/g, '<br>')}
-              </div>
-              <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 15px;">
-                <strong>💡 How to fix:</strong><br>
-                1. Ensure your Excel file has exactly 7 columns<br>
-                2. Column names must match exactly (case-sensitive)<br>
-                3. No extra spaces in column names<br>
-                4. First row should be headers, data starts from row 2
-              </div>
-            </div>
-          `,
-          width: '650px',
-          showConfirmButton: true
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'File Processing Error',
-          text: data.error || 'Could not read Excel file.',
-          width: '500px'
-        });
-      }
-    }
-  })
-  .catch(error => {
-    Swal.close(); // Close loading dialog
-    console.error('Upload error:', error);
-    
-    // Clear everything if upload failed
-    files = [];
-    tableData = [];
-    fileDataMap.clear();
-    renderFileList();
-    
-    Swal.fire({
-      icon: 'error',
-      title: 'Upload Failed',
-      text: 'Could not upload file. Please check your connection and try again.',
-      width: '500px'
-    });
-  });
 
-  // Clear the file input so same file can be re-uploaded.
-  e.target.value = '';
-}
+      files.push(file);
 
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('/dayplanning/bulk_upload/preview/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        Swal.close();
+
+        if (data.success) {
+          fileDataMap.set(file.name, data.data);
+
+          const newRows = data.data.map((row, idx) => ({
+            ...row,
+            'S.NO': String(idx + 1),
+            _fileSource: file.name
+          }));
+          tableData = newRows;
+          dataTableSection.style.display = 'block';
+          renderTable();
+          renderFileList();
+
+          disableUploadControls();
+
+          if (data.warnings && data.warnings.length > 0) {
+            const warningText = data.warnings.slice(0, 5).join('<br>');
+            const moreWarnings = data.warnings.length > 5 ? `<br><br>... and ${data.warnings.length - 5} more warnings.` : '';
+
+            Swal.fire({
+              icon: 'warning',
+              title: '⚠️ File Loaded with Warnings',
+              html: `
+                <div style="text-align: left;">
+                  <p><strong>Excel data loaded successfully, but some rows have issues:</strong></p>
+                  <div style="margin-top: 10px; font-size: 14px;">
+                    ${warningText}${moreWarnings}
+                  </div>
+                  <p style="margin-top: 15px;"><strong>Please review and correct the data before submitting.</strong></p>
+                </div>
+              `,
+              width: '600px',
+              showConfirmButton: true
+            });
+          } else {
+            Swal.fire({
+              icon: 'success',
+              title: 'File Loaded Successfully!',
+              text: `${data.data.length} rows loaded for preview.`,
+              showConfirmButton: false,
+              timer: 2000
+            });
+          }
+        } else {
+          files = [];
+          tableData = [];
+          fileDataMap.clear();
+          renderFileList();
+
+          const isColumnError = data.error.includes('Column Name Mismatch') ||
+                               data.error.includes('Missing') && data.error.includes('column');
+
+          if (isColumnError) {
+            Swal.fire({
+              icon: 'error',
+              title: '❌ Excel Format Error',
+              html: `
+                <div style="text-align: left;">
+                  <div style="margin-bottom: 15px;">
+                    ${data.error.replace(/\n/g, '<br>')}
+                  </div>
+                  <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                    <strong>💡 How to fix:</strong><br>
+                    1. Ensure your Excel file has exactly 7 columns<br>
+                    2. Column names must match exactly (case-sensitive)<br>
+                    3. No extra spaces in column names<br>
+                    4. First row should be headers, data starts from row 2
+                  </div>
+                </div>
+              `,
+              width: '650px',
+              showConfirmButton: true
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'File Processing Error',
+              text: data.error || 'Could not read Excel file.',
+              width: '500px'
+            });
           }
         }
-      }
-      return cookieValue;
+      })
+      .catch(error => {
+        Swal.close();
+        console.error('Upload error:', error);
+
+        files = [];
+        tableData = [];
+        fileDataMap.clear();
+        renderFileList();
+
+        Swal.fire({
+          icon: 'error',
+          title: 'Upload Failed',
+          text: 'Could not upload file. Please check your connection and try again.',
+          width: '500px'
+        });
+      });
+
+      e.target.value = '';
     }
 
-    // ========== BUG FIX: MODIFIED handleAddModel FUNCTION ==========
     function handleAddModel() {
-      // Check if upload controls are disabled
-      const addModelButton = document.getElementById('add-model-btn');
       if (addModelButton.disabled) {
         Swal.fire({
           icon: 'warning',
@@ -1907,20 +1826,18 @@ function handleFileSelect(e) {
         });
         return;
       }
-      
+
       tableData = [createEmptyRow()];
       dataTableSection.style.display = 'block';
       renderTable();
-      
-      // DISABLE UPLOAD CONTROLS AFTER ADDING MODEL
+
       disableUploadControls();
     }
 
     function renderFileList() {
-      // Update file chips in header
-      const chipsContainer = document.getElementById('dp-files-chips-container');
+      const chipsContainer = document.getElementById('dp-files-chips-container' + idSuffix);
       chipsContainer.innerHTML = '';
-      
+
       if (files.length) {
         files.forEach((file, index) => {
           const chip = document.createElement('div');
@@ -1930,7 +1847,7 @@ function handleFileSelect(e) {
             <button data-index="${index}" aria-label="Remove file" style="background: none; border: none; color: var(--clr-danger); cursor: pointer; padding: 0; font-size: 1.1rem; line-height: 1; transition: all 0.2s ease;">×</button>
           `;
           chipsContainer.appendChild(chip);
-          
+
           chip.querySelector('button').addEventListener('click', (e) => {
             e.stopPropagation();
             Swal.fire({
@@ -1957,330 +1874,292 @@ function handleFileSelect(e) {
       }
     }
 
-    // ========== BUG FIX: MODIFIED handleRemoveFile FUNCTION ==========
     function handleRemoveFile(index) {
-      // Clear all data since we only allow one file
       files = [];
       tableData = [];
       fileDataMap.clear();
-      
-      // Update displays
+
       renderFileList();
-      renderTable();  // This will show/hide empty state and table automatically
-      
-      // ENABLE UPLOAD CONTROLS WHEN FILE IS REMOVED
+      renderTable();
+
       enableUploadControls();
     }
 
-// Replace the renderTable function with this version that removes sorting:
+    function renderTable() {
+      const emptyStateSection = document.getElementById('empty-state-section' + idSuffix);
 
-function renderTable() {
-  const emptyStateSection = document.getElementById('empty-state-section');
-  
-  if (!tableData.length) {
-    // Show empty state, hide table
-    emptyStateSection.classList.add('show');
-    dataTableSection.style.display = 'none';
-    updateTopRecordCount();
-    return;
-  }
+      if (!tableData.length) {
+        emptyStateSection.classList.add('show');
+        dataTableSection.style.display = 'none';
+        updateTopRecordCount();
+        return;
+      }
 
-  // Data exists: hide empty state, show table
-  emptyStateSection.classList.remove('show');
-  dataTableSection.style.display = 'block';
+      emptyStateSection.classList.remove('show');
+      dataTableSection.style.display = 'block';
 
-  // Remove sorting logic - use original tableData order
-  const sortedData = [...tableData]; // No sorting, just use original order
+      const sortedData = [...tableData];
 
-  const table = document.createElement('table');
-  table.className = 'data-table';
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  
-  columns.forEach(column => {
-    const th = document.createElement('th');
-    // Remove sorting functionality - just show column name
-    th.textContent = column;
-    // Remove click event listener for sorting
-    // th.addEventListener('click', () => handleSort(column)); // REMOVED
-    headerRow.appendChild(th);
-  });
-  
-  const actionsTh = document.createElement('th');
-  actionsTh.className = 'actions';
-  actionsTh.textContent = 'Actions';
-  headerRow.appendChild(actionsTh);
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-  
-  const tbody = document.createElement('tbody');
-  sortedData.forEach((row, rowIndex) => {
-    const tr = document.createElement('tr');
-    tr.classList.add('table-row-animation');
-    columns.forEach(column => {
-      const td = document.createElement('td');
-      if (column === 'S.NO') {
-        td.textContent = row[column];
-      } else {
-        td.className = 'editable-cell';
-        td.textContent = row[column];
-        
-        // Check if this field is auto-filled and should be read-only
-        const isAutoFilled = row._autoFilled && row._autoFilled.includes(column);
-        const isReadOnlyField = (column === 'Polishing Stk No' || column === 'Plating Colour') && isAutoFilled;
-        
-        // Add visual indicator for auto-filled fields
-        if (isReadOnlyField) {
-          td.style.backgroundColor = '#e8f5e8';
-          td.style.borderLeft = '3px solid #28a745';
-          td.style.cursor = 'not-allowed';
-          td.style.opacity = '0.8';
-          td.title = 'Auto-filled (read-only) - based on Plating Stk No';
-        }
-        
-        td.addEventListener('click', () => {
-          // Prevent editing if it's a read-only auto-filled field
-          if (isReadOnlyField) {
-            Swal.fire({
-              icon: 'info',
-              title: 'Read-Only Field',
-              html: `<strong>${column}</strong> is auto-filled from <strong>Plating Stk No</strong> and cannot be edited directly.<br><br>To change this value, modify the <strong>Plating Stk No</strong> field.`,
-              confirmButtonText: 'OK',
-              confirmButtonColor: '#126a83'
-            });
-            return;
-          }
-          
-          const currentValue = row[column] || '';
-          
-          // Special handling for dropdown fields
-          if (column === 'Category' || column === 'Source') {
-            createSimpleDropdown(td, row, column, currentValue);
-            return;
-          }
-          
-          const input = document.createElement('input');
-          input.className = 'cell-input';
-          input.value = currentValue;
+      const table = document.createElement('table');
+      table.className = 'data-table';
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
 
-          // Auto uppercase for text fields (not numeric)
-          if (column !== 'Input Qty') {
-            input.addEventListener('input', function() {
-              const start = this.selectionStart;
-              const end = this.selectionEnd;
-              this.value = this.value.toUpperCase();
-              this.setSelectionRange(start, end);
-            });
-          }
+      columns.forEach(column => {
+        const th = document.createElement('th');
+        th.textContent = column;
+        headerRow.appendChild(th);
+      });
 
-          // Only accept numeric input for Input Qty field
-          if (column === 'Input Qty') {
-            input.type = 'number';
-            input.min = '0';
-            input.step = '1';
-            input.addEventListener('keypress', function(e) {
-              // Allow only numbers
-              if (!/[\d]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
-                e.preventDefault();
-              }
-            });
-            input.addEventListener('paste', function(e) {
-              // Prevent pasting non-numeric content
-              const pasteData = e.clipboardData.getData('text');
-              if (!/^\d+$/.test(pasteData)) {
-                e.preventDefault();
-              }
-            });
-          } 
-          
-          td.textContent = '';
-          td.appendChild(input);
-          input.focus();
+      const actionsTh = document.createElement('th');
+      actionsTh.className = 'actions';
+      actionsTh.textContent = 'Actions';
+      headerRow.appendChild(actionsTh);
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
 
-          // FIX: Prevent cell click from interfering with input
-          input.addEventListener('click', function(e) {
-            e.stopPropagation();
-          });
-          
-          // Auto-fetch functionality for Plating Stk No
-          if (column === 'Plating Stk No') {
-            // Remove automatic validation on input - only validate on Enter or blur
-            input.addEventListener('blur', async () => {
-              const platingStockNo = input.value.trim();
-              if (platingStockNo) {
-                try {
-                  const validation = await validatePlatingStockNo(platingStockNo);
-                  if (!validation.isValid) {
-                    // Show validation error
-                    showAutoFetchMessage(validation.message, 'error');
-                    input.style.borderColor = '#dc3545';
-                    input.style.backgroundColor = '#fff8f8';
-                    input.setAttribute('data-valid', 'false');
-                  } else {
-                    // Clear validation error
-                    input.style.borderColor = '#28a745';
-                    input.style.backgroundColor = '#f8fff8';
-                    input.setAttribute('data-valid', 'true');
-                    await autoFetchRelatedFields(row, platingStockNo);
-                  }
-                } catch (error) {
-                  console.error('❌ Validation error on blur:', error);
-                  input.style.borderColor = '#ffc107';
-                  input.style.backgroundColor = '#fff8f0';
-                }
-              }
-              handleBlur();
-            });
-          }
-          
-          const handleBlur = () => {
-            let newValue = input.value.trim();
+      const tbody = document.createElement('tbody');
+      sortedData.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        tr.classList.add('table-row-animation');
+        columns.forEach(column => {
+          const td = document.createElement('td');
+          if (column === 'S.NO') {
+            td.textContent = row[column];
+          } else {
+            td.className = 'editable-cell';
+            td.textContent = row[column];
 
-            // Ensure uppercase for text fields on save
-            if (column !== 'Input Qty') {
-              newValue = newValue.toUpperCase();
+            const isAutoFilled = row._autoFilled && row._autoFilled.includes(column);
+            const isReadOnlyField = (column === 'Polishing Stk No' || column === 'Plating Colour') && isAutoFilled;
+
+            if (isReadOnlyField) {
+              td.style.backgroundColor = '#e8f5e8';
+              td.style.borderLeft = '3px solid #28a745';
+              td.style.cursor = 'not-allowed';
+              td.style.opacity = '0.8';
+              td.title = 'Auto-filled (read-only) - based on Plating Stk No';
             }
 
-            // Validate Input Qty is numeric
-            if (column === 'Input Qty' && newValue !== '') {
-              if (!/^\d+$/.test(newValue) || parseInt(newValue) < 0) {
+            td.addEventListener('click', () => {
+              if (isReadOnlyField) {
                 Swal.fire({
-                  icon: 'error',
-                  title: 'Invalid Input',
-                  text: 'Input Qty must be a positive numeric value only.',
-                  showConfirmButton: true
+                  icon: 'info',
+                  title: 'Read-Only Field',
+                  html: `<strong>${column}</strong> is auto-filled from <strong>Plating Stk No</strong> and cannot be edited directly.<br><br>To change this value, modify the <strong>Plating Stk No</strong> field.`,
+                  confirmButtonText: 'OK',
+                  confirmButtonColor: '#126a83'
                 });
-                td.textContent = currentValue;
-                input.removeEventListener('blur', handleBlur);
-                input.removeEventListener('keydown', handleKeydown);
                 return;
               }
-            }
-            
-            row[column] = newValue;
-            td.textContent = newValue;
-            input.removeEventListener('blur', handleBlur);
-            input.removeEventListener('keydown', handleKeydown);
-          };
-          const handleKeydown = async (e) => {
-            if (e.key === 'Enter') {
+
+              const currentValue = row[column] || '';
+
+              if (column === 'Category' || column === 'Source') {
+                createSimpleDropdown(td, row, column, currentValue);
+                return;
+              }
+
+              const input = document.createElement('input');
+              input.className = 'cell-input';
+              input.value = currentValue;
+
+              if (column !== 'Input Qty') {
+                input.addEventListener('input', function() {
+                  const start = this.selectionStart;
+                  const end = this.selectionEnd;
+                  this.value = this.value.toUpperCase();
+                  this.setSelectionRange(start, end);
+                });
+              }
+
+              if (column === 'Input Qty') {
+                input.type = 'number';
+                input.min = '0';
+                input.step = '1';
+                input.addEventListener('keypress', function(e) {
+                  if (!/[\d]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                });
+                input.addEventListener('paste', function(e) {
+                  const pasteData = e.clipboardData.getData('text');
+                  if (!/^\d+$/.test(pasteData)) {
+                    e.preventDefault();
+                  }
+                });
+              }
+
+              td.textContent = '';
+              td.appendChild(input);
+              input.focus();
+
+              input.addEventListener('click', function(e) {
+                e.stopPropagation();
+              });
+
               if (column === 'Plating Stk No') {
-                const platingStockNo = input.value.trim();
-                if (platingStockNo) {
-                  try {
-                    // Validate first before auto-fetching
-                    const validation = await validatePlatingStockNo(platingStockNo);
-                    if (!validation.isValid) {
-                      // Show validation error
-                      showAutoFetchMessage(validation.message, 'error');
-                      input.style.borderColor = '#dc3545';
-                      input.style.backgroundColor = '#fff8f8';
-                      input.setAttribute('data-valid', 'false');
-                      return; // Don't proceed with handleBlur if invalid
-                    } else {
-                      // Clear validation error
-                      input.style.borderColor = '#28a745';
-                      input.style.backgroundColor = '#f8fff8';
-                      input.setAttribute('data-valid', 'true');
-                      await autoFetchRelatedFields(row, platingStockNo);
+                input.addEventListener('blur', async () => {
+                  const platingStockNo = input.value.trim();
+                  if (platingStockNo) {
+                    try {
+                      const validation = await validatePlatingStockNo(platingStockNo);
+                      if (!validation.isValid) {
+                        showAutoFetchMessage(validation.message, 'error');
+                        input.style.borderColor = '#dc3545';
+                        input.style.backgroundColor = '#fff8f8';
+                        input.setAttribute('data-valid', 'false');
+                      } else {
+                        input.style.borderColor = '#28a745';
+                        input.style.backgroundColor = '#f8fff8';
+                        input.setAttribute('data-valid', 'true');
+                        await autoFetchRelatedFields(row, platingStockNo, renderTable);
+                      }
+                    } catch (error) {
+                      console.error('❌ Validation error on blur:', error);
+                      input.style.borderColor = '#ffc107';
+                      input.style.backgroundColor = '#fff8f0';
                     }
-                  } catch (error) {
-                    console.error('❌ Auto-fetch error on Enter:', error);
-                    input.style.borderColor = '#ffc107';
-                    input.style.backgroundColor = '#fff8f0';
+                  }
+                  handleBlur();
+                });
+              }
+
+              const handleBlur = () => {
+                let newValue = input.value.trim();
+
+                if (column !== 'Input Qty') {
+                  newValue = newValue.toUpperCase();
+                }
+
+                if (column === 'Input Qty' && newValue !== '') {
+                  if (!/^\d+$/.test(newValue) || parseInt(newValue) < 0) {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Invalid Input',
+                      text: 'Input Qty must be a positive numeric value only.',
+                      showConfirmButton: true
+                    });
+                    td.textContent = currentValue;
+                    input.removeEventListener('blur', handleBlur);
+                    input.removeEventListener('keydown', handleKeydown);
                     return;
                   }
                 }
-              }
-              handleBlur();
-            } else if (e.key === 'Escape') {
-              td.textContent = currentValue;
-            }
-          };
-          input.addEventListener('blur', handleBlur);
-          input.addEventListener('keydown', handleKeydown);
+
+                row[column] = newValue;
+                td.textContent = newValue;
+                input.removeEventListener('blur', handleBlur);
+                input.removeEventListener('keydown', handleKeydown);
+              };
+              const handleKeydown = async (e) => {
+                if (e.key === 'Enter') {
+                  if (column === 'Plating Stk No') {
+                    const platingStockNo = input.value.trim();
+                    if (platingStockNo) {
+                      try {
+                        const validation = await validatePlatingStockNo(platingStockNo);
+                        if (!validation.isValid) {
+                          showAutoFetchMessage(validation.message, 'error');
+                          input.style.borderColor = '#dc3545';
+                          input.style.backgroundColor = '#fff8f8';
+                          input.setAttribute('data-valid', 'false');
+                          return;
+                        } else {
+                          input.style.borderColor = '#28a745';
+                          input.style.backgroundColor = '#f8fff8';
+                          input.setAttribute('data-valid', 'true');
+                          await autoFetchRelatedFields(row, platingStockNo, renderTable);
+                        }
+                      } catch (error) {
+                        console.error('❌ Auto-fetch error on Enter:', error);
+                        input.style.borderColor = '#ffc107';
+                        input.style.backgroundColor = '#fff8f0';
+                        return;
+                      }
+                    }
+                  }
+                  handleBlur();
+                } else if (e.key === 'Escape') {
+                  td.textContent = currentValue;
+                }
+              };
+              input.addEventListener('blur', handleBlur);
+              input.addEventListener('keydown', handleKeydown);
+            });
+          }
+          tr.appendChild(td);
         });
-      }
-      tr.appendChild(td);
-    });
-    
-    const actionsTd = document.createElement('td');
-    actionsTd.className = 'actions';
-    const deleteButton = document.createElement('button');
-    deleteButton.className = 'btn-delete';
-    deleteButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-         viewBox="0 0 24 24" fill="none" stroke="var(--clr-muted)" stroke-width="2"
-         stroke-linecap="round" stroke-linejoin="round" class="icon btn-delete-icon">
-        <polyline points="3 6 5 6 21 6"></polyline>
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        <line x1="10" y1="11" x2="10" y2="17"></line>
-        <line x1="14" y1="11" x2="14" y2="17"></line>
-      </svg>
-    `;
 
-    // Confirmation for deleting a row
-    deleteButton.addEventListener('click', () => {
-      Swal.fire({
-        title: 'Are you sure?',
-        text: "Do you really want to delete this row?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-      }).then((result) => {
-        if (result.isConfirmed) {
-            const originalIndex = tableData.findIndex(r => r['S.NO'] === row['S.NO']);
-            if (originalIndex !== -1) {
-            handleDeleteRow(originalIndex);
+        const actionsTd = document.createElement('td');
+        actionsTd.className = 'actions';
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'btn-delete';
+        deleteButton.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+             viewBox="0 0 24 24" fill="none" stroke="var(--clr-muted)" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" class="icon btn-delete-icon">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        `;
+
+        deleteButton.addEventListener('click', () => {
+          Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you really want to delete this row?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+          }).then((result) => {
+            if (result.isConfirmed) {
+                const originalIndex = tableData.findIndex(r => r['S.NO'] === row['S.NO']);
+                if (originalIndex !== -1) {
+                handleDeleteRow(originalIndex);
+                }
             }
-        }
+          });
+        });
+        actionsTd.appendChild(deleteButton);
+        tr.appendChild(actionsTd);
+        tbody.appendChild(tr);
       });
-    });
-    actionsTd.appendChild(deleteButton);
-    tr.appendChild(actionsTd);
-    tbody.appendChild(tr);
-  });
-  
-  // Add extra row for new row addition (Excel-like row)
-  const addRowTR = document.createElement('tr');
-  const addRowTD = document.createElement('td');
-  addRowTD.colSpan = columns.length + 1;
-    addRowTD.style.textAlign = 'left';
-  addRowTD.style.paddingLeft = '2rem'; // Optional: add some left padding for spacing
-  addRowTD.style.cursor = 'pointer';
-  addRowTD.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none"
-     stroke="var(--clr-primary)" stroke-width="2" stroke-linecap="round"
-     stroke-linejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-  `;
-  addRowTD.addEventListener('click', () => {
-    tableData.push(createEmptyRow());
-    renderTable();
-  });
-  addRowTR.appendChild(addRowTD);
-  tbody.appendChild(addRowTR);
-  table.appendChild(tbody);
-  dataTableContainer.innerHTML = '';
-  dataTableContainer.appendChild(table);
 
-  // Get the existing table-actions div in the table-header
-  const tableActionsContainer = document.querySelector('#data-table-section .table-actions');
-  
-  // Clear any existing content
-  tableActionsContainer.innerHTML = '';
-  
-  const submitButton = document.createElement('button');
-  submitButton.className = 'btn btn-outline';
-  submitButton.textContent = 'Submit';
-  
-  // Submit button event listener (keep existing functionality)
-        // Submit button event listener
+      const addRowTR = document.createElement('tr');
+      const addRowTD = document.createElement('td');
+      addRowTD.colSpan = columns.length + 1;
+      addRowTD.style.textAlign = 'left';
+      addRowTD.style.paddingLeft = '2rem';
+      addRowTD.style.cursor = 'pointer';
+      addRowTD.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none"
+         stroke="var(--clr-primary)" stroke-width="2" stroke-linecap="round"
+         stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      `;
+      addRowTD.addEventListener('click', () => {
+        tableData.push(createEmptyRow());
+        renderTable();
+      });
+      addRowTR.appendChild(addRowTD);
+      tbody.appendChild(addRowTR);
+      table.appendChild(tbody);
+      dataTableContainer.innerHTML = '';
+      dataTableContainer.appendChild(table);
+
+      const tableActionsContainer = document.querySelector('#data-table-section' + idSuffix + ' .table-actions');
+      tableActionsContainer.innerHTML = '';
+
+      const submitButton = document.createElement('button');
+      submitButton.className = 'btn btn-outline';
+      submitButton.textContent = 'Submit';
+
       submitButton.addEventListener('click', () => {
-        // Validate that we have data to submit
         if (!tableData || tableData.length === 0) {
           Swal.fire({
             icon: 'warning',
@@ -2290,10 +2169,9 @@ function renderTable() {
           return;
         }
 
-        // Filter out empty rows (rows where all fields except S.NO are empty)
         const validRows = tableData.filter(row => {
           const hasData = Object.keys(row).some(key => {
-            if (key === 'S.NO' || key === '_fileSource') return false; // Skip S.NO and internal fields for validation
+            if (key === 'S.NO' || key === '_fileSource') return false;
             return row[key] && row[key].toString().trim() !== '';
           });
           return hasData;
@@ -2308,10 +2186,6 @@ function renderTable() {
           return;
         }
 
-        // Server-side validation handles all row checks and returns detailed errors.
-        // No sequential per-row HTTP calls needed here.
-
-        // Clean rows by removing internal fields
         const cleanRows = validRows.map(row => {
           const cleanRow = { ...row };
           delete cleanRow._fileSource;
@@ -2319,14 +2193,13 @@ function renderTable() {
           return cleanRow;
         });
 
-        // Send data to the bulk upload endpoint
         fetch('/dayplanning/bulk_upload/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
           },
-          body: JSON.stringify({ rows: cleanRows })
+          body: JSON.stringify({ rows: cleanRows, upload_type: uploadType })
         })
         .then(async response => {
           const contentType = response.headers.get('content-type');
@@ -2349,7 +2222,6 @@ function renderTable() {
             let alertTitle = 'Success!';
 
             if (data.failed_rows && data.failed_rows.length > 0) {
-              // Partial success - some rows failed
               alertType = 'warning';
               alertTitle = '⚠️ Partial Success';
               const failedRowsText = data.failed_rows.slice(0, 10).join('<br>');
@@ -2364,7 +2236,6 @@ function renderTable() {
                 </div>
               `;
 
-              // Extract failed row numbers from error messages
               const failedRowNumbers = new Set();
               data.failed_rows.forEach(errorMsg => {
                 const match = errorMsg.match(/Row (\d+):/);
@@ -2373,19 +2244,17 @@ function renderTable() {
                 }
               });
 
-              // Remove successful rows, keep only failed rows
               if (failedRowNumbers.size > 0) {
-                // Create a mapping of original row indices to current tableData indices
                 const originalToCurrentMapping = new Map();
                 validRows.forEach((row, validIndex) => {
-                  const originalRowIndex = validIndex + 1; // Row numbers start from 1
-                  const currentIndex = tableData.findIndex(tableRow => 
-                    tableRow['S.NO'] === row['S.NO'] || 
-                    (tableRow['Plating Stk No'] === row['Plating Stk No'] && 
-                     tableRow['Polishing Stk No'] === row['Polishing Stk No'] && 
-                     tableRow['Plating Colour'] === row['Plating Colour'] && 
-                     tableRow['Category'] === row['Category'] && 
-                     tableRow['Input Qty'] === row['Input Qty'] && 
+                  const originalRowIndex = validIndex + 1;
+                  const currentIndex = tableData.findIndex(tableRow =>
+                    tableRow['S.NO'] === row['S.NO'] ||
+                    (tableRow['Plating Stk No'] === row['Plating Stk No'] &&
+                     tableRow['Polishing Stk No'] === row['Polishing Stk No'] &&
+                     tableRow['Plating Colour'] === row['Plating Colour'] &&
+                     tableRow['Category'] === row['Category'] &&
+                     tableRow['Input Qty'] === row['Input Qty'] &&
                      tableRow['Source'] === row['Source'])
                   );
                   if (currentIndex !== -1) {
@@ -2393,9 +2262,7 @@ function renderTable() {
                   }
                 });
 
-                // Filter tableData to keep only failed rows
                 const failedRows = tableData.filter((row, index) => {
-                  // Check if this row corresponds to any failed row
                   for (let [originalIndex, currentIndex] of originalToCurrentMapping.entries()) {
                     if (currentIndex === index && failedRowNumbers.has(originalIndex)) {
                       return true;
@@ -2404,24 +2271,20 @@ function renderTable() {
                   return false;
                 });
 
-                // Re-index the failed rows
                 tableData = failedRows.map((row, index) => ({
                   ...row,
                   'S.NO': String(index + 1)
                 }));
 
-                // Re-render the table with only failed rows
                 renderTable();
               }
             } else {
-              // ========== BUG FIX: Complete success - clear all data and ENABLE UPLOAD CONTROLS ==========
               tableData = [];
               files = [];
               fileDataMap.clear();
-              renderTable();  // This will show/hide empty state and table automatically
+              renderTable();
               renderFileList();
-              
-              // ENABLE UPLOAD CONTROLS AFTER SUCCESSFUL SUBMISSION
+
               enableUploadControls();
             }
 
@@ -2433,7 +2296,6 @@ function renderTable() {
               showConfirmButton: true
             });
           } else {
-            // Handle error response
             let errorHtml = '';
             if (data.failed_rows && data.failed_rows.length > 0) {
               errorHtml = '<div style="text-align:left;">' +
@@ -2459,104 +2321,67 @@ function renderTable() {
           });
         });
       });
-      
-  // Complete Cancel button setup in your renderTable function:
 
-const cancelButton = document.createElement('button');
-cancelButton.className = 'btn btn-outline';
-cancelButton.textContent = 'Cancel';
-// Apply red styling for the Cancel button
-cancelButton.style.borderColor = 'red';
-cancelButton.style.color = 'red';
+      const cancelButton = document.createElement('button');
+      cancelButton.className = 'btn btn-outline';
+      cancelButton.textContent = 'Cancel';
+      cancelButton.style.borderColor = 'red';
+      cancelButton.style.color = 'red';
 
-// Enhanced Cancel button event listener with confirmation
-cancelButton.addEventListener('click', () => {
-  // Show confirmation dialog before clearing data
-  Swal.fire({
-    title: 'Are you sure?',
-    html: `
-      <div style="text-align: center;">
-        <p>Do you really want to cancel?</p>
-        <p style="color: #d33; font-weight: bold;">⚠️ All unsaved data will be lost and the table will be cleared.</p>
-      </div>
-    `,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Yes, cancel it!',
-    cancelButtonText: 'No, keep editing',
-    reverseButtons: true, // This puts "No, keep editing" on the right side
-    width: '500px'
-  }).then((result) => {
-    if (result.isConfirmed) {
-      // User confirmed - proceed with clearing data
-      tableData = [];
-      files = [];
-      fileDataMap.clear();
-      renderTable();  // This will show/hide empty state and table automatically
-      renderFileList();
-      
-      // ENABLE UPLOAD CONTROLS WHEN CANCELLED
-      enableUploadControls();
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Cancelled Successfully!',
-        text: 'The table has been cancelled and all data cleared.',
-        showConfirmButton: false,
-        timer: 2000
+      cancelButton.addEventListener('click', () => {
+        Swal.fire({
+          title: 'Are you sure?',
+          html: `
+            <div style="text-align: center;">
+              <p>Do you really want to cancel?</p>
+              <p style="color: #d33; font-weight: bold;">⚠️ All unsaved data will be lost and the table will be cleared.</p>
+            </div>
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Yes, cancel it!',
+          cancelButtonText: 'No, keep editing',
+          reverseButtons: true,
+          width: '500px'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            tableData = [];
+            files = [];
+            fileDataMap.clear();
+            renderTable();
+            renderFileList();
+
+            enableUploadControls();
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Cancelled Successfully!',
+              text: 'The table has been cancelled and all data cleared.',
+              showConfirmButton: false,
+              timer: 2000
+            });
+          }
+        });
       });
-    }
-    // If user clicks "No, keep editing" or cancels, do nothing - just stay on the page
-  });
-});
-  
-  tableActionsContainer.appendChild(submitButton);
-  tableActionsContainer.appendChild(cancelButton);
-  updateTopRecordCount();
-}
 
-// Also remove the handleSort function since it's no longer needed:
-// function handleSort(column) { ... } // DELETE THIS FUNCTION
-
-// And remove these sorting-related variables from the top:
-// let sortColumn = null;     // DELETE THIS LINE
-// let sortDirection = 'asc'; // DELETE THIS LINE
-    function formatFileSize(bytes) {
-      if (!bytes) return '0 Bytes';
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(1024));
-      return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+      tableActionsContainer.appendChild(submitButton);
+      tableActionsContainer.appendChild(cancelButton);
+      updateTopRecordCount();
     }
 
-    function generateMockData() {
-      return Array.from({ length: 10 }, (_, i) => ({
-        'S.NO': String(i + 1),
-        'Plating Stk No': `PS${i + 1}`,
-        'Polishing Stk No': `PO${i + 1}`,
-        'Plating Colour': ['Silver', 'Gold', 'Black'][i % 3],
-        'Category': ['Category A', 'Category B', 'Category C'][i % 3],
-        'Input Qty': 10 + i,
-        'Source': `Source_${i + 1}`
-      }));
-    }
-
-    // ========== BUG FIX: MODIFIED handleDeleteRow FUNCTION ==========
     function handleDeleteRow(index) {
       tableData.splice(index, 1);
-      
-      // Check if table is now empty
+
       if (tableData.length === 0) {
-        // Clear all data and files when table becomes empty
         files = [];
         fileDataMap.clear();
         renderFileList();
-        renderTable();  // This will show/hide empty state and table automatically
-        
-        // ENABLE UPLOAD CONTROLS WHEN TABLE IS EMPTY
+        renderTable();
+
         enableUploadControls();
-        
+
         Swal.fire({
           icon: 'success',
           title: 'All data cleared',
@@ -2565,13 +2390,12 @@ cancelButton.addEventListener('click', () => {
           timer: 2000
         });
       } else {
-        // Re-index remaining rows
         tableData = tableData.map((row, idx) => ({
           ...row,
           'S.NO': String(idx + 1)
         }));
         renderTable();
-        
+
         Swal.fire({
           icon: 'success',
           title: 'Row deleted',
@@ -2582,66 +2406,22 @@ cancelButton.addEventListener('click', () => {
       }
     }
 
-    function showToast(title, message, type = 'default') {
-      const toastContainer = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.innerHTML = `
-        <div class="toast-content">
-          <div class="toast-title">${title}</div>
-          <div class="toast-description">${message}</div>
-        </div>
-        <button class="toast-close">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="var(--clr-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      `;
-      toastContainer.appendChild(toast);
-      toast.querySelector('.toast-close').addEventListener('click', () => {
-        toast.style.animation = 'fadeOut 0.3s forwards';
-        setTimeout(() => toastContainer.removeChild(toast), 300);
-      });
-      setTimeout(() => {
-        if (toast.parentNode) {
-          toast.style.animation = 'fadeOut 0.3s forwards';
-          setTimeout(() => { if (toast.parentNode) toastContainer.removeChild(toast); }, 300);
-        }
-      }, 5000);
-    }
-    
-    // Visual success card specifically for downloads (in case toast is missed)
-    function showDownloadSuccessVisual(message = 'Template downloaded successfully to your local') {
-      const id = 'downloadSuccessCard';
-      let card = document.getElementById(id);
-      if (card) {
-        card.parentNode.removeChild(card);
-      }
-      card = document.createElement('div');
-      card.id = id;
-      card.style.cssText = `position:fixed; right:20px; bottom:22px; z-index:230000; background:#e6fffa; border-left:6px solid #10b981; color:#064e3b; padding:12px 16px; border-radius:10px; box-shadow:0 8px 28px rgba(4,22,22,0.12); font-weight:700; display:flex; align-items:center; gap:10px;`;
-      card.innerHTML = `
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="#065f46" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div style="font-size:0.95rem">${message}</div>
-      `;
-      document.body.appendChild(card);
-      setTimeout(()=>{ if (card && card.parentNode) card.style.opacity='0'; setTimeout(()=>{ if (card && card.parentNode) card.parentNode.removeChild(card); },300); }, 3600);
-    }
     function updateTopRecordCount() {
-  const countSpan = document.getElementById('top-record-count');
-  if (!countSpan) return;
-  const validRowCount = tableData.filter(row => {
-    const hasData = Object.keys(row).some(key => {
-      if (key === 'S.NO' || key === '_fileSource' || key === '_autoFilled') return false;
-      return row[key] && row[key].toString().trim() !== '';
-    });
-    return hasData;
-  }).length;
-  countSpan.textContent = validRowCount;
-}
+      const countSpan = document.getElementById('top-record-count' + idSuffix);
+      if (!countSpan) return;
+      const validRowCount = tableData.filter(row => {
+        const hasData = Object.keys(row).some(key => {
+          if (key === 'S.NO' || key === '_fileSource' || key === '_autoFilled') return false;
+          return row[key] && row[key].toString().trim() !== '';
+        });
+        return hasData;
+      }).length;
+      countSpan.textContent = validRowCount;
+    }
 
-    // Drag & Drop events
+    addModelButton.addEventListener('click', handleAddModel);
+    fileUploadInput.addEventListener('change', handleFileSelect);
+
     fileUploadArea.addEventListener('click', () => fileUploadInput.click());
     fileUploadArea.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -2661,6 +2441,14 @@ cancelButton.addEventListener('click', () => {
     });
 
     updateTopRecordCount();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchAllowedVersions();
+    attachDownloadTemplateHandler('download-template-btn');
+    attachDownloadTemplateHandler('download-template-btn-recovery');
+    initUploadController('day_planning', '');
+    initUploadController('recovery', '-recovery');
   });
 </script>
 

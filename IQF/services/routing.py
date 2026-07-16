@@ -48,6 +48,7 @@ def get_stock_flag_updates(submission_type, accepted_qty, rejected_qty):
             'iqf_accepted_qty': accepted_qty,
             'next_process_module': 'Brass QC',
             'last_process_module': 'IQF',
+            'current_stage': 'IQF',  # Real stage reached; Brass QC updates this only when it actually starts the lot
             'send_brass_audit_to_iqf': False,
         }
     elif submission_type == "FULL_REJECT":
@@ -59,6 +60,7 @@ def get_stock_flag_updates(submission_type, accepted_qty, rejected_qty):
             'iqf_accepted_qty': 0,
             'next_process_module': None,  # Stay in IQF reject table
             'last_process_module': 'IQF',
+            'current_stage': 'IQF',
             'send_brass_audit_to_iqf': False,
         }
     elif submission_type == "PARTIAL":
@@ -71,6 +73,7 @@ def get_stock_flag_updates(submission_type, accepted_qty, rejected_qty):
             'iqf_after_rejection_qty': rejected_qty,
             'next_process_module': None,  # Parent closed
             'last_process_module': 'IQF',
+            'current_stage': 'IQF',
             'is_split': True,
             'remove_lot': True,  # Close parent lot
             'send_brass_audit_to_iqf': False,

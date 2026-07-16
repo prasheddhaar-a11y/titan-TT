@@ -1148,7 +1148,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
 
             <!-- Table Section -->
             <div class="table-responsive">
-<table id="order-listing" class="table" data-lock-module="DAY_PLANNING">
+<table id="order-listing" class="table">
 <thead>
   <tr> 
     {% for heading in visible_headings %}
@@ -1177,7 +1177,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
         data-model-no="{{ data.model_stock_no__model_no }}">
       <td class="{% if not is_admin and not visible_headings|get_item:'S.No' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}">
         <span class="dp-sno-cell">
-          {% if can_hold_release %}
+          {% if is_admin %}
             <label class="hold-toggle-switch" style="margin-bottom:0;">
               {% if not data.hold_lot %}
                 <input type="checkbox" class="hold-toggle-btn" checked />
@@ -1211,7 +1211,9 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
         <span style="display:inline-block; margin-top:4px;">{{ data.date_time|date:"h:i A"  }}</span>
       </td>
       <td class="{% if not is_admin and not visible_headings|get_item:'Plating Stk No' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}" style="white-space:normal;word-break:break-all;">
-        <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all; position: relative;">
+          <span class="model-hover-trigger"
+          data-plating-stk-no="{{ data.plating_stk_no }}"
+          style="cursor: pointer; word-break: break-all; position: relative;">
           {{ data.plating_stk_no|highlight_plating_color|safe_html }}
           <div class="model-image-tooltip"
                style="position: absolute; left: 238%; top: 0%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 10010; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s;">
@@ -1338,6 +1340,19 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
           {% endif %}
         </div>
       </td>
+      <td class="{% if not is_admin and not visible_headings|get_item:'Type of Input' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}">
+        {% if data.type_of_input == 'Recovery' %}
+          <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+               style="border: 1px solid rgba(2, 62, 77, 0.4); background-color: rgba(2, 62, 77, 0.12); color: #023E4D; font-size: 12px; padding: 5px;">
+            Recovery
+          </div>
+        {% else %}
+          <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+               style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; padding: 5px;">
+            Fresh
+          </div>
+        {% endif %}
+      </td>
       <td class="{% if not is_admin and not visible_headings|get_item:'Polishing Stk No' %}blurred-cell{% endif %}{% if data.hold_lot %} row-inactive-blur{% endif %}">
         {{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}
       </td>
@@ -1453,9 +1468,9 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
           >
             <div class="tray-scan-modal-content" style="position: relative;">
               <span id="closeTrayScanModal" class="tray-scan-close" style="position: absolute;
-    top: 5px;
+    top: -5px;
     right: 20px;
-    font-size: 22px !important;
+    font-size: 22px;
     cursor: pointer;
     color: #f75e5e;
     z-index: 100;"
@@ -3318,7 +3333,7 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
 
     qtyCell.innerHTML = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
       <input type="number" min="1" class="form-control qty-input" value="${oldQty}" placeholder="Enter quantity" style="width: 80px; display:inline-block; padding: 4px 6px; font-size: 13px;" />
-      <small style="color: #666; font-size: 8px !important; font-weight: 500; margin-top: -2px;">Press Enter to update</small>
+      <small style="color: #666; font-size: 11px; font-weight: 500; margin-top: -2px;">Press Enter to update</small>
     </div>`;
 
     const qtyInput = qtyCell.querySelector('.qty-input');
@@ -4250,23 +4265,6 @@ function getCurrentTrayData() {
     return data;
 }
 
-function deleteDraftTrayEntry(batchId, position) {
-    if (!batchId || position === undefined || position === null || position === '') {
-        return;
-    }
-
-    fetch(`/dayplanning/draft_tray_delete/?batch_id=${encodeURIComponent(batchId)}&position=${encodeURIComponent(position)}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    }).then(res => res.json()).then(data => {
-        if (data.success) {
-            console.log(`🗑️ Deleted draft tray at position ${position}`);
-        }
-    }).catch(err => console.error('Error deleting draft tray:', err));
-}
-
 function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQtyVerified, buttonElement) {
     const detailsDiv = document.getElementById("trayScanDetails");
     if (!detailsDiv) return;
@@ -4347,7 +4345,7 @@ function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQty
     detailsDiv.innerHTML = html;
     console.log('✅ Table rebuilt successfully with checkbox state preservation');
 
-    // Add event listeners for tray ID editing and commit-based draft clearing
+    // Add event listeners for draft tray deletion on clear AND checkbox unchecking
     const trayIdInputs = detailsDiv.querySelectorAll('.tray-id-input');
     trayIdInputs.forEach(input => {
       input.addEventListener('input', function() {
@@ -4367,12 +4365,21 @@ function rebuildTrayScanTable(currentData, newRowCount, trayCapacity, topTrayQty
         if (errorFooter) {
           errorFooter.textContent = '';
         }
-      });
-
-      input.addEventListener('blur', function() {
-        const batchId = buttonElement ? buttonElement.getAttribute('data-batch-id') : '';
-        if (batchId && this.dataset.position !== undefined && this.value.trim() === '') {
-          deleteDraftTrayEntry(batchId, this.dataset.position);
+        
+        if (this.value.trim() === '') {
+          const batchId = buttonElement ? buttonElement.getAttribute('data-batch-id') : '';
+          if (batchId && this.dataset.position !== undefined) {
+            fetch(`/dayplanning/draft_tray_delete/?batch_id=${batchId}&position=${this.dataset.position}`, {
+              method: 'DELETE',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+              }
+            }).then(res => res.json()).then(data => {
+              if (data.success) {
+                console.log(`🗑️ Deleted draft tray at position ${this.dataset.position}`);
+              }
+            }).catch(err => console.error('Error deleting draft tray:', err));
+          }
         }
       });
     });
@@ -6284,38 +6291,68 @@ for (let i = 0; i < row.children.length; i++) {
        }
      }
 
-     function loadStockPreview(trigger) {
-       const stockNo = (trigger.getAttribute("data-plating-stk-no") || "").trim();
-       if (!stockNo) return;
+  function getRowFallbackImage(trigger) {
+    const row = trigger.closest("tr");
+    if (!row) return "";
 
-       if (stockPreviewCache[stockNo]) {
-         const cached = stockPreviewCache[stockNo];
-         setTooltipPreview(trigger, cached.preview_image, cached.preview_view);
-         return;
-       }
+    const trayScanBtn = row.querySelector(".tray-scan-btn");
+    if (trayScanBtn) {
+      const modelImage = (trayScanBtn.getAttribute("data-model-image") || "").trim();
+      if (modelImage) return modelImage;
+  }
 
-       setTooltipPreview(trigger, "", "Loading");
-       const xhr = new XMLHttpRequest();
-       xhr.open("GET", "/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), true);
-       xhr.setRequestHeader("Accept", "application/json");
-       xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-       xhr.onreadystatechange = function () {
-         if (xhr.readyState !== 4) return;
-         if (xhr.status < 200 || xhr.status >= 300) {
-           setTooltipPreview(trigger, "", "");
-           return;
-         }
-         try {
-           const data = JSON.parse(xhr.responseText || "{}");
-           stockPreviewCache[stockNo] = data;
-           setTooltipPreview(trigger, data.preview_image, data.preview_view);
-         } catch (err) {
-           setTooltipPreview(trigger, "", "");
-         }
-       };
-       xhr.send();
-     }
-   
+    const tooltipImg = trigger.querySelector(".model-image-tooltip .img-gallery img");
+    if (tooltipImg) {
+      const src = (tooltipImg.getAttribute("src") || "").trim();
+      if (src && !src.includes("imagePlaceholder")) return src;
+  }
+
+  return "";
+}
+
+function loadStockPreview(trigger) {
+  const stockNo = (trigger.getAttribute("data-plating-stk-no") || "").trim();
+  if (!stockNo) return;
+
+  const fallbackImage = getRowFallbackImage(trigger);
+
+  if (stockPreviewCache[stockNo]) {
+    const cached = stockPreviewCache[stockNo];
+    setTooltipPreview(trigger, cached.preview_image || fallbackImage, cached.preview_view);
+    return;
+  }
+
+  if (fallbackImage) {
+    setTooltipPreview(trigger, fallbackImage, "Model image");
+  } else {
+    setTooltipPreview(trigger, "", "Loading");
+  }
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), true);
+  xhr.setRequestHeader("Accept", "application/json");
+  xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+
+    if (xhr.status < 200 || xhr.status >= 300) {
+      setTooltipPreview(trigger, fallbackImage, fallbackImage ? "Model image" : "");
+      return;
+    }
+
+    try {
+      const data = JSON.parse(xhr.responseText || "{}");
+      data.preview_image = data.preview_image || fallbackImage;
+      stockPreviewCache[stockNo] = data;
+      setTooltipPreview(trigger, data.preview_image, data.preview_view || "Model image");
+    } catch (err) {
+      setTooltipPreview(trigger, fallbackImage, fallbackImage ? "Model image" : "");
+    }
+  };
+  xhr.send();
+}
+
+
      // Helper function to completely close a tooltip
      function closeTooltip(tooltip, trigger) {
        if (tooltip) {
@@ -7431,9 +7468,6 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log('✅ ERR 2 FIXED: D key delete mode loaded - press D to select row, arrows to navigate, Enter to confirm');
 });
 </script>
-
-  <!-- Centralized pick-row lock guard (backend-authoritative) -->
-  <script nonce="{{ csp_nonce }}" src="{% static 'js/row_lock_guard.js' %}"></script>
 
   {% endblock %} {% endblock content %}
 </div>

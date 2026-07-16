@@ -39,6 +39,22 @@ from Nickel_Inspection.services import (
 )
 import logging
 logger = logging.getLogger(__name__)
+
+def _sort_images_front_first_safe(images):
+    """
+    Sort model images with Front View first when the optional helper exists.
+    Fall back to the original queryset/list order when it is not deployed.
+    """
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default image order"
+        )
+        return images
+    return sort_images_front_first(images)
+
+
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 
 
@@ -620,8 +636,7 @@ class NA_PickTableView(APIView):
                         if model_master:
                             print(f"✅ NA Pick View - Found ModelMaster for images: {model_master.model_no}")
                             # Get images from ModelMaster
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(f"📸 NA Pick View - Added image from ModelMaster: {img.master_image.url}")
@@ -639,8 +654,7 @@ class NA_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+                            for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(f"📸 NA Pick View - Added image from TotalStockModel: {img.master_image.url}")
@@ -899,6 +913,19 @@ def na_action(request):
     juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
     if not juat:
         return Response({'success': False, 'error': 'Lot not found'}, status=404)
+    if action == 'SAVE_REMARK':
+        remark = (request.data.get('remark') or '').strip()
+        if not remark:
+            return Response({'success': False, 'error': 'remark required'}, status=400)
+        if len(remark) > 100:
+            return Response({'success': False, 'error': 'Remark must not exceed 100 characters.'}, status=400)
+        try:
+            juat.na_pick_remarks = remark
+            juat.save(update_fields=['na_pick_remarks'])
+            return Response({'success': True, 'message': 'Remark saved'})
+        except Exception:
+            logger.exception("[na_action SAVE_REMARK] lot=%s", lot_id)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'GET_TRAYS':
         trays_qs = Nickel_AuditTrayId.objects.filter(
             lot_id=lot_id, rejected_tray=False, delink_tray=False
@@ -1608,8 +1635,7 @@ class NACompletedView(APIView):
                         .first()
                     )
                     if model_master:
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        for img in sort_images_front_first(model_master.images.all()):
+                        for img in _sort_images_front_first_safe(model_master.images.all()):
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images and data['combine_lot_ids']:
@@ -1617,8 +1643,7 @@ class NACompletedView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
+                        for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:

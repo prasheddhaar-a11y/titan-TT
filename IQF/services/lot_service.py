@@ -86,6 +86,10 @@ def create_accept_child(
         iqf_accptance=True,
         last_process_module="IQF",
         next_process_module="Brass QC",
+        # Real stage reached is IQF — Brass QC is only a routing hint here.
+        # Brass QC sets current_stage="Brass QC" itself once it actually
+        # starts processing this lot (see Brass_QC/services/lot_service.py).
+        current_stage="IQF",
         last_process_date_time=timezone.now(),
         iqf_last_process_date_time=timezone.now(),
     )
@@ -164,6 +168,7 @@ def create_reject_child(
         brass_physical_qty=0,
         last_process_module="IQF",
         next_process_module=None,
+        current_stage="IQF",
         last_process_date_time=timezone.now(),
         iqf_last_process_date_time=timezone.now(),
     )

@@ -10,6 +10,7 @@ from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
 import math
 import json
+import logging
 import re
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
@@ -17,6 +18,7 @@ from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ParseError
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
@@ -32,6 +34,8 @@ from Jig_Unloading.tray_utils import (
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.mixins import LoginRequiredMixin
+
+logger = logging.getLogger(__name__)
 
 
 def _zone2_ordered_unique(values):
@@ -2240,25 +2244,33 @@ class JU_Zone_JigPickRemarkAPIView(APIView):
     def post(self, request):
         try:
             data = request.data if hasattr(request, 'data') else json.loads(request.body.decode('utf-8'))
-            jig_completed_id = data.get('jig_completed_id')
-            jig_lot_id = data.get('jig_lot_id')
-            remark = data.get('unloading_remarks', '').strip()
+            jig_completed_id = str(data.get('jig_completed_id') or '').strip()
+            lot_id = str(data.get('lot_id') or data.get('jig_lot_id') or '').strip()
+            jig_id = str(data.get('jig_id') or '').strip()
+            remark = str(data.get('unloading_remarks') or '').strip()
+
+            if not remark:
+                return JsonResponse({'success': False, 'error': 'Remark is required.'}, status=400)
 
             jig_detail = None
             if jig_completed_id:
+                if not jig_completed_id.isdigit():
+                    return JsonResponse({'success': False, 'error': 'Invalid JigCompleted ID.'}, status=400)
                 jig_detail = JigCompleted.objects.filter(id=jig_completed_id).first()
-            if not jig_detail and jig_lot_id:
-                # Fallback: search by lot_id or jig_id
-                jig_detail = JigCompleted.objects.filter(lot_id=jig_lot_id).first()
-                if not jig_detail:
-                    jig_detail = JigCompleted.objects.filter(jig_id=jig_lot_id).first()
+            if not jig_detail and lot_id:
+                jig_detail = JigCompleted.objects.filter(lot_id=lot_id).first()
+            if not jig_detail and jig_id:
+                jig_detail = JigCompleted.objects.filter(jig_id=jig_id).first()
             if not jig_detail:
                 return JsonResponse({'success': False, 'error': 'JigCompleted record not found.'}, status=404)
 
             jig_detail.unloading_remarks = remark
             jig_detail.save(update_fields=['unloading_remarks'])
             return JsonResponse({'success': True, 'message': 'Remark saved'})
-        except Exception as e:
+        except (json.JSONDecodeError, ParseError, UnicodeDecodeError):
+            return JsonResponse({'success': False, 'error': 'Invalid JSON payload.'}, status=400)
+        except Exception:
+            logger.exception('Unexpected error while saving Zone 2 jig unloading remark.')
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 def populate_jig_unload_fields(jig_unload_instance, lot_ids, jig_lot_id=None):

@@ -305,6 +305,18 @@ class ModelMasterCreation(models.Model):
     changes = models.CharField(max_length=255, blank=True, null=True, default="Outer Groove")
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
+    UPLOAD_TYPE_CHOICES = [
+        ('day_planning', 'Day Planning'),
+        ('recovery', 'Recovery Upload'),
+    ]
+    upload_type = models.CharField(
+        max_length=20,
+        choices=UPLOAD_TYPE_CHOICES,
+        default='day_planning',
+        verbose_name="Type of Input",
+        help_text="Source of upload: Day Planning or Recovery Upload",
+    )
+
     def save(self, *args, **kwargs):
     
         if not self.pk:  # Only set the sequence number for new instances

@@ -26,8 +26,14 @@ class ModelMasterAdmin(admin.ModelAdmin):
 admin.site.register(ModelMaster, ModelMasterAdmin)
 admin.site.register(PolishFinishType)
 admin.site.register(TrayType)
-admin.site.register(Vendor) 
-admin.site.register(ModelMasterCreation)
+admin.site.register(Vendor)
+
+class ModelMasterCreationAdmin(admin.ModelAdmin):
+    list_display = ['batch_id', 'lot_id', 'model_stock_no', 'upload_type', 'total_batch_quantity', 'Moved_to_D_Picker', 'date_time']
+    list_filter = ['upload_type', 'Moved_to_D_Picker']
+    search_fields = ['batch_id', 'lot_id', 'plating_stk_no']
+
+admin.site.register(ModelMasterCreation, ModelMasterCreationAdmin)
 admin.site.register(Version)
 admin.site.register(Location)
 admin.site.register(Category)

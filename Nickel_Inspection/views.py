@@ -20,6 +20,22 @@ from rest_framework import status
 from django.http import JsonResponse
 import json
 logger = logging.getLogger(__name__)
+
+def _sort_images_front_first_safe(images):
+    """
+    Sort model images with Front View first when the optional helper exists.
+    Fall back to the original queryset/list order when it is not deployed.
+    """
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default image order"
+        )
+        return images
+    return sort_images_front_first(images)
+
+
 from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.http import require_GET
 from math import ceil
@@ -30,6 +46,7 @@ from IQF.models import *
 from BrassAudit.models import *
 from Nickel_Inspection.models import *
 from Jig_Unloading.models import *
+from Jig_Loading.models import JigCompleted
 from Jig_Unloading.tray_utils import (
     get_upstream_tray_distribution,
     get_model_master_tray_info,
@@ -71,6 +88,35 @@ def _nq_int(value):
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _resolve_nq_previous_unloading_remark(jig_unload_obj):
+    """Resolve the upstream Jig Unloading remark saved on JigCompleted."""
+    candidates = []
+    for raw_lot in (getattr(jig_unload_obj, "combine_lot_ids", None) or []):
+        if raw_lot:
+            candidates.append(str(raw_lot).rsplit("-", 1)[-1])
+            candidates.append(str(raw_lot))
+    for attr in ("lot_id", "unload_lot_id"):
+        value = getattr(jig_unload_obj, attr, None)
+        if value:
+            candidates.append(str(value))
+
+    seen = set()
+    for lot_id in candidates:
+        if not lot_id or lot_id in seen:
+            continue
+        seen.add(lot_id)
+        jig_completed = (
+            JigCompleted.objects.filter(lot_id=lot_id)
+            .exclude(unloading_remarks__isnull=True)
+            .exclude(unloading_remarks="")
+            .order_by("-updated_at")
+            .first()
+        )
+        if jig_completed and jig_completed.unloading_remarks:
+            return jig_completed.unloading_remarks
+    return ""
 
 
 def _nq_tray_sort_key(tray_id):
@@ -396,6 +442,8 @@ class NQ_PickTableView(APIView):
                 "rejected_ip_stock": jig_unload_obj.rejected_nickle_ip_stock,
                 "accepted_tray_scan_status": jig_unload_obj.nq_accepted_tray_scan_status,
                 "nq_pick_remarks": jig_unload_obj.nq_pick_remarks,  # Not applicable for nickel
+                "previous_module": "Jig Unloading",
+                "previous_module_remark": _resolve_nq_previous_unloading_remark(jig_unload_obj),
                 "nq_qc_accptance": False,  # Not applicable
                 "nq_accepted_tray_scan_status": False,  # Not applicable
                 "nq_qc_rejection": False,  # Not applicable
@@ -452,8 +500,7 @@ class NQ_PickTableView(APIView):
                                 f"✅ NQ View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -474,8 +521,7 @@ class NQ_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+                            for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -644,8 +690,7 @@ class NickelQcRejectTableView(APIView):
                                 f"✅ Nickel Reject View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -668,8 +713,7 @@ class NickelQcRejectTableView(APIView):
                     if total_stock_obj and total_stock_obj.batch_id:
                         batch_obj = total_stock_obj.batch_id
                         if batch_obj.model_stock_no:
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+                            for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -856,6 +900,15 @@ def nq_action(request):
             'tray_type': tray_type,
             'plating_stk_no': juat.plating_stk_no or '',
         })
+    if action == 'SAVE_REMARK':
+        remark = (request.data.get('remark', '') or '').strip()
+        if not remark:
+            return Response({'success': False, 'error': 'Remark is required'}, status=400)
+        if len(remark) > 100:
+            return Response({'success': False, 'error': 'Remark must be 100 characters or less'}, status=400)
+        juat.nq_pick_remarks = remark
+        juat.save(update_fields=['nq_pick_remarks'])
+        return Response({'success': True, 'message': 'Remark saved'})
     if action == 'ALLOCATE':
         try:
             rejected_qty = int(request.data.get('rejected_qty', 0))
@@ -1505,15 +1558,13 @@ class NQCompletedView(APIView):
                 prefix = str(obj.plating_stk_no)[:4]
                 mm = ModelMaster.objects.filter(model_no__startswith=prefix).prefetch_related('images').first()
                 if mm:
-                    from modelmasterapp.image_utils import sort_images_front_first
-                    images = [img.master_image.url for img in sort_images_front_first(mm.images.all()) if img.master_image]
+                    images = [img.master_image.url for img in _sort_images_front_first_safe(mm.images.all()) if img.master_image]
             if not images and obj.combine_lot_ids:
                 first_lid = obj.combine_lot_ids[0] if obj.combine_lot_ids else None
                 if first_lid:
                     ts = TotalStockModel.objects.filter(lot_id=first_lid).first()
                     if ts and ts.batch_id and ts.batch_id.model_stock_no:
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        images = [img.master_image.url for img in sort_images_front_first(ts.batch_id.model_stock_no.images.all()) if img.master_image]
+                        images = [img.master_image.url for img in _sort_images_front_first_safe(ts.batch_id.model_stock_no.images.all()) if img.master_image]
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images

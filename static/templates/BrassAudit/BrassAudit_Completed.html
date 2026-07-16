@@ -299,6 +299,34 @@ thead th {
   max-width: 110px;
 } /* Remarks for IS Pick Table */
 
+#order-listing th.remark-column,
+#order-listing td.remark-cell {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+#order-listing td.remark-cell {
+  padding: 6px 8px !important;
+}
+
+#order-listing td.remark-cell .saved-remark-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+#order-listing td.remark-cell .fa-sort,
+#order-listing td.remark-cell .fa-sort-up,
+#order-listing td.remark-cell .fa-sort-down {
+  display: none !important;
+}
+
 @media (min-width: 600px) and (max-width: 900px) {
   #order-listing {
     table-layout: auto !important; /* Let columns auto-fit content */
@@ -694,6 +722,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Tray Cate- <br> Capacity
                       <i class="fa fa-sort" aria-hidden="true"></i>
                     </th>
+                    <th class="remark-column">
+                      Remark
+                    </th>
                    
                   </tr>
                 </thead>
@@ -829,6 +860,28 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     
                     <!-- 12. Tray Cate-Capacity -->
                     <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
+                    
+                    <!-- 13. Remark -->
+                    <td class="remark-cell">
+                      {% if data.BA_pick_remarks_has_text %}
+                        <a
+                          href="#"
+                          class="saved-remark-tooltip-trigger"
+                          data-remark="{{ data.BA_pick_remarks|default_if_none:'' }}"
+                          aria-label="View saved Brass Audit remark"
+                          tabindex="0"
+                          style="position: relative; cursor: pointer;"
+                        >
+                          <img
+                            src="{% static 'assets/icons/chat_icon.png' %}"
+                            alt="Remark"
+                            style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;"
+                          />
+                        </a>
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
                    
                   </tr>
                   {% endfor%}
