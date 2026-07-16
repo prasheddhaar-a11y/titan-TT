@@ -173,9 +173,10 @@ def fetch_model_image_metadata(lot_id, batch_id):
 		if mm:
 			try:
 				if hasattr(mm, 'images'):
+					from modelmasterapp.image_utils import sort_images_front_first
 					imgs = mm.images.all()
 					if imgs and imgs.exists():
-						first_img = imgs.first()
+						first_img = sort_images_front_first(imgs)[0]
 						if getattr(first_img, 'master_image', None):
 							result['model_image_url'] = first_img.master_image.url
 			except Exception:
@@ -326,6 +327,7 @@ class JigView(TemplateView):
 				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
+				'BA_pick_remarks',
 				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
@@ -335,6 +337,7 @@ class JigView(TemplateView):
 				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
+				'BA_pick_remarks',
 				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
@@ -393,6 +396,8 @@ class JigView(TemplateView):
 					'model_images': [],  # images resolved lazily in template via data-attribute only
 					'jig_hold_lot': getattr(stock, 'jig_hold_lot', False),
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
+					'previous_module': 'Brass Audit',
+					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
 				}
 
 				# Use pre-fetched capacity map (no per-row DB query)
@@ -532,6 +537,8 @@ class JigView(TemplateView):
 						'model_images': [],
 						'jig_hold_lot': False,
 						'jig_holding_reason': '',
+						'previous_module': 'Brass Audit',
+						'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') if stock else '',
 						'is_excess_lot': True,
 						'source_jig_id': jc.jig_id,
 						'half_filled_tray_info_json': json.dumps(jc.half_filled_tray_info or []),
@@ -894,9 +901,10 @@ class InitJigLoad(APIView):
 			if mm:
 				try:
 					if hasattr(mm, 'images'):
+						from modelmasterapp.image_utils import sort_images_front_first
 						imgs = mm.images.all()
 						if imgs and imgs.exists():
-							first_img = imgs.first()
+							first_img = sort_images_front_first(imgs)[0]
 							if getattr(first_img, 'master_image', None):
 								model_image_url = first_img.master_image.url
 				except Exception:
@@ -2385,9 +2393,10 @@ def fetch_lot_data(lot_id, batch_id, jig_capacity_override=None):
 		if mm:
 			try:
 				if hasattr(mm, 'images'):
+					from modelmasterapp.image_utils import sort_images_front_first
 					imgs = mm.images.all()
 					if imgs.exists():
-						first_img = imgs.first()
+						first_img = sort_images_front_first(imgs)[0]
 						if getattr(first_img, 'master_image', None):
 							model_image_url = first_img.master_image.url
 			except Exception:
@@ -3548,7 +3557,16 @@ class JigCompletedTable(TemplateView):
 					source_location = str(batch_obj.location)
 				if not source_location:
 					source_location = getattr(stock_model, 'lot_version_names', '') if stock_model else ''
-				
+
+				# Current Stage: prefer the live current_stage SSOT (modelmasterapp/stage_service.py)
+				# so this matches every other module's Completed Table for the same lot, instead of
+				# always showing the hardcoded "Jig Loading".
+				current_stage_display = (
+					getattr(stock_model, 'current_stage', None)
+					or getattr(stock_model, 'last_process_module', None)
+					or 'Jig Loading'
+				) if stock_model else 'Jig Loading'
+
 				enriched = {
 					'id': jig_rec.id,
 					'lot_id': jig_rec.lot_id,
@@ -3577,6 +3595,7 @@ class JigCompletedTable(TemplateView):
 					'excess_qty': jig_rec.excess_qty or 0,
 					'multi_model_allocation': jig_rec.multi_model_allocation or [],
 					'IP_jig_pick_remarks': jig_rec.remarks or '',
+					'current_stage_display': current_stage_display,
 				}
 				jig_details.append(enriched)
 				
@@ -3891,6 +3910,20 @@ class JigSaveAPI(APIView):
 				'record_id': record.id, 'created': created,
 				'lot_id': lot_id, 'batch_id': batch_id,
 			}))
+
+			# Real processing activity (draft save or submit) — advance the shared
+			# current_stage SSOT so the previous module (Brass Audit) can show
+			# "Jig Loading" as the Current Location instead of a stale value.
+			try:
+				from modelmasterapp.stage_service import update_stock_stage
+				update_stock_stage(lot_id, 'Jig Loading')
+				if is_multi_model and multi_model_allocation:
+					for m in multi_model_allocation:
+						m_lot_id = m.get('lot_id')
+						if m_lot_id and m_lot_id != lot_id:
+							update_stock_stage(m_lot_id, 'Jig Loading')
+			except Exception:
+				logging.exception('JigSaveAPI: current_stage update failed')
 
 			# After submit: clear remarks from any other draft records for this lot
 			# so excess lot rows in pick table don't display stale remarks

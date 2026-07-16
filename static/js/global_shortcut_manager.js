@@ -16,6 +16,8 @@
         '.modal-overlay',
         '.overlay-modal',
         '.swal2-container',
+        '#z1UnloadModal',
+        '#z2UnloadModal',
         '.flag-modal-backdrop[aria-hidden="false"]',
         '.tray-scan-modal.open',
         '.tray-scan-modal-DayPlanning.open',
@@ -31,6 +33,8 @@
     var activeRow = null;
     var pendingElement = null;
     var lastTargetSelector = '';
+    var lastActionRow = null;
+    var lastActionSelector = '';
     var actionSelectorText = '';
     var tooltipApplyTimer = null;
 
@@ -432,7 +436,7 @@
         }
         if (config.code === 'close_active') {
             closeActiveSurface();
-            clearPending();
+            pendingElement = null;
             return true;
         }
         if (config.code === 'execute_pending') {
@@ -538,6 +542,15 @@
                 return clickElement(activeElement);
             }
         }
+
+        var repeatRow = activeRow || lastActionRow;
+        var repeatSelector = lastTargetSelector || lastActionSelector;
+        if (repeatRow && repeatSelector) {
+            var repeatElement = findElementInRow(repeatRow, repeatSelector);
+            if (repeatElement) {
+                return clickElement(repeatElement);
+    }
+}
         return false;
     }
 
@@ -898,8 +911,10 @@
         pendingElement = element;
         if (selector) {
             lastTargetSelector = selector;
+            lastActionSelector = selector;
         }
         if (row) {
+            lastActionRow = row;
             highlightRow(row);
         }
     }

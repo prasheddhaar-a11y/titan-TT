@@ -917,8 +917,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         {{ data.last_process_module|default:"N/A" }}
                       </div>
                     </td>
-                    <td {% if data.na_ac_accepted_qty_verified %} class="row-inactive-blur" {% endif %}>
-
+                    <td>
                         <!-- VoiceRec with tooltip (audio remark) -->
                         <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
                           <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec" style="width: 20px; height: 20px"/>
@@ -940,7 +939,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         <a
                           href="#"
                           title="Add Remark"
-                          class="remark-tooltip-trigger"
+                          class="saved-remark-tooltip-trigger"
+                          data-remark="{{ data.na_pick_remarks|default_if_none:'' }}"
+                          aria-label="View saved remark"
+                          data-jig-lot-id="{{ jig_detail.jig_lot_id }}"
                           style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
                         >
                           <img
@@ -974,7 +976,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             </div>
                           </div>
                         </a>
-
                     </td>
                    
                   </tr>

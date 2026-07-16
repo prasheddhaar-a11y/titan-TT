@@ -236,17 +236,23 @@ tr.hold-row td:nth-child(3) {
                         <textarea placeholder="Type your remark..." style="width:75%;height:40px;resize:vertical;border:1px solid #ccc;padding:5px;border-radius:4px;font-size:14px;"{% if item.spider_pick_remarks %} readonly{% endif %}>{{ item.spider_pick_remarks|default_if_none:"" }}</textarea>
                         <div style="text-align:right;margin-top:-35px">
                           {% if not item.spider_pick_remarks %}
-                          <button type="button" class="remark-send-btn" data-lot-id="{{ item.lot_id }}"
+                          <button type="button" class="remark-send-btn" data-lot-id="{{ item.lot_id }}" data-spider-remark-zone="z1" data-submit-url="{% url 'ss_z1_save_remarks' %}"
                             style="background-color:#007bff;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:14px;">
                             <i class="fa fa-send"></i>
                           </button>
                           {% else %}
                           <div style="margin-top:40px;color:#31708f;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;padding:8px 12px;font-size:10px;text-align:left;">
-                            <i class="fa fa-info-circle"></i> Remark already saved.
+                            <i class="fa fa-info-circle"></i> Remark already saved and cannot be edited.
                           </div>
                           {% endif %}
                         </div>
                       </div>
+                    </a>
+                    <a href="#"
+                      class="prev-remark-tooltip-trigger"
+                      title="{{ item.previous_module_remark|default:'No previous remark available.' }}"
+                      style="margin-left: 5px; color: #007bff; font-size: 16px; display: inline-flex; align-items: center; vertical-align: middle;">
+                      <i class="fa fa-info-circle"></i>
                     </a>
                     <a href="#" class="remark-history-btn" data-lot-id="{{ item.lot_id }}" title="View full remark history" style="margin-left: 5px; color: #6c757d; font-size: 15px; display: inline-flex; align-items: center; vertical-align: middle;">
                       <i class="fa fa-history"></i>
@@ -472,10 +478,37 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- Remark Tooltip ---
+  function hideRemarkTooltip(tooltip) {
+    if (!tooltip) return;
+    const closeBtn = tooltip.querySelector('.remark-close-btn');
+    tooltip.style.opacity = '0';
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display = 'none';
+    tooltip.classList.remove('active');
+    if (closeBtn) closeBtn.style.display = 'none';
+    if (tooltip.__remarkTrigger) {
+      tooltip.__remarkTrigger.removeAttribute('data-remark-open');
+      tooltip.__remarkTrigger = null;
+    }
+    if (tooltip._placeholder && tooltip._placeholder.parentNode) {
+      tooltip._placeholder.parentNode.insertBefore(tooltip, tooltip._placeholder);
+      tooltip._placeholder.remove();
+      tooltip._placeholder = null;
+    }
+  }
+
+  function showRemarkSavedModal() {
+    return Swal.fire({
+      icon: 'success',
+      title: 'Remark saved!',
+      timer: 1200,
+      showConfirmButton: false
+    });
+  }
+
   document.querySelectorAll('.remark-tooltip-trigger').forEach(trigger => {
     const tooltip = trigger.querySelector('.remark-tooltip');
     const closeBtn = tooltip ? tooltip.querySelector('.remark-close-btn') : null;
-    const sendBtn = tooltip ? tooltip.querySelector('.remark-send-btn') : null;
 
     function positionTooltip() {
       if (!tooltip) return;
@@ -495,6 +528,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showTooltip() {
       if (!tooltip) return;
+      document.querySelectorAll('.remark-tooltip.active').forEach(function(openTooltip) {
+        if (openTooltip !== tooltip) {
+          hideRemarkTooltip(openTooltip);
+        }
+      });
       if (tooltip.parentNode !== document.body) {
         if (!tooltip._placeholder) {
           const ph = document.createElement('span');
@@ -504,66 +542,122 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.body.appendChild(tooltip);
       }
+      tooltip.__remarkTrigger = trigger;
+      trigger.setAttribute('data-remark-open', 'true');
       tooltip.style.position = 'fixed';
       tooltip.style.display = 'block';
       tooltip.style.opacity = '1';
       tooltip.style.visibility = 'visible';
       tooltip.style.zIndex = '1000000';
+      tooltip.classList.add('active');
       if (closeBtn) closeBtn.style.display = 'block';
       positionTooltip();
     }
 
     function hideTooltip() {
-      if (!tooltip) return;
-      tooltip.style.opacity = '0';
-      tooltip.style.visibility = 'hidden';
-      tooltip.style.display = 'none';
-      if (closeBtn) closeBtn.style.display = 'none';
-      if (tooltip._placeholder && tooltip._placeholder.parentNode) {
-        tooltip._placeholder.parentNode.insertBefore(tooltip, tooltip._placeholder);
-        tooltip._placeholder.remove();
-        tooltip._placeholder = null;
-      }
+      hideRemarkTooltip(tooltip);
     }
 
     trigger.addEventListener('click', function(e) {
       e.preventDefault();
+      e.stopPropagation();
       if (tooltip.style.visibility === 'visible') hideTooltip();
       else showTooltip();
     });
 
     if (closeBtn) closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
       e.stopPropagation();
       hideTooltip();
     });
 
-    if (sendBtn) {
-      sendBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const textarea = tooltip.querySelector('textarea');
-        const remark = textarea ? textarea.value.trim() : '';
-        if (!remark) { Swal.fire('Warning', 'Please enter a remark.', 'warning'); return; }
-        const lotId = this.dataset.lotId;
-        fetch("{% url 'ss_z1_save_remarks' %}", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-          body: JSON.stringify({ lot_id: lotId, remarks: remark })
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            if (textarea) { textarea.value = remark; textarea.setAttribute('readonly', true); }
-            this.outerHTML = '<div style="margin-top:40px;color:#31708f;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;padding:8px 12px;font-size:10px;text-align:left;"><i class="fa fa-info-circle"></i> Remark saved.</div>';
-            const img = trigger.querySelector('img');
-            if (img) { img.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)'; img.style.opacity = '1'; }
-            Swal.fire({ title: 'Saved', text: 'Remark saved successfully!', icon: 'success', timer: 1500, showConfirmButton: false });
-          }
-        })
-        .catch(() => { Swal.fire('Error', 'Network error.', 'error'); });
-      });
-    }
+    if (tooltip) tooltip.addEventListener('click', function(e) {
+      if (e.target.closest('.remark-send-btn')) return;
+      e.stopPropagation();
+    });
   });
+
+  if (!window.__ssZ1RemarkOutsideClickBound) {
+    window.__ssZ1RemarkOutsideClickBound = true;
+    document.addEventListener('click', function(e) {
+      document.querySelectorAll('.remark-tooltip.active').forEach(function(tooltip) {
+        const trigger = tooltip.__remarkTrigger || document.querySelector('.remark-tooltip-trigger[data-remark-open="true"]');
+        const clickedInsideTooltip = tooltip.contains(e.target);
+        const clickedInsideTrigger = trigger && trigger.contains(e.target);
+        if (!clickedInsideTooltip && !clickedInsideTrigger) {
+          hideRemarkTooltip(tooltip);
+        }
+      });
+    });
+  }
+
+  if (!window.__ssZ1RemarkHandlerBound) {
+    window.__ssZ1RemarkHandlerBound = true;
+    document.addEventListener('click', function(e) {
+      const sendBtn = e.target.closest('.remark-send-btn[data-spider-remark-zone="z1"]');
+      if (!sendBtn) return;
+
+      const tooltip = sendBtn.closest('.remark-tooltip');
+      if (!tooltip) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (sendBtn.disabled || sendBtn.dataset.saving === 'true') return;
+
+      const textarea = tooltip.querySelector('textarea');
+      const remark = textarea ? textarea.value.trim() : '';
+      if (!remark) { Swal.fire('Error', 'Please enter a remark before sending.', 'error'); return; }
+
+      const row = sendBtn.closest('tr');
+      const lotId = sendBtn.dataset.lotId || (row ? (row.getAttribute('data-lot-id') || row.getAttribute('data-stock-lot-id') || '') : '');
+      if (!lotId) { Swal.fire('Error', 'Missing lot ID.', 'error'); return; }
+      const submitUrl = sendBtn.dataset.submitUrl || "{% url 'ss_z1_save_remarks' %}";
+
+      sendBtn.disabled = true;
+      sendBtn.dataset.saving = 'true';
+
+      fetch(submitUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ lot_id: lotId, remarks: remark })
+      })
+      .then(function(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') !== -1) {
+          return response.json().then(function(data) {
+            if (!response.ok) {
+              throw new Error(data.error || data.message || ('Server returned HTTP ' + response.status));
+            }
+            return data;
+          });
+        }
+        return response.text().then(function(text) {
+          console.error('Spider remark non-JSON response:', text);
+          throw new Error('Server returned HTTP ' + response.status);
+        });
+      })
+      .then(function(data) {
+        if (!data.success) {
+          throw new Error(data.error || data.message || 'Unable to save remark.');
+        }
+        if (textarea) { textarea.value = remark; textarea.readOnly = true; }
+        const trigger = tooltip._placeholder ? tooltip._placeholder.closest('.remark-tooltip-trigger') : tooltip.closest('.remark-tooltip-trigger');
+        if (sendBtn.parentElement) {
+          sendBtn.outerHTML = '<div style="margin-top:40px;color:#31708f;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;padding:8px 12px;font-size:10px;text-align:left;"><i class="fa fa-info-circle"></i> Remark already saved and cannot be edited.</div>';
+        }
+        const img = trigger ? trigger.querySelector('img') : null;
+        if (img) { img.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)'; img.style.opacity = '1'; }
+        return showRemarkSavedModal().then(function() {
+          hideRemarkTooltip(tooltip);
+        });
+      })
+      .catch(function(error) {
+        sendBtn.disabled = false;
+        sendBtn.dataset.saving = 'false';
+        Swal.fire('Error', error.message || 'Failed to save remark.', 'error');
+      });
+    }, true);
+  }
 
   function normalizeModule(value) {
     return String(value || '').trim().toLowerCase().replace(/_/g, ' ');

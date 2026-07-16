@@ -10,6 +10,7 @@ from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
 import math
 import json
+import logging
 import re
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
@@ -17,6 +18,7 @@ from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ParseError
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
@@ -32,6 +34,8 @@ from Jig_Unloading.tray_utils import (
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.mixins import LoginRequiredMixin
+
+logger = logging.getLogger(__name__)
 
 
 def _zone2_ordered_unique(values):
@@ -1211,8 +1215,9 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             clean_model_images = {}
             plating_stk_images = {}
             seen_clean = set()
+            from modelmasterapp.image_utils import sort_images_front_first
             for model_master in model_masters:
-                images = list(model_master.images.all())
+                images = sort_images_front_first(model_master.images.all())
                 img_urls_mm = [img.master_image.url for img in images if img.master_image]
 
                 # Always record by plating_stk_no (exact match for fallback)
@@ -1252,7 +1257,8 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                         plating_stk_no=orig_no
                     ).prefetch_related('images').first()
                     if _mmc_direct and _mmc_direct.images.exists():
-                        _mmc_urls = [img.master_image.url for img in _mmc_direct.images.all() if img.master_image]
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        _mmc_urls = [img.master_image.url for img in sort_images_front_first(_mmc_direct.images.all()) if img.master_image]
                         if _mmc_urls:
                             model_images_map[orig_no] = {'images': _mmc_urls, 'first_image': _mmc_urls[0]}
                             missing_images.discard(orig_no)
@@ -1269,7 +1275,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                             _numeric_no = _numeric.group(1) if _numeric else None
                             if (mm.plating_stk_no == orig_no or
                                     (_numeric_no and str(mm.plating_stk_no).startswith(_numeric_no))) and mm.images.exists():
-                                img_list = list(mm.images.all())
+                                img_list = sort_images_front_first(mm.images.all())
                                 img_urls_fb = [img.master_image.url for img in img_list if img.master_image]
                                 if img_urls_fb:
                                     model_images_map[orig_no] = {'images': img_urls_fb, 'first_image': img_urls_fb[0]}
@@ -1293,9 +1299,10 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                     batch_tray_map[_bmmc.batch_id] = (_bmmc.tray_type, _tc)
                 if _bmmc.polish_finish:
                     batch_polish_finish_map[_bmmc.batch_id] = _bmmc.polish_finish
-                _bimgs = [img.master_image.url for img in _bmmc.images.all() if img.master_image]
+                from modelmasterapp.image_utils import sort_images_front_first
+                _bimgs = [img.master_image.url for img in sort_images_front_first(_bmmc.images.all()) if img.master_image]
                 if not _bimgs and _bmmc.model_stock_no:
-                    _bimgs = [img.master_image.url for img in _bmmc.model_stock_no.images.all() if img.master_image]
+                    _bimgs = [img.master_image.url for img in sort_images_front_first(_bmmc.model_stock_no.images.all()) if img.master_image]
                 if _bimgs:
                     batch_images_map[_bmmc.batch_id] = {'images': _bimgs, 'first_image': _bimgs[0]}
                     print(f"📦 Zone 2 batch_images: {_bmmc.batch_id} -> {len(_bimgs)} images")
@@ -2237,25 +2244,33 @@ class JU_Zone_JigPickRemarkAPIView(APIView):
     def post(self, request):
         try:
             data = request.data if hasattr(request, 'data') else json.loads(request.body.decode('utf-8'))
-            jig_completed_id = data.get('jig_completed_id')
-            jig_lot_id = data.get('jig_lot_id')
-            remark = data.get('unloading_remarks', '').strip()
+            jig_completed_id = str(data.get('jig_completed_id') or '').strip()
+            lot_id = str(data.get('lot_id') or data.get('jig_lot_id') or '').strip()
+            jig_id = str(data.get('jig_id') or '').strip()
+            remark = str(data.get('unloading_remarks') or '').strip()
+
+            if not remark:
+                return JsonResponse({'success': False, 'error': 'Remark is required.'}, status=400)
 
             jig_detail = None
             if jig_completed_id:
+                if not jig_completed_id.isdigit():
+                    return JsonResponse({'success': False, 'error': 'Invalid JigCompleted ID.'}, status=400)
                 jig_detail = JigCompleted.objects.filter(id=jig_completed_id).first()
-            if not jig_detail and jig_lot_id:
-                # Fallback: search by lot_id or jig_id
-                jig_detail = JigCompleted.objects.filter(lot_id=jig_lot_id).first()
-                if not jig_detail:
-                    jig_detail = JigCompleted.objects.filter(jig_id=jig_lot_id).first()
+            if not jig_detail and lot_id:
+                jig_detail = JigCompleted.objects.filter(lot_id=lot_id).first()
+            if not jig_detail and jig_id:
+                jig_detail = JigCompleted.objects.filter(jig_id=jig_id).first()
             if not jig_detail:
                 return JsonResponse({'success': False, 'error': 'JigCompleted record not found.'}, status=404)
 
             jig_detail.unloading_remarks = remark
             jig_detail.save(update_fields=['unloading_remarks'])
             return JsonResponse({'success': True, 'message': 'Remark saved'})
-        except Exception as e:
+        except (json.JSONDecodeError, ParseError, UnicodeDecodeError):
+            return JsonResponse({'success': False, 'error': 'Invalid JSON payload.'}, status=400)
+        except Exception:
+            logger.exception('Unexpected error while saving Zone 2 jig unloading remark.')
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 def populate_jig_unload_fields(jig_unload_instance, lot_ids, jig_lot_id=None):
@@ -2801,7 +2816,8 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                 existing_record.missing_qty = max(existing_record.missing_qty, missing_qty)
                 existing_record.Un_loaded_date_time = timezone.now()
                 existing_record.last_process_module = "Jig Unloading"
-                
+                existing_record.current_stage = "Jig Unloading"
+
                 # ✅ UPDATE: MERGE COLLECTED VALUES AS LISTS
                 if all_plating_stk_nos:
                     existing_plating = existing_record.plating_stk_no_list or []
@@ -2862,7 +2878,8 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                         'total_case_qty': total_case_qty,
                         'missing_qty': missing_qty,
                         'Un_loaded_date_time': timezone.now(),
-                        'last_process_module': "Jig Unloading"
+                        'last_process_module': "Jig Unloading",
+                        'current_stage': "Jig Unloading"
                     }
                     
                     # ✅ ADD COLLECTED VALUES AS LISTS
@@ -4427,11 +4444,12 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 Q(model_no__in=clean_model_numbers) | Q(plating_stk_no__in=all_model_numbers)
             ).prefetch_related('images')
             
+            from modelmasterapp.image_utils import sort_images_front_first
             for model_master in model_masters:
-                images = list(model_master.images.all())
+                images = sort_images_front_first(model_master.images.all())
                 image_urls = []
                 first_image = "/static/assets/images/imagePlaceholder.jpg"
-                
+
                 for img in images:
                     if img.master_image:
                         try:
@@ -4469,7 +4487,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                     # Check if this plating_stk_no starts with any missing numeric model_no
                     for numeric_no in list(missing_images):
                         if str(mm.plating_stk_no).startswith(numeric_no) and mm.images.exists():
-                            img_list = list(mm.images.all())
+                            img_list = sort_images_front_first(mm.images.all())
                             image_urls = []
                             first_image = "/static/assets/images/imagePlaceholder.jpg"
                             for img in img_list:
@@ -4724,7 +4742,8 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                                 Q(model_no=clean_model_no) | Q(plating_stk_no=normalized_model_no)
                             ).prefetch_related('images').first()
                             if model_master:
-                                for image in model_master.images.all():
+                                from modelmasterapp.image_utils import sort_images_front_first
+                                for image in sort_images_front_first(model_master.images.all()):
                                     if image.master_image:
                                         image_urls.append(image.master_image.url)
                             image_payload = {
@@ -4816,7 +4835,10 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 'jig_capacity': tray_capacity,
                 'no_of_trays': no_of_trays,
                 'calculated_no_of_trays': no_of_trays,
-                'last_process_module': unload.last_process_module,
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': unload.current_stage or unload.last_process_module,
                 'created_at': unload.created_at,
                 'un_loaded_date_time': unload.Un_loaded_date_time,
                 'Un_loaded_date_time': unload.Un_loaded_date_time,
@@ -4979,7 +5001,8 @@ def JU_Zone_get_model_images(request):
                         ).first()
                         if _mmc_fb2:
                             if _mmc_fb2.images.exists():
-                                _mmc_imgs2 = [img.master_image.url for img in _mmc_fb2.images.all() if img.master_image]
+                                from modelmasterapp.image_utils import sort_images_front_first
+                                _mmc_imgs2 = [img.master_image.url for img in sort_images_front_first(_mmc_fb2.images.all()) if img.master_image]
                                 if _mmc_imgs2:
                                     print(f"[DEBUG] Zone 2 Image fallback (MMC direct): batch={_jc_fb2.batch_id} -> {len(_mmc_imgs2)} images")
                                     return JsonResponse({
@@ -5036,7 +5059,8 @@ def JU_Zone_get_model_images(request):
                 print(f"[DEBUG] Image fallback error: {_efb}")
 
         # Get all images for this model
-        images = [img.master_image.url for img in model.images.all()]
+        from modelmasterapp.image_utils import sort_images_front_first
+        images = [img.master_image.url for img in sort_images_front_first(model.images.all())]
         print(f"[DEBUG] Found {len(images)} images for model_no {model_no}")
 
         if images:
@@ -5312,7 +5336,8 @@ def debug_model_availability_zone2(request):
         working_models = []
         for model in models_with_images:
             try:
-                images = [img.master_image.url for img in model.images.all()]
+                from modelmasterapp.image_utils import sort_images_front_first
+                images = [img.master_image.url for img in sort_images_front_first(model.images.all())]
                 working_models.append({
                     'model_no': model.model_no,
                     'model_name': getattr(model, 'model_name', 'N/A'),
@@ -5328,7 +5353,8 @@ def debug_model_availability_zone2(request):
         specific_model_info = None
         if specific_model:
             try:
-                images = [img.master_image.url for img in specific_model.images.all()]
+                from modelmasterapp.image_utils import sort_images_front_first
+                images = [img.master_image.url for img in sort_images_front_first(specific_model.images.all())]
                 specific_model_info = {
                     'exists': True,
                     'model_no': specific_model.model_no,
@@ -5348,7 +5374,8 @@ def debug_model_availability_zone2(request):
         partial_model_info = None
         if partial_model:
             try:
-                images = [img.master_image.url for img in partial_model.images.all()]
+                from modelmasterapp.image_utils import sort_images_front_first
+                images = [img.master_image.url for img in sort_images_front_first(partial_model.images.all())]
                 partial_model_info = {
                     'exists': True,
                     'model_no': partial_model.model_no,

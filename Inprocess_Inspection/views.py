@@ -199,6 +199,7 @@ class InprocessInspectionView(TemplateView):
             
             # Create enhanced jig_detail with multi-lot support
             enhanced_jig_detail = self.create_enhanced_jig_detail(jig_detail, lot_ids_data, model_cases_data)
+            enhanced_jig_detail.previous_module_remark = jig_detail.remarks or ''
             
             # Fetch hold/release info from TotalStockModel or RecoveryStockModel
             hold_info = {
@@ -891,11 +892,12 @@ class InprocessInspectionView(TemplateView):
                         ).prefetch_related('images').first()
                         
                         images = []
+                        from modelmasterapp.image_utils import sort_images_front_first
                         if model_master and model_master.images.exists():
-                            for img in model_master.images.all():
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
-                        
+
                         # Fallback: try ModelMasterCreation.images via JigCompleted.batch_id
                         if not images:
                             _jbc = getattr(jig_detail, 'batch_id', None)
@@ -903,7 +905,7 @@ class InprocessInspectionView(TemplateView):
                                 try:
                                     _mmc = ModelMasterCreation.objects.filter(batch_id=_jbc).prefetch_related('images').first()
                                     if _mmc:
-                                        for _img in _mmc.images.all():
+                                        for _img in sort_images_front_first(_mmc.images.all()):
                                             if _img.master_image:
                                                 images.append(_img.master_image.url)
                                 except Exception as _ie:
@@ -1033,7 +1035,8 @@ class InprocessInspectionView(TemplateView):
                                 # Get model images
                                 images = []
                                 if model_master.images.exists():
-                                    for img in model_master.images.all():
+                                    from modelmasterapp.image_utils import sort_images_front_first
+                                    for img in sort_images_front_first(model_master.images.all()):
                                         if img.master_image:
                                             images.append(img.master_image.url)
                                 
@@ -1076,7 +1079,8 @@ class InprocessInspectionView(TemplateView):
                     batch_id=jig_batch
                 ).prefetch_related('images').select_related('version', 'model_stock_no').first()
                 if mmc:
-                    imgs = [img.master_image.url for img in mmc.images.all() if img.master_image]
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    imgs = [img.master_image.url for img in sort_images_front_first(mmc.images.all()) if img.master_image]
                     if not imgs:
                         imgs = [static('assets/images/imagePlaceholder.jpg')]
                     if isinstance(getattr(jig_detail, 'model_images', None), dict):
@@ -1132,13 +1136,14 @@ class InprocessInspectionView(TemplateView):
             # Get model images
             images = []
             if model_master.model_stock_no:
-                for img in model_master.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(model_master.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
-            
+
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
-            
+
             # Safe version access
             version_name = "No Version"
             if hasattr(model_master, 'version') and model_master.version:
@@ -1302,13 +1307,14 @@ class InprocessInspectionView(TemplateView):
         # Get model images
         images = []
         if model_master.model_stock_no:
-            for img in model_master.model_stock_no.images.all():
+            from modelmasterapp.image_utils import sort_images_front_first
+            for img in sort_images_front_first(model_master.model_stock_no.images.all()):
                 if img.master_image:
                     images.append(img.master_image.url)
-        
+
         if not images:
             images = [static('assets/images/imagePlaceholder.jpg')]
-        
+
         model_no = model_master.model_stock_no.model_no if model_master.model_stock_no else None
         
         # Safe version access
@@ -1637,6 +1643,16 @@ def save_jig_remarks(request):
         jig_detail.remarks = remarks  # Can be empty string
         jig_detail.save(update_fields=['jig_position', 'remarks', 'IP_loaded_date_time', 'last_process_module'])
 
+        # Real processing activity — advance the shared current_stage SSOT so
+        # the previous module (Jig Loading) shows "Inprocess Inspection" as
+        # the Current Location instead of a stale value.
+        if jig_detail.lot_id:
+            try:
+                from modelmasterapp.stage_service import update_stock_stage
+                update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
+            except Exception:
+                logging.exception('save_jig_remarks: current_stage update failed')
+
         return JsonResponse({
             'success': True, 
             'message': 'Jig position and remarks saved successfully',
@@ -1841,10 +1857,18 @@ class InprocessInspectionCompleteView(TemplateView):
         
         # Fetch all Bath Numbers for dropdown
         bath_numbers = BathNumbers.objects.all().order_by('bath_number')
-        
+
+        # Bulk-fetch the live current_stage SSOT (modelmasterapp/stage_service.py) for
+        # every lot_id in this page, once, to avoid a per-row query in the loop below.
+        _all_lot_ids = list(jig_details_qs.values_list('lot_id', flat=True))
+        current_stage_map = dict(
+            TotalStockModel.objects.filter(lot_id__in=_all_lot_ids)
+            .values_list('lot_id', 'current_stage')
+        )
+
         # Process each JigCompleted to handle multiple models and lots - SAME AS InprocessInspectionView
         processed_jig_details = []
-        
+
         for idx, jig_detail in enumerate(jig_details_qs):
             
             # Get multiple lot_ids exactly like JigCompletedTable
@@ -1874,8 +1898,11 @@ class InprocessInspectionCompleteView(TemplateView):
             model_cases_data = self.process_model_cases_corrected(jig_detail.no_of_model_cases, multiple_lot_ids, jig_detail.batch_id)
             
             # Create enhanced jig_detail with multi-lot support
-            enhanced_jig_detail = self.create_enhanced_jig_detail(jig_detail, lot_ids_data, model_cases_data)
-            
+            enhanced_jig_detail = self.create_enhanced_jig_detail(
+                jig_detail, lot_ids_data, model_cases_data,
+                current_stage=current_stage_map.get(jig_detail.lot_id)
+            )
+
             processed_jig_details.append(enhanced_jig_detail)
             
         
@@ -2212,15 +2239,15 @@ class InprocessInspectionCompleteView(TemplateView):
         
         return result
 
-    def create_enhanced_jig_detail(self, original_jig_detail, lot_ids_data, model_cases_data):
+    def create_enhanced_jig_detail(self, original_jig_detail, lot_ids_data, model_cases_data, current_stage=None):
         """
         Create enhanced jig_detail with multi-lot support and existing functionality
         EXACT SAME LOGIC AS JigCompletedTable
         """
-        
+
         # Keep the original object but add new attributes
         jig_detail = original_jig_detail
-        
+
         # Add multi-lot data - EXACT SAME AS JigCompletedTable format
         # lot_ids_data contains lists, so we need to join them for comma-separated display
         jig_detail.lot_plating_stk_nos = lot_ids_data['plating_stk_nos']  # This is a list
@@ -2229,7 +2256,7 @@ class InprocessInspectionCompleteView(TemplateView):
         jig_detail.lot_plating_stk_nos_list = lot_ids_data['plating_stk_nos_list']
         jig_detail.lot_polishing_stk_nos_list = lot_ids_data['polishing_stk_nos_list']
         jig_detail.lot_version_names_list = lot_ids_data['version_names_list']
-        
+
         # Add model_cases data (comma-separated values from no_of_model_cases)
         jig_detail.model_plating_stk_nos = model_cases_data['model_plating_stk_nos']
         jig_detail.model_polishing_stk_nos = model_cases_data['model_polishing_stk_nos']
@@ -2237,7 +2264,10 @@ class InprocessInspectionCompleteView(TemplateView):
         jig_detail.model_plating_stk_nos_list = model_cases_data['model_plating_stk_nos_list']
         jig_detail.model_polishing_stk_nos_list = model_cases_data['model_polishing_stk_nos_list']
         jig_detail.model_version_names_list = model_cases_data['model_version_names_list']
-        jig_detail.last_process_module = getattr(original_jig_detail, 'last_process_module', None)  # <-- FIXED INDENT
+        # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py, bulk-fetched
+        # by the caller) over JigCompleted.last_process_module, which is not kept in sync
+        # once the lot advances past Inprocess Inspection.
+        jig_detail.last_process_module = current_stage or getattr(original_jig_detail, 'last_process_module', None)
 
         
         
@@ -2423,7 +2453,8 @@ class InprocessInspectionCompleteView(TemplateView):
                     batch_id=jig_batch
                 ).prefetch_related('images').select_related('version', 'model_stock_no').first()
                 if mmc:
-                    imgs = [img.master_image.url for img in mmc.images.all() if img.master_image]
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    imgs = [img.master_image.url for img in sort_images_front_first(mmc.images.all()) if img.master_image]
                     if not imgs:
                         imgs = [static('assets/images/imagePlaceholder.jpg')]
                     if isinstance(getattr(jig_detail, 'model_images', None), dict):
@@ -2502,7 +2533,8 @@ class InprocessInspectionCompleteView(TemplateView):
                 ).prefetch_related('images').select_related('version', 'model_stock_no').first()
                 if mmc:
                     # Get images from ModelMasterCreation.images
-                    imgs = [img.master_image.url for img in mmc.images.all() if img.master_image]
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    imgs = [img.master_image.url for img in sort_images_front_first(mmc.images.all()) if img.master_image]
                     if not imgs:
                         imgs = [static('assets/images/imagePlaceholder.jpg')]
                     
@@ -2563,11 +2595,12 @@ class InprocessInspectionCompleteView(TemplateView):
             
             # Get model images — prefer ModelMasterCreation.images, fall back to model_stock_no.images
             images = []
-            for img in model_master.images.all():
+            from modelmasterapp.image_utils import sort_images_front_first
+            for img in sort_images_front_first(model_master.images.all()):
                 if img.master_image:
                     images.append(img.master_image.url)
             if not images and model_master.model_stock_no:
-                for img in model_master.model_stock_no.images.all():
+                for img in sort_images_front_first(model_master.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
             

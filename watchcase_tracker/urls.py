@@ -18,12 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 from django.contrib.auth import views as auth_views
 from adminportal.views import IndexView, TimedLoginView
 from django.conf.urls import handler404, handler500, handler403, handler400
 from importlib.util import find_spec
 import logging
-
+
+import os
 _urls_logger = logging.getLogger(__name__)
 try:
     from watchcase_tracker import sso as _sso_module
@@ -123,6 +125,12 @@ urlpatterns += [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    urlpatterns += [
+        path('vendors/<path:path>', serve, {'document_root': os.path.join(settings.BASE_DIR, 'static', 'assets', 'vendors')}),
+        path('css/<path:path>', serve, {'document_root': os.path.join(settings.BASE_DIR, 'static', 'assets', 'css')}),
+        path('js/<path:path>', serve, {'document_root': os.path.join(settings.BASE_DIR, 'static', 'assets', 'js')}),
+        path('images/<path:path>', serve, {'document_root': os.path.join(settings.BASE_DIR, 'static', 'assets', 'images')}),
+    ]
 def custom_404(request, exception):
     return render(request, "pages/samples/error-404.html", status=404)
 

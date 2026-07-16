@@ -30,6 +30,7 @@ from IQF.models import *
 from BrassAudit.models import *
 from Nickel_Inspection.models import *
 from Jig_Unloading.models import *
+from Jig_Loading.models import JigCompleted
 from Jig_Unloading.tray_utils import (
     get_upstream_tray_distribution,
     get_model_master_tray_info,
@@ -71,6 +72,35 @@ def _nq_int(value):
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _resolve_nq_previous_unloading_remark(jig_unload_obj):
+    """Resolve the upstream Jig Unloading remark saved on JigCompleted."""
+    candidates = []
+    for raw_lot in (getattr(jig_unload_obj, "combine_lot_ids", None) or []):
+        if raw_lot:
+            candidates.append(str(raw_lot).rsplit("-", 1)[-1])
+            candidates.append(str(raw_lot))
+    for attr in ("lot_id", "unload_lot_id"):
+        value = getattr(jig_unload_obj, attr, None)
+        if value:
+            candidates.append(str(value))
+
+    seen = set()
+    for lot_id in candidates:
+        if not lot_id or lot_id in seen:
+            continue
+        seen.add(lot_id)
+        jig_completed = (
+            JigCompleted.objects.filter(lot_id=lot_id)
+            .exclude(unloading_remarks__isnull=True)
+            .exclude(unloading_remarks="")
+            .order_by("-updated_at")
+            .first()
+        )
+        if jig_completed and jig_completed.unloading_remarks:
+            return jig_completed.unloading_remarks
+    return ""
 
 
 def _nq_tray_sort_key(tray_id):
@@ -396,6 +426,8 @@ class NQ_PickTableView(APIView):
                 "rejected_ip_stock": jig_unload_obj.rejected_nickle_ip_stock,
                 "accepted_tray_scan_status": jig_unload_obj.nq_accepted_tray_scan_status,
                 "nq_pick_remarks": jig_unload_obj.nq_pick_remarks,  # Not applicable for nickel
+                "previous_module": "Jig Unloading",
+                "previous_module_remark": _resolve_nq_previous_unloading_remark(jig_unload_obj),
                 "nq_qc_accptance": False,  # Not applicable
                 "nq_accepted_tray_scan_status": False,  # Not applicable
                 "nq_qc_rejection": False,  # Not applicable
@@ -417,7 +449,10 @@ class NQ_PickTableView(APIView):
                 "plating_stk_no": jig_unload_obj.plating_stk_no or "",
                 "polishing_stk_no": jig_unload_obj.polish_stk_no or "",
                 "category": jig_unload_obj.category or "",
-                "last_process_module": jig_unload_obj.last_process_module or "Jig Unload",
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                "last_process_module": jig_unload_obj.current_stage or jig_unload_obj.last_process_module or "Jig Unload",
                 "combine_lot_ids": jig_unload_obj.combine_lot_ids,  # Show which lots were combined
                 "unload_lot_id": jig_unload_obj.unload_lot_id,  # Additional identifier
                 # Nickel-specific fields
@@ -449,7 +484,8 @@ class NQ_PickTableView(APIView):
                                 f"✅ NQ View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            for img in model_master.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -470,7 +506,8 @@ class NQ_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-                            for img in batch_obj.model_stock_no.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -639,7 +676,8 @@ class NickelQcRejectTableView(APIView):
                                 f"✅ Nickel Reject View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
-                            for img in model_master.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(model_master.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -662,7 +700,8 @@ class NickelQcRejectTableView(APIView):
                     if total_stock_obj and total_stock_obj.batch_id:
                         batch_obj = total_stock_obj.batch_id
                         if batch_obj.model_stock_no:
-                            for img in batch_obj.model_stock_no.images.all():
+                            from modelmasterapp.image_utils import sort_images_front_first
+                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -721,7 +760,7 @@ class NickelQcRejectTableView(APIView):
                             data["nickel_rejection_total_qty"] = 0
                         print(f"⚠️ No rejection record found for {stock_lot_id}")
                 except Exception as e:
-                    print(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}")
+                    logger.error(f"❌ Error getting rejection for {stock_lot_id}: {str(e)}", exc_info=True)
                     data["nickel_rejection_total_qty"] = data.get("nickel_rejection_total_qty", 0)
             else:
                 data["nickel_rejection_total_qty"] = 0
@@ -768,7 +807,7 @@ def nq_toggle_verified(request):
         return Response({'success': True, 'last_process_module': obj.last_process_module or ''})
     except Exception as e:
         logger.exception("[nq_toggle_verified] error lot=%s", lot_id)
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @api_view(['POST'])
@@ -849,6 +888,15 @@ def nq_action(request):
             'tray_type': tray_type,
             'plating_stk_no': juat.plating_stk_no or '',
         })
+    if action == 'SAVE_REMARK':
+        remark = (request.data.get('remark', '') or '').strip()
+        if not remark:
+            return Response({'success': False, 'error': 'Remark is required'}, status=400)
+        if len(remark) > 100:
+            return Response({'success': False, 'error': 'Remark must be 100 characters or less'}, status=400)
+        juat.nq_pick_remarks = remark
+        juat.save(update_fields=['nq_pick_remarks'])
+        return Response({'success': True, 'message': 'Remark saved'})
     if action == 'ALLOCATE':
         try:
             rejected_qty = int(request.data.get('rejected_qty', 0))
@@ -889,19 +937,19 @@ def nq_action(request):
             return _nq_do_submit_reject(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action SUBMIT_REJECT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'SUBMIT_ACCEPT':
         try:
             return _nq_do_submit_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action SUBMIT_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'FULL_ACCEPT':
         try:
             return _nq_do_full_accept(request, lot_id, juat)
         except Exception as e:
             logger.exception("[nq_action FULL_ACCEPT] lot=%s", lot_id)
-            return Response({'success': False, 'error': str(e)}, status=500)
+            return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
     if action == 'SAVE_DRAFT':
         from django.db import transaction as _tx
         draft_data = _nq_build_draft_snapshot(request.data.get('draft_data', {}), juat, request)
@@ -1388,7 +1436,7 @@ def nq_delink_selected_trays(request):
         return Response({'success': True, 'updated': updated, 'lots_processed': lots_processed})
     except Exception as e:
         logger.exception("[nq_delink_selected_trays] error")
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -1455,7 +1503,10 @@ class NQCompletedView(APIView):
                 'tray_type': obj.tray_type or '',
                 'tray_capacity': obj.tray_capacity or 0,
                 'category': obj.category or '',
-                'last_process_module': obj.last_process_module or '',
+                # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
+                # this stays in sync with downstream modules (e.g. Spider Spindle) that
+                # only update current_stage and not last_process_module.
+                'last_process_module': obj.current_stage or obj.last_process_module or '',
                 'combine_lot_ids': obj.combine_lot_ids,
                 'unload_lot_id': obj.unload_lot_id,
                 'stock_lot_id': obj.lot_id,
@@ -1495,13 +1546,15 @@ class NQCompletedView(APIView):
                 prefix = str(obj.plating_stk_no)[:4]
                 mm = ModelMaster.objects.filter(model_no__startswith=prefix).prefetch_related('images').first()
                 if mm:
-                    images = [img.master_image.url for img in mm.images.all() if img.master_image]
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    images = [img.master_image.url for img in sort_images_front_first(mm.images.all()) if img.master_image]
             if not images and obj.combine_lot_ids:
                 first_lid = obj.combine_lot_ids[0] if obj.combine_lot_ids else None
                 if first_lid:
                     ts = TotalStockModel.objects.filter(lot_id=first_lid).first()
                     if ts and ts.batch_id and ts.batch_id.model_stock_no:
-                        images = [img.master_image.url for img in ts.batch_id.model_stock_no.images.all() if img.master_image]
+                        from modelmasterapp.image_utils import sort_images_front_first
+                        images = [img.master_image.url for img in sort_images_front_first(ts.batch_id.model_stock_no.images.all()) if img.master_image]
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images

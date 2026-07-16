@@ -792,7 +792,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <!-- Column 1: S.No -->
                       <td {% if data.nq_hold_lot %} class="row-inactive-blur"{% endif %}>
                     <span style="display:flex; align-items:center; gap:3px;">
-                      {% if is_admin %}
+                      {% if can_hold_release %}
                         <!-- Admin users: Show toggle switch -->
                         <label class="hold-toggle-switch" style="margin-bottom:0;">
                           {% if not data.nq_hold_lot %}
@@ -1170,7 +1170,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                               href="#"
                               title="Add Remark"
                               class="remark-tooltip-trigger"
-                              data-jig-lot-id="{{ jig_detail.jig_lot_id }}"
+                              data-jig-lot-id="{{ data.lot_id }}"
                               style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
                             >
                               <img
@@ -1191,6 +1191,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                   {% if not data.nq_pick_remarks %}
                                   <button
                                     type="button"
+                                    class="remark-send-btn"
                                     style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;"
                                   >
                                     <i class="fa fa-send"></i>
@@ -1203,6 +1204,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                   {% endif %}
                                 </div>
                               </div>
+                          </a>
+                          <a href="#"
+                             title="{{ data.previous_module_remark|default:'No previous remark available.' }}"
+                             class="prev-remark-tooltip-trigger"
+                             style="margin-left: 5px; color: #007bff; font-size: 16px; display: inline-flex; align-items: center;">
+                            <i class="fa fa-info-circle"></i>
                           </a>
                  
                     </td>
@@ -1913,6 +1920,97 @@ document.addEventListener("DOMContentLoaded", function () {
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
       body: JSON.stringify(body),
     }).then(function (r) { return r.json(); });
+  }
+
+  if (!window.__nqZone2RemarkHandlerBound) {
+    window.__nqZone2RemarkHandlerBound = true;
+    document.addEventListener('click', function (event) {
+      var sendBtn = event.target.closest('.remark-send-btn');
+      if (!sendBtn) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (sendBtn.disabled || sendBtn.dataset.saving === 'true') return;
+
+      var trigger = sendBtn.closest('.remark-tooltip-trigger');
+      var row = sendBtn.closest('tr');
+      var textarea = trigger ? trigger.querySelector('textarea') : null;
+      var remark = textarea ? textarea.value.trim() : '';
+
+      if (!remark) {
+        alert('Please enter a remark before sending.');
+        return;
+      }
+
+      var lotId = row ? (row.getAttribute('data-stock-lot-id') || row.getAttribute('data-lot-id') || '') : '';
+      if (!lotId) {
+        alert('Could not identify the lot for this remark.');
+        return;
+      }
+
+      var payload = {
+        action: 'SAVE_REMARK',
+        lot_id: lotId,
+        remark: remark
+      };
+
+      sendBtn.disabled = true;
+      sendBtn.dataset.saving = 'true';
+
+      fetch(API_BASE + 'action/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(payload)
+      })
+        .then(function (response) {
+          var contentType = response.headers.get('content-type') || '';
+          if (contentType.indexOf('application/json') !== -1) {
+            return response.json().then(function (data) {
+              if (!response.ok) {
+                throw new Error(data.error || ('HTTP ' + response.status + ' while saving remark.'));
+              }
+              return data;
+            });
+          }
+          return response.text().then(function (text) {
+            console.error('Unexpected non-JSON remark response:', text);
+            throw new Error('HTTP ' + response.status + ' while saving remark. The server returned a non-JSON response.');
+          });
+        })
+        .then(function (data) {
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to save remark.');
+          }
+          if (textarea) textarea.readOnly = true;
+          var img = trigger ? trigger.querySelector('img[alt="Chat"]') : null;
+          if (img) {
+            img.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)';
+            img.style.opacity = '1';
+          }
+          if (sendBtn.parentElement) {
+            sendBtn.parentElement.innerHTML = '<div style="margin-top: 40px; color: #31708f; background: #d9edf7; border: 1px solid #bce8f1; border-radius: 4px; padding: 8px 12px; font-size: 10px; text-align: left;"><i class="fa fa-info-circle" style="margin-right: 6px;"></i>Remark already saved and cannot be edited.</div>';
+          }
+          return (window.Swal && typeof Swal.fire === 'function'
+            ? Swal.fire({ icon: 'success', title: 'Remark saved!', timer: 1200, showConfirmButton: false })
+            : Promise.resolve(alert('Remark saved!'))
+          ).then(function () {
+            var tooltip = trigger ? trigger.querySelector('.remark-tooltip') : null;
+            if (tooltip) {
+              tooltip.classList.remove('pinned');
+              tooltip.style.opacity = '0';
+              tooltip.style.pointerEvents = 'none';
+              tooltip.style.visibility = 'hidden';
+              tooltip.style.display = 'none';
+            }
+          });
+        })
+        .catch(function (error) {
+          sendBtn.disabled = false;
+          sendBtn.dataset.saving = 'false';
+          alert(error.message || 'Failed to save remark.');
+        });
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {

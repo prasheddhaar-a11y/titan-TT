@@ -14,11 +14,14 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import pytz
 import json
+import logging
 
 from modelmasterapp.models import *
 from datetime import datetime, timedelta  # re-import after wildcard (modelmasterapp shadows datetime)
 from Jig_Unloading.models import JigUnloadAfterTable
 from .models import SpiderSpindleZ1TrayId
+
+logger = logging.getLogger(__name__)
 
 
 def _get_upstream_tray_ids(lot_id, jig_obj=None):
@@ -116,7 +119,8 @@ def _get_model_images(jig_unload_obj):
                     model_no__startswith=model_no_prefix
                 ).prefetch_related('images').first()
                 if model_master:
-                    for img in model_master.images.all():
+                    from modelmasterapp.image_utils import sort_images_front_first
+                    for img in sort_images_front_first(model_master.images.all()):
                         if img.master_image:
                             images.append(img.master_image.url)
             except Exception:
@@ -126,7 +130,8 @@ def _get_model_images(jig_unload_obj):
         if first_lot_id:
             total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
             if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-                for img in total_stock.batch_id.model_stock_no.images.all():
+                from modelmasterapp.image_utils import sort_images_front_first
+                for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
                     if img.master_image:
                         images.append(img.master_image.url)
     return images
@@ -186,6 +191,8 @@ class SSZ1PickTableView(APIView):
                 'polishing_stk_no': obj.polish_stk_no or '',
                 'category': obj.category or '',
                 'last_process_module': obj.last_process_module or 'Nickel Audit',
+                'previous_module': 'Nickel Audit',
+                'previous_module_remark': obj.na_pick_remarks or '',
                 'spider_pick_remarks': obj.spider_pick_remarks or '',
                 'spider_hold_lot': obj.spider_hold_lot,
                 'spider_holding_reason': obj.spider_holding_reason or '',
@@ -325,6 +332,12 @@ class SSZ1AddSpiderAPIView(APIView):
                 'ss_z1_completed', 'ss_z1_tray_id', 'ss_z1_completed_at', 'ss_z1_completed_by'
             ])
 
+            # Real processing activity — advance the shared current_stage SSOT
+            # so the previous module (Jig Unloading) shows "Spider Spindle" as
+            # the Current Location instead of a stale value.
+            from modelmasterapp.stage_service import update_juat_stage
+            update_juat_stage(lot_id, 'Spider Spindle')
+
         return Response({
             'success': True,
             'message': f'Spider added for lot {lot_id}. {released_count} trays released for reuse.',
@@ -369,17 +382,29 @@ class SSZ1SaveRemarksAPIView(APIView):
     """Save spider pick remarks."""
 
     def post(self, request):
-        lot_id = request.data.get('lot_id')
-        remarks = request.data.get('remarks', '')
+        lot_id = (request.data.get('lot_id') or '').strip()
+        remarks = (request.data.get('remarks') or '').strip()
         if not lot_id:
-            return Response({'error': 'lot_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False, 'error': 'lot_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not remarks:
+            return Response({'success': False, 'error': 'remarks is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        updated = JigUnloadAfterTable.objects.filter(lot_id=lot_id).update(
-            spider_pick_remarks=remarks
-        )
-        if updated:
-            return Response({'success': True})
-        return Response({'error': 'Lot not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            with transaction.atomic():
+                jig_obj = JigUnloadAfterTable.objects.select_for_update().filter(lot_id=lot_id).first()
+                if not jig_obj:
+                    return Response({'success': False, 'error': 'Lot not found.'}, status=status.HTTP_404_NOT_FOUND)
+                jig_obj.spider_pick_remarks = remarks
+                jig_obj.save(update_fields=['spider_pick_remarks'])
+            return Response({
+                'success': True,
+                'message': 'Remark saved successfully.',
+                'lot_id': lot_id,
+                'remark': remarks,
+            })
+        except Exception:
+            logger.exception("[SSZ1SaveRemarksAPIView] failed lot_id=%s", lot_id)
+            return Response({'success': False, 'error': 'Unable to save remark.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SSZ1GetTrayIdAPIView(APIView):

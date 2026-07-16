@@ -111,12 +111,6 @@
          vertical-align: middle;
          font-weight: 700;
          }
-         /* Tablet: top-level sidebar menu titles should match sub-menu at 22px */
-         html.ttt-viewport-tablet .sidebar .nav .nav-item .nav-link .menu-title {
-         font-size: 22px !important;
-         line-height: 1.4 !important;
-         font-weight: 400 !important;
-         }
          /* Sidebar scroll fix: keep the full menu visible between fixed header/footer */
          .sidebar {
          overflow-y: auto !important;
@@ -161,11 +155,6 @@
          .sidebar .nav .nav-item .nav-link .menu-title {
          font-size: 13px !important;
          line-height: 1.15 !important;
-         }
-         html.ttt-viewport-tablet .sidebar .nav .nav-item .nav-link .menu-title {
-         font-size: 22px !important;
-         line-height: 1.4 !important;
-         font-weight: 400 !important;
          }
          }
          /* Force sidebar menu icons/titles to display in a single vertical column, never wrap */
@@ -1075,6 +1064,9 @@
       <script src="{% static 'js/colormapping.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- Global HTML escaping helpers (XSS / HTML-injection prevention) -->
       <script src="{% static 'js/escape_utils.js' %}" nonce="{{ csp_nonce }}"></script>
+      <!-- Global idle-session expiry guard (shows "Session Expired" alert on 401 / idle timeout) -->
+      <meta name="session-expiry-seconds" content="{{ session_cookie_age|default:900 }}">
+      <script src="{% static 'js/session_guard.js' %}" nonce="{{ csp_nonce }}"></script>
       <!-- endinject -->
       <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">
@@ -1214,29 +1206,10 @@
           }
         }
       </style>
-      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=dp-remark-textbox-20260708-1">
+      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=tabdebug-20260604-3">
    </head>
-   <body class="{% block body_class %}{% endblock %}">
-        <style nonce="{{ csp_nonce }}">
-          html.ttt-viewport-tablet .navbar .nb-btn,
-          html.ttt-viewport-tablet .navbar .nb-btn small,
-          html.ttt-viewport-tablet .navbar .nav-link,
-          html.ttt-viewport-tablet .navbar .dropdown-toggle,
-          html.ttt-viewport-tablet .navbar .dropdown-item,
-          html.ttt-viewport-tablet .navbar .dropdown-menu,
-          html.ttt-viewport-tablet .navbar .dropdown-menu *,
-          html.ttt-viewport-tablet .navbar .admin-name,
-          html.ttt-viewport-tablet .navbar span,
-          html.ttt-viewport-tablet .navbar a,
-          html.ttt-viewport-tablet .navbar button {
-            font-size: var(--ttt-font-size-tablet, 22px) !important;
-            line-height: 1.25 !important;
-          }
-          html.ttt-viewport-tablet .navbar .nb-btn {
-            min-height: 52px !important;
-            padding: 10px 18px !important;
-          }
-        </style>
+   <body> 
+      {% csrf_token %}
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
@@ -1254,7 +1227,6 @@
                   <img src="{% static 'assets/logo/t_t.png' %}" class="me-1" alt="logo" style="height:53px; width:auto; margin-top: -15px;"/>
                   </a>
                   <a class="navbar-brand brand-logo me-2" href="{% url 'index' %}">
-                  <img src="{% static 'assets/logo/beta.png' %}" class="me-1" alt="logo" style="height:10px; width:auto;margin-top: 10px"/>
                   </a>
                </div>
             </div>
@@ -1370,7 +1342,7 @@
                   <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" href="#"
                      data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false">
                      <img src="{% static 'assets/icons/52.png' %}" alt="Profile" class="nb-icon" />
-                     <small>{{ request.user.username }}</small>
+                     <small>{{ request.user.first_name|default:request.user.username }}</small>
                   </a>
                   <div
                      class="dropdown-menu dropdown-menu-right navbar-dropdown"
@@ -2144,90 +2116,7 @@
       <div class="main-panel">
          {% block page_title %}{% endblock %}
          {% block content %}{% endblock %}
-                <style nonce="{{ csp_nonce }}">
-          footer.footer.force-footer-bottom-page {
-            position: fixed !important;
-            left: var(--ttt-sidebar-width, 250px) !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            width: auto !important;
-            margin: 0 !important;
-            z-index: 2147483000 !important;
-          }
-          body.sidebar-icon-only footer.footer.force-footer-bottom-page {
-            left: var(--ttt-sidebar-collapsed-width, 70px) !important;
-          }
-          body.force-footer-bottom-page .main-panel {
-            padding-bottom: 78px !important;
-          }
-          body.force-footer-bottom-page .content-wrapper.force-footer-bottom-page {
-            padding-bottom: 78px !important;
-          }
-          body.force-footer-bottom-page .dataTables_wrapper,
-          body.force-footer-bottom-page .dataTables_paginate,
-          body.force-footer-bottom-page .pagination {
-            margin-bottom: 18px !important;
-          }
-          @media (max-width: 991.98px) {
-            footer.footer.force-footer-bottom-page {
-              left: 0 !important;
-              width: 100% !important;
-            }
-          }
-        </style>
-        <style nonce="{{ csp_nonce }}">
-          html.ttt-viewport-tablet body.module-pick-table-page,
-          html.ttt-viewport-tablet body.module-pick-table-page .content-wrapper,
-          html.ttt-viewport-tablet body.module-pick-table-page .content-wrapper *,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing th,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing td,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing th *,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing td *,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing button,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .btn,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing input,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing select,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing textarea,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .badge,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .rounded-pill,
-          html.ttt-viewport-tablet body.module-pick-table-page #order-listing .status-badge {
-            font-size: var(--ttt-font-size-tablet, 22px) !important;
-          }
-        </style>                <style nonce="{{ csp_nonce }}">
-          html.ttt-viewport-tablet body.module-completed-table-page,
-          html.ttt-viewport-tablet body.module-completed-table-page .content-wrapper,
-          html.ttt-viewport-tablet body.module-completed-table-page .content-wrapper *,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th *,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td *,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing button,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .btn,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing input,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing select,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing textarea,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .badge,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .rounded-pill,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing .status-badge {
-            font-size: var(--ttt-font-size-tablet, 22px) !important;
-            line-height: 1.15 !important;
-          }
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing th,
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing td {
-            min-height: 58px !important;
-            height: 58px !important;
-            padding: 8px 12px !important;
-            vertical-align: middle !important;
-          }
-          html.ttt-viewport-tablet body.module-completed-table-page #order-listing thead th {
-            min-height: 70px !important;
-            height: 70px !important;
-            white-space: normal !important;
-            padding-right: 34px !important;
-          }
-        </style>        <footer class="footer {% block footer_class %}{% endblock %}">
+        <footer class="footer">
           <span>
           &copy; 2026 Pinesphere. All rights reserved.
           </span>
@@ -3121,36 +3010,266 @@
       <!-- Previous-module remark tooltip handler (prev-remark-tooltip-trigger / dp-remark-tooltip-trigger) -->
       <script nonce="{{ csp_nonce }}">
       document.addEventListener("DOMContentLoaded", function () {
+        var _remarkHoverSelector = ".prev-remark-tooltip-trigger, .dp-remark-tooltip-trigger";
         var _activeTip = null;
-        function _removeTip() {
-          if (_activeTip) { _activeTip.remove(); _activeTip = null; }
+        var _activeTrigger = null;
+        var _closeTimer = null;
+
+        function _clearCloseTimer() {
+          if (_closeTimer) {
+            window.clearTimeout(_closeTimer);
+            _closeTimer = null;
+          }
         }
+
+        function _removeTip() {
+          _clearCloseTimer();
+          if (_activeTip) {
+            _activeTip.remove();
+            _activeTip = null;
+          }
+          if (_activeTrigger) {
+            _activeTrigger.removeAttribute("data-prev-open");
+            _activeTrigger = null;
+          }
+        }
+
+        function _scheduleClose(nextTarget) {
+          _clearCloseTimer();
+          if (
+            nextTarget &&
+            ((_activeTip && _activeTip.contains(nextTarget)) ||
+             (_activeTrigger && _activeTrigger.contains(nextTarget)))
+          ) {
+            return;
+          }
+          _closeTimer = window.setTimeout(_removeTip, 120);
+        }
+
+        function _positionTip(trigger, tip) {
+          var r = trigger.getBoundingClientRect();
+          var tw = tip.offsetWidth;
+          var th = tip.offsetHeight;
+          var left = Math.min(r.left, window.innerWidth - tw - 10);
+          var top = r.bottom + 6;
+          if (top + th > window.innerHeight) {
+            top = r.top - th - 6;
+          }
+          tip.style.left = Math.max(8, left) + "px";
+          tip.style.top = Math.max(8, top) + "px";
+        }
+
+        function _showTip(el) {
+          _clearCloseTimer();
+          var text = el.getAttribute("data-prev-remark") || "";
+          if (!text) {
+            text = "No previous remark available.";
+          }
+          if (_activeTrigger === el && _activeTip) {
+            return;
+          }
+          _removeTip();
+
+          var tip = document.createElement("div");
+          tip.className = "prev-remark-tooltip";
+          tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:99999;max-width:280px;font-size:13px;color:#333;pointer-events:auto;line-height:1.5;word-break:break-word;";
+
+          var heading = document.createElement("span");
+          heading.textContent = "PREVIOUS REMARK";
+          heading.style.cssText = "font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;";
+
+          var body = document.createElement("div");
+          body.textContent = text.trim() || "No previous remark available.";
+
+          tip.appendChild(heading);
+          tip.appendChild(body);
+          tip.addEventListener("mouseenter", _clearCloseTimer);
+          tip.addEventListener("mouseleave", function (event) {
+            _scheduleClose(event.relatedTarget);
+          });
+
+          document.body.appendChild(tip);
+          _activeTip = tip;
+          _activeTrigger = el;
+          el.setAttribute("data-prev-open", "true");
+          _positionTip(el, tip);
+        }
+
+        function _prepareTrigger(el) {
+          if (!el || el.getAttribute("data-prev-ready") === "true") {
+            return;
+          }
+          var dataAttr = "data-prev-remark";
+          var fallback = "No previous remark available.";
+          var remarkText = el.getAttribute(dataAttr) || el.getAttribute("title") || fallback;
+          el.removeAttribute("title");
+          el.setAttribute(dataAttr, remarkText);
+          el.setAttribute("data-prev-ready", "true");
+        }
+
         document.addEventListener("scroll", _removeTip, true);
         window.addEventListener("resize", _removeTip);
-        document.querySelectorAll(".prev-remark-tooltip-trigger, .dp-remark-tooltip-trigger").forEach(function (el) {
-          var remarkText = el.getAttribute("title") || "";
-          if (remarkText) el.removeAttribute("title");  /* prevent native browser tooltip */
-          el.setAttribute("data-prev-remark", remarkText);
-          el.addEventListener("mouseenter", function () {
-            _removeTip();
-            var text = el.getAttribute("data-prev-remark") || "";
-            if (!text) return;
-            var tip = document.createElement("div");
-            tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:99999;max-width:280px;font-size:13px;color:#333;pointer-events:none;line-height:1.5;word-break:break-word;";
-            tip.innerHTML = "<span style='font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;'>&#9432; Previous Remark</span>" + text;
-            document.body.appendChild(tip);
-            _activeTip = tip;
-            var r = el.getBoundingClientRect();
-            var tw = tip.offsetWidth, th = tip.offsetHeight;
-            var left = Math.min(r.left, window.innerWidth - tw - 10);
-            var top = r.bottom + 6;
-            if (top + th > window.innerHeight) { top = r.top - th - 6; }
-            tip.style.left = Math.max(8, left) + "px";
-            tip.style.top = top + "px";
-          });
-          el.addEventListener("mouseleave", _removeTip);
-          el.addEventListener("click", function (e) { e.preventDefault(); });
+
+        document.querySelectorAll(_remarkHoverSelector).forEach(function (el) {
+          _prepareTrigger(el);
         });
+
+        document.addEventListener("mouseover", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el || el.contains(event.relatedTarget)) {
+            return;
+          }
+          _prepareTrigger(el);
+          _showTip(el);
+        });
+
+        document.addEventListener("mouseout", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el || el.contains(event.relatedTarget)) {
+            return;
+          }
+          _scheduleClose(event.relatedTarget);
+        });
+
+        document.addEventListener("click", function (event) {
+          var el = event.target.closest(_remarkHoverSelector);
+          if (!el) {
+            return;
+          }
+          event.preventDefault();
+        });
+      });
+      </script>
+      <!-- Read-only saved current remark hover handler (saved-remark-tooltip-trigger) -->
+      <script nonce="{{ csp_nonce }}">
+      document.addEventListener("DOMContentLoaded", function () {
+        var savedRemarkSelector = ".saved-remark-tooltip-trigger";
+        var activeSavedRemarkTip = null;
+        var activeSavedRemarkTrigger = null;
+        var savedRemarkCloseTimer = null;
+
+        function clearSavedRemarkCloseTimer() {
+          if (savedRemarkCloseTimer) {
+            window.clearTimeout(savedRemarkCloseTimer);
+            savedRemarkCloseTimer = null;
+          }
+        }
+
+        function removeSavedRemarkTip() {
+          clearSavedRemarkCloseTimer();
+          if (activeSavedRemarkTip) {
+            activeSavedRemarkTip.remove();
+            activeSavedRemarkTip = null;
+          }
+          if (activeSavedRemarkTrigger) {
+            activeSavedRemarkTrigger.removeAttribute("data-current-remark-open");
+            activeSavedRemarkTrigger = null;
+          }
+        }
+
+        function scheduleSavedRemarkClose(nextTarget) {
+          clearSavedRemarkCloseTimer();
+          if (
+            nextTarget &&
+            ((activeSavedRemarkTip && activeSavedRemarkTip.contains(nextTarget)) ||
+             (activeSavedRemarkTrigger && activeSavedRemarkTrigger.contains(nextTarget)))
+          ) {
+            return;
+          }
+          savedRemarkCloseTimer = window.setTimeout(removeSavedRemarkTip, 120);
+        }
+
+        function positionSavedRemarkTip(trigger, tip) {
+          var rect = trigger.getBoundingClientRect();
+          var tipWidth = tip.offsetWidth;
+          var tipHeight = tip.offsetHeight;
+          var left = rect.left + (rect.width / 2) - (tipWidth / 2);
+          var top = rect.bottom + 8;
+
+          if (left + tipWidth > window.innerWidth - 10) {
+            left = window.innerWidth - tipWidth - 10;
+          }
+          if (left < 10) {
+            left = 10;
+          }
+          if (top + tipHeight > window.innerHeight - 10) {
+            top = rect.top - tipHeight - 8;
+          }
+          if (top < 10) {
+            top = 10;
+          }
+
+          tip.style.left = left + "px";
+          tip.style.top = top + "px";
+        }
+
+        function getSavedRemarkText(trigger) {
+          return (
+            trigger.getAttribute("data-current-remark") ||
+            trigger.getAttribute("data-remark") ||
+            ""
+          ).trim();
+        }
+
+        function showSavedRemarkTip(trigger) {
+          clearSavedRemarkCloseTimer();
+          if (activeSavedRemarkTrigger === trigger && activeSavedRemarkTip) {
+            return;
+          }
+
+          removeSavedRemarkTip();
+
+          var remarkText = getSavedRemarkText(trigger) || "No remark available.";
+          var tip = document.createElement("div");
+          tip.className = "saved-current-remark-tooltip";
+          tip.style.cssText = "position:fixed;background:#fff;border:1px solid #90b8d8;border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px rgba(0,0,0,0.18);z-index:1000000;max-width:280px;font-size:13px;color:#333;pointer-events:auto;line-height:1.5;word-break:break-word;";
+
+          var heading = document.createElement("span");
+          heading.textContent = "CURRENT REMARK";
+          heading.style.cssText = "font-weight:700;color:#007bff;font-size:11px;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px;";
+
+          var body = document.createElement("div");
+          body.textContent = remarkText;
+
+          tip.appendChild(heading);
+          tip.appendChild(body);
+          tip.addEventListener("pointerenter", clearSavedRemarkCloseTimer);
+          tip.addEventListener("pointerleave", function (event) {
+            scheduleSavedRemarkClose(event.relatedTarget);
+          });
+
+          document.body.appendChild(tip);
+          activeSavedRemarkTip = tip;
+          activeSavedRemarkTrigger = trigger;
+          trigger.setAttribute("data-current-remark-open", "true");
+          positionSavedRemarkTip(trigger, tip);
+        }
+
+        document.addEventListener("pointerover", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (!trigger || trigger.contains(event.relatedTarget)) {
+            return;
+          }
+          showSavedRemarkTip(trigger);
+        });
+
+        document.addEventListener("pointerout", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (!trigger || trigger.contains(event.relatedTarget)) {
+            return;
+          }
+          scheduleSavedRemarkClose(event.relatedTarget);
+        });
+
+        document.addEventListener("click", function (event) {
+          var trigger = event.target.closest(savedRemarkSelector);
+          if (trigger) {
+            event.preventDefault();
+          }
+        });
+
+        document.addEventListener("scroll", removeSavedRemarkTip, true);
+        window.addEventListener("resize", removeSavedRemarkTip);
       });
       </script>
 
@@ -4647,6 +4766,64 @@
   }
 })();
 </script>
+
+{% if show_sso_no_modules_alert %}
+<!-- Post-SSO "no modules assigned" notice: shown once right after an SSO
+     redirect when the sidebar has no modules besides Dashboard. Polls a
+     lightweight self-status endpoint so the message can switch to
+     "Refresh to access" the moment an admin grants access, without the
+     user having to guess or repeatedly reload. -->
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var STATUS_URL = '/adminportal/api/my-allowed-modules-status/';
+  var POLL_INTERVAL_MS = 15000;
+  var pollTimerId = null;
+  var accessGranted = false;
+
+  function stopPolling() {
+    if (pollTimerId) { clearInterval(pollTimerId); pollTimerId = null; }
+  }
+
+  function showRefreshAlert() {
+    if (accessGranted) { return; }
+    accessGranted = true;
+    stopPolling();
+    Swal.fire({
+      icon: 'success',
+      title: 'Access Granted',
+      text: 'Refresh to access',
+      confirmButtonText: 'Refresh',
+      confirmButtonColor: '#028084',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(function() {
+      window.location.reload();
+    });
+  }
+
+  function pollModuleStatus() {
+    if (accessGranted || !window.fetch) { return; }
+    fetch(STATUS_URL, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function(response) { return response.ok ? response.json() : null; })
+      .then(function(data) {
+        if (data && data.has_modules) { showRefreshAlert(); }
+      })
+      .catch(function() { /* transient network error — retry on next tick */ });
+  }
+
+  Swal.fire({
+    icon: 'info',
+    title: 'Access Restricted',
+    text: 'Contact admin to access the portal',
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#028084',
+    allowOutsideClick: false
+  });
+
+  pollTimerId = setInterval(pollModuleStatus, POLL_INTERVAL_MS);
+})();
+</script>
+{% endif %}
 
    </body>
 </html>

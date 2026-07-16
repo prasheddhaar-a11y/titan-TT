@@ -184,7 +184,14 @@
                       <span class="text-muted">—</span>
                     {% endif %}
                   </td>
-                  <td>{{ item.spider_pick_remarks }}</td>
+                  <td>
+                    {{ item.spider_pick_remarks }}
+                    {% if item.na_pick_remarks %}
+                    <a href="#" title="NA Remark: {{ item.na_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left:5px;color:#17a673;font-size:16px;display:inline-flex;align-items:center;vertical-align:middle;">
+                      <i class="fa fa-info-circle"></i>
+                    </a>
+                    {% endif %}
+                  </td>
                 </tr>
                 {% empty %}
                 <tr>
