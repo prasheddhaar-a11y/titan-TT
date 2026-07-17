@@ -1311,6 +1311,7 @@ body.add-model-mode #selectAllCheckbox {
                     <th>Polishing<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Plating <br> Color <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish <br> Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Tray Cate - Capacity <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Version <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
@@ -1470,6 +1471,9 @@ body.add-model-mode #selectAllCheckbox {
                       <!-- Polish Finish -->
                       <td>{{ jig_detail.polish_finish|default:"N/A" }}</td>
 
+                      <!-- Type of Input -->
+                      <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=jig_detail.type_of_input %}</td>
+
                       <!-- Tray Cate - Capacity -->
                         <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
                         {% if jig_detail.tray_type and jig_detail.tray_capacity %}
@@ -1537,7 +1541,7 @@ body.add-model-mode #selectAllCheckbox {
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="17" style="text-align: center; padding: 20px; color: #888;">
+                      <td colspan="18" style="text-align: center; padding: 20px; color: #888;">
                         No completed unloads found.
                       </td>
                     </tr>

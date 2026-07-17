@@ -86,12 +86,16 @@ def create_accept_child(
         iqf_accptance=True,
         last_process_module="IQF",
         next_process_module="Brass QC",
+        # Real stage reached is IQF — Brass QC is only a routing hint here.
+        # Brass QC sets current_stage="Brass QC" itself once it actually
+        # starts processing this lot (see Brass_QC/services/lot_service.py).
+        current_stage="IQF",
         last_process_date_time=timezone.now(),
         iqf_last_process_date_time=timezone.now(),
     )
 
-    for tray in accepted_trays:
-        IQFTrayId.objects.create(
+    IQFTrayId.objects.bulk_create([
+        IQFTrayId(
             lot_id=accept_lot_id,
             tray_id=tray.get('tray_id', ''),
             tray_quantity=tray.get('qty', 0),
@@ -100,6 +104,8 @@ def create_accept_child(
             top_tray=tray.get('is_top', tray.get('top_tray', False)),
             IP_tray_verified=True,
         )
+        for tray in accepted_trays
+    ])
 
     IQF_Accepted_TrayScan.objects.create(
         lot_id=accept_lot_id,
@@ -164,12 +170,13 @@ def create_reject_child(
         brass_physical_qty=0,
         last_process_module="IQF",
         next_process_module=None,
+        current_stage="IQF",
         last_process_date_time=timezone.now(),
         iqf_last_process_date_time=timezone.now(),
     )
 
-    for tray in rejected_trays:
-        IQFTrayId.objects.create(
+    IQFTrayId.objects.bulk_create([
+        IQFTrayId(
             lot_id=reject_lot_id,
             tray_id=tray.get('tray_id', ''),
             tray_quantity=tray.get('qty', 0),
@@ -178,6 +185,8 @@ def create_reject_child(
             top_tray=tray.get('is_top', tray.get('top_tray', False)),
             rejected_tray=True,
         )
+        for tray in rejected_trays
+    ])
 
     # Store rejection reasons
     if rejection_reasons:

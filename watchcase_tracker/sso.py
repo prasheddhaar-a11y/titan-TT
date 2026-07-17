@@ -7,6 +7,7 @@ from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
+from urllib.parse import urlparse
 import msal
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,20 @@ def microsoft_login(request):
             state=state,
             redirect_uri=redirect_uri,
         )
+        
+        auth_url = (auth_url or "").strip()
+        
+        if auth_url.startswith("/"):
+            auth_url = f"https://login.microsoftonline.com{auth_url}"
+        
+        parsed_auth_url = urlparse(auth_url)
+        
+        if (
+            parsed_auth_url.scheme != "https"
+            or parsed_auth_url.hostname != "login.microsoftonline.com"
+        ):
+            logger.error("Invalid Microsoft authorization URL generated: %r", auth_url)
+            return redirect(f"{settings.LOGIN_URL}?sso_error=invalid_authority")
     except Exception:
         logger.exception("Microsoft SSO unreachable during login initiation.")
         return redirect(f"{settings.LOGIN_URL}?sso_error=unavailable")

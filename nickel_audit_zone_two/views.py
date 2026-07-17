@@ -33,8 +33,25 @@ from Jig_Unloading.tray_utils import get_upstream_tray_distribution, get_model_m
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
 from Nickel_Audit.views import _na_latest_submission_qtys, _na_partial_accept_child_maps, _na_unique_completed_rows
+from modelmasterapp.type_of_input import get_type_of_input_map
 
 logger = logging.getLogger(__name__)
+
+def _sort_images_front_first_safe(images):
+    """
+    Sort model images with Front View first when the optional helper exists.
+    Fall back to the original queryset/list order when it is not deployed.
+    """
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default image order"
+        )
+        return images
+    return sort_images_front_first(images)
+
+
 
 
 def _get_input_source(jig_unload_obj):
@@ -347,8 +364,12 @@ class NA_Zone_PickTableView(APIView):
                             model_no__startswith=model_no_prefix
                         ).prefetch_related('images').first()
                         if model_master:
+<<<<<<< HEAD
                             from modelmasterapp.image_utils import sort_images_front_first
                             for img in sort_images_front_first(model_master.images.all()):
+=======
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                     except Exception:
@@ -358,8 +379,12 @@ class NA_Zone_PickTableView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:
@@ -367,10 +392,12 @@ class NA_Zone_PickTableView(APIView):
             data['model_images'] = images
             master_data.append(data)
 
+        type_of_input_map = get_type_of_input_map([data.get('stock_lot_id') for data in master_data])
         for data in master_data:
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             lot_id = data.get('stock_lot_id')
+            data['type_of_input'] = type_of_input_map.get(lot_id, 'Fresh')
 
             total_rejection_qty = 0
             rejection_store = Nickel_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).first()
@@ -559,8 +586,12 @@ class NA_Zone_CompletedView(APIView):
                         .first()
                     )
                     if model_master:
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(model_master.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images and data["combine_lot_ids"]:
@@ -568,14 +599,22 @@ class NA_Zone_CompletedView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:
                 images = [static("assets/images/imagePlaceholder.jpg")]
             data["model_images"] = images
             master_data.append(data)
+
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
+        for data in master_data:
+            data["type_of_input"] = type_of_input_map.get(data.get("stock_lot_id"), "Fresh")
 
         context = {
             "master_data": master_data,

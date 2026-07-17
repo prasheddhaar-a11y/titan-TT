@@ -1652,6 +1652,7 @@ body.add-model-mode #selectAllCheckbox {
                     <th>Lot Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Stage <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1893,6 +1894,9 @@ body.add-model-mode #selectAllCheckbox {
                     
                     <!-- Polish Finish -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{{ jig_detail.polish_finish_name|default:"N/A" }}</td>
+
+                    <!-- Type of Input -->
+                    <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur"  {% endif %}>{% include 'partials/_type_of_input_cell.html' with type_of_input=jig_detail.type_of_input %}</td>
                     
                     <!-- Remarks -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
@@ -1954,7 +1958,7 @@ body.add-model-mode #selectAllCheckbox {
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="12" style="text-align: center; padding: 20px; color: #888;">
+                      <td colspan="13" style="text-align: center; padding: 20px; color: #888;">
                         No jig details found for unloading.
                       </td>
                     </tr>

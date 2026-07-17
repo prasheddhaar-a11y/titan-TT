@@ -2,6 +2,7 @@ from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from modelmasterapp.models import *
+from modelmasterapp.image_utils import sort_images_front_first
 from rest_framework import status
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404, redirect, render
@@ -161,6 +162,8 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         return context
 
     def get_form_kwargs(self):
+        import time as _time
+        t0 = _time.time()
         kwargs = super().get_form_kwargs()
         from .services import should_require_login_captcha
 
@@ -168,7 +171,13 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         data = kwargs.get('data')
         if data:
             username = data.get('username', '').strip()
+        t1 = _time.time()
         kwargs['require_captcha'] = should_require_login_captcha(username)
+        if getattr(settings, 'ENABLE_LOGIN_LATENCY_LOGS', False):
+            logger.warning(
+                'LOGIN_FORM_KWARGS_TIMING: super_get_form_kwargs=%.2fms | should_require_login_captcha=%.2fms',
+                (t1 - t0) * 1000, (_time.time() - t1) * 1000,
+            )
         return kwargs
 
     def _login_error_message(self, form, username):
@@ -480,14 +489,20 @@ class IndexView(APIView):
         t4 = time.time()
         if hasattr(request, 'timers'):
             request.timers['dashboard_stats'] = f'{(t4-t3)*1000:.2f}ms'
-        
+
+        # One-shot: only the landing page right after an SSO redirect shows
+        # the "no modules assigned" alert, not every dashboard visit.
+        sso_just_logged_in = request.session.pop('sso_just_logged_in', False)
+        show_sso_no_modules_alert = bool(sso_just_logged_in and not allowed_modules)
+
         # Build context
-        context = { 
+        context = {
             'user': request.user,
             'allowed_modules': allowed_modules,
             'dashboard_stats': dashboard_stats,
             'dashboard_stats_loading': True,
             'current_date': timezone.now().strftime('%d %b %Y'),
+            'show_sso_no_modules_alert': show_sso_no_modules_alert,
         }
         
         # Create response (DRF handles rendering)
@@ -669,7 +684,8 @@ class Visual_AidView(APIView):
                     stock_for_images,
                     fallback_images=batch_obj.images.all(),
                 )
-                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
+                images_payload = hover_payload.get('images', []) if hover_payload else []
+                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -690,7 +706,8 @@ class Visual_AidView(APIView):
                     model_master_obj.plating_stk_no,
                     fallback_images=model_master_obj.images.all(),
                 )
-                image_urls = [img['url'] for img in hover_payload.get('images', [])] if hover_payload else []
+                images_payload = hover_payload.get('images', []) if hover_payload else []
+                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
                 
                 context.update({
                     'batch_id': None,
@@ -799,6 +816,14 @@ _IMAGE_VIEW_ORDER = {
     'BV': 6,
 }
 
+_ALLOWED_MODEL_IMAGE_VIEWS = {'TV', 'FV', 'FSV', 'IV', 'RSV'}
+
+# Preference order for the single hover "Front View" preview image: an exact
+# Front View wins; Front-Side View is the closest available substitute when a
+# model has no dedicated FV upload yet. Any other view code is never used as
+# the preview so the wrong angle can never be shown for the requested feature.
+_FRONT_VIEW_PREFERENCE = ('FV', 'FSV')
+
 
 def _parse_stock_no(raw_stock_no):
     stock_no = (raw_stock_no or '').strip().upper()
@@ -830,60 +855,172 @@ def _detect_image_view(image_name):
             return suffix, _IMAGE_VIEW_LABELS[suffix]
     return 'VIEW', 'View'
 
-
-def _sort_model_images(images):
-    return sorted(
-        [img for img in images if getattr(img, 'master_image', None)],
-        key=lambda img: (
-            _IMAGE_VIEW_ORDER.get(_detect_image_view(img.master_image.name)[0], 99),
-            os.path.basename(img.master_image.name).lower(),
-        ),
+def _get_model_image_lookup_name(img):
+    return (
+        getattr(img, 'original_filename', '')
+        or getattr(getattr(img, 'master_image', None), 'name', '')
+        or ''
     )
 
 
-def _get_images_for_stock(stock_parts, model_master=None, fallback_images=None):
+def _image_matches_key(img, image_key):
+    return image_key.lower() in _get_model_image_lookup_name(img).lower()
+
+
+def _filter_images_by_key(images, image_key):
+    return [
+        img
+        for img in images
+        if getattr(img, 'master_image', None)
+        and _image_matches_key(img, image_key)
+    ]
+
+
+def _get_no_image_placeholder():
+    placeholder_filenames = (
+        'NO_IMAGE.jpg',
+        'NO_IMAGE.jpeg',
+        'NO_IMAGE.png',
+        'noimage.jpg',
+        'noimage.jpeg',
+        'noimage.png',
+        'no_image.jpg',
+        'no_image.jpeg',
+        'no_image.png',
+    )
+
+    for filename in placeholder_filenames:
+        placeholder = ModelImage.objects.filter(
+            original_filename__iexact=filename
+        ).first()
+
+        if placeholder and getattr(placeholder, 'master_image', None):
+            return placeholder
+
+    for filename in placeholder_filenames:
+        placeholder = ModelImage.objects.filter(
+            master_image__iendswith=filename
+        ).first()
+
+        if placeholder and getattr(placeholder, 'master_image', None):
+            return placeholder
+
+    return None
+
+def _sort_model_images(images):
+    selected_by_view = {}
+
+    def sort_key(img):
+        lookup_name = _get_model_image_lookup_name(img)
+        return (
+            _IMAGE_VIEW_ORDER.get(
+                _detect_image_view(lookup_name)[0],
+                99,
+            ),
+            os.path.basename(lookup_name).lower(),
+        )
+
+    valid_images = [
+        img
+        for img in images
+        if getattr(img, 'master_image', None)
+    ]
+
+    for img in sorted(valid_images, key=sort_key):
+        lookup_name = _get_model_image_lookup_name(img)
+        view_code = _detect_image_view(lookup_name)[0]
+
+        if view_code not in _ALLOWED_MODEL_IMAGE_VIEWS:
+            continue
+
+        selected_by_view.setdefault(view_code, img)
+
+    return [
+        selected_by_view[view_code]
+        for view_code in ('TV', 'FV', 'FSV', 'IV', 'RSV')
+        if view_code in selected_by_view
+    ]
+
+
+def _get_images_for_stock(
+    stock_parts,
+    model_master=None,
+    fallback_images=None,
+):
+    keyed_images = ModelImage.objects.filter(
+        original_filename__icontains=stock_parts['image_key']
+    )
+
+    if keyed_images.exists():
+        return _sort_model_images(keyed_images)
+
+    # Backward compatibility for older files whose stored filename
+    # still contains the image key.
     keyed_images = ModelImage.objects.filter(
         master_image__icontains=stock_parts['image_key']
     )
+
     if keyed_images.exists():
         return _sort_model_images(keyed_images)
 
     if model_master:
-        model_images = model_master.images.all()
-        if model_images.exists():
+        model_images = _filter_images_by_key(
+            model_master.images.all(),
+            stock_parts['image_key'],
+        )
+
+        if model_images:
             return _sort_model_images(model_images)
 
     if fallback_images is not None:
-        fallback_images = list(fallback_images)
-        if fallback_images:
-            return _sort_model_images(fallback_images)
+        matched_fallback_images = _filter_images_by_key(
+            fallback_images,
+            stock_parts['image_key'],
+        )
 
-    model_images = ModelImage.objects.filter(master_image__icontains=stock_parts['model_no'])
-    return _sort_model_images(model_images)
+        if matched_fallback_images:
+            return _sort_model_images(matched_fallback_images)
+
+    placeholder = _get_no_image_placeholder()
+
+    if placeholder:
+        return [placeholder]
+
+    return []
 
 
 def _build_image_payload(request, images):
     payload = []
+
     for img in images:
         try:
+<<<<<<< HEAD
             emit_media_read(
                 request,
                 img.master_image,
                 lookup_source='image_payload',
             )
             image_url = request.build_absolute_uri(img.master_image.url)
+=======
+            image_url = img.master_image.url
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
         except Exception:
             continue
-        view_code, view_label = _detect_image_view(img.master_image.name)
+
+        lookup_name = _get_model_image_lookup_name(img)
+        view_code, view_label = _detect_image_view(lookup_name)
+
         payload.append({
             'id': img.id,
             'url': image_url,
             'view_code': view_code,
             'view': view_label,
         })
+
     return payload
 
 
+<<<<<<< HEAD
 def _build_image_url_list(request, images, lookup_source='visual_aid_direct_images'):
     image_urls = []
     for img in images:
@@ -895,6 +1032,18 @@ def _build_image_url_list(request, images, lookup_source='visual_aid_direct_imag
             )
             image_urls.append(img.master_image.url)
     return image_urls
+=======
+def _only_isometric_view(images_payload):
+    """
+    Visual Aid page must show a single Isometric View image only (no
+    multi-view gallery). Falls back to the first available image if the
+    model has no dedicated IV upload, so the page never renders blank.
+    """
+    iv_images = [img for img in images_payload if img.get('view_code') == 'IV']
+    if iv_images:
+        return [iv_images[0]]
+    return images_payload[:1]
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 
 
 def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
@@ -954,7 +1103,13 @@ def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
         request,
         _get_images_for_stock(stock_parts, model_master=model_master, fallback_images=fallback_images),
     )
-    preview = images_payload[0] if images_payload else {}
+    preview = {}
+    for view_code in _FRONT_VIEW_PREFERENCE:
+        preview = next((img for img in images_payload if img['view_code'] == view_code), None)
+        if preview:
+            break
+    if not preview:
+        preview = images_payload[0] if images_payload else {}
 
     return {
         'found': True,
@@ -1059,12 +1214,17 @@ class Rec_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "RecoveryMasterCreation" and batch_obj:
                 # Use RecoveryMasterCreation data (preferred)
+<<<<<<< HEAD
                 images = batch_obj.images.all()
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='recovery_visual_aid.batch_images',
                 )
+=======
+                images = sort_images_front_first(batch_obj.images.all())
+                image_urls = [img.master_image.url for img in images if img.master_image]
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -1079,12 +1239,17 @@ class Rec_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
+<<<<<<< HEAD
                 images = model_master_obj.images.all()
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='recovery_visual_aid.model_master_images',
                 )
+=======
+                images = sort_images_front_first(model_master_obj.images.all())
+                image_urls = [img.master_image.url for img in images if img.master_image]
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': None,
@@ -1256,12 +1421,17 @@ class Other_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
+<<<<<<< HEAD
                 images = batch_obj.images.all()
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='other_visual_aid.batch_images',
                 )
+=======
+                images = sort_images_front_first(batch_obj.images.all())
+                image_urls = [img.master_image.url for img in images if img.master_image]
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -1276,12 +1446,17 @@ class Other_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
+<<<<<<< HEAD
                 images = model_master_obj.images.all()
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='other_visual_aid.model_master_images',
                 )
+=======
+                images = sort_images_front_first(model_master_obj.images.all())
+                image_urls = [img.master_image.url for img in images if img.master_image]
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': None,
@@ -3153,14 +3328,37 @@ def _normalize_group_ids_from_payload(data):
     return group_ids
 
 
+def _group_ids_field_present(data):
+    """True if the request payload actually included a groups field (even if empty).
+
+    Distinguishes "admin explicitly cleared all groups" (groups: []) from
+    "this request doesn't touch groups at all" (key omitted entirely), so
+    callers only reset group membership when the admin meant to.
+    """
+    if not data:
+        return False
+    for key in ('group_ids', 'groups', 'group'):
+        if key in data:
+            return True
+    return False
+
+
 def _apply_user_groups(user, group_ids, apply_admin_flags=False):
-    """Replace user categories with the selected, valid groups without duplicates."""
+    """Replace user categories with the selected, valid groups without duplicates.
+
+    An empty group_ids list clears the user's groups. Callers must only invoke
+    this when the admin actually submitted a groups field (see
+    _group_ids_field_present) - otherwise a user's existing groups would be
+    wiped by unrelated partial updates (e.g. a password-only change).
+    """
     if not group_ids:
+        user.groups.clear()
         return []
 
     groups_by_id = Group.objects.filter(id__in=group_ids).in_bulk()
     selected_groups = [groups_by_id[group_id] for group_id in group_ids if group_id in groups_by_id]
     if not selected_groups:
+        user.groups.clear()
         return []
 
     user.groups.set(selected_groups)
@@ -3263,8 +3461,8 @@ class UserCreateAPIView(APIView):
                         user.set_password(password)
                     user.save()
 
-                    selected_groups = _apply_user_groups(user, group_ids)
-                    if selected_groups:
+                    if _group_ids_field_present(data):
+                        _apply_user_groups(user, group_ids)
                         if not sync_user_module_provisions_from_group(user):
                             invalidate_user_modules_cache(user.id)
 
@@ -3546,6 +3744,16 @@ def user_allowed_modules(request):
     return Response({"modules": get_user_allowed_module_payload(target_user)})
 
 
+# Lightweight self-check used by the post-SSO "no modules assigned" alert to
+# detect that an admin has since granted access, without a full page reload.
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_allowed_modules_status(request):
+    from .services import get_user_allowed_module_names
+
+    modules = get_user_allowed_module_names(request.user)
+    return Response({'has_modules': bool(modules)})
+
 
 #Class for User Deletion API (inactive — route is commented out in urls.py)
 class UserDeleteAPIView(APIView):
@@ -3701,8 +3909,8 @@ class UserUpdateAPIView(APIView):
                 profile.employment_status = data.get('employment_status', profile.employment_status)
                 profile.save()
 
-            selected_groups = _apply_user_groups(user, _normalize_group_ids_from_payload(data))
-            if selected_groups:
+            if _group_ids_field_present(data):
+                _apply_user_groups(user, _normalize_group_ids_from_payload(data))
                 if not sync_user_module_provisions_from_group(user):
                     invalidate_user_modules_cache(user.id)
 

@@ -28,8 +28,48 @@ class RowAccessLock(models.Model):
 
     class Meta:
         unique_together = ('batch_id', 'lot_id')
-        
-        
+
+
+class PickRowLock(models.Model):
+    """
+    Centralized, database-backed pessimistic lock for pick-table rows across
+    every processing module (Day Planning -> Spider Spindle Z2).
+
+    Design notes:
+    - `module` + `lock_key` uniquely identify a row. `lock_key` is normally the
+      lot_id (falls back to batch_id / jig id for modules that key on those).
+    - Ownership is enforced at the DB level. Acquire/refresh/steal all run inside
+      transaction.atomic() + select_for_update() in
+      modelmasterapp.rowlock_service, so two simultaneous requests can never both
+      win the same row.
+    - `heartbeat_at` is refreshed by the owner via a lightweight heartbeat. A lock
+      whose heartbeat is older than settings.PICK_ROW_LOCK_TTL_SECONDS is treated
+      as stale (abandoned tab / browser close / crash) and may be reclaimed. This
+      guarantees no permanent locks without any cron/background job.
+    """
+    module = models.CharField(max_length=50, db_index=True)
+    lock_key = models.CharField(max_length=120, db_index=True)
+    locked_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='pick_row_locks'
+    )
+    # Snapshot of the owner's display name so status responses never do an extra
+    # user join and survive a later username change for audit display.
+    locked_by_name = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    heartbeat_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        verbose_name = "Pick Row Lock"
+        verbose_name_plural = "Pick Row Locks"
+        unique_together = ('module', 'lock_key')
+        indexes = [
+            models.Index(fields=['module', 'lock_key'], name='pickrowlock_mod_key_idx'),
+            models.Index(fields=['heartbeat_at'], name='pickrowlock_heartbeat_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.module}:{self.lock_key} -> {self.locked_by_name or self.locked_by_id}"
+
 
 def model_image_upload_path(instance, filename):
     """
@@ -58,6 +98,11 @@ def model_image_upload_path(instance, filename):
 class ModelImage(models.Model):
   #give master_image field for mulitple image slection
     master_image = models.ImageField(upload_to=model_image_upload_path)
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+    )
     date_time = models.DateTimeField(default=timezone.now)
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
@@ -259,6 +304,18 @@ class ModelMasterCreation(models.Model):
     previous_lot_status = models.CharField(max_length=50, blank=True, null=True)
     changes = models.CharField(max_length=255, blank=True, null=True, default="Outer Groove")
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    UPLOAD_TYPE_CHOICES = [
+        ('day_planning', 'Day Planning'),
+        ('recovery', 'Recovery Upload'),
+    ]
+    upload_type = models.CharField(
+        max_length=20,
+        choices=UPLOAD_TYPE_CHOICES,
+        default='day_planning',
+        verbose_name="Type of Input",
+        help_text="Source of upload: Day Planning or Recovery Upload",
+    )
 
     def save(self, *args, **kwargs):
     

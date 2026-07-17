@@ -644,7 +644,7 @@ width: 435px !important;
                         data-model-no="{{ data.plating_stk_no }}">
                         <td {% if data.ip_hold_lot %} class="row-inactive-blur"{% endif %}>
                         <span style="display:flex; align-items:center; gap:3px;">
-                           {% if is_admin %}
+                           {% if can_hold_release %}
                            <!-- Admin users: Show toggle switch -->
                            <label class="hold-toggle-switch" style="margin-bottom:0;">
                            {% if not data.ip_hold_lot %}

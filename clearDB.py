@@ -13,7 +13,7 @@ from InputScreening.models import *
 from IQF.models import *
 from Jig_Unloading.models import *   # ✅ ADDED
 from Nickel_Audit.models import *    # ✅ ADDED
-from Nickel_Inspection.models import *  # ✅ ADDED
+from Nickel_Inspection.models import * 
 
 from django.db import transaction
 from django.contrib.auth import get_user_model

@@ -20,6 +20,22 @@ from rest_framework import status
 from django.http import JsonResponse
 import json
 logger = logging.getLogger(__name__)
+
+def _sort_images_front_first_safe(images):
+    """
+    Sort model images with Front View first when the optional helper exists.
+    Fall back to the original queryset/list order when it is not deployed.
+    """
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default image order"
+        )
+        return images
+    return sort_images_front_first(images)
+
+
 from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.http import require_GET
 from math import ceil
@@ -37,6 +53,10 @@ from Jig_Unloading.tray_utils import (
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
 from Nickel_Inspection.views import nq_toggle_verified, nq_action, _resolve_nq_previous_unloading_remark
+<<<<<<< HEAD
+=======
+from modelmasterapp.type_of_input import get_type_of_input_map
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 
 def _nq_tray_capacity(tray_type_name):
     """Return accept-tray capacity for a given tray_type string.
@@ -256,8 +276,12 @@ class NQ_Zone_PickTableView(APIView):
                                 f"✅ NQ View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
+<<<<<<< HEAD
                             from modelmasterapp.image_utils import sort_images_front_first
                             for img in sort_images_front_first(model_master.images.all()):
+=======
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -278,8 +302,12 @@ class NQ_Zone_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
+<<<<<<< HEAD
                             from modelmasterapp.image_utils import sort_images_front_first
                             for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+=======
+                            for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -298,6 +326,7 @@ class NQ_Zone_PickTableView(APIView):
                 data["tray_type"] = "Normal"
             master_data.append(data)
         # ✅ Process the data (similar logic but adapted for JigUnloadAfterTable)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
         for data in master_data:
             total_IP_accpeted_quantity = data.get("total_IP_accpeted_quantity", 0)
             tray_capacity = data.get("tray_capacity", 0)
@@ -305,6 +334,7 @@ class NQ_Zone_PickTableView(APIView):
                 f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             )
             lot_id = data.get("stock_lot_id")
+            data["type_of_input"] = type_of_input_map.get(lot_id, "Fresh")
             # Calculate total rejection quantity for this lot
             total_rejection_qty = 0
             rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(lot_id=lot_id).first()
@@ -348,8 +378,12 @@ class NQ_Zone_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         model_master = batch_obj.model_stock_no
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(model_master.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:
@@ -466,8 +500,12 @@ class NQ_Zone_RejectTableView(APIView):
                                 f"✅ Nickel Reject View - Found ModelMaster for images: {model_master.model_no}"
                             )
                             # Get images from ModelMaster
+<<<<<<< HEAD
                             from modelmasterapp.image_utils import sort_images_front_first
                             for img in sort_images_front_first(model_master.images.all()):
+=======
+                            for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -490,8 +528,12 @@ class NQ_Zone_RejectTableView(APIView):
                     if total_stock_obj and total_stock_obj.batch_id:
                         batch_obj = total_stock_obj.batch_id
                         if batch_obj.model_stock_no:
+<<<<<<< HEAD
                             from modelmasterapp.image_utils import sort_images_front_first
                             for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
+=======
+                            for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                                     print(
@@ -567,6 +609,9 @@ class NQ_Zone_RejectTableView(APIView):
             else:
                 data["no_of_trays"] = 0
             master_data.append(data)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
+        for data in master_data:
+            data["type_of_input"] = type_of_input_map.get(data.get("stock_lot_id"), "Fresh")
         print("✅ Nickel QC Reject data processing completed")
         print("Processed lot_ids:", [data["stock_lot_id"] for data in master_data])
         context = {
@@ -713,8 +758,12 @@ class NQ_Zone_CompletedView(APIView):
                         .first()
                     )
                     if model_master:
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(model_master.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(model_master.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images and data["combine_lot_ids"]:
@@ -722,14 +771,19 @@ class NQ_Zone_CompletedView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
+<<<<<<< HEAD
                         from modelmasterapp.image_utils import sort_images_front_first
                         for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
+=======
+                        for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:
                 images = [static("assets/images/imagePlaceholder.jpg")]
             data["model_images"] = images
             master_data.append(data)
+        type_of_input_map = get_type_of_input_map([data.get("stock_lot_id") for data in master_data])
         for data in master_data:
             total_ip_accepted_quantity = data.get("total_IP_accpeted_quantity", 0)
             tray_capacity = data.get("tray_capacity", 0)
@@ -737,6 +791,7 @@ class NQ_Zone_CompletedView(APIView):
                 f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
             )
             lot_id = data.get("stock_lot_id")
+            data["type_of_input"] = type_of_input_map.get(lot_id, "Fresh")
             rejection_qty = data.get("nq_rejection_qty") or 0
             if not rejection_qty:
                 rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(

@@ -26,6 +26,8 @@ from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
 from modelmasterapp.models import RowAccessLock, DraftTrayId
+from modelmasterapp.type_of_input import label_for_upload_type
+from watchcase_tracker.perf_logger import time_stage
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
 _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
@@ -491,6 +493,9 @@ class DPBulkUploadView(APIView):
         try:
             data = request.data
             rows = data.get('rows', [])
+            upload_type = data.get('upload_type', 'day_planning')
+            if upload_type not in dict(ModelMasterCreation.UPLOAD_TYPE_CHOICES):
+                upload_type = 'day_planning'
 
             if not rows:
                 return JsonResponse({
@@ -665,6 +670,7 @@ class DPBulkUploadView(APIView):
                         category=category_obj,
                         plating_stk_no=plating_stock_no,
                         polishing_stk_no=polishing_stock_no,
+                        upload_type=upload_type,
                     ))
                     success_count += 1
 
@@ -716,6 +722,9 @@ class DPBulkUploadView(APIView):
 
     def handle_file_upload(self, request):
         """Handle file upload with enhanced column validation"""
+        upload_type = request.POST.get('upload_type', 'day_planning')
+        if upload_type not in dict(ModelMasterCreation.UPLOAD_TYPE_CHOICES):
+            upload_type = 'day_planning'
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:
             messages.error(request, "❌ No file uploaded.")
@@ -939,7 +948,8 @@ class DPBulkUploadView(APIView):
                     'polish_finish': polish_obj if polish_obj else None,
                     'category': category_obj,  # Save category object instead of string
                     'plating_stk_no': plating_stock_no,           # <-- Save Plating Stk No
-                    'polishing_stk_no': polishing_stock_no,  # <-- Save Polishing Stk No   
+                    'polishing_stk_no': polishing_stock_no,  # <-- Save Polishing Stk No
+                    'upload_type': upload_type,
                 }
                 objects_to_create.append(ModelMasterCreation(**obj_data))
                 success_count += 1
@@ -1395,18 +1405,14 @@ class DayPlanningPickTableAPIView(APIView):
  
     def get(self, request, *args, **kwargs):
         user = request.user
-        # is_admin = user.groups.filter(name='Admin').exists() if user.is_authenticated else False
-        is_admin = is_admin_user(user)
-        
-        # ✅ NEW: Get all globally used trays for real-time validation across lots
-        draft_trays = DraftTrayId.objects.filter(
-            delink_tray=False
-        ).values_list('tray_id', flat=True).distinct()
-        submitted_trays = TrayId.objects.filter(
-            delink_tray=False
-        ).values_list('tray_id', flat=True).distinct()
-        globally_used_trays = list(set(list(draft_trays) + list(submitted_trays)))
- 
+        with time_stage(request, 'DP_PERMISSION_CHECK'):
+            # is_admin = user.groups.filter(name='Admin').exists() if user.is_authenticated else False
+            is_admin = is_admin_user(user)
+            module_name = "DP Pick Table"
+            visible_headings = get_visible_headings_for_user(user, module_name)
+            # Only include headings that are True (checked)
+            allowed_headings = [h for h, v in visible_headings.items() if v]
+
         # Handle sorting parameters
         sort = request.GET.get('sort')
         order = request.GET.get('order', 'asc')  # Default to ascending
@@ -1427,13 +1433,9 @@ class DayPlanningPickTableAPIView(APIView):
             'total_batch_quantity': 'total_batch_quantity',
             'dp_pick_remarks': 'dp_pick_remarks'
         }
- 
-        module_name = "DP Pick Table"
-        visible_headings = get_visible_headings_for_user(user, module_name)
-        # Only include headings that are True (checked)
-        allowed_headings = [h for h, v in visible_headings.items() if v]
-        print(f"🔍 Allowed headings for user {user.username} in module '{module_name}': {allowed_headings}")
-        print(f"🔍 Visible headings for user {user.username} in module '{module_name}': {visible_headings}")
+
+        dp_data_fetch = time_stage(request, 'DP_DATA_FETCH')
+        dp_data_fetch.__enter__()
         # Subqueries for annotations
         last_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
@@ -1533,8 +1535,40 @@ class DayPlanningPickTableAPIView(APIView):
             'release_reason',
             'accepted_Ip_stock',
             'tray_scan_status',
+            'upload_type',
         ))
- 
+        dp_data_fetch.__exit__(None, None, None)
+
+        dp_processing = time_stage(request, 'DP_PROCESSING')
+        dp_processing.__enter__()
+        # ✅ PERF: Batch-fetch per-batch data ONCE for the whole page instead of
+        # issuing separate queries inside the row loop (was 3 queries per row →
+        # N+1). Behaviour is identical; only the number of DB round-trips changes.
+        page_batch_ids = [d['batch_id'] for d in master_data]
+
+        # Batch ids that have a zero-quantity top tray (replaces per-row .exists()).
+        zero_top_tray_batch_ids = set(
+            TrayId.objects.filter(
+                batch_id__batch_id__in=page_batch_ids,
+                top_tray=True,
+                tray_quantity=0,
+            ).values_list('batch_id__batch_id', flat=True)
+        )
+
+        # Model images per batch (replaces per-row ModelMasterCreation fetch +
+        # images.all()). One query for the rows, one for the M2M via prefetch.
+        images_by_batch = {}
+        from modelmasterapp.image_utils import sort_images_front_first
+        for mmc in ModelMasterCreation.objects.filter(
+            batch_id__in=page_batch_ids
+        ).prefetch_related('images'):
+            urls = [
+                img.master_image.url
+                for img in sort_images_front_first(mmc.images.all())
+                if getattr(img, 'master_image', None)
+            ]
+            images_by_batch[mmc.batch_id] = urls
+
         # Helper: normalize tray type string to pre-jig category and capacity
         def _get_prejig_tray(tray_type_str):
             tt = (tray_type_str or '').upper()
@@ -1551,29 +1585,20 @@ class DayPlanningPickTableAPIView(APIView):
             data['tray_capacity'] = prejig_cap
             tray_capacity = prejig_cap
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
- 
+            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
+
             # ✅ ENHANCED: Determine if this lot needs top tray scan
             tray_scan_status = data.get('tray_scan_status', False)
             moved_to_d_picker = data.get('Moved_to_D_Picker', False)
             draft_saved = data.get('Draft_Saved', False)
             # ✅ ENHANCED: Check if there are any trays with quantity 0 in the first position
-            has_zero_top_tray = False
-            try:
-                # Check if there are TrayId records for this batch where top_tray=True and tray_quantity=0
-                zero_top_tray_exists = TrayId.objects.filter(
-                    batch_id__batch_id=data['batch_id'],
-                    top_tray=True,
-                    tray_quantity=0
-                ).exists()
-                has_zero_top_tray = zero_top_tray_exists
-            except:
-                has_zero_top_tray = False
+            # (precomputed once above — no per-row query).
+            has_zero_top_tray = data['batch_id'] in zero_top_tray_batch_ids
             # ✅ ENHANCED: Multiple conditions for needing top tray scan
             data['needs_top_tray_scan'] = bool(
                 (tray_scan_status and not moved_to_d_picker and not draft_saved) or  # Original condition, exclude draft
                 (has_zero_top_tray and not draft_saved)  # New condition: zero quantity top tray exists, exclude draft
             )
-            print(f"🔍 Batch {data['batch_id']}: tray_scan_status={tray_scan_status}, moved_to_d_picker={moved_to_d_picker}, has_zero_top_tray={has_zero_top_tray}, needs_top_tray_scan={data['needs_top_tray_scan']}")
             if tray_capacity > 0:
                 no_of_trays = math.ceil(total_batch_quantity / tray_capacity)
                 data['no_of_trays'] = no_of_trays
@@ -1593,18 +1618,14 @@ class DayPlanningPickTableAPIView(APIView):
             else:
                 data['no_of_trays'] = 0
                 data['tray_qty_list'] = []
-            # Add model images
-            mmc = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
-            images = []
-            if mmc:
-                for img in getattr(mmc, 'images', []).all():
-                    if getattr(img, 'master_image', None):
-                        images.append(img.master_image.url)
+            # Add model images (precomputed once above — no per-row query).
+            images = list(images_by_batch.get(data['batch_id'], []))
             if not images:
                 from django.templatetags.static import static
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images
- 
+        dp_processing.__exit__(None, None, None)
+
         # ✅ ENHANCED: Define correct column order for table headers
         correct_column_order = [
             'S.No',
@@ -1616,6 +1637,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status',
             'Lot Status',
             'Current Stage',
+            'Type of Input',
             'Polishing Stk No',
             'Plating Color',
             'Category',
@@ -1625,7 +1647,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Source',
             'Remarks',
         ]
-        
+
         # ✅ ENHANCED: Create display headings map for better presentation
         display_headings_map = {
             'S.No': 'S.No',
@@ -1637,6 +1659,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status': 'Process Status',
             'Lot Status': 'Lot Status',
             'Current Stage': 'Current Stage',
+            'Type of Input': 'Type of Input',
             'Polishing Stk No': 'Polishing Stk No',
             'Plating Color': 'Plating Color',
             'Category': 'Category',
@@ -3058,31 +3081,43 @@ class DPCompletedTableView(APIView):
         # Convert dates to datetime objects for filtering (include full day)
         from_datetime = timezone.make_aware(_dt.datetime.combine(from_date, _dt.datetime.min.time()))
         to_datetime = timezone.make_aware(_dt.datetime.combine(to_date, _dt.datetime.max.time()))
-        # Subqueries for annotations
+        # Subqueries for annotations.
+        # NOTE: a batch_id can have multiple TotalStockModel rows once a lot has
+        # been split (parent row + accept-child row + reject-child row all share
+        # the same batch_id). Without an explicit order_by, "[:1]" returns an
+        # arbitrary row, so the annotation could non-deterministically surface a
+        # sibling split row instead of the batch's own authoritative row. Ordering
+        # by "-id" makes this deterministic and picks the most recently written row.
         last_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('last_process_module')[:1]
+        ).order_by('-id').values('last_process_module')[:1]
         next_process_module_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('next_process_module')[:1]
+        ).order_by('-id').values('next_process_module')[:1]
         created_at_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk')
-        ).values('created_at')[:1]
+        ).order_by('-id').values('created_at')[:1]
         accepted_Ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('accepted_Ip_stock')[:1]
+        ).order_by('-id').values('accepted_Ip_stock')[:1]
         few_cases_accepted_Ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('few_cases_accepted_Ip_stock')[:1]
+        ).order_by('-id').values('few_cases_accepted_Ip_stock')[:1]
         rejected_ip_stock_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('rejected_ip_stock')[:1]
+        ).order_by('-id').values('rejected_ip_stock')[:1]
         ip_person_qty_verified_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('ip_person_qty_verified')[:1]
+        ).order_by('-id').values('ip_person_qty_verified')[:1]
         draft_tray_verify_subquery = TotalStockModel.objects.filter(
             batch_id=OuterRef('pk'),
-        ).values('draft_tray_verify')[:1]
+        ).order_by('-id').values('draft_tray_verify')[:1]
+        # Live "current stage" SSOT — updated on real downstream processing
+        # (draft/verify/submit), so this reflects where the lot actually IS now
+        # rather than where Day Planning last touched it (last_process_module).
+        current_stage_subquery = TotalStockModel.objects.filter(
+            batch_id=OuterRef('pk'),
+        ).order_by('-id').values('current_stage')[:1]
 
         queryset = ModelMasterCreation.objects.filter(
             total_batch_quantity__gt=0,
@@ -3090,6 +3125,7 @@ class DPCompletedTableView(APIView):
         ).annotate(
             last_process_module=Subquery(last_process_module_subquery),
             next_process_module=Subquery(next_process_module_subquery),
+            current_stage=Subquery(current_stage_subquery),
             created_at=Subquery(created_at_subquery),
             accepted_Ip_stock=Subquery(accepted_Ip_stock_subquery),
             ip_person_qty_verified=Subquery(ip_person_qty_verified_subquery),
@@ -3130,6 +3166,7 @@ class DPCompletedTableView(APIView):
             'Moved_to_D_Picker',
             'last_process_module',
             'next_process_module',
+            'current_stage',
             'Draft_Saved',
             'top_tray_qty_verified',
             'created_at',
@@ -3145,16 +3182,45 @@ class DPCompletedTableView(APIView):
             'draft_tray_verify'
         ))
 
+        # ✅ PERF: Batch-fetch model images ONCE for the whole page instead of a
+        # per-row ModelMasterCreation query inside the loop (was N+1).
+        page_batch_ids = [d['batch_id'] for d in master_data]
+        images_by_batch = {}
+        from modelmasterapp.image_utils import sort_images_front_first
+        for mmc in ModelMasterCreation.objects.filter(
+            batch_id__in=page_batch_ids
+        ).prefetch_related('images'):
+            urls = [
+                img.master_image.url
+                for img in sort_images_front_first(mmc.images.all())
+                if getattr(img, 'master_image', None)
+            ]
+            images_by_batch[mmc.batch_id] = urls
+
         # Calculate no_of_trays dynamically and add tray_qty_list
         for data in master_data:
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            
+            # Backend-owned "Current Stage" display: use only the live
+            # current_stage SSOT (written by each module on its own real
+            # processing action — draft/verify/submit), falling back to
+            # last_process_module. next_process_module is deliberately excluded:
+            # it is a routing hint ("where this lot is headed next"), not
+            # confirmation that the target module has actually started the lot,
+            # and surfacing it here previously made a lot show e.g. "Brass QC"
+            # the instant a split/reject routed it there — before Brass QC had
+            # ever opened it.
+            data['current_stage_display'] = (
+                data.get('current_stage')
+                or data.get('last_process_module')
+                or 'N/A'
+            )
+
             if tray_capacity > 0:
                 no_of_trays = math.ceil(total_batch_quantity / tray_capacity)
                 data['no_of_trays'] = no_of_trays
-                
+
                 # Calculate tray_qty_list (same logic as DP_PickTable)
                 tray_qty_list = []
                 remainder = total_batch_quantity % tray_capacity
@@ -3172,14 +3238,9 @@ class DPCompletedTableView(APIView):
             else:
                 data['no_of_trays'] = 0
                 data['tray_qty_list'] = []
-                
-            # Add model images
-            mmc = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
-            images = []
-            if mmc:
-                for img in getattr(mmc, 'images', []).all():
-                    if getattr(img, 'master_image', None):
-                        images.append(img.master_image.url)
+
+            # Add model images (precomputed once above — no per-row query).
+            images = list(images_by_batch.get(data['batch_id'], []))
             if not images:
                 from django.templatetags.static import static
                 images = [static('assets/images/imagePlaceholder.jpg')]

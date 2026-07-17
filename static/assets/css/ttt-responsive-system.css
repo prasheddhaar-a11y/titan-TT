@@ -814,9 +814,15 @@ html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(3),
 html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(3) {
   position: sticky !important;
   left: 345px !important;
+<<<<<<< HEAD
   width: 245px !important;
   min-width: 245px !important;
   max-width: 245px !important;
+=======
+  width: 280px !important;
+  min-width: 275px !important;
+  max-width: 275px !important;
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
   z-index: 45 !important;
 }
 
@@ -909,9 +915,15 @@ html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page
 /* Desktop fix: give Input Screening Pick Table action buttons enough room. */
 html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing th:nth-child(4),
 html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4) {
+<<<<<<< HEAD
   width: 245px !important;
   min-width: 245px !important;
   max-width: 245px !important;
+=======
+  width: 280px !important;
+  min-width: 275px !important;
+  max-width: 275px !important;
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
   white-space: nowrap !important;
   overflow: visible !important;
 }

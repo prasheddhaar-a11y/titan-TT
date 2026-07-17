@@ -1022,6 +1022,9 @@
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
+                           <th>
+                              Type of Input
+                           </th>
                            <th data-column-index="5" class="sortable">
                               Category
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
@@ -1252,6 +1255,7 @@
                             </td>
                             <td >{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                             <td >{{ data.plating_color }}</td>
+                            <td >{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                             <td >{{ data.category }}</td>
                             <td >{{ data.polish_finish }}</td>
                             <td >{{ data.location__location_name }}</td>

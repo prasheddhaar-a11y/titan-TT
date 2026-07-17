@@ -23735,56 +23735,56 @@ input:focus {
 
 @font-face {
   font-family: "Nunito";
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Light.eot");
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Light.eot?#iefix")
+  src: url("../../fonts/Nunito/Nunito-Light.eot");
+  src: url("../../fonts/Nunito/Nunito-Light.eot?#iefix")
       format("embedded-opentype"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Light.woff2")
+    url("../../fonts/Nunito/Nunito-Light.woff2")
       format("woff2"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Light.woff")
+    url("../../fonts/Nunito/Nunito-Light.woff")
       format("woff"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Light.ttf")
+    url("../../fonts/Nunito/Nunito-Light.ttf")
       format("truetype");
   font-weight: 300;
   font-style: normal;
 }
 @font-face {
   font-family: "Nunito";
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Bold.eot");
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Bold.eot?#iefix")
+  src: url("../../fonts/Nunito/Nunito-Bold.eot");
+  src: url("../../fonts/Nunito/Nunito-Bold.eot?#iefix")
       format("embedded-opentype"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Bold.woff2")
+    url("../../fonts/Nunito/Nunito-Bold.woff2")
       format("woff2"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Bold.woff")
+    url("../../fonts/Nunito/Nunito-Bold.woff")
       format("woff"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Bold.ttf")
+    url("../../fonts/Nunito/Nunito-Bold.ttf")
       format("truetype");
   font-weight: bold;
   font-style: normal;
 }
 @font-face {
   font-family: "Nunito";
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-SemiBold.eot");
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-SemiBold.eot?#iefix")
+  src: url("../../fonts/Nunito/Nunito-SemiBold.eot");
+  src: url("../../fonts/Nunito/Nunito-SemiBold.eot?#iefix")
       format("embedded-opentype"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-SemiBold.woff2")
+    url("../../fonts/Nunito/Nunito-SemiBold.woff2")
       format("woff2"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-SemiBold.woff")
+    url("../../fonts/Nunito/Nunito-SemiBold.woff")
       format("woff"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-SemiBold.ttf")
+    url("../../fonts/Nunito/Nunito-SemiBold.ttf")
       format("truetype");
   font-weight: 500;
   font-style: normal;
 }
 @font-face {
   font-family: "Nunito";
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Regular.eot");
-  src: url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Regular.eot?#iefix")
+  src: url("../../fonts/Nunito/Nunito-Regular.eot");
+  src: url("../../fonts/Nunito/Nunito-Regular.eot?#iefix")
       format("embedded-opentype"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Regular.woff2")
+    url("../../fonts/Nunito/Nunito-Regular.woff2")
       format("woff2"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Regular.woff")
+    url("../../fonts/Nunito/Nunito-Regular.woff")
       format("woff"),
-    url("https://demo.bootstrapdash.com/skydash/themes/assets/fonts/Nunito/Nunito-Regular.ttf")
+    url("../../fonts/Nunito/Nunito-Regular.ttf")
       format("truetype");
   font-weight: normal;
   font-style: normal;

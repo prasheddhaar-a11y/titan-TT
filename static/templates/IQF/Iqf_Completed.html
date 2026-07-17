@@ -808,6 +808,9 @@
                       <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
                       <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
+                    <th>
+                      Type of Input
+                    </th>
                     <th data-column-index="16" class="sortable">
                       Remarks 
                       <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
@@ -1012,6 +1015,11 @@
                         >
                           On-Hold
                         </div>
+                      {% elif data.brass_qc_released %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                            style="border: 2px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: clamp(0.3rem, 2vw, 0.875rem); white-space: nowrap; padding: 0.3rem;">
+                          Released
+                        </div>
                       {% elif data.iqf_rejection or data.iqf_few_cases_acceptance or data.iqf_acceptance %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 2px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: clamp(0.3rem, 2vw, 0.875rem); white-space: nowrap; padding: 0.3rem;">
@@ -1063,6 +1071,7 @@
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.polish_finish }}</td>
                     <td>{{ data.location__location_name }}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>
                       {% if not data.iqf_acceptance and not data.iqf_rejection and not data.iqf_accepted_tray_scan_status and not data.iqf_few_cases_acceptance %}
 

@@ -32,8 +32,39 @@ import pytz
 import logging
 from django.db import transaction
 from .selectors import get_picktable_base_queryset
+from watchcase_tracker.perf_logger import time_stage
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 logger = logging.getLogger(__name__)
+
+
+def _get_sorted_model_images(model_master):
+    """Return model images with front-view priority when helper is available.
+
+    The production server may not contain ``modelmasterapp.image_utils``.
+    In that case, use the existing ManyToMany ordering instead of crashing the
+    entire Brass Audit page.
+    """
+    if not model_master:
+        return []
+
+    model_images = model_master.images.all()
+
+    try:
+        from modelmasterapp.image_utils import sort_images_front_first
+    except ImportError:
+        logger.warning(
+            "modelmasterapp.image_utils is unavailable; using default model image order"
+        )
+        return model_images
+
+    try:
+        return sort_images_front_first(model_images)
+    except Exception:
+        logger.exception(
+            "Unable to sort model images; using default model image order"
+        )
+        return model_images
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -142,6 +173,7 @@ class BrassAuditPickTableView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'last_process_module': stock_obj.last_process_module,
+                'type_of_input': get_type_of_input_for_batch(batch),
             }
 
             # AQL Sampling Plan
@@ -198,7 +230,7 @@ class BrassAuditPickTableView(APIView):
             images = []
             if batch_obj:
                 model_master = batch_obj.model_stock_no
-                for img in model_master.images.all():
+                for img in _get_sorted_model_images(model_master):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -380,75 +412,61 @@ class BrassAuditCompletedView(APIView):
             'remarks': 'BA_pick_remarks',
         }
 
-        tz = pytz.timezone("Asia/Kolkata")
-        now_local = timezone.now().astimezone(tz)
-        today = now_local.date()
-        yesterday = today - timedelta(days=1)
+        # Timing labels below are logged automatically by RequestPerf whenever
+        # this request ends up slow (see watchcase_tracker/perf_logger.py) -
+        # they pinpoint which block inside this view is the actual 8s cost.
+        with time_stage(request, 'BAC_DATE_SETUP'):
+            tz = pytz.timezone("Asia/Kolkata")
+            now_local = timezone.now().astimezone(tz)
+            today = now_local.date()
+            yesterday = today - timedelta(days=1)
 
-        from_date_str = request.GET.get('from_date')
-        to_date_str = request.GET.get('to_date')
+            from_date_str = request.GET.get('from_date')
+            to_date_str = request.GET.get('to_date')
 
-        if from_date_str and to_date_str:
-            try:
-                from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d').date()
-                to_date = datetime.datetime.strptime(to_date_str, '%Y-%m-%d').date()
-            except ValueError:
+            if from_date_str and to_date_str:
+                try:
+                    from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d').date()
+                    to_date = datetime.datetime.strptime(to_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    from_date = yesterday
+                    to_date = today
+            else:
                 from_date = yesterday
                 to_date = today
-        else:
-            from_date = yesterday
-            to_date = today
 
-        from_datetime = timezone.make_aware(datetime.datetime.combine(from_date, datetime.datetime.min.time()))
-        to_datetime = timezone.make_aware(datetime.datetime.combine(to_date, datetime.datetime.max.time()))
+            from_datetime = timezone.make_aware(datetime.datetime.combine(from_date, datetime.datetime.min.time()))
+            to_datetime = timezone.make_aware(datetime.datetime.combine(to_date, datetime.datetime.max.time()))
 
-        brass_audit_rejection_qty_subquery = Brass_Audit_Rejection_ReasonStore.objects.filter(
-            lot_id=OuterRef('lot_id')
-        ).values('total_rejection_quantity')[:1]
+        with time_stage(request, 'BAC_QUERYSET_BUILD'):
+            brass_audit_rejection_qty_subquery = Brass_Audit_Rejection_ReasonStore.objects.filter(
+                lot_id=OuterRef('lot_id')
+            ).values('total_rejection_quantity')[:1]
 
-        # Subquery: live next_process_module of the accepted child lot (PARTIAL splits)
-        # For FULL_ACCEPT/FULL_REJECT: brass_audit_transition_accept_lot_id is NULL → returns None → falls back to own next_process_module
-        child_accept_stage_subquery = TotalStockModel.objects.filter(
-            lot_id=OuterRef('brass_audit_transition_accept_lot_id')
-        ).values('next_process_module')[:1]
-
-        # Subquery: has the child accept lot (PARTIAL) actually been worked on in Jig Loading?
-        # Combined with own-lot check covers FULL_ACCEPT case too.
-        child_jig_active_subquery = Exists(
-            TotalStockModel.objects.filter(
+            # Subquery: live next_process_module of the accepted child lot (PARTIAL splits)
+            # For FULL_ACCEPT/FULL_REJECT: brass_audit_transition_accept_lot_id is NULL → returns None → falls back to own next_process_module
+            child_accept_stage_subquery = TotalStockModel.objects.filter(
                 lot_id=OuterRef('brass_audit_transition_accept_lot_id')
-            ).filter(Q(jig_draft=True) | Q(Jig_Load_completed=True))
-        )
+            ).values('next_process_module')[:1]
 
-        # ✅ FIX: Only show lots with actual Brass_Audit_Submission records
-        # Prevents unprocessed lots (just moved through stages) from appearing in Completed table
-        has_valid_submission = Exists(
-            Brass_Audit_Submission.objects.filter(
-                lot_id=OuterRef('lot_id'),
-                is_completed=True
+            # Subquery: has the child accept lot (PARTIAL) actually been worked on in Jig Loading?
+            # Combined with own-lot check covers FULL_ACCEPT case too.
+            child_jig_active_subquery = Exists(
+                TotalStockModel.objects.filter(
+                    lot_id=OuterRef('brass_audit_transition_accept_lot_id')
+                ).filter(Q(jig_draft=True) | Q(Jig_Load_completed=True))
             )
-        )
 
-        queryset = TotalStockModel.objects.select_related(
-            'batch_id',
-            'batch_id__model_stock_no',
-            'batch_id__version',
-            'batch_id__location'
-        ).filter(
-            batch_id__total_batch_quantity__gt=0,
-            brass_audit_last_process_date_time__range=(from_datetime, to_datetime)
-        ).annotate(
-            brass_audit_rejection_qty=brass_audit_rejection_qty_subquery,
-            child_accept_stage=child_accept_stage_subquery,
-            child_jig_active=child_jig_active_subquery,
-        ).filter(
-            Q(brass_audit_accptance=True) |
-            Q(brass_audit_rejection=True) |
-            Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
-        ).filter(
-            has_valid_submission
-        )
+            # ✅ FIX: Only show lots with actual Brass_Audit_Submission records
+            # Prevents unprocessed lots (just moved through stages) from appearing in Completed table
+            has_valid_submission = Exists(
+                Brass_Audit_Submission.objects.filter(
+                    lot_id=OuterRef('lot_id'),
+                    is_completed=True
+                )
+            )
 
+<<<<<<< HEAD
         # BUG2 FIX: Exclude child lots from partial splits — only parent summary row
         _child_accept_ids = Brass_Audit_Submission.objects.filter(
             submission_type='PARTIAL', is_completed=True,
@@ -461,140 +479,198 @@ class BrassAuditCompletedView(APIView):
         queryset = queryset.exclude(
             Q(lot_id__in=_child_accept_ids) | Q(lot_id__in=_child_reject_ids)
         )
+=======
+            queryset = TotalStockModel.objects.select_related(
+                'batch_id',
+                'batch_id__model_stock_no',
+                'batch_id__version',
+                'batch_id__location'
+            ).filter(
+                batch_id__total_batch_quantity__gt=0,
+                brass_audit_last_process_date_time__range=(from_datetime, to_datetime)
+            ).annotate(
+                brass_audit_rejection_qty=brass_audit_rejection_qty_subquery,
+                child_accept_stage=child_accept_stage_subquery,
+                child_jig_active=child_jig_active_subquery,
+            ).filter(
+                Q(brass_audit_accptance=True) |
+                Q(brass_audit_rejection=True) |
+                Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
+            ).filter(
+                has_valid_submission
+            )
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 
-        if sort and sort in sort_field_mapping:
-            field = sort_field_mapping[sort]
-            if order == 'desc':
-                field = '-' + field
-            queryset = queryset.order_by(field)
-        else:
-            queryset = queryset.order_by('-brass_audit_last_process_date_time', '-lot_id')
+        with time_stage(request, 'BAC_EXCLUDE_IDS'):
+            # BUG2 FIX: Exclude child lots from partial splits — only parent summary row.
+            # ✅ FIX (Issue 2): Re-entry lots (child lots that later submitted their own BA
+            # FULL_ACCEPT or FULL_REJECT) MUST NOT be excluded even if they appear in
+            # _child_accept_ids/_child_reject_ids from an earlier BA PARTIAL cycle.
+            _child_accept_ids = set(
+                Brass_Audit_Submission.objects.filter(
+                    submission_type='PARTIAL', is_completed=True,
+                    transition_accept_lot_id__isnull=False
+                ).values_list('transition_accept_lot_id', flat=True)
+            )
+            _child_reject_ids = set(
+                Brass_Audit_Submission.objects.filter(
+                    submission_type='PARTIAL', is_completed=True,
+                    transition_reject_lot_id__isnull=False
+                ).values_list('transition_reject_lot_id', flat=True)
+            )
+            # Lots that submitted their own BA result (FULL_ACCEPT / FULL_REJECT) are re-entry
+            # lots — they must appear in BA CT regardless of being a historical child.
+            _reentry_ids = set(
+                Brass_Audit_Submission.objects.filter(
+                    submission_type__in=['FULL_ACCEPT', 'FULL_REJECT'],
+                    is_completed=True,
+                ).values_list('lot_id', flat=True)
+            )
+            _exclude_accept = _child_accept_ids - _reentry_ids
+            _exclude_reject = _child_reject_ids - _reentry_ids
+            queryset = queryset.exclude(
+                Q(lot_id__in=_exclude_accept) | Q(lot_id__in=_exclude_reject)
+            )
 
-        page_number = request.GET.get('page', 1)
-        paginator = Paginator(queryset, 10)
-        page_obj = paginator.get_page(page_number)
-
-        master_data = []
-        for stock_obj in page_obj.object_list:
-            batch = stock_obj.batch_id
-
-            data = {
-                'batch_id': batch.batch_id,
-                'lot_id': stock_obj.lot_id,
-                'date_time': batch.date_time,
-                'model_stock_no__model_no': batch.model_stock_no.model_no if batch.model_stock_no else '',
-                'plating_color': batch.plating_color,
-                'polish_finish': batch.polish_finish,
-                'version__version_name': batch.version.version_name if batch.version else '',
-                'vendor_internal': batch.vendor_internal,
-                'location__location_name': batch.location.location_name if batch.location else '',
-                'tray_type': batch.tray_type,
-                'tray_capacity': batch.tray_capacity,
-                'stock_lot_id': stock_obj.lot_id,
-                'last_process_module': stock_obj.last_process_module,
-                # Use current_stage when set (new data); fall back to dynamic computation
-                # for legacy lots that pre-date the current_stage field.
-                'next_process_module': stock_obj.current_stage or _compute_brass_audit_display_stage(stock_obj),
-                'brass_audit_accepted_qty_verified': stock_obj.brass_audit_accepted_qty_verified,
-                'brass_audit_accepted_qty': stock_obj.brass_audit_accepted_qty,
-                'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
-                'brass_audit_missing_qty': stock_obj.brass_audit_missing_qty,
-                'brass_audit_physical_qty': stock_obj.brass_audit_physical_qty,
-                'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
-                'accepted_Ip_stock': stock_obj.accepted_Ip_stock,
-                'rejected_ip_stock': stock_obj.rejected_ip_stock,
-                'few_cases_accepted_Ip_stock': stock_obj.few_cases_accepted_Ip_stock,
-                'accepted_tray_scan_status': stock_obj.accepted_tray_scan_status,
-                'BA_pick_remarks': stock_obj.BA_pick_remarks,
-                'brass_audit_accptance': stock_obj.brass_audit_accptance,
-                'brass_accepted_tray_scan_status': stock_obj.brass_accepted_tray_scan_status,
-                'brass_audit_rejection': stock_obj.brass_audit_rejection,
-                'brass_audit_few_cases_accptance': stock_obj.brass_audit_few_cases_accptance,
-                'brass_audit_onhold_picking': stock_obj.brass_audit_onhold_picking,
-                'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
-                'brass_audit_last_process_date_time': stock_obj.brass_audit_last_process_date_time,
-                'plating_stk_no': batch.plating_stk_no,
-                'polishing_stk_no': batch.polishing_stk_no,
-                'category': batch.category,
-                'no_of_trays': 0,
-            }
-            master_data.append(data)
-
-        for data in master_data:
-            brass_qc_accepted_qty = data.get('brass_qc_accepted_qty', 0)
-            tray_capacity = data.get('tray_capacity', 0)
-            data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            lot_id = data.get('stock_lot_id')
-
-            # ✅ FIX ERR 2 & ERR 5: Fetch lot qty and quantities dynamically from submission data
-            submission = Brass_Audit_Submission.objects.filter(lot_id=lot_id, is_completed=True).order_by('-created_at').first()
-            if submission:
-                data['display_lot_qty'] = submission.total_lot_qty
-                data['display_accepted_qty'] = submission.accepted_qty
-                data['display_rejected_qty'] = submission.rejected_qty
-                data['submission_type'] = submission.submission_type
-                logger.info(f"[BrassAuditCompleted] Lot {lot_id}: Fetched from submission - lot_qty={submission.total_lot_qty}, accept={submission.accepted_qty}, reject={submission.rejected_qty}")
+        with time_stage(request, 'BAC_SORT_PAGINATE'):
+            if sort and sort in sort_field_mapping:
+                field = sort_field_mapping[sort]
+                if order == 'desc':
+                    field = '-' + field
+                queryset = queryset.order_by(field)
             else:
-                # ✅ ENHANCED FALLBACK: Multi-tier fallback for lot qty
-                # Priority: brass_qc_accepted_qty → brass_audit_physical_qty → brass_audit_accepted_qty → total_stock
-                fallback_lot_qty = 0
-                fallback_source = "none"
-                
-                if brass_qc_accepted_qty and brass_qc_accepted_qty > 0:
-                    fallback_lot_qty = brass_qc_accepted_qty
-                    fallback_source = "brass_qc_accepted_qty"
-                elif stock_obj.brass_audit_physical_qty and stock_obj.brass_audit_physical_qty > 0:
-                    fallback_lot_qty = stock_obj.brass_audit_physical_qty
-                    fallback_source = "brass_audit_physical_qty"
-                elif stock_obj.brass_audit_accepted_qty and stock_obj.brass_audit_accepted_qty > 0:
-                    fallback_lot_qty = stock_obj.brass_audit_accepted_qty
-                    fallback_source = "brass_audit_accepted_qty"
-                elif stock_obj.total_stock and stock_obj.total_stock > 0:
-                    fallback_lot_qty = stock_obj.total_stock
-                    fallback_source = "total_stock"
-                
-                data['display_lot_qty'] = fallback_lot_qty
-                data['display_accepted_qty'] = data.get('brass_audit_accepted_qty', 0)
-                data['display_rejected_qty'] = data.get('brass_audit_rejection_qty', 0)
-                data['submission_type'] = ''
-                
-                if fallback_lot_qty > 0:
-                    logger.info(f"[BrassAuditCompleted] Lot {lot_id}: No submission found, using fallback source '{fallback_source}' with qty={fallback_lot_qty}")
+                queryset = queryset.order_by('-brass_audit_last_process_date_time', '-lot_id')
+
+            page_number = request.GET.get('page', 1)
+            paginator = Paginator(queryset, 10)
+            page_obj = paginator.get_page(page_number)
+
+        with time_stage(request, 'BAC_ROW_BUILD'):
+            master_data = []
+            for stock_obj in page_obj.object_list:
+                batch = stock_obj.batch_id
+
+                data = {
+                    'batch_id': batch.batch_id,
+                    'lot_id': stock_obj.lot_id,
+                    'date_time': batch.date_time,
+                    'model_stock_no__model_no': batch.model_stock_no.model_no if batch.model_stock_no else '',
+                    'plating_color': batch.plating_color,
+                    'polish_finish': batch.polish_finish,
+                    'version__version_name': batch.version.version_name if batch.version else '',
+                    'vendor_internal': batch.vendor_internal,
+                    'location__location_name': batch.location.location_name if batch.location else '',
+                    'tray_type': batch.tray_type,
+                    'tray_capacity': batch.tray_capacity,
+                    'stock_lot_id': stock_obj.lot_id,
+                    'last_process_module': stock_obj.last_process_module,
+                    # Use current_stage when set (new data); fall back to dynamic computation
+                    # for legacy lots that pre-date the current_stage field.
+                    'next_process_module': stock_obj.current_stage or _compute_brass_audit_display_stage(stock_obj),
+                    'brass_audit_accepted_qty_verified': stock_obj.brass_audit_accepted_qty_verified,
+                    'brass_audit_accepted_qty': stock_obj.brass_audit_accepted_qty,
+                    'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
+                    'brass_audit_missing_qty': stock_obj.brass_audit_missing_qty,
+                    'brass_audit_physical_qty': stock_obj.brass_audit_physical_qty,
+                    'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
+                    'accepted_Ip_stock': stock_obj.accepted_Ip_stock,
+                    'rejected_ip_stock': stock_obj.rejected_ip_stock,
+                    'few_cases_accepted_Ip_stock': stock_obj.few_cases_accepted_Ip_stock,
+                    'accepted_tray_scan_status': stock_obj.accepted_tray_scan_status,
+                    'BA_pick_remarks': stock_obj.BA_pick_remarks,
+                    'BA_pick_remarks_has_text': bool((stock_obj.BA_pick_remarks or '').strip()),
+                    'brass_audit_accptance': stock_obj.brass_audit_accptance,
+                    'brass_accepted_tray_scan_status': stock_obj.brass_accepted_tray_scan_status,
+                    'brass_audit_rejection': stock_obj.brass_audit_rejection,
+                    'brass_audit_few_cases_accptance': stock_obj.brass_audit_few_cases_accptance,
+                    'brass_audit_onhold_picking': stock_obj.brass_audit_onhold_picking,
+                    'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
+                    'brass_audit_last_process_date_time': stock_obj.brass_audit_last_process_date_time,
+                    'plating_stk_no': batch.plating_stk_no,
+                    'polishing_stk_no': batch.polishing_stk_no,
+                    'category': batch.category,
+                    'no_of_trays': 0,
+                    'type_of_input': get_type_of_input_for_batch(batch),
+                }
+                master_data.append(data)
+
+        with time_stage(request, 'BAC_ROW_ENRICH'):
+            for data in master_data:
+                brass_qc_accepted_qty = data.get('brass_qc_accepted_qty', 0)
+                tray_capacity = data.get('tray_capacity', 0)
+                data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
+                lot_id = data.get('stock_lot_id')
+
+                # ✅ FIX ERR 2 & ERR 5: Fetch lot qty and quantities dynamically from submission data
+                submission = Brass_Audit_Submission.objects.filter(lot_id=lot_id, is_completed=True).order_by('-created_at').first()
+                if submission:
+                    data['display_lot_qty'] = submission.total_lot_qty
+                    data['display_accepted_qty'] = submission.accepted_qty
+                    data['display_rejected_qty'] = submission.rejected_qty
+                    data['submission_type'] = submission.submission_type
+                    logger.info(f"[BrassAuditCompleted] Lot {lot_id}: Fetched from submission - lot_qty={submission.total_lot_qty}, accept={submission.accepted_qty}, reject={submission.rejected_qty}")
                 else:
-                    logger.warning(f"[BrassAuditCompleted] Lot {lot_id}: No submission found and all fallback sources are 0 or null")
+                    # ✅ ENHANCED FALLBACK: Multi-tier fallback for lot qty
+                    # Priority: brass_qc_accepted_qty → brass_audit_physical_qty → brass_audit_accepted_qty → total_stock
+                    fallback_lot_qty = 0
+                    fallback_source = "none"
 
-            display_qty = data.get('display_lot_qty', 0)
-            if tray_capacity > 0 and display_qty > 0:
-                data['no_of_trays'] = math.ceil(display_qty / tray_capacity)
-            else:
-                data['no_of_trays'] = 0
+                    if brass_qc_accepted_qty and brass_qc_accepted_qty > 0:
+                        fallback_lot_qty = brass_qc_accepted_qty
+                        fallback_source = "brass_qc_accepted_qty"
+                    elif stock_obj.brass_audit_physical_qty and stock_obj.brass_audit_physical_qty > 0:
+                        fallback_lot_qty = stock_obj.brass_audit_physical_qty
+                        fallback_source = "brass_audit_physical_qty"
+                    elif stock_obj.brass_audit_accepted_qty and stock_obj.brass_audit_accepted_qty > 0:
+                        fallback_lot_qty = stock_obj.brass_audit_accepted_qty
+                        fallback_source = "brass_audit_accepted_qty"
+                    elif stock_obj.total_stock and stock_obj.total_stock > 0:
+                        fallback_lot_qty = stock_obj.total_stock
+                        fallback_source = "total_stock"
 
-            batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
-            images = []
-            if batch_obj and batch_obj.model_stock_no:
-                for img in batch_obj.model_stock_no.images.all():
-                    if img.master_image:
-                        images.append(img.master_image.url)
-            if not images:
-                images = [static('assets/images/imagePlaceholder.jpg')]
-            data['model_images'] = images
+                    data['display_lot_qty'] = fallback_lot_qty
+                    data['display_accepted_qty'] = data.get('brass_audit_accepted_qty', 0)
+                    data['display_rejected_qty'] = data.get('brass_audit_rejection_qty', 0)
+                    data['submission_type'] = ''
 
-            if data.get('brass_audit_physical_qty') and data.get('brass_audit_physical_qty') > 0:
-                data['available_qty'] = data['brass_audit_physical_qty']
-            else:
-                data['available_qty'] = data.get('display_lot_qty', 0)
+                    if fallback_lot_qty > 0:
+                        logger.info(f"[BrassAuditCompleted] Lot {lot_id}: No submission found, using fallback source '{fallback_source}' with qty={fallback_lot_qty}")
+                    else:
+                        logger.warning(f"[BrassAuditCompleted] Lot {lot_id}: No submission found and all fallback sources are 0 or null")
 
-            data['lot_remarks'] = ''
+                display_qty = data.get('display_lot_qty', 0)
+                if tray_capacity > 0 and display_qty > 0:
+                    data['no_of_trays'] = math.ceil(display_qty / tray_capacity)
+                else:
+                    data['no_of_trays'] = 0
 
-        context = {
-            'master_data': master_data,
-            'page_obj': page_obj,
-            'paginator': paginator,
-            'user': user,
-            'from_date': from_date.strftime('%Y-%m-%d'),
-            'to_date': to_date.strftime('%Y-%m-%d'),
-            'date_filter_applied': bool(from_date_str and to_date_str),
-        }
+                batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
+                images = []
+                if batch_obj and batch_obj.model_stock_no:
+                    for img in _get_sorted_model_images(batch_obj.model_stock_no):
+                        if img.master_image:
+                            images.append(img.master_image.url)
+                if not images:
+                    images = [static('assets/images/imagePlaceholder.jpg')]
+                data['model_images'] = images
+
+                if data.get('brass_audit_physical_qty') and data.get('brass_audit_physical_qty') > 0:
+                    data['available_qty'] = data['brass_audit_physical_qty']
+                else:
+                    data['available_qty'] = data.get('display_lot_qty', 0)
+
+                data['lot_remarks'] = ''
+
+        with time_stage(request, 'BAC_CONTEXT_BUILD'):
+            context = {
+                'master_data': master_data,
+                'page_obj': page_obj,
+                'paginator': paginator,
+                'user': user,
+                'from_date': from_date.strftime('%Y-%m-%d'),
+                'to_date': to_date.strftime('%Y-%m-%d'),
+                'date_filter_applied': bool(from_date_str and to_date_str),
+            }
         return Response(context, template_name=self.template_name)
 
 
@@ -688,6 +764,7 @@ class BrassAuditRejectTableView(APIView):
                 'plating_stk_no': batch.plating_stk_no,
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
+                'type_of_input': get_type_of_input_for_batch(batch),
                 'brass_audit_last_process_date_time': stock_obj.brass_audit_last_process_date_time,
                 'brass_audit_physical_qty': stock_obj.brass_audit_physical_qty,
                 'brass_qc_accepted_qty': stock_obj.brass_qc_accepted_qty,
@@ -704,7 +781,7 @@ class BrassAuditRejectTableView(APIView):
             batch_obj = ModelMasterCreation.objects.filter(batch_id=data['batch_id']).first()
             images = []
             if batch_obj and batch_obj.model_stock_no:
-                for img in batch_obj.model_stock_no.images.all():
+                for img in _get_sorted_model_images(batch_obj.model_stock_no):
                     if img.master_image:
                         images.append(img.master_image.url)
             if not images:
@@ -2588,4 +2665,3 @@ def get_lot_id_for_tray(request):
         return JsonResponse({'success': False, 'error': f'Tray {tray_id} not found in system'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
-

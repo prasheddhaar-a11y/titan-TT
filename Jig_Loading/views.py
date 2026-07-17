@@ -30,6 +30,7 @@ from BrassAudit.models import Brass_Audit_Accepted_TrayID_Store
 # from BrassAudit.views import brass_audit_get_accepted_tray_scan_data
 from modelmasterapp.models import TotalStockModel
 from modelmasterapp.models import ModelMasterCreation
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 
 # ===== MULTI-MODEL HELPER FUNCTIONS =====
@@ -396,8 +397,12 @@ class JigView(TemplateView):
 					'model_images': [],  # images resolved lazily in template via data-attribute only
 					'jig_hold_lot': getattr(stock, 'jig_hold_lot', False),
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
+<<<<<<< HEAD
 					'previous_module': 'Brass Audit',
 					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
+=======
+					'type_of_input': get_type_of_input_for_batch(batch),
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 				}
 
 				# Use pre-fetched capacity map (no per-row DB query)
@@ -542,6 +547,7 @@ class JigView(TemplateView):
 						'is_excess_lot': True,
 						'source_jig_id': jc.jig_id,
 						'half_filled_tray_info_json': json.dumps(jc.half_filled_tray_info or []),
+						'type_of_input': get_type_of_input_for_batch(batch),
 					}
 					# Use pre-fetched capacity map (no per-row DB query)
 					model_obj = getattr(batch, 'model_stock_no', None) if batch else None
@@ -3596,6 +3602,10 @@ class JigCompletedTable(TemplateView):
 					'multi_model_allocation': jig_rec.multi_model_allocation or [],
 					'IP_jig_pick_remarks': jig_rec.remarks or '',
 					'current_stage_display': current_stage_display,
+<<<<<<< HEAD
+=======
+					'type_of_input': get_type_of_input_for_batch(batch_obj),
+>>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 				}
 				jig_details.append(enriched)
 				

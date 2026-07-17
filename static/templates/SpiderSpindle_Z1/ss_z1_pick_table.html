@@ -190,6 +190,7 @@ tr.hold-row td:nth-child(3) {
                   <th>Version</th>
                   <th>Tray Type</th>
                   <th>Source</th>
+                  <th>Type of Input</th>
                   <th>Input Qty</th>
                   <th>Remarks</th>
                 </tr>
@@ -226,6 +227,7 @@ tr.hold-row td:nth-child(3) {
                   <td>{{ item.version }}</td>
                   <td>{{ item.tray_type }}</td>
                   <td>{{ item.location }}</td>
+                  <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=item.type_of_input %}</td>
                   <td>{{ item.total_case_qty }}</td>
                   <td style="position:relative;">
                     <a href="#" title="{% if item.spider_pick_remarks %}{% else %}Add Remark{% endif %}" class="remark-tooltip-trigger">
@@ -261,7 +263,7 @@ tr.hold-row td:nth-child(3) {
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="13" class="text-center text-muted py-4">
+                  <td colspan="14" class="text-center text-muted py-4">
                     No lots pending for Spider Spindle Z1.
                   </td>
                 </tr>

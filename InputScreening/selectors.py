@@ -340,14 +340,11 @@ def _get_model_images(batch) -> List[str]:
     if not batch or not batch.model_stock_no_id:
         return []
     try:
-        from modelmasterapp.models import TotalStockModel
-        images = TotalStockModel.objects.filter(
-            batch_id=batch
-        ).values_list("batch_id__model_stock_no__model_image", flat=True)[:1]
+        from modelmasterapp.image_utils import sort_images_front_first
         result = []
-        for img in images:
-            if img:
-                result.append(f"/media/{img}")
+        for img in sort_images_front_first(batch.model_stock_no.images.all()):
+            if img.master_image:
+                result.append(img.master_image.url)
         return result
     except Exception:
         return []
@@ -355,6 +352,8 @@ def _get_model_images(batch) -> List[str]:
 
 def _enrich_from_batch(batch) -> Dict[str, Any]:
     """Return template-compatible fields from a ModelMasterCreation row."""
+    from modelmasterapp.type_of_input import get_type_of_input_for_batch
+
     if not batch:
         return {
             "polishing_stk_no": "",
@@ -365,6 +364,7 @@ def _enrich_from_batch(batch) -> Dict[str, Any]:
             "no_of_trays": 0,
             "model_images": [],
             "Moved_to_D_Picker": False,
+            "type_of_input": get_type_of_input_for_batch(None),
         }
     return {
         "polishing_stk_no": batch.polishing_stk_no or "",
@@ -377,6 +377,7 @@ def _enrich_from_batch(batch) -> Dict[str, Any]:
         "no_of_trays": batch.no_of_trays or 0,
         "model_images": _get_model_images(batch),
         "Moved_to_D_Picker": bool(getattr(batch, "Moved_to_D_Picker", False)),
+        "type_of_input": get_type_of_input_for_batch(batch),
     }
 
 

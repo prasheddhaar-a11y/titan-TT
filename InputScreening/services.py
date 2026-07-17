@@ -26,6 +26,8 @@ from typing import Any, Dict, List, Tuple
 from django.db import IntegrityError, transaction
 from django.templatetags.static import static
 
+from modelmasterapp.type_of_input import get_type_of_input_for_batch
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -170,7 +172,8 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         images: List[str] = []
         mmc = mmc_map.get(batch_id)
         if mmc and mmc.model_stock_no_id:
-            for img in mmc.model_stock_no.images.all():
+            from modelmasterapp.image_utils import sort_images_front_first
+            for img in sort_images_front_first(mmc.model_stock_no.images.all()):
                 if img.master_image:
                     images.append(img.master_image.url)
         data["model_images"] = images or placeholder
@@ -196,6 +199,9 @@ def enrich_pick_table_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         # Rejection total
         data["ip_rejection_total_qty"] = rejection_qty if lot_id else 0
+
+        # Type of Input (Fresh / Recovery)
+        data["type_of_input"] = get_type_of_input_for_batch(mmc)
 
     return rows
 

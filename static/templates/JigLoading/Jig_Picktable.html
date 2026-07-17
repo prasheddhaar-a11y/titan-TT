@@ -298,6 +298,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <th>
                 Polish Finish <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
+              <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>In.p Info<i class="fa fa-filter" aria-hidden="true"></i></th>
               <th style="display: none">
@@ -531,6 +532,8 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <td>{{ data.plating_color }}</td>
               <!-- Polish Finish -->
               <td>{{ data.polish_finish }}</td>
+              <!-- Type of Input -->
+              <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
               <!-- Jig Type -->
               <td>{{ data.jig_capacity }} Jig</td>
               <!-- In.p Info -->
@@ -725,7 +728,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
             {% endfor %}
             {% if add_model_no_results %}
             <tr>
-              <td colspan="16" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
+              <td colspan="17" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
                 ⚠ No compatible models found for this selection.
               </td>
             </tr>
@@ -2171,9 +2174,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var rightPanel = document.getElementById('splitPanelRight');
         var excessVisible = rightPanel && rightPanel.style.display !== 'none';
         if (!excessVisible) return 'delink';
-        // Check if top tray allocated
+        // Check if top tray allocated. If this lot has no top-tray requirement
+        // (section hidden/absent — same condition _checkExcessCompleteAndUnlockDelink
+        // already treats as "verified"), skip the top-tray phase entirely instead of
+        // getting stuck asking for a top tray scan that will never come.
+        var topSection = document.getElementById('excessTopTraySection');
         var topInp = document.getElementById('excessTopTrayScanInput');
-        var topDone = !!(topInp && (topInp.classList.contains('validated') || topInp.value.trim()));
+        var topApplicable = !!(topSection && topSection.style.display !== 'none');
+        var topDone = !topApplicable || !!(topInp && (topInp.classList.contains('validated') || topInp.value.trim()));
         if (!topDone) return 'top_tray';
         // Check if excess remaining has empty slots
         var eBodyF = document.getElementById('excessPanelTableBody');
@@ -3218,25 +3226,26 @@ document.addEventListener('DOMContentLoaded', function () {
     // Use setTimeout to ensure focus happens AFTER all DOM updates (status badges, innerHTML, etc.)
     setTimeout(function() {
       var panelType = currentInput.dataset.panel || 'delink';
-      var selector = panelType === 'delink'
-        ? '#delinkPanelTableBody .split-scan-input:not(.validated):not(:disabled)'
-        : '#excessPanelTableBody .split-scan-input:not(.validated):not(:disabled)';
-      var inputs = Array.from(document.querySelectorAll(selector));
-      var idx = -1;
-      
-      // Find current input position in the list of unvalidated inputs
-      for (var i = 0; i < inputs.length; i++) {
-        if (inputs[i] === currentInput || inputs[i].dataset.trayId === currentInput.dataset.trayId) {
-          idx = i;
+      var panelBodyId = panelType === 'delink' ? 'delinkPanelTableBody' : 'excessPanelTableBody';
+      // Query ALL inputs in the panel (validated + unvalidated) so currentInput's own
+      // position can be located reliably — by the time this runs, currentInput already
+      // carries the 'validated' class it just earned, so a ':not(.validated)' selector
+      // would exclude it and make its position unrecoverable.
+      var allPanelInputs = Array.from(document.querySelectorAll('#' + panelBodyId + ' .split-scan-input'));
+      var currentIdx = allPanelInputs.indexOf(currentInput);
+
+      // Find the next unvalidated, enabled input AFTER currentInput's own slot
+      var nextInp = null;
+      for (var i = currentIdx + 1; i < allPanelInputs.length; i++) {
+        if (!allPanelInputs[i].classList.contains('validated') && !allPanelInputs[i].disabled) {
+          nextInp = allPanelInputs[i];
           break;
         }
       }
-      
-      // Try next unvalidated input in same panel
-      if (idx >= 0 && idx < inputs.length - 1) {
-        var nextInp = inputs[idx + 1];
-        try { 
-          nextInp.focus(); 
+
+      if (nextInp) {
+        try {
+          nextInp.focus();
           nextInp.select();
           console.log('[FOCUS_NEXT] Moved to next input in same panel:', nextInp.dataset.trayId || nextInp.id);
         } catch(e) {
@@ -4182,6 +4191,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Clear input UI immediately
             inp.value = '';
+            inp.readOnly = false;
             inp.classList.remove('validated');
             inp.style.background = '';
             inp.style.border = '';
@@ -4395,6 +4405,17 @@ document.addEventListener('DOMContentLoaded', function () {
     section.style.display = 'block';
     const totalHfQty = halfFilledQty || excessQty;
     count.innerText = '(Qty: ' + totalHfQty + ' | No of Trays: ' + (halfFilledState.trayCount || halfFilledSlots.length || (excessInfo.excess_tray_count || 0)) + ')';
+    // ✅ BUG FIX: Preserve already-scanned excess/half-filled slot values across re-renders.
+    // Backend only echoes assigned tray_ids back once delink_completed=true
+    // (assign_half_filled_tray_ids runs only in that case). Before that, a slot the user
+    // already scanned had no trayId in the response, so every re-render (triggered by any
+    // other scan) rebuilt it blank — forcing the user to rescan the same excess tray again.
+    const _prevHfScans = {};
+    container.querySelectorAll('.half-filled-slot-input.validated').forEach(function(inp) {
+      var card = inp.closest('.half-filled-slot-card');
+      var idx = card ? card.dataset.halfFilledIndex : null;
+      if (idx !== null && idx !== undefined && inp.value) _prevHfScans[idx] = inp.value;
+    });
     container.innerHTML = '';
 
     if (halfFilledSlots.length > 0) {
@@ -4466,20 +4487,25 @@ document.addEventListener('DOMContentLoaded', function () {
           // ✅ FIX: Show scannable half-filled inputs IMMEDIATELY when excess exists
           // (not gated on delink completion — backend controls when tray IDs are available)
           var hfIsEditable = (idx === 0);  // First slot is always editable
+          // Restore a value the user already scanned before delink completed (see _prevHfScans
+          // capture above) instead of re-rendering it blank and re-prompting for the same scan.
+          var hfAlreadyScanned = !!_prevHfScans[idx];
+          var hfValue = hfAlreadyScanned ? _prevHfScans[idx] : '';
           var hfPlaceholder = hfIsEditable ? 'Scan Tray ID' : 'Auto-assigned';
           div.innerHTML = '<div class="half-filled-input-row">' +
-            '<input type="text" class="tray-id-input half-filled-slot-input" maxlength="9" ' +
+            '<input type="text" class="tray-id-input half-filled-slot-input' + (hfAlreadyScanned ? ' validated' : '') + '" maxlength="9" ' +
+            'value="' + hfValue + '" ' +
             'data-expected-qty="' + qty + '" ' +
             'data-lot-id="' + (window.CURRENT_LOT_ID || '') + '" ' +
             'data-batch-id="' + (window.CURRENT_BATCH_ID || '') + '" ' +
             'data-is-top-half-filled="' + (idx === 0 ? 'true' : 'false') + '" ' +
             'placeholder="' + hfPlaceholder + '" ' +
-            (hfIsEditable ? '' : 'readonly ') + '>' +
+            (hfIsEditable && !hfAlreadyScanned ? '' : 'readonly ') + '>' +
             '</div>' +
             '<div class="tray-qty">Qty: ' + qty + ' <span class="half-filled-slot-label">(' + slotLabel + ')</span></div>' +
-            '<div class="half-filled-auto-tag">' + (hfIsEditable ? '<span style="color:#856404;">Scan or enter tray ID</span>' : 'Auto-assigned after delink') + '</div>';
-          // Attach scan handler for editable first slot
-          if (hfIsEditable) {
+            '<div class="half-filled-auto-tag">' + (hfAlreadyScanned ? '<span style="color:#28a745;">Scanned &#10003;</span>' : (hfIsEditable ? '<span style="color:#856404;">Scan or enter tray ID</span>' : 'Auto-assigned after delink')) + '</div>';
+          // Attach scan handler for editable first slot (skip if already scanned — no re-prompt)
+          if (hfIsEditable && !hfAlreadyScanned) {
             setTimeout(function() {
               var hfInput = div.querySelector('.half-filled-slot-input');
               if (hfInput) {
@@ -4502,22 +4528,27 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (excessQty > 0) {
       (excessInfo.excess_trays || []).forEach(function(tray, idx) {
         var exIsEditable = (idx === 0);  // First excess tray is editable
+        // Same restore-on-rerender fix as the half-filled-slots branch above.
+        var exAlreadyScanned = !!_prevHfScans[idx];
+        var exValue = exAlreadyScanned ? _prevHfScans[idx] : '';
         const div = document.createElement('div');
         div.className = 'tray-scan-tab half-filled-slot-card';
+        div.dataset.halfFilledIndex = idx;
         div.innerHTML = '<div class="half-filled-input-row">' +
-          '<input type="text" class="tray-id-input half-filled-slot-input" maxlength="9" ' +
+          '<input type="text" class="tray-id-input half-filled-slot-input' + (exAlreadyScanned ? ' validated' : '') + '" maxlength="9" ' +
+          'value="' + exValue + '" ' +
           'data-expected-qty="' + (tray.qty || 0) + '" ' +
           'data-lot-id="' + (window.CURRENT_LOT_ID || '') + '" ' +
           'data-batch-id="' + (window.CURRENT_BATCH_ID || '') + '" ' +
           'data-is-top-half-filled="' + (idx === 0 ? 'true' : 'false') + '" ' +
           'placeholder="' + (exIsEditable ? 'Scan Tray ID' : 'Auto-assigned') + '" ' +
-          (exIsEditable ? '' : 'readonly ') + '>' +
+          (exIsEditable && !exAlreadyScanned ? '' : 'readonly ') + '>' +
           '</div>' +
           '<div class="tray-qty">Qty: ' + (tray.qty || 0) + ' <span class="half-filled-slot-label">(Slot ' + (idx + 1) + ')</span></div>' +
-          '<div class="half-filled-auto-tag">' + (exIsEditable ? '<span style="color:#856404;">Scan or enter tray ID</span>' : 'Auto-assigned after delink') + '</div>';
+          '<div class="half-filled-auto-tag">' + (exAlreadyScanned ? '<span style="color:#28a745;">Scanned &#10003;</span>' : (exIsEditable ? '<span style="color:#856404;">Scan or enter tray ID</span>' : 'Auto-assigned after delink')) + '</div>';
         container.appendChild(div);
-        // Attach scan handler for editable first slot
-        if (exIsEditable) {
+        // Attach scan handler for editable first slot (skip if already scanned — no re-prompt)
+        if (exIsEditable && !exAlreadyScanned) {
           setTimeout(function() {
             var hfInput = div.querySelector('.half-filled-slot-input');
             if (hfInput) {

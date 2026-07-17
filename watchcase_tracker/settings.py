@@ -422,11 +422,18 @@ LOGGING = {
 # Microsoft (Entra ID) / MSAL settings
 MSAL_CLIENT_ID = os.getenv("MSAL_CLIENT_ID", "54a2fd19-0009-4e29-9d7b-b33e9ae8fbfa")
 MSAL_CLIENT_SECRET = os.getenv("MSAL_CLIENT_SECRET")
-MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID", "common")
+# MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID", "common")
 # Use the callback path without a trailing slash so it is compatible with the
 # common Azure App Registration redirect URI format.
 
-MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
+# MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
+
+
+
+MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID","04132f71-f746-4a5b-a30e-66ea6d16714c",).strip()
+ 
+MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE","https://trackandtrace.titan.in").strip().rstrip("/")
+
 
 # Optional fixed origin (scheme+host[:port]) for the OAuth redirect URI, e.g.
 # "http://localhost:8000" or "https://titan.example.com". When unset, the
