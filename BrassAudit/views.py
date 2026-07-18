@@ -535,6 +535,22 @@ class BrassAuditCompletedView(APIView):
             for stock_obj in page_obj.object_list:
                 batch = stock_obj.batch_id
 
+                # A completed Brass Audit row is released only after the
+                # destination module has actually started work.  Merely routing
+                # it to Jig Loading (or back to Brass QC) remains Yet to Release.
+                current_stage_display = (
+                    stock_obj.current_stage
+                    or _compute_brass_audit_display_stage(stock_obj)
+                )
+                if getattr(stock_obj, 'brass_audit_hold_lot', False):
+                    lot_status = 'On Hold'
+                elif stock_obj.next_process_module == 'Split Completed':
+                    lot_status = 'Split Completed'
+                elif current_stage_display != 'Brass Audit':
+                    lot_status = 'Released'
+                else:
+                    lot_status = 'Yet to Release'
+
                 data = {
                     'batch_id': batch.batch_id,
                     'lot_id': stock_obj.lot_id,
@@ -551,7 +567,8 @@ class BrassAuditCompletedView(APIView):
                     'last_process_module': stock_obj.last_process_module,
                     # Use current_stage when set (new data); fall back to dynamic computation
                     # for legacy lots that pre-date the current_stage field.
-                    'next_process_module': stock_obj.current_stage or _compute_brass_audit_display_stage(stock_obj),
+                    'next_process_module': current_stage_display,
+                    'lot_status': lot_status,
                     'brass_audit_accepted_qty_verified': stock_obj.brass_audit_accepted_qty_verified,
                     'brass_audit_accepted_qty': stock_obj.brass_audit_accepted_qty,
                     'brass_audit_rejection_qty': stock_obj.brass_audit_rejection_qty,
@@ -1134,6 +1151,10 @@ def brass_audit_hold_unhold(request):
         "success": True,
         "lot_id": lot_id,
         "action": action,
+        "holding_reason": ts.brass_audit_holding_reason or '',
+        "release_reason": ts.brass_audit_release_reason or '',
+        "hold_lot": ts.brass_audit_hold_lot,
+        "release_lot": ts.brass_audit_release_lot,
         "message": f"Lot {'held' if action == 'hold' else 'released'} successfully.",
     })
 

@@ -119,6 +119,16 @@ class BrassPickTableView(APIView):
         for stock_obj in page_obj.object_list:
             batch = stock_obj.batch_id
             
+            current_stage_display = (
+                stock_obj.current_stage
+                or _compute_brass_qc_display_stage(stock_obj)
+            )
+
+            lot_status = (
+                'Released'
+                if current_stage_display != 'Brass QC'
+                else 'Yet to Release'
+            )
             data = {
                 'batch_id': batch.batch_id,
                 'lot_id': stock_obj.lot_id,
@@ -459,6 +469,20 @@ class BrassCompletedView(APIView):
         master_data = []
         for stock_obj in page_obj.object_list:
             batch = stock_obj.batch_id
+
+            # The completed-table status describes whether the next module has
+            # actually started work.  Routing a lot to Brass Audit/IQF alone
+            # must remain "Yet to Release"; current_stage changes only after
+            # a real action is saved in that destination module.
+            current_stage_display = (
+                stock_obj.current_stage
+                or _compute_brass_qc_display_stage(stock_obj)
+            )
+            lot_status = (
+                'Released'
+                if current_stage_display != 'Brass QC'
+                else 'Yet to Release'
+            )
             
             data = {
                 'batch_id': batch.batch_id,
@@ -669,6 +693,10 @@ def brass_qc_hold_unhold(request):
         "success": True,
         "lot_id": lot_id,
         "action": action,
+        "holding_reason": ts.brass_holding_reason or '',
+        "release_reason": ts.brass_release_reason or '',
+        "hold_lot": ts.brass_hold_lot,
+        "release_lot": ts.brass_release_lot,
         "message": f"Lot {'held' if action == 'hold' else 'released'} successfully.",
     })
 

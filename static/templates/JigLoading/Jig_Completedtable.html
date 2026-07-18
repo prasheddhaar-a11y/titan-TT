@@ -1383,14 +1383,14 @@
                         class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                         style="
                           border: 2px solid #0d5d17;
-                          background-color: #c5f9c2;
-                          color: #2f801b;
+                          background-color: {% if jig.lot_status == 'Released' %}#c5f9c2{% else %}#F0F5B7{% endif %};
+                          color: {% if jig.lot_status == 'Released' %}#2f801b{% else %}#727c08{% endif %};
                           font-size: clamp(0.3rem, 2vw, 0.875rem);
                           white-space: nowrap;
                           padding: 0.3rem;
                         "
                       >
-                        Released
+                        {{ jig.lot_status }}
                       </div>
                     </td>
                     <!-- Current Stage -->

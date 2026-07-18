@@ -824,7 +824,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     
                     <!-- 9. Lot Status (Released/Yet to release) -->
                     <td>
-                      {% if data.iqf_accepted_qty_verified or data.brass_qc_accepted_qty_verified %}
+                      {% if data.lot_status == 'Released' %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                              style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
                           Released
@@ -832,7 +832,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       {% else %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                              style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Yet to release
+                          {{ data.lot_status }}
                         </div>
                       {% endif %}
                     </td>

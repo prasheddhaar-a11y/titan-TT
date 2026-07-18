@@ -1,4 +1,5 @@
 import logging
+import re
 logger = logging.getLogger(__name__)
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -23,6 +24,7 @@ import pytz
 from django.db.models import Q
 from .models import InprocessInspectionTrayCapacity
 from Jig_Loading.models import JigCompleted
+from modelmasterapp.color_service import get_model_colors_by_model_no, get_or_assign_plating_color
 
 # Inprocess Inspection View
 class InprocessInspectionView(TemplateView):
@@ -199,6 +201,7 @@ class InprocessInspectionView(TemplateView):
             
             # Create enhanced jig_detail with multi-lot support
             enhanced_jig_detail = self.create_enhanced_jig_detail(jig_detail, lot_ids_data, model_cases_data)
+            enhanced_jig_detail.previous_module_remark = jig_detail.remarks or ''
             
             # Fetch hold/release info from TotalStockModel or RecoveryStockModel
             hold_info = {
@@ -844,36 +847,16 @@ class InprocessInspectionView(TemplateView):
             Updated to properly handle model images
             """
             
-            # Define color palette for model circles (global consistency)
-            color_palette = [
-                "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
-                "#e67e22", "#1abc9c", "#34495e", "#f39c12", "#d35400",
-                "#c0392b", "#8e44ad", "#2980b9", "#27ae60", "#16a085",
-                "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#ffeaa7",
-                "#dda0dd", "#98d8c8", "#f7dc6f", "#bb8fce", "#85c1e9"
-            ]
-            
-            # Get or create global model color mapping
-            if not hasattr(self, '_global_model_colors'):
-                self._global_model_colors = {}
-                self._color_index = 0
-            
             if jig_detail.no_of_model_cases:
-                # Create CONSISTENT color mapping for display
-                jig_model_colors = {}
+                # Colors are Plating Stk No-unique and DB-persisted (ModelMaster.plating_color_code)
+                # via modelmasterapp.color_service - never generated per-request.
+                jig_model_colors = get_model_colors_by_model_no(jig_detail.no_of_model_cases)
                 jig_model_images = {}
-                
+
                 # Sort models for consistent color assignment
                 sorted_models = sorted(jig_detail.no_of_model_cases)
-                
+
                 for model_no in sorted_models:
-                    if model_no not in self._global_model_colors:
-                        color_index = self._color_index % len(color_palette)
-                        self._global_model_colors[model_no] = color_palette[color_index]
-                        self._color_index += 1
-                    
-                    jig_model_colors[model_no] = self._global_model_colors[model_no]
-                    
                     # FIXED: Get images for each model from ModelMaster
                     try:
                         # Extract clean model number for lookup
@@ -961,12 +944,8 @@ class InprocessInspectionView(TemplateView):
                         
                         # Keep existing model display logic for frontend (multiple model circles)
                         if jig_detail.no_of_model_cases:
-                            # Create color mapping for display (keeping existing functionality)
-                            jig_model_colors = {}
-                            for idx, model_no in enumerate(jig_detail.no_of_model_cases):
-                                color_index = idx % len(color_palette)
-                                jig_model_colors[model_no] = color_palette[color_index]
-                            jig_detail.model_colors = jig_model_colors
+                            # DB-persisted, Plating Stk No-unique colors (see modelmasterapp.color_service)
+                            jig_detail.model_colors = get_model_colors_by_model_no(jig_detail.no_of_model_cases)
                             
                             # Keep model images for existing functionality
                             jig_model_images = {}
@@ -1024,12 +1003,8 @@ class InprocessInspectionView(TemplateView):
                                 model_no = model_master.model_no
                                 model_numbers.append(model_no)
                                 
-                                # Assign color from global palette
-                                if model_no not in self._global_model_colors:
-                                    color_index = self._color_index % len(color_palette)
-                                    self._global_model_colors[model_no] = color_palette[color_index]
-                                    self._color_index += 1
-                                jig_model_colors[model_no] = self._global_model_colors[model_no]
+                                # DB-persisted, Plating Stk No-unique color (see modelmasterapp.color_service)
+                                jig_model_colors[model_no] = get_or_assign_plating_color(plating_stk_no)
                                 
                                 # Get model images
                                 images = []
@@ -1501,7 +1476,17 @@ class SaveBathNumberAPIView(APIView):
             
             # Save the bath number to jig_detail
             jig_detail.bath_numbers = bath_obj
-            jig_detail.save(update_fields=['bath_numbers'])
+            jig_detail.last_process_module = 'Inprocess Inspection'
+            jig_detail.IP_loaded_date_time = timezone.now()
+            jig_detail.save(update_fields=[
+                'bath_numbers', 'last_process_module', 'IP_loaded_date_time'
+            ])
+
+            # Saving the bath number is the first real IP Inspection action.
+            # Update the shared stage so prior completed tables, including Jig
+            # Loading, show Inprocess Inspection and Released.
+            from modelmasterapp.stage_service import update_stock_stage
+            update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
             
             return Response({
                 'success': True,
@@ -1565,9 +1550,15 @@ def save_bath_number(request):
         
         # Save the bath number to JigCompleted
         jig_detail.bath_numbers = bath_obj
-        # jig_detail.last_process_module = "Inprocess Inspection"
-        # jig_detail.IP_loaded_date_time = timezone.now()
+        jig_detail.last_process_module = 'Inprocess Inspection'
+        jig_detail.IP_loaded_date_time = timezone.now()
         jig_detail.save(update_fields=['bath_numbers', 'last_process_module', 'IP_loaded_date_time'])
+
+        # This URL is registered first in urls.py, so it is normally the
+        # endpoint called by the page. Keep TotalStockModel.current_stage in
+        # sync with the real IP Inspection action.
+        from modelmasterapp.stage_service import update_stock_stage
+        update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
 
         return JsonResponse({
             'success': True, 
@@ -2267,6 +2258,11 @@ class InprocessInspectionCompleteView(TemplateView):
         # by the caller) over JigCompleted.last_process_module, which is not kept in sync
         # once the lot advances past Inprocess Inspection.
         jig_detail.last_process_module = current_stage or getattr(original_jig_detail, 'last_process_module', None)
+        jig_detail.lot_status = (
+            'Released'
+            if current_stage and current_stage != 'Inprocess Inspection'
+            else 'Yet to Release'
+        )
 
         
         
@@ -2322,23 +2318,70 @@ class InprocessInspectionCompleteView(TemplateView):
         
         return jig_detail
 
+    def _parse_and_color_model_cases(self, jig_detail):
+        """
+        Parse jig_detail.no_of_model_cases into a clean, deduped list of model
+        identifiers and resolve DB-persisted, Plating Stk No-unique colors for
+        them (see modelmasterapp.color_service). Always sets both
+        jig_detail.no_of_model_cases (as a list) and jig_detail.model_colors,
+        regardless of which branch of apply_existing_logic runs afterwards —
+        previously this only happened inside the main try block, so whenever
+        _apply_mmc_direct_fallback ran instead (no stock model found, or an
+        exception), no_of_model_cases was left as the raw pipe-delimited
+        string and the template iterated it character-by-character (one gray
+        circle per character).
+
+        Raw format written by Jig_Loading.JigSaveAPI: 'MODEL(lot_id):qty | MODEL2(lot_id):qty'
+        Legacy/alternate format: 'MODEL [lot_id]:qty | MODEL2 [lot_id]:qty'
+        """
+        raw_nmc = getattr(jig_detail, 'no_of_model_cases', None)
+        if raw_nmc and isinstance(raw_nmc, str):
+            # Pipe-separated: split each part on the first '(' or '[' to strip
+            # the trailing (lot_id):qty / [lot_id]:qty suffix, keeping only the model identifier.
+            parsed_model_list = [
+                cleaned
+                for cleaned in (
+                    re.split(r'[\(\[]', part, maxsplit=1)[0].strip()
+                    for part in raw_nmc.split(' | ')
+                )
+                if cleaned
+            ]
+        elif raw_nmc and isinstance(raw_nmc, list):
+            parsed_model_list = raw_nmc
+        else:
+            parsed_model_list = []
+
+        # Fallback: use already-resolved lot plating_stk_nos when no_of_model_cases is empty
+        if not parsed_model_list:
+            parsed_model_list = (
+                getattr(jig_detail, 'lot_plating_stk_nos_list', None) or
+                getattr(jig_detail, 'model_plating_stk_nos_list', None) or
+                []
+            )
+
+        # Replace raw string with clean parsed list so template iterates models.
+        # No deduping here: every model-case entry gets its own circle, even if
+        # two entries share the same Plating Stk No (e.g. a primary + a
+        # secondary lot of the same model on one jig) — Model Presents must
+        # reflect exactly how many model entries the jig actually carries.
+        jig_detail.no_of_model_cases = parsed_model_list
+        jig_detail.model_colors = get_model_colors_by_model_no(parsed_model_list) if parsed_model_list else {}
+        return parsed_model_list
+
     def apply_existing_logic(self, jig_detail):
         """
         Apply the existing InprocessInspectionCompleteView logic for backward compatibility
         Updated to use dual model approach
         """
-        
-        # Define color palette for model circles (keeping existing functionality)
-        color_palette = [
-            "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
-            "#e67e22", "#1abc9c", "#34495e", "#f39c12", "#d35400",
-            "#c0392b", "#8e44ad", "#2980b9", "#27ae60", "#16a085"
-        ]
-        
+        # Always parse + resolve colors first, regardless of which branch below
+        # runs — see _parse_and_color_model_cases docstring for why this can't
+        # live only inside the main try block.
+        parsed_model_list = self._parse_and_color_model_cases(jig_detail)
+
         # *** UPDATED: Use dual model approach to get batch data ***
         batch_id = None
         batch_model_class = None
-        
+
         if jig_detail.lot_id:
             try:
                 stock_model, is_recovery, batch_model_cls = self.get_stock_model_data(jig_detail.lot_id)
@@ -2349,56 +2392,20 @@ class InprocessInspectionCompleteView(TemplateView):
                     pass
             except Exception as e:
                 pass
-        
+
         if batch_id and batch_model_class:
             # Get batch data using the appropriate model class
             try:
                 batch_data = self.get_batch_data(batch_id, batch_model_class)
-                
-                
+
+
                 # Apply batch data to jig_detail
                 for key, value in batch_data.items():
                     if not hasattr(jig_detail, key) or getattr(jig_detail, key) is None:
                         setattr(jig_detail, key, value)
-                
-                # ---------------------------------------------------------------
-                # FIX: Parse no_of_model_cases into a proper list.
-                # Raw format: 'MODEL1 [lot_id]:qty | MODEL2 [lot_id]:qty'
-                # Iterating a raw string gives characters — we need model names.
-                # ---------------------------------------------------------------
-                raw_nmc = jig_detail.no_of_model_cases
-                if raw_nmc and isinstance(raw_nmc, str):
-                    # Pipe-separated: 'MODEL [lot]:qty | MODEL2 [lot]:qty'
-                    parsed_model_list = [
-                        part.split(' [')[0].strip()
-                        for part in raw_nmc.split(' | ')
-                        if part.strip() and part.split(' [')[0].strip()
-                    ]
-                elif raw_nmc and isinstance(raw_nmc, list):
-                    parsed_model_list = raw_nmc
-                else:
-                    parsed_model_list = []
-
-                # Fallback: use already-resolved lot plating_stk_nos when no_of_model_cases is empty
-                if not parsed_model_list:
-                    parsed_model_list = (
-                        getattr(jig_detail, 'lot_plating_stk_nos_list', None) or
-                        getattr(jig_detail, 'model_plating_stk_nos_list', None) or
-                        []
-                    )
-
-                # Replace raw string with clean parsed list so template iterates models
-                jig_detail.no_of_model_cases = parsed_model_list
 
                 # Keep existing model display logic for frontend (multiple model circles)
                 if parsed_model_list:
-                    # Create color mapping for display
-                    jig_model_colors = {}
-                    for idx, model_no in enumerate(parsed_model_list):
-                        color_index = idx % len(color_palette)
-                        jig_model_colors[model_no] = color_palette[color_index]
-                    jig_detail.model_colors = jig_model_colors
-                    
                     # Keep model images for existing functionality
                     jig_model_images = {}
                     model_images = batch_data.get('model_images', [static('assets/images/imagePlaceholder.jpg')])
@@ -2409,9 +2416,8 @@ class InprocessInspectionCompleteView(TemplateView):
                         }
                     jig_detail.model_images = jig_model_images
                 else:
-                    jig_detail.model_colors = {}
                     jig_detail.model_images = {}
-                
+
                 # Create single item lists for template compatibility
                 jig_detail.unique_versions = [batch_data.get('version_name', 'No Version')]
                 jig_detail.unique_vendors = [batch_data.get('vendor_internal', 'No Vendor')]

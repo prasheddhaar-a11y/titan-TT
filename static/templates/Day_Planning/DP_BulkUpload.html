@@ -1044,7 +1044,8 @@
   let allowedVersionsCache = null;
   let allowedVersionsPromise = null;
   let categoriesCache = null;
-  let locationsCache = null;
+  // Keyed by upload_type ('day_planning' | 'recovery') — Recovery only ever gets EPSF from backend.
+  let locationsCache = {};
 
   function getCookie(name) {
     let cookieValue = null;
@@ -1121,7 +1122,7 @@
     }
   }
 
-  function loadDropdownData(column) {
+  function loadDropdownData(column, uploadType) {
     if (column === 'Category') {
       if (categoriesCache) {
         return Promise.resolve(categoriesCache);
@@ -1139,15 +1140,21 @@
     }
 
     if (column === 'Source') {
-      if (locationsCache) {
-        return Promise.resolve(locationsCache);
+      // Recovery vs Day Planning get separate cache entries — backend returns only
+      // EPSF for Recovery, so the two tabs must never share a cached list.
+      const cacheKey = uploadType === 'recovery' ? 'recovery' : 'day_planning';
+      if (locationsCache[cacheKey]) {
+        return Promise.resolve(locationsCache[cacheKey]);
       }
-      return fetch('/dayplanning/get_locations/')
+      const url = uploadType === 'recovery'
+        ? '/dayplanning/get_locations/?upload_type=recovery'
+        : '/dayplanning/get_locations/';
+      return fetch(url)
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            locationsCache = data.locations;
-            return locationsCache;
+            locationsCache[cacheKey] = data.locations;
+            return locationsCache[cacheKey];
           }
           return [];
         })
@@ -1157,7 +1164,7 @@
     return Promise.resolve([]);
   }
 
-  function createSimpleDropdown(td, row, column, currentValue) {
+  function createSimpleDropdown(td, row, column, currentValue, uploadType) {
     const select = document.createElement('select');
     select.className = 'simple-dropdown';
     select.style.cssText = `
@@ -1180,7 +1187,7 @@
     td.innerHTML = '';
     td.appendChild(select);
 
-    loadDropdownData(column).then(data => {
+    loadDropdownData(column, uploadType).then(data => {
       select.innerHTML = '';
 
       const defaultOpt = document.createElement('option');
@@ -1956,7 +1963,7 @@
               const currentValue = row[column] || '';
 
               if (column === 'Category' || column === 'Source') {
-                createSimpleDropdown(td, row, column, currentValue);
+                createSimpleDropdown(td, row, column, currentValue, uploadType);
                 return;
               }
 

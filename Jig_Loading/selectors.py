@@ -6,6 +6,40 @@ from dataclasses import dataclass
 from .models import Jig, JigCompleted, JigLoadingManualDraft
 
 
+def get_ip_info_remarks_by_psn(psn_list):
+    """Resolve the shared IP Info remark for each plating_stk_no (PSN).
+
+    The remark is a property of the PSN, not of an individual lot: any
+    submitted Jig Loading record — or, failing that, any Inprocess Inspection
+    record that has completed (jig_position set) — carrying a remark for a
+    given PSN applies to every lot sharing that PSN, regardless of qty or
+    processing stage. Both cases live on the same JigCompleted.remarks field,
+    resolved here in a single bulk query (no per-row N+1).
+    """
+    psns = {str(p).strip() for p in (psn_list or []) if str(p or '').strip()}
+    if not psns:
+        return {}
+
+    rows = (
+        JigCompleted.objects.filter(plating_stock_num__in=psns)
+        .exclude(remarks__isnull=True)
+        .exclude(remarks='')
+        .order_by('-updated_at')
+        .values('plating_stock_num', 'remarks', 'draft_status', 'jig_position')
+    )
+
+    submitted_map = {}
+    completed_map = {}
+    for row in rows:
+        psn = row['plating_stock_num']
+        if row['draft_status'] == 'submitted' and psn not in submitted_map:
+            submitted_map[psn] = row['remarks']
+        if row['jig_position'] and psn not in completed_map:
+            completed_map[psn] = row['remarks']
+
+    return {psn: submitted_map.get(psn) or completed_map.get(psn) or '' for psn in psns}
+
+
 TRAY_VALUE_KEYS = {
     'tray_id',
     'trayid',

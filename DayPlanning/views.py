@@ -33,6 +33,16 @@ from watchcase_tracker.perf_logger import time_stage
 _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
 _RE_SUFFIX = re.compile(r'^[A-Z][A-Z]02$')
 
+# Recovery uploads are always sourced from a single fixed location.
+# Backend-enforced (Golden Rule: Backend decides) — never trusts frontend-submitted Source.
+RECOVERY_SOURCE_LOCATION_NAME = "EPSF"
+
+
+def get_recovery_source_location():
+    """Return (creating if needed) the single Location used for all Recovery uploads."""
+    location_obj, _ = Location.objects.get_or_create(location_name=RECOVERY_SOURCE_LOCATION_NAME)
+    return location_obj
+
 
 
 # API to lock a row when accessed - Day Planning Pick Table
@@ -520,6 +530,7 @@ class DPBulkUploadView(APIView):
             categories = {obj.category_name: obj for obj in Category.objects.all()}
             vendors = {obj.vendor_name: obj for obj in Vendor.objects.all()}
             locations = {obj.location_name: obj for obj in Location.objects.all()}
+            recovery_location = get_recovery_source_location() if upload_type == 'recovery' else None
 
             # Pre-build suggestion strings from cached dicts (avoids per-error DB hits)
             _color_hint = ", ".join(list(plating_colors_name.keys())[:5])
@@ -558,7 +569,8 @@ class DPBulkUploadView(APIView):
                     if not plating_colour:     empty_fields.append("Plating Colour")
                     if not category:           empty_fields.append("Category")
                     if input_qty in [None, '', 0]: empty_fields.append("Input Qty")
-                    if not source:             empty_fields.append("Source")
+                    if upload_type != 'recovery' and not source:
+                        empty_fields.append("Source")
 
                     if empty_fields:
                         failed_rows.append(f"Row {idx}: ❌ {', '.join(empty_fields)} should not be empty.")
@@ -635,7 +647,11 @@ class DPBulkUploadView(APIView):
                     # 7. Source (Vendor_Location or Location-only)
                     vendor_obj = None
                     location_obj = None
-                    if "_" in source:
+                    if upload_type == 'recovery':
+                        # Recovery uploads are always sourced from EPSF — backend enforced,
+                        # regardless of whatever Source value the frontend submitted.
+                        location_obj = recovery_location
+                    elif "_" in source:
                         vendor_name, loc_name = source.split("_", 1)
                         vendor_obj = vendors.get(vendor_name)
                         if not vendor_obj:
@@ -770,6 +786,7 @@ class DPBulkUploadView(APIView):
             categories = {obj.category_name: obj for obj in Category.objects.all()}
             vendors = {obj.vendor_name: obj for obj in Vendor.objects.all()}
             locations = {obj.location_name: obj for obj in Location.objects.all()}
+            recovery_location = get_recovery_source_location() if upload_type == 'recovery' else None
 
             # Pre-build suggestion strings (avoids per-error DB queries inside the loop)
             _color_hint = ", ".join(list(plating_colors_name.keys())[:5])
@@ -818,7 +835,7 @@ class DPBulkUploadView(APIView):
                     empty_fields.append("Column E (Category)")
                 if input_qty in [None, '', 0]:
                     empty_fields.append("Column F (Input Qty)")
-                if not source:
+                if upload_type != 'recovery' and not source:
                     empty_fields.append("Column G (Source)")
 
                 if empty_fields:
@@ -904,7 +921,11 @@ class DPBulkUploadView(APIView):
                 vendor_obj = None
                 location_obj = None
 
-                if "_" in source:
+                if upload_type == 'recovery':
+                    # Recovery uploads are always sourced from EPSF — backend enforced,
+                    # regardless of whatever Source value was in the uploaded file.
+                    location_obj = recovery_location
+                elif "_" in source:
                     # Format: Vendor_Location (e.g., Titan_CPSE)
                     vendor_name, loc_name = source.split("_", 1)
                     
@@ -1381,9 +1402,14 @@ class GetLocationsAPIView(APIView):
     
     def get(self, request):
         try:
-            # Location model should already be imported
-            locations = list(Location.objects.values('location_name').order_by('location_name'))
-            
+            upload_type = request.GET.get('upload_type', 'day_planning')
+            if upload_type == 'recovery':
+                # Recovery uploads only ever use the single EPSF source.
+                location_obj = get_recovery_source_location()
+                locations = [{'location_name': location_obj.location_name}]
+            else:
+                locations = list(Location.objects.values('location_name').order_by('location_name'))
+
             return JsonResponse({
                 'success': True,
                 'locations': locations,

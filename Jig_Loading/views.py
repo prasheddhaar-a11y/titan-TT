@@ -328,7 +328,8 @@ class JigView(TemplateView):
 				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
-				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
+				'BA_pick_remarks',
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -337,7 +338,8 @@ class JigView(TemplateView):
 				'lot_id', 'batch_id', 'brass_audit_accepted_qty',
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
-				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
+				'BA_pick_remarks',
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -395,7 +397,10 @@ class JigView(TemplateView):
 					'model_images': [],  # images resolved lazily in template via data-attribute only
 					'jig_hold_lot': getattr(stock, 'jig_hold_lot', False),
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
-					'type_of_input': get_type_of_input_for_batch(batch),
+					'jig_release_lot': getattr(stock, 'jig_release_lot', False),
+					'jig_release_reason': getattr(stock, 'jig_release_reason', ''),
+					'previous_module': 'Brass Audit',
+					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
 				}
 
 				# Use pre-fetched capacity map (no per-row DB query)
@@ -535,6 +540,10 @@ class JigView(TemplateView):
 						'model_images': [],
 						'jig_hold_lot': False,
 						'jig_holding_reason': '',
+						'jig_release_lot': False,
+						'jig_release_reason': '',
+						'previous_module': 'Brass Audit',
+						'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') if stock else '',
 						'is_excess_lot': True,
 						'source_jig_id': jc.jig_id,
 						'half_filled_tray_info_json': json.dumps(jc.half_filled_tray_info or []),
@@ -642,6 +651,19 @@ class JigView(TemplateView):
 			page_number = self.request.GET.get('page', 1)
 			paginator = Paginator(master_data, 10)  # 10 records per page
 			page_obj = paginator.get_page(page_number)
+
+			# ===== IP INFO REMARK: shared per plating_stk_no (PSN), not per lot =====
+			# Resolved only for the current page (not all of master_data) to avoid a
+			# large IN() query when Add Model mode returns an unsliced result set.
+			try:
+				from .selectors import get_ip_info_remarks_by_psn
+				page_psns = {d.get('plating_stk_no', '') for d in page_obj.object_list if d.get('plating_stk_no')}
+				ip_info_remark_map = get_ip_info_remarks_by_psn(page_psns)
+				for d in page_obj.object_list:
+					d['inprocess_remarks'] = ip_info_remark_map.get(d.get('plating_stk_no', ''), '')
+			except Exception:
+				logging.exception('[JIG PICK] Failed to resolve IP Info remarks by PSN')
+
 			context['master_data'] = page_obj
 			context['page_obj'] = page_obj
 			# Pass Add Model filter context to template (for empty-state warning)
@@ -3564,6 +3586,15 @@ class JigCompletedTable(TemplateView):
 					or 'Jig Loading'
 				) if stock_model else 'Jig Loading'
 
+				# A Jig Loading completed row is not released while the lot is
+				# still at Jig Loading.  It is released only when IP Inspection
+				# records a real action and advances current_stage.
+				lot_status = (
+					'Yet to Release'
+					if current_stage_display == 'Jig Loading'
+					else 'Released'
+				)
+
 				enriched = {
 					'id': jig_rec.id,
 					'lot_id': jig_rec.lot_id,
@@ -3593,6 +3624,7 @@ class JigCompletedTable(TemplateView):
 					'multi_model_allocation': jig_rec.multi_model_allocation or [],
 					'IP_jig_pick_remarks': jig_rec.remarks or '',
 					'current_stage_display': current_stage_display,
+					'lot_status': lot_status,
 					'type_of_input': get_type_of_input_for_batch(batch_obj),
 				}
 				jig_details.append(enriched)
@@ -4349,6 +4381,12 @@ class JigHoldToggleAPI(APIView):
 			return Response({
 				'success': True,
 				'hold_status': hold_status,
+				'jig_hold_lot': lot_obj.jig_hold_lot,
+				'jig_holding_reason': lot_obj.jig_holding_reason or '',
+				'jig_release_lot': lot_obj.jig_release_lot,
+				'jig_release_reason': lot_obj.jig_release_reason or '',
+				'holding_reason': lot_obj.jig_holding_reason or '',
+				'release_reason': lot_obj.jig_release_reason or '',
 				'message': message,
 			}, status=status.HTTP_200_OK)
 
