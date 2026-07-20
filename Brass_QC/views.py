@@ -483,10 +483,11 @@ class BrassCompletedView(APIView):
                 if current_stage_display != 'Brass QC'
                 else 'Yet to Release'
             )
-            
+
             data = {
                 'batch_id': batch.batch_id,
                 'lot_id': stock_obj.lot_id,
+                'lot_status': lot_status,
                 'date_time': batch.date_time,
                 'model_stock_no__model_no': batch.model_stock_no.model_no if batch.model_stock_no else '',
                 'plating_color': batch.plating_color,

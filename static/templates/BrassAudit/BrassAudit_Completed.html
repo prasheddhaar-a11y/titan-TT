@@ -862,7 +862,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     
                     <!-- 12. Tray Cate-Capacity -->
-                    <td>{{data.tray_type}}-{{data.tray_capacity}}</td>
+                    <td>{{data.tray_type|tray_full_name}}-{{data.tray_capacity}}</td>
 
                     <!-- Type of Input -->
                     <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>

@@ -947,7 +947,7 @@
                         {{ data.last_process_module|default:"N/A" }}
                       </div>
                     </td>
-                    <td>{{ data.tray_type }} {{ data.tray_capacity }}</td>
+                    <td>{{ data.tray_type|tray_full_name }} {{ data.tray_capacity }}</td>
                     <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.polish_finish }}</td>

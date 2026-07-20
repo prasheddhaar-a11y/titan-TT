@@ -1408,7 +1408,13 @@ class GetLocationsAPIView(APIView):
                 location_obj = get_recovery_source_location()
                 locations = [{'location_name': location_obj.location_name}]
             else:
-                locations = list(Location.objects.values('location_name').order_by('location_name'))
+                # EPSF is reserved exclusively for Recovery uploads (see RECOVERY_SOURCE_LOCATION_NAME);
+                # never offer it as a source for regular Day Planning uploads.
+                locations = list(
+                    Location.objects.exclude(location_name=RECOVERY_SOURCE_LOCATION_NAME)
+                    .values('location_name')
+                    .order_by('location_name')
+                )
 
             return JsonResponse({
                 'success': True,
@@ -3205,7 +3211,8 @@ class DPCompletedTableView(APIView):
             'rejected_ip_stock',
             'few_cases_accepted_Ip_stock',
             'ip_person_qty_verified',
-            'draft_tray_verify'
+            'draft_tray_verify',
+            'upload_type',
         ))
 
         # ✅ PERF: Batch-fetch model images ONCE for the whole page instead of a
@@ -3228,6 +3235,7 @@ class DPCompletedTableView(APIView):
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
+            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
             # Backend-owned "Current Stage" display: use only the live
             # current_stage SSOT (written by each module on its own real
             # processing action — draft/verify/submit), falling back to

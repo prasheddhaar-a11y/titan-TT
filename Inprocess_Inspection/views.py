@@ -25,6 +25,7 @@ from django.db.models import Q
 from .models import InprocessInspectionTrayCapacity
 from Jig_Loading.models import JigCompleted
 from modelmasterapp.color_service import get_model_colors_by_model_no, get_or_assign_plating_color
+from modelmasterapp.type_of_input import get_type_of_input_for_batch, get_type_of_input_map
 
 # Inprocess Inspection View
 class InprocessInspectionView(TemplateView):
@@ -210,12 +211,14 @@ class InprocessInspectionView(TemplateView):
                 'inprocess_hold_lot': False,
                 'inprocess_release_lot': False,
             }
-            tsm = TotalStockModel.objects.filter(lot_id=jig_detail.lot_id).first()
+            type_of_input = 'Fresh'
+            tsm = TotalStockModel.objects.filter(lot_id=jig_detail.lot_id).select_related('batch_id').first()
             if tsm:
                 hold_info['inprocess_holding_reason'] = tsm.inprocess_holding_reason or ''
                 hold_info['inprocess_release_reason'] = tsm.inprocess_release_reason or ''
                 hold_info['inprocess_hold_lot'] = tsm.inprocess_hold_lot
                 hold_info['inprocess_release_lot'] = tsm.inprocess_release_lot
+                type_of_input = get_type_of_input_for_batch(tsm.batch_id)
             else:
                 rsm = RecoveryStockModel.objects.filter(lot_id=jig_detail.lot_id).first()
                 if rsm:
@@ -223,12 +226,14 @@ class InprocessInspectionView(TemplateView):
                     hold_info['inprocess_release_reason'] = rsm.inprocess_release_reason or ''
                     hold_info['inprocess_hold_lot'] = rsm.inprocess_hold_lot
                     hold_info['inprocess_release_lot'] = rsm.inprocess_release_lot
-        
+                    type_of_input = 'Recovery'
+
             # Attach to enhanced_jig_detail
             enhanced_jig_detail.inprocess_holding_reason = hold_info['inprocess_holding_reason']
             enhanced_jig_detail.inprocess_release_reason = hold_info['inprocess_release_reason']
             enhanced_jig_detail.inprocess_hold_lot = hold_info['inprocess_hold_lot']
             enhanced_jig_detail.inprocess_release_lot = hold_info['inprocess_release_lot']
+            enhanced_jig_detail.type_of_input = type_of_input
         
             # FIX BUG 1 & 3: For multi-model, display all model names with model qty
             # and use original_lot_qty instead of loaded_cases_qty for display
@@ -1856,6 +1861,15 @@ class InprocessInspectionCompleteView(TemplateView):
             .values_list('lot_id', 'current_stage')
         )
 
+        # Bulk-resolve Type of Input (Fresh/Recovery). Lots living in
+        # RecoveryStockModel (not TotalStockModel) are inherently Recovery.
+        type_of_input_map = get_type_of_input_map(_all_lot_ids)
+        _recovery_lot_ids = RecoveryStockModel.objects.filter(
+            lot_id__in=_all_lot_ids
+        ).exclude(lot_id__in=type_of_input_map.keys()).values_list('lot_id', flat=True)
+        for _lid in _recovery_lot_ids:
+            type_of_input_map[_lid] = 'Recovery'
+
         # Process each JigCompleted to handle multiple models and lots - SAME AS InprocessInspectionView
         processed_jig_details = []
 
@@ -1892,6 +1906,7 @@ class InprocessInspectionCompleteView(TemplateView):
                 jig_detail, lot_ids_data, model_cases_data,
                 current_stage=current_stage_map.get(jig_detail.lot_id)
             )
+            enhanced_jig_detail.type_of_input = type_of_input_map.get(jig_detail.lot_id, 'Fresh')
 
             processed_jig_details.append(enhanced_jig_detail)
             

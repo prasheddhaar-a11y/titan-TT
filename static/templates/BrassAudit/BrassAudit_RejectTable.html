@@ -746,7 +746,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>{{data.polish_finish}}</td>
                     <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.location__location_name}}</td>
-                    <td>{{data.tray_type}} {{data.tray_capacity}}</td>
+                    <td>{{data.tray_type|tray_full_name}} {{data.tray_capacity}}</td>
                     <td>{{data.no_of_trays}}</td>
                     <td>
                       {{data.display_reject_qty}}

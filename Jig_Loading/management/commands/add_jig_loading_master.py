@@ -103,12 +103,25 @@ class Command(BaseCommand):
                         )
                     )
                 else:
+                    # jig_capacity/jig_type drive the Jig ID format validation, so an
+                    # existing row must be kept in sync with this source list too —
+                    # get_or_create's defaults only apply on insert, never on update.
+                    changed_fields = []
+                    if obj.jig_capacity != jig_capacity:
+                        obj.jig_capacity = jig_capacity
+                        changed_fields.append(f"jig_capacity={jig_capacity}")
+                    if obj.jig_type != jig_type:
+                        obj.jig_type = jig_type
+                        changed_fields.append(f"jig_type={jig_type}")
                     if obj.forging_info != forging_info:
                         obj.forging_info = forging_info
+                        changed_fields.append(f"forging_info={forging_info}")
+
+                    if changed_fields:
                         obj.save()
                         self.stdout.write(
                             self.style.WARNING(
-                                f"Updated → {stock_no} forging_info = {forging_info}"
+                                f"Updated → {stock_no}: " + ", ".join(changed_fields)
                             )
                         )
                     else:

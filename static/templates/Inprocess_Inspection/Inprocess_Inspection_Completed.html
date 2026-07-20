@@ -894,6 +894,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Batch Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Stage <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Type of Input</th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1051,6 +1052,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {{ jig_detail.last_process_module }}
                         </div>
                       </td>
+                      <!-- Type of Input -->
+                      <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=jig_detail.type_of_input %}</td>
                       <td>
 
                         <!-- Audio Remark Icon -->
