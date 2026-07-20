@@ -2680,8 +2680,14 @@ def _write_spider_spindle_report(writer, zone):
 # ---------------------------------------------------------------------------
 
 CONSOLIDATED_COLUMNS = [
-    'S.No', 'Plating Stock No.', 'Lot Qty', 'Accept / Reject',
-    'Current Stage', 'Next Stage', 'Remarks',
+    'S.No', 'Plating Stock No.', 'Lot Qty',
+    'Day Planning', 'Input Screening', 'Brass QC', 'IQF', 'Brass Audit',
+    'Jig Loading', 'IP Inspection',
+    'Jig Unloading Z1', 'Jig Unloading Z2',
+    'Nickel Wiping Z1', 'Nickel Wiping Z2',
+    'Nickel Audit Z1', 'Nickel Audit Z2',
+    'Spider Spindle Z1', 'Spider Spindle Z2',
+    'Remarks',
 ]
 
 
@@ -2754,9 +2760,7 @@ def consolidated_report_download(request):
             'S.No': row['s_no'],
             'Plating Stock No.': row['plating_stk_no'],
             'Lot Qty': row['lot_qty'],
-            'Accept / Reject': row['accept_reject'],
-            'Current Stage': row['current_stage'],
-            'Next Stage': row['next_stage'],
+            **row['modules'],
             'Remarks': row['remarks'],
         }
         for row in rows

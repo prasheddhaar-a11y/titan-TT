@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %} {% load static %} {% block content %}
+﻿{% extends "base.html" %} {% load static %} {% load custom_filters %} {% block content %}
 <style nonce="{{ csp_nonce }}">
   
   .reports-container {
@@ -421,9 +421,21 @@
                 <th>S.No</th>
                 <th>Plating Stock No.</th>
                 <th>Lot Qty</th>
-                <th>Accept / Reject</th>
-                <th>Current Stage</th>
-                <th>Next Stage</th>
+                <th>Day Planning</th>
+                <th>Input Screening</th>
+                <th>Brass QC</th>
+                <th>IQF</th>
+                <th>Brass Audit</th>
+                <th>Jig Loading</th>
+                <th>IP Inspection</th>
+                <th>Jig Unloading Z1</th>
+                <th>Jig Unloading Z2</th>
+                <th>Nickel Wiping Z1</th>
+                <th>Nickel Wiping Z2</th>
+                <th>Nickel Audit Z1</th>
+                <th>Nickel Audit Z2</th>
+                <th>Spider Spindle Z1</th>
+                <th>Spider Spindle Z2</th>
                 <th>Remarks</th>
               </tr>
             </thead>
@@ -440,5 +452,5 @@
   </div>
 </div>
 
-<script src="{% static 'js/reports.js' %}?v=20260711b" nonce="{{ csp_nonce }}"></script>
+<script src="{% static_v 'js/reports.js' %}" nonce="{{ csp_nonce }}"></script>
 {% endblock %}

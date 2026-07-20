@@ -30,6 +30,7 @@ from Jig_Unloading.tray_utils import (
     find_jig_unload_tray_conflict,
     is_valid_jig_unload_tray_id_format,
     normalize_jig_unload_tray_id,
+    normalize_combine_lot_id,
 )
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -2844,15 +2845,24 @@ def JU_Zone_save_jig_unload_tray_ids(request):
             # Check if there's an existing record we should update
             existing_record = None
             
-            # Find record that contains any of these specific formatted lot_ids
+            # Find record that contains any of these specific formatted lot_ids.
+            # Zone 1 stores plain lot_ids in combine_lot_ids while this zone stores
+            # prefixed ids (e.g. 'JLOT-xxx-LIDyyy'), so an exact-string containment
+            # check never matches a Zone-1-created row for the same source lot_id,
+            # causing a duplicate JigUnloadAfterTable row instead of a merge. Compare
+            # normalised (plain) lot_ids instead so either zone can find the other's row.
             potential_records = JigUnloadAfterTable.objects.filter(
                 combine_lot_ids__isnull=False
             ).exclude(combine_lot_ids__exact=[])
-            
+
+            new_plain_ids = {normalize_combine_lot_id(fid) for fid in final_db_combined_lot_ids}
+
             for record in potential_records:
                 if record.combine_lot_ids:
-                    # Check if this record contains any of our new formatted lot_ids
-                    if any(formatted_id in record.combine_lot_ids for formatted_id in final_db_combined_lot_ids):
+                    record_plain_ids = {
+                        normalize_combine_lot_id(cid) for cid in record.combine_lot_ids
+                    }
+                    if record_plain_ids & new_plain_ids:
                         existing_record = record
                         break
 
@@ -3022,10 +3032,14 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                     logger.error(f"Error creating JigUnloadAfterTable: {str(e)}")
                     return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
-        # Fallback: if all IDs were duplicates (already in DB), find the existing record
+        # Fallback: if all IDs were duplicates (already in DB), find the existing record.
+        # Uses the shared normalize_combine_lot_id() (handles both the ':'-separated
+        # and 'JLOT-...-LIDyyy' formats) rather than a plain rsplit('-', 1), which
+        # mis-splits the ':'-separated variant (e.g. 'JLOT-xxx:LIDyyy') on the hyphen
+        # inside 'JLOT-xxx' and never reaches the plain lot_id after the colon.
         if not unload_lot_id:
             _search_lot_ids = [
-                fid.rsplit('-', 1)[-1] if '-' in fid else fid
+                normalize_combine_lot_id(fid)
                 for fid in (final_formatted_combined_lot_ids or list(all_lot_ids_from_trays))
             ]
             for _record in JigUnloadAfterTable.objects.filter(
@@ -3033,7 +3047,7 @@ def JU_Zone_save_jig_unload_tray_ids(request):
             ).exclude(combine_lot_ids__exact=[]).order_by('-id'):
                 if _record.combine_lot_ids:
                     _stored_lids = [
-                        cid.rsplit('-', 1)[-1] if '-' in cid else cid
+                        normalize_combine_lot_id(cid)
                         for cid in _record.combine_lot_ids
                     ]
                     if any(sl in _stored_lids for sl in _search_lot_ids):

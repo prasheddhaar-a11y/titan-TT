@@ -2,20 +2,38 @@
 Read-only selectors for the Reports module.
 
 Consolidated Report: one row per Plating Stock No showing the complete
-journey (Day Planning -> ... -> Spider Spindle Z2). The exact same row
-builder is used by both the Preview API and the Excel download so the
-two can never diverge.
+journey (Day Planning -> ... -> Spider Spindle Z2), with every module
+always shown as its own column (never collapsed to "current stage"
+only). The exact same row builder is used by both the Preview API and
+the Excel download so the two can never diverge.
+
+Lineage note: Input Screening, Brass QC, IQF and Brass Audit can each
+split a lot into an accepted child and/or a rejected child on PARTIAL
+(and, for Brass QC / Brass Audit, on FULL_REJECT) submissions. Every
+child row created this way keeps `TotalStockModel.batch_id` pointing at
+the SAME batch as the parent (verified in each module's
+`services/lot_service.py` `TotalStockModel.objects.create(batch_id=parent.batch_id, ...)`).
+So the full lineage for a batch is simply every `TotalStockModel` row
+sharing that `batch_id` — no need to walk parent/child lot_id chains
+through the four separate `*_PartialAcceptLot`/`*_PartialRejectLot`
+tables one hop at a time; each module's own completion flags are
+checked across ALL of that batch's rows.
 """
 import logging
+from importlib import import_module
 from datetime import datetime, time
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import CharField, Q, Value
+from django.db.models.functions import Lower, Replace
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# Stage order for the consolidated journey (spec order)
+PLATING_SEARCH_SEPARATORS = (' ', '-', '/', '_', '.', ':')
+
+# Stage/column order for the consolidated journey (spec order). Zone-capable
+# modules get one column per zone since a lot only ever lands in one zone.
 STAGE_DAY_PLANNING = 'Day Planning'
 STAGE_INPUT_SCREENING = 'Input Screening'
 STAGE_BRASS_QC = 'Brass QC'
@@ -23,13 +41,16 @@ STAGE_IQF = 'IQF'
 STAGE_BRASS_AUDIT = 'Brass Audit'
 STAGE_JIG_LOADING = 'Jig Loading'
 STAGE_IP_INSPECTION = 'IP Inspection'
-STAGE_JIG_UNLOADING = 'Jig Unloading'
-STAGE_NICKEL_WIPING = 'Nickel Wiping'
-STAGE_NICKEL_AUDIT = 'Nickel Audit'
-STAGE_SS_Z1 = 'Spider Spindle Zone 1'
-STAGE_SS_Z2 = 'Spider Spindle Zone 2'
+STAGE_JIG_UNLOADING_Z1 = 'Jig Unloading Z1'
+STAGE_JIG_UNLOADING_Z2 = 'Jig Unloading Z2'
+STAGE_NICKEL_WIPING_Z1 = 'Nickel Wiping Z1'
+STAGE_NICKEL_WIPING_Z2 = 'Nickel Wiping Z2'
+STAGE_NICKEL_AUDIT_Z1 = 'Nickel Audit Z1'
+STAGE_NICKEL_AUDIT_Z2 = 'Nickel Audit Z2'
+STAGE_SS_Z1 = 'Spider Spindle Z1'
+STAGE_SS_Z2 = 'Spider Spindle Z2'
 
-STAGE_FLOW = [
+MODULE_COLUMNS = [
     STAGE_DAY_PLANNING,
     STAGE_INPUT_SCREENING,
     STAGE_BRASS_QC,
@@ -37,16 +58,52 @@ STAGE_FLOW = [
     STAGE_BRASS_AUDIT,
     STAGE_JIG_LOADING,
     STAGE_IP_INSPECTION,
-    STAGE_JIG_UNLOADING,
-    STAGE_NICKEL_WIPING,
-    STAGE_NICKEL_AUDIT,
+    STAGE_JIG_UNLOADING_Z1,
+    STAGE_JIG_UNLOADING_Z2,
+    STAGE_NICKEL_WIPING_Z1,
+    STAGE_NICKEL_WIPING_Z2,
+    STAGE_NICKEL_AUDIT_Z1,
+    STAGE_NICKEL_AUDIT_Z2,
     STAGE_SS_Z1,
     STAGE_SS_Z2,
 ]
 
-# IQF is an optional branch: only part of a lot's journey when it was
-# actually routed there. Skipped as "Next Stage" unless flagged.
-OPTIONAL_STAGES = {STAGE_IQF}
+# Field-name spec for the four early modules that can split a lot into
+# accept/reject children. Every one of these lives on TotalStockModel.
+_EARLY_MODULE_SPECS = [
+    (STAGE_INPUT_SCREENING, dict(
+        accept_flag='accepted_Ip_stock', reject_flag='rejected_ip_stock',
+        few_flag='few_cases_accepted_Ip_stock', onhold_flag='ip_onhold_picking',
+        out_time_field='last_process_date_time',
+        accepted_qty_field='total_IP_accpeted_quantity',
+        rejected_qty_field='total_qty_after_rejection_IP',
+        remarks_field='IP_pick_remarks',
+    )),
+    (STAGE_BRASS_QC, dict(
+        accept_flag='brass_qc_accptance', reject_flag='brass_qc_rejection',
+        few_flag='brass_qc_few_cases_accptance', onhold_flag='brass_onhold_picking',
+        out_time_field='bq_last_process_date_time',
+        accepted_qty_field='brass_qc_accepted_qty',
+        rejected_qty_field='brass_qc_after_rejection_qty',
+        remarks_field='Bq_pick_remarks',
+    )),
+    (STAGE_IQF, dict(
+        accept_flag='iqf_acceptance', reject_flag='iqf_rejection',
+        few_flag='iqf_few_cases_acceptance', onhold_flag='iqf_onhold_picking',
+        out_time_field='iqf_last_process_date_time',
+        accepted_qty_field='iqf_accepted_qty',
+        rejected_qty_field='iqf_after_rejection_qty',
+        remarks_field='IQF_pick_remarks',
+    )),
+    (STAGE_BRASS_AUDIT, dict(
+        accept_flag='brass_audit_accptance', reject_flag='brass_audit_rejection',
+        few_flag='brass_audit_few_cases_accptance', onhold_flag='brass_audit_onhold_picking',
+        out_time_field='brass_audit_last_process_date_time',
+        accepted_qty_field='brass_audit_accepted_qty',
+        rejected_qty_field=None,  # no dedicated field; derived from lot_qty - accepted
+        remarks_field='BA_pick_remarks',
+    )),
+]
 
 DT_FORMAT = '%d-%b-%Y %I:%M %p'
 
@@ -76,109 +133,257 @@ def _first_remark(*values):
     return ''
 
 
-def _completed_stages(stock, batch, jig_record, unload_record):
-    """
-    Return (stages, final_status) where stages is an ordered list of
-    dicts {name, out} for every completed stage of this lot and
-    final_status is 'Accept' / 'Reject' from the latest inspection.
-    """
-    stages = []
-    final_status = ''
-
-    def add(name, out_time):
-        stages.append({'name': name, 'out': out_time})
-
-    # 1. Day Planning — completed once the lot was released / trays scanned
-    if batch and (batch.Moved_to_D_Picker or stock.tray_scan_status):
-        add(STAGE_DAY_PLANNING, stock.created_at)
-
-    # 2. Input Screening
-    if (stock.accepted_Ip_stock or stock.rejected_ip_stock
-            or (stock.few_cases_accepted_Ip_stock and not stock.ip_onhold_picking)):
-        add(STAGE_INPUT_SCREENING, stock.last_process_date_time or stock.created_at)
-        final_status = 'Reject' if stock.rejected_ip_stock else 'Accept'
-
-    # 3. Brass QC
-    if (stock.brass_qc_accptance or stock.brass_qc_rejection
-            or (stock.brass_qc_few_cases_accptance and not stock.brass_onhold_picking)):
-        add(STAGE_BRASS_QC, stock.bq_last_process_date_time)
-        final_status = 'Reject' if stock.brass_qc_rejection else 'Accept'
-
-    # 4. IQF (optional branch)
-    if (stock.iqf_acceptance or stock.iqf_rejection
-            or (stock.iqf_few_cases_acceptance and not stock.iqf_onhold_picking)):
-        add(STAGE_IQF, stock.iqf_last_process_date_time)
-        final_status = 'Reject' if stock.iqf_rejection else 'Accept'
-
-    # 5. Brass Audit
-    if (stock.brass_audit_accptance or stock.brass_audit_rejection
-            or (stock.brass_audit_few_cases_accptance and not stock.brass_audit_onhold_picking)):
-        add(STAGE_BRASS_AUDIT, stock.brass_audit_last_process_date_time)
-        final_status = 'Reject' if stock.brass_audit_rejection else 'Accept'
-
-    # 6. Jig Loading — a submitted JigCompleted record exists for the lot
-    if jig_record:
-        add(STAGE_JIG_LOADING, jig_record.updated_at)
-
-    # 7. IP Inspection — jig has been positioned in a bath
-    if jig_record and jig_record.jig_position:
-        add(STAGE_IP_INSPECTION, jig_record.updated_at)
-
-    # 8. Jig Unloading — lot appears in a JigUnloadAfterTable record
-    if unload_record:
-        add(STAGE_JIG_UNLOADING, unload_record.Un_loaded_date_time)
-
-        # 9. Nickel Wiping (Nickel Inspection)
-        if (unload_record.nq_qc_accptance or unload_record.nq_qc_rejection
-                or (unload_record.nq_qc_few_cases_accptance
-                    and not unload_record.nq_onhold_picking)):
-            add(STAGE_NICKEL_WIPING, unload_record.nq_last_process_date_time)
-            final_status = 'Reject' if unload_record.nq_qc_rejection else 'Accept'
-
-        # 10. Nickel Audit
-        if (unload_record.na_qc_accptance or unload_record.na_qc_rejection
-                or (unload_record.na_qc_few_cases_accptance
-                    and not unload_record.na_onhold_picking)):
-            add(STAGE_NICKEL_AUDIT, unload_record.na_last_process_date_time)
-            final_status = 'Reject' if unload_record.na_qc_rejection else 'Accept'
-
-        # 11 / 12. Spider Spindle zones
-        if getattr(unload_record, 'ss_z1_completed', False):
-            add(STAGE_SS_Z1, getattr(unload_record, 'ss_z1_completed_at', None))
-        if getattr(unload_record, 'ss_z2_completed', False):
-            add(STAGE_SS_Z2, getattr(unload_record, 'ss_z2_completed_at', None))
-
-    return stages, final_status
+def _module_cell(status, in_time=None, out_time=None, lot_qty=None, accepted_qty=None,
+                  rejected_qty=None, user=None, remarks=None):
+    """Format one module's cell — the same multi-line block for Preview and Excel."""
+    if status == 'Not Reached':
+        return 'IN : --\nOUT: --\nStatus : Not Reached'
+    lines = [f"IN : {_fmt(in_time)}", f"OUT: {_fmt(out_time)}"]
+    if lot_qty is not None:
+        lines.append(f"Lot Qty : {lot_qty}")
+    if accepted_qty is not None:
+        lines.append(f"Accepted : {accepted_qty}")
+    if rejected_qty is not None:
+        lines.append(f"Rejected : {rejected_qty}")
+    lines.append(f"Status : {status}")
+    if user:
+        lines.append(f"User : {user}")
+    if remarks:
+        lines.append(f"Remarks : {remarks}")
+    return '\n'.join(lines)
 
 
-def _next_stage(current_name, final_status, stock):
-    """First pending stage after the current one, honoring branches."""
-    if final_status == 'Reject':
-        return None  # journey ends on rejection
-    if current_name == STAGE_SS_Z2:
-        return None
-    try:
-        idx = STAGE_FLOW.index(current_name)
-    except ValueError:
-        return STAGE_FLOW[0]
-    for name in STAGE_FLOW[idx + 1:]:
-        if name in OPTIONAL_STAGES:
-            # only route through IQF when the lot was actually sent there
-            if not getattr(stock, 'send_brass_audit_to_iqf', False):
-                continue
-        return name
-    return None
+def _early_module_status(stock, spec):
+    """Return (status, out_time) for one of the four split-capable modules,
+    or (None, None) if this row was never processed at that module."""
+    if getattr(stock, spec['reject_flag'], False):
+        return 'Rejected', getattr(stock, spec['out_time_field'], None)
+    if getattr(stock, spec['accept_flag'], False):
+        return 'Accepted', getattr(stock, spec['out_time_field'], None)
+    few = getattr(stock, spec['few_flag'], False)
+    onhold = getattr(stock, spec['onhold_flag'], False)
+    if few and not onhold:
+        return 'Partially Accepted', getattr(stock, spec['out_time_field'], None)
+    if few and onhold:
+        return 'In Progress', getattr(stock, spec['out_time_field'], None)
+    return None, None
+
+
+def _pick_early_module_row(stocks_for_batch, spec):
+    """Among every TotalStockModel row for this batch (root + every split
+    child), find the one carrying this module's own completion flags.
+    Prefers the latest out-time if more than one row matches."""
+    best = None
+    for stock in stocks_for_batch:
+        status, out_time = _early_module_status(stock, spec)
+        if status is None:
+            continue
+        if best is None or (out_time and (not best[2] or out_time > best[2])):
+            best = (stock, status, out_time)
+    return best
+
+
+def _early_module_cells(stocks_for_batch, prev_out_time):
+    """Build cells for Input Screening / Brass QC / IQF / Brass Audit, in
+    order, threading each reached stage's out-time forward as the next
+    stage's in-time. Returns (cells, statuses, last_out_time)."""
+    cells = {}
+    statuses = {}
+    running_out = prev_out_time
+    for name, spec in _EARLY_MODULE_SPECS:
+        match = _pick_early_module_row(stocks_for_batch, spec)
+        if not match:
+            cells[name] = _module_cell('Not Reached')
+            statuses[name] = None
+            continue
+        stock, status, out_time = match
+        lot_qty = int(stock.total_stock or 0)
+        accepted_qty = getattr(stock, spec['accepted_qty_field'], None)
+        rejected_qty_field = spec['rejected_qty_field']
+        if rejected_qty_field:
+            rejected_qty = getattr(stock, rejected_qty_field, None)
+        elif status == 'Rejected':
+            rejected_qty = lot_qty - int(accepted_qty or 0)
+        else:
+            rejected_qty = None
+        cells[name] = _module_cell(
+            status,
+            in_time=running_out,
+            out_time=out_time,
+            lot_qty=lot_qty,
+            accepted_qty=accepted_qty,
+            rejected_qty=rejected_qty,
+            remarks=getattr(stock, spec['remarks_field'], None),
+        )
+        statuses[name] = status
+        running_out = out_time or running_out
+    return cells, statuses, running_out
+
+
+def _jig_loading_cells(jig_record, prev_out_time):
+    """Returns (jig_loading_cell, ip_inspection_cell, last_out_time)."""
+    if not jig_record:
+        return _module_cell('Not Reached'), _module_cell('Not Reached'), prev_out_time
+
+    jig_out = jig_record.IP_loaded_date_time or jig_record.updated_at
+    jig_cell = _module_cell(
+        'Completed',
+        in_time=prev_out_time,
+        out_time=jig_out,
+        lot_qty=jig_record.original_lot_qty or jig_record.updated_lot_qty,
+        accepted_qty=jig_record.loaded_cases_qty,
+        user=jig_record.user.username if getattr(jig_record, 'user_id', None) else None,
+        remarks=_first_remark(jig_record.pick_remarks, jig_record.remarks),
+    )
+    if jig_record.jig_position:
+        ip_cell = _module_cell(
+            'Completed',
+            in_time=jig_out,
+            out_time=jig_record.updated_at,
+            remarks=jig_record.remarks,
+        )
+        return jig_cell, ip_cell, jig_record.updated_at
+    return jig_cell, _module_cell('Not Reached'), jig_out
+
+
+def _late_module_cells(unload_record, zone_map, prev_out_time):
+    """Build cells for Jig Unloading / Nickel Wiping / Nickel Audit / Spider
+    Spindle, each split into Z1/Z2 columns. Returns (cells, statuses,
+    last_out_time) covering all 8 zone columns."""
+    zone_columns = [
+        STAGE_JIG_UNLOADING_Z1, STAGE_JIG_UNLOADING_Z2,
+        STAGE_NICKEL_WIPING_Z1, STAGE_NICKEL_WIPING_Z2,
+        STAGE_NICKEL_AUDIT_Z1, STAGE_NICKEL_AUDIT_Z2,
+        STAGE_SS_Z1, STAGE_SS_Z2,
+    ]
+    cells = {name: _module_cell('Not Reached') for name in zone_columns}
+    statuses = {name: None for name in zone_columns}
+    if not unload_record:
+        return cells, statuses, prev_out_time
+
+    zone = zone_map.get(unload_record.plating_color_id)
+    running_out = prev_out_time
+
+    # Jig Unloading itself uses generic (non nq_*/na_* prefixed) fields —
+    # Zone 1/2 is still the same JigUnloadAfterTable row, routed by the
+    # lot's Plating_Color allow-list, same as Nickel Wiping/Audit below.
+    ju_status = 'Accepted' if unload_record.unload_accepted else (
+        'Completed' if unload_record.Un_loaded_date_time else 'Pending'
+    )
+    ju_remarks = (
+        f"Missing qty: {unload_record.unload_missing_qty}"
+        if unload_record.unload_missing_qty else ''
+    )
+    ju_cell = _module_cell(
+        ju_status,
+        in_time=unload_record.created_at,
+        out_time=unload_record.Un_loaded_date_time,
+        lot_qty=unload_record.total_case_qty,
+        accepted_qty=unload_record.accepted_qty,
+        remarks=ju_remarks,
+    )
+    ju_out = unload_record.Un_loaded_date_time or unload_record.created_at
+    if zone == 'z1':
+        cells[STAGE_JIG_UNLOADING_Z1] = ju_cell
+        statuses[STAGE_JIG_UNLOADING_Z1] = ju_status
+    elif zone == 'z2':
+        cells[STAGE_JIG_UNLOADING_Z2] = ju_cell
+        statuses[STAGE_JIG_UNLOADING_Z2] = ju_status
+    running_out = ju_out or running_out
+
+    # Nickel Wiping
+    nq_out = ju_out
+    if (unload_record.nq_qc_accptance or unload_record.nq_qc_rejection
+            or (unload_record.nq_qc_few_cases_accptance and not unload_record.nq_onhold_picking)):
+        nq_status = (
+            'Rejected' if unload_record.nq_qc_rejection
+            else 'Accepted' if unload_record.nq_qc_accptance
+            else 'Partially Accepted'
+        )
+        nq_cell = _module_cell(
+            nq_status,
+            in_time=ju_out,
+            out_time=unload_record.nq_last_process_date_time,
+            lot_qty=unload_record.total_case_qty,
+            accepted_qty=unload_record.nq_qc_accepted_qty,
+            rejected_qty=unload_record.nq_missing_qty or None,
+            remarks=unload_record.nq_pick_remarks,
+        )
+        nq_out = unload_record.nq_last_process_date_time or ju_out
+        if zone == 'z1':
+            cells[STAGE_NICKEL_WIPING_Z1] = nq_cell
+            statuses[STAGE_NICKEL_WIPING_Z1] = nq_status
+        elif zone == 'z2':
+            cells[STAGE_NICKEL_WIPING_Z2] = nq_cell
+            statuses[STAGE_NICKEL_WIPING_Z2] = nq_status
+        running_out = nq_out or running_out
+
+    # Nickel Audit
+    na_out = nq_out
+    if (unload_record.na_qc_accptance or unload_record.na_qc_rejection
+            or (unload_record.na_qc_few_cases_accptance and not unload_record.na_onhold_picking)):
+        na_status = (
+            'Rejected' if unload_record.na_qc_rejection
+            else 'Accepted' if unload_record.na_qc_accptance
+            else 'Partially Accepted'
+        )
+        na_cell = _module_cell(
+            na_status,
+            in_time=nq_out,
+            out_time=unload_record.na_last_process_date_time,
+            lot_qty=unload_record.total_case_qty,
+            accepted_qty=unload_record.na_qc_accepted_qty,
+            rejected_qty=unload_record.na_missing_qty or None,
+            remarks=unload_record.na_pick_remarks,
+        )
+        na_out = unload_record.na_last_process_date_time or nq_out
+        if zone == 'z1':
+            cells[STAGE_NICKEL_AUDIT_Z1] = na_cell
+            statuses[STAGE_NICKEL_AUDIT_Z1] = na_status
+        elif zone == 'z2':
+            cells[STAGE_NICKEL_AUDIT_Z2] = na_cell
+            statuses[STAGE_NICKEL_AUDIT_Z2] = na_status
+        running_out = na_out or running_out
+
+    # Spider Spindle — independent zone-completion flags, not tied to the
+    # plating-color zone used above.
+    if getattr(unload_record, 'ss_z1_completed', False):
+        cells[STAGE_SS_Z1] = _module_cell(
+            'Completed',
+            in_time=na_out,
+            out_time=unload_record.ss_z1_completed_at,
+            user=(unload_record.ss_z1_completed_by.username
+                  if unload_record.ss_z1_completed_by_id else None),
+            remarks=unload_record.spider_pick_remarks,
+        )
+        statuses[STAGE_SS_Z1] = 'Completed'
+        running_out = unload_record.ss_z1_completed_at or running_out
+    if getattr(unload_record, 'ss_z2_completed', False):
+        cells[STAGE_SS_Z2] = _module_cell(
+            'Completed',
+            in_time=na_out,
+            out_time=unload_record.ss_z2_completed_at,
+            user=(unload_record.ss_z2_completed_by.username
+                  if unload_record.ss_z2_completed_by_id else None),
+            remarks=unload_record.spider_pick_remarks,
+        )
+        statuses[STAGE_SS_Z2] = 'Completed'
+        running_out = unload_record.ss_z2_completed_at or running_out
+
+    return cells, statuses, running_out
 
 
 def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=''):
     """
-    Build the consolidated journey rows. One row per Plating Stock No,
-    using the record with the most recent stage activity.
+    Build the consolidated journey rows. One row per Plating Stock No, using
+    the batch with the most recent stage activity. Every module column is
+    always populated — either with its actual data or "Not Reached" — so the
+    report shows the complete lifecycle rather than only the latest stage.
 
     date_from / date_to filter on the latest stage activity timestamp.
     plating_stock_no is a partial (icontains) match.
     """
-    from modelmasterapp.models import TotalStockModel
+    from modelmasterapp.models import TotalStockModel, Plating_Color
     from Jig_Loading.models import JigCompleted
     from Jig_Unloading.models import JigUnloadAfterTable
 
@@ -195,6 +400,25 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
 
     stocks = list(stock_qs)
     lot_ids = {s.lot_id for s in stocks if s.lot_id}
+    batch_ids = {s.batch_id_id for s in stocks if s.batch_id_id}
+
+    # Every TotalStockModel row sharing a batch_id (root + every accept/reject
+    # child ever created at Input Screening/Brass QC/IQF/Brass Audit) — needed
+    # to follow lot splits instead of getting stuck on whichever single row
+    # was picked as "most recently active."
+    # Exclude synthetic EX-* excess-lot rows: Jig Loading creates its own
+    # TotalStockModel row for leftover/excess quantity (sharing the same
+    # batch_id), but it never actually goes through Input Screening/Brass
+    # QC/IQF/Brass Audit itself — including it here can let its own stale
+    # completion flags (and a coincidentally later timestamp) get picked
+    # over the real lot's row, showing e.g. the excess row's tiny qty
+    # instead of the genuine lot's qty for an early-stage cell.
+    stocks_by_batch = {}
+    if batch_ids:
+        for s in TotalStockModel.objects.filter(
+            batch_id_id__in=batch_ids
+        ).exclude(lot_id__startswith='EX-'):
+            stocks_by_batch.setdefault(s.batch_id_id, []).append(s)
 
     # Bulk maps — avoid N+1
     jig_by_lot = {}
@@ -203,6 +427,8 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
     ).order_by('updated_at').only(
         'lot_id', 'jig_position', 'updated_at', 'pick_remarks',
         'remarks', 'unloading_remarks', 'multi_model_allocation',
+        'IP_loaded_date_time', 'original_lot_qty', 'updated_lot_qty',
+        'loaded_cases_qty', 'user',
     ):
         keys = {record.lot_id}
         for allocation in record.multi_model_allocation or []:
@@ -220,6 +446,15 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
         for key in keys:
             if key in lot_ids:
                 unload_by_lot[key] = record
+
+    # Zone lookup for Jig Unloading / Nickel Wiping / Nickel Audit: same
+    # table, routed to Zone 1 or Zone 2 by the lot's Plating_Color flags.
+    zone_map = {}
+    for pc in Plating_Color.objects.all().only('id', 'jig_unload_zone_1', 'jig_unload_zone_2'):
+        if pc.jig_unload_zone_1:
+            zone_map[pc.id] = 'z1'
+        elif pc.jig_unload_zone_2:
+            zone_map[pc.id] = 'z2'
 
     tz_aware = timezone.is_aware(timezone.now())
 
@@ -239,36 +474,39 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
 
         jig_record = jig_by_lot.get(stock.lot_id)
         unload_record = unload_by_lot.get(stock.lot_id)
-        stages, final_status = _completed_stages(stock, batch, jig_record, unload_record)
+        stocks_for_batch = stocks_by_batch.get(stock.batch_id_id) or [stock]
 
-        if stages:
-            current = stages[-1]
-            in_time = stages[-2]['out'] if len(stages) > 1 else stock.created_at
-            activity = current['out'] or in_time or stock.created_at
-        else:
-            current = None
-            in_time = None
-            activity = stock.created_at
+        dp_reached = bool(batch.Moved_to_D_Picker or stock.tray_scan_status)
+        dp_out = batch.date_time or stock.created_at
+        dp_cell = _module_cell(
+            'Completed',
+            in_time=dp_out,
+            out_time=dp_out,
+            lot_qty=batch.total_batch_quantity,
+            remarks=batch.dp_pick_remarks,
+        ) if dp_reached else _module_cell('Not Reached')
+
+        early_cells, early_statuses, running_out = _early_module_cells(
+            stocks_for_batch, dp_out if dp_reached else stock.created_at
+        )
+        jig_cell, ip_cell, running_out = _jig_loading_cells(jig_record, running_out)
+        late_cells, late_statuses, running_out = _late_module_cells(
+            unload_record, zone_map, running_out
+        )
+
+        modules = {STAGE_DAY_PLANNING: dp_cell}
+        modules.update(early_cells)
+        modules[STAGE_JIG_LOADING] = jig_cell
+        modules[STAGE_IP_INSPECTION] = ip_cell
+        modules.update(late_cells)
+
+        activity = running_out or stock.created_at
 
         # Date-range filter on latest stage activity
         if from_dt and (not activity or activity < from_dt):
             continue
         if to_dt_val and activity and activity > to_dt_val:
             continue
-
-        if current:
-            current_stage = (
-                f"{current['name']}\nIN : {_fmt(in_time)}\nOUT: {_fmt(current['out'])}"
-            )
-            next_name = _next_stage(current['name'], final_status, stock)
-        else:
-            current_stage = f"{STAGE_DAY_PLANNING}\nIN : {_fmt(stock.created_at)}"
-            next_name = STAGE_INPUT_SCREENING
-
-        if next_name:
-            next_stage = f"{next_name}\nIN : {_fmt(current['out'] if current else stock.created_at)}"
-        else:
-            next_stage = 'Completed'
 
         remarks = _first_remark(
             getattr(unload_record, 'spider_pick_remarks', None) if unload_record else None,
@@ -285,9 +523,7 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
         row = {
             'plating_stk_no': stk_no,
             'lot_qty': int(stock.total_stock or batch.total_batch_quantity or 0),
-            'accept_reject': final_status,
-            'current_stage': current_stage,
-            'next_stage': next_stage,
+            'modules': modules,
             'remarks': remarks,
             '_activity': activity,
         }
@@ -315,6 +551,38 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
     return rows
 
 
+def _normalize_plating_search(value):
+    return ''.join(ch for ch in str(value or '').lower() if ch.isalnum())
+
+
+def _plating_search_key_expression():
+    expression = Lower('plating_stk_no')
+    for separator in PLATING_SEARCH_SEPARATORS:
+        expression = Replace(
+            expression,
+            Value(separator),
+            Value(''),
+            output_field=CharField(),
+        )
+    return expression
+
+
+def _rank_plating_matches(values, query, limit):
+    q_lower = query.lower()
+    normalized_query = _normalize_plating_search(query)
+
+    def sort_key(value):
+        value_lower = value.lower()
+        normalized_value = _normalize_plating_search(value)
+        return (
+            not value_lower.startswith(q_lower),
+            not (normalized_query and normalized_value.startswith(normalized_query)),
+            value_lower,
+        )
+
+    return sorted({value for value in values if value}, key=sort_key)[:limit]
+
+
 def search_plating_stock(query, limit=15):
     """
     Autocomplete for Plating Stock No. Uses Elasticsearch when configured
@@ -327,24 +595,41 @@ def search_plating_stock(query, limit=15):
     if not query:
         return []
 
+    results = set()
     es_url = getattr(settings, 'ELASTICSEARCH_URL', None)
     if es_url:
         try:
-            from elasticsearch import Elasticsearch
-
+            Elasticsearch = import_module('elasticsearch').Elasticsearch
             client = Elasticsearch(es_url, request_timeout=2)
             response = client.search(
                 index=getattr(settings, 'ELASTICSEARCH_PLATING_INDEX', 'plating_stock'),
-                query={'match_phrase_prefix': {'plating_stk_no': query}},
+                query={
+                    'bool': {
+                        'should': [
+                            {'match_phrase_prefix': {'plating_stk_no': query}},
+                            {'wildcard': {
+                                'plating_stk_no.keyword': {
+                                    'value': f'*{query}*',
+                                    'case_insensitive': True,
+                                },
+                            }},
+                            {'wildcard': {
+                                'plating_stk_no': {
+                                    'value': f'*{query}*',
+                                    'case_insensitive': True,
+                                },
+                            }},
+                        ],
+                        'minimum_should_match': 1,
+                    },
+                },
                 size=limit,
             )
             hits = [
                 hit['_source'].get('plating_stk_no')
                 for hit in response.get('hits', {}).get('hits', [])
             ]
-            results = sorted({h for h in hits if h})
-            if results:
-                return results[:limit]
+            results.update(h for h in hits if h)
         except Exception:
             logger.warning('Elasticsearch autocomplete failed; using DB fallback', exc_info=True)
 
@@ -353,19 +638,22 @@ def search_plating_stock(query, limit=15):
     # so every known plating stock number is suggested while typing.
     from modelmasterapp.models import ModelMaster
 
+    normalized_query = _normalize_plating_search(query)
+
     def _matches(model):
-        return model.objects.filter(
-            plating_stk_no__icontains=query
-        ).exclude(
+        queryset = model.objects.exclude(
             plating_stk_no__isnull=True
         ).exclude(
             plating_stk_no=''
-        ).values_list('plating_stk_no', flat=True).distinct()
+        ).annotate(
+            _plating_search_key=_plating_search_key_expression()
+        )
+        filters = Q(plating_stk_no__icontains=query)
+        if normalized_query:
+            filters |= Q(_plating_search_key__contains=normalized_query)
+        return queryset.filter(filters).values_list('plating_stk_no', flat=True).distinct()
 
-    combined = set(_matches(ModelMasterCreation)) | set(_matches(ModelMaster))
-    q_lower = query.lower()
-    # prefix matches first, then alphabetical
-    return sorted(
-        combined,
-        key=lambda v: (not v.lower().startswith(q_lower), v),
-    )[:limit]
+    results.update(_matches(ModelMasterCreation))
+    results.update(_matches(ModelMaster))
+    # prefix matches first, including punctuation-insensitive prefixes, then alphabetical
+    return _rank_plating_matches(results, query, limit)

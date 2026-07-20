@@ -49,7 +49,9 @@ from Jig_Unloading.models import *
 from Jig_Unloading.tray_utils import (
     get_upstream_tray_distribution,
     get_model_master_tray_info,
+    normalize_combine_lot_id,
 )
+from Jig_Loading.models import JigCompleted
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
 from Nickel_Inspection.views import nq_toggle_verified, nq_action, _resolve_nq_previous_unloading_remark
@@ -161,6 +163,47 @@ class NQ_Zone_PickTableView(APIView):
             )
         ).order_by("-created_at", "-lot_id")
         print("All lot_ids in queryset:", list(queryset.values_list("lot_id", flat=True)))
+
+        # ✅ SECONDARY MULTI-MODEL LOT FILTER (same convention as Jig_Unloading/JigUnloading_Zone2
+        # and Nickel_Inspection Zone 1): when two lots are combined into a single jig (Add Model /
+        # multi-model Jig Loading), Jig Unloading's "Submit All" creates one JigUnloadAfterTable
+        # source row per original lot for traceability. The secondary lot's row carries no
+        # plating/tray reference of its own — the combined data already lives on the primary row —
+        # so it must not surface here as a separate, blank "no ref" entry.
+        secondary_lot_ids = set()
+        for _mm_rec in JigCompleted.objects.filter(
+            is_multi_model=True,
+            multi_model_allocation__isnull=False
+        ).only('lot_id', 'multi_model_allocation'):
+            if not _mm_rec.multi_model_allocation:
+                continue
+            _primary_model = ''
+            for _alloc in _mm_rec.multi_model_allocation:
+                if isinstance(_alloc, dict) and _alloc.get('lot_id') == _mm_rec.lot_id:
+                    _primary_model = str(_alloc.get('model') or _alloc.get('model_name') or '').strip()
+                    break
+            for _alloc in _mm_rec.multi_model_allocation:
+                if not isinstance(_alloc, dict):
+                    continue
+                _alloc_lot = _alloc.get('lot_id', '')
+                if not _alloc_lot or _alloc_lot == _mm_rec.lot_id:
+                    continue
+                _alloc_model = str(_alloc.get('model') or _alloc.get('model_name') or '').strip()
+                # Only fold a secondary lot into the primary row (hide it here) when its
+                # plating stock number is identical ("ditto") to the primary's. If the
+                # combined lots are DIFFERENT models, the secondary lot must keep showing
+                # as its own separate row in Nickel Wiping, not be hidden/lost.
+                if _primary_model and _alloc_model and _alloc_model == _primary_model:
+                    secondary_lot_ids.add(_alloc_lot)
+        if secondary_lot_ids:
+            queryset = [
+                row for row in queryset
+                if not (
+                    row.combine_lot_ids
+                    and {normalize_combine_lot_id(cid) for cid in row.combine_lot_ids}.issubset(secondary_lot_ids)
+                )
+            ]
+
         # Pagination
         page_number = request.GET.get("page", 1)
         paginator = Paginator(queryset, 10)

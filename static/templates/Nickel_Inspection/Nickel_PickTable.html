@@ -2601,7 +2601,12 @@ document.addEventListener("DOMContentLoaded", function() {
         errDiv.textContent = '';
         var payload = buildPayload();
         payload.action = 'SUBMIT_REJECT';
-        if (!payload.reason_ids.length) { errDiv.textContent = 'Select at least one rejection reason.'; return; }
+        // Full Lot Rejection intentionally skips per-reason quantity entry (see fullRejCb
+        // handler above) — only a partial rejection needs a reason to justify the split.
+        if (!(fullRejCb && fullRejCb.checked) && !payload.reason_ids.length) {
+          errDiv.textContent = 'Select at least one rejection reason.';
+          return;
+        }
         if (!payload.rejected_qty) { errDiv.textContent = 'Enter rejected quantity.'; return; }
         submitBtn.disabled = true;
         submitBtn.textContent = 'Saving...';
