@@ -466,20 +466,6 @@ class BrassAuditCompletedView(APIView):
                 )
             )
 
-<<<<<<< HEAD
-        # BUG2 FIX: Exclude child lots from partial splits — only parent summary row
-        _child_accept_ids = Brass_Audit_Submission.objects.filter(
-            submission_type='PARTIAL', is_completed=True,
-            transition_accept_lot_id__isnull=False
-        ).values_list('transition_accept_lot_id', flat=True)
-        _child_reject_ids = Brass_Audit_Submission.objects.filter(
-            submission_type='PARTIAL', is_completed=True,
-            transition_reject_lot_id__isnull=False
-        ).values_list('transition_reject_lot_id', flat=True)
-        queryset = queryset.exclude(
-            Q(lot_id__in=_child_accept_ids) | Q(lot_id__in=_child_reject_ids)
-        )
-=======
             queryset = TotalStockModel.objects.select_related(
                 'batch_id',
                 'batch_id__model_stock_no',
@@ -499,7 +485,6 @@ class BrassAuditCompletedView(APIView):
             ).filter(
                 has_valid_submission
             )
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 
         with time_stage(request, 'BAC_EXCLUDE_IDS'):
             # BUG2 FIX: Exclude child lots from partial splits — only parent summary row.

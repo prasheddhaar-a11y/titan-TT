@@ -437,6 +437,7 @@ def get_completed_table_rows(from_date=None, to_date=None) -> List[Dict[str, Any
         b.batch_id: b
         for b in ModelMasterCreation.objects.filter(batch_id__in=batch_ids)
         .select_related("model_stock_no", "location", "version")
+        .prefetch_related("model_stock_no__images")
     }
     stocks = {
         ts.lot_id: ts

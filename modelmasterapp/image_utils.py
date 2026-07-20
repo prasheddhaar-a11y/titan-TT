@@ -1,23 +1,3 @@
-<<<<<<< HEAD
-def sort_images_front_first(images):
-    """Return images with front-view entries first, preserving a stable fallback order."""
-    def image_key(image):
-        parts = []
-        for attr in ("image_type", "view_type", "angle", "label", "name"):
-            value = getattr(image, attr, "")
-            if value:
-                parts.append(str(value).lower())
-
-        master_image = getattr(image, "master_image", None)
-        if master_image:
-            parts.append(str(getattr(master_image, "name", master_image)).lower())
-
-        text = " ".join(parts)
-        front_rank = 0 if "front" in text else 1
-        return front_rank, text
-
-    return sorted(images or [], key=image_key)
-=======
 """
 Shared helper for resolving which ModelImage should be treated as a
 model's "Front View" when a view/template needs a single representative
@@ -65,4 +45,3 @@ def sort_images_front_first(images):
                 return [img] + [other for other in images if other is not img]
 
     return images
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5

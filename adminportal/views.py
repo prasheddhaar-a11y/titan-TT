@@ -994,16 +994,12 @@ def _build_image_payload(request, images):
 
     for img in images:
         try:
-<<<<<<< HEAD
             emit_media_read(
                 request,
                 img.master_image,
                 lookup_source='image_payload',
             )
             image_url = request.build_absolute_uri(img.master_image.url)
-=======
-            image_url = img.master_image.url
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
         except Exception:
             continue
 
@@ -1020,7 +1016,6 @@ def _build_image_payload(request, images):
     return payload
 
 
-<<<<<<< HEAD
 def _build_image_url_list(request, images, lookup_source='visual_aid_direct_images'):
     image_urls = []
     for img in images:
@@ -1032,7 +1027,6 @@ def _build_image_url_list(request, images, lookup_source='visual_aid_direct_imag
             )
             image_urls.append(img.master_image.url)
     return image_urls
-=======
 def _only_isometric_view(images_payload):
     """
     Visual Aid page must show a single Isometric View image only (no
@@ -1043,7 +1037,6 @@ def _only_isometric_view(images_payload):
     if iv_images:
         return [iv_images[0]]
     return images_payload[:1]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 
 
 def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
@@ -1214,17 +1207,12 @@ class Rec_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "RecoveryMasterCreation" and batch_obj:
                 # Use RecoveryMasterCreation data (preferred)
-<<<<<<< HEAD
-                images = batch_obj.images.all()
+                images = sort_images_front_first(batch_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='recovery_visual_aid.batch_images',
                 )
-=======
-                images = sort_images_front_first(batch_obj.images.all())
-                image_urls = [img.master_image.url for img in images if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -1239,17 +1227,12 @@ class Rec_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-<<<<<<< HEAD
-                images = model_master_obj.images.all()
+                images = sort_images_front_first(model_master_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='recovery_visual_aid.model_master_images',
                 )
-=======
-                images = sort_images_front_first(model_master_obj.images.all())
-                image_urls = [img.master_image.url for img in images if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': None,
@@ -1421,17 +1404,12 @@ class Other_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
-<<<<<<< HEAD
-                images = batch_obj.images.all()
+                images = sort_images_front_first(batch_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='other_visual_aid.batch_images',
                 )
-=======
-                images = sort_images_front_first(batch_obj.images.all())
-                image_urls = [img.master_image.url for img in images if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
@@ -1446,17 +1424,12 @@ class Other_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-<<<<<<< HEAD
-                images = model_master_obj.images.all()
+                images = sort_images_front_first(model_master_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
                     lookup_source='other_visual_aid.model_master_images',
                 )
-=======
-                images = sort_images_front_first(model_master_obj.images.all())
-                image_urls = [img.master_image.url for img in images if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                 
                 context.update({
                     'batch_id': None,

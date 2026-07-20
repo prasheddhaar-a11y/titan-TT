@@ -720,13 +720,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.addEventListener('scroll', removeLotRejectTooltip, true);
   window.addEventListener('resize', removeLotRejectTooltip);
-<<<<<<< HEAD
-=======
   // Clicking the icon opens the remarks modal without moving the mouse, so no
   // mouseleave ever fires. Capture-phase click closes the tooltip first so it
   // never lingers on top of the modal (tooltip z-index is higher than the modal's).
   document.addEventListener('click', removeLotRejectTooltip, true);
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 });
 </script>
 

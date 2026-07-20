@@ -663,12 +663,7 @@ class NA_PickTableView(APIView):
 
                         if model_master:
                             # Get images from ModelMaster
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
-=======
                             for img in _sort_images_front_first_safe(model_master.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                     except Exception as e:
@@ -682,12 +677,7 @@ class NA_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
-=======
                             for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
 
@@ -1672,12 +1662,7 @@ class NACompletedView(APIView):
                         .first()
                     )
                     if model_master:
-<<<<<<< HEAD
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        for img in sort_images_front_first(model_master.images.all()):
-=======
                         for img in _sort_images_front_first_safe(model_master.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images and data['combine_lot_ids']:
@@ -1685,12 +1670,7 @@ class NACompletedView(APIView):
                 if first_lot_id:
                     total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
                     if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-<<<<<<< HEAD
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
-=======
                         for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                             if img.master_image:
                                 images.append(img.master_image.url)
             if not images:

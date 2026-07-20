@@ -33,6 +33,29 @@ from modelmasterapp.models import ModelMasterCreation
 from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 
+def get_model_image_urls(model_master):
+	"""Return model image URLs with front-view priority when available."""
+	if not model_master or not hasattr(model_master, 'images'):
+		return []
+	try:
+		images = model_master.images.all()
+		if not images.exists():
+			return []
+		try:
+			from modelmasterapp.image_utils import sort_images_front_first
+			images = sort_images_front_first(images)
+		except Exception:
+			pass
+		return [
+			img.master_image.url
+			for img in images
+			if getattr(img, 'master_image', None)
+		]
+	except Exception:
+		logger.exception("Unable to resolve Jig Loading model images")
+		return []
+
+
 # ===== MULTI-MODEL HELPER FUNCTIONS =====
 def allocate_trays_for_model(lot_id, model_lot_qty, effective_capacity_remaining, used_tray_ids):
 	"""
@@ -329,10 +352,7 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
-<<<<<<< HEAD
-				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
 				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
->>>>>>> kauvery/main
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -342,11 +362,7 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
-<<<<<<< HEAD
-				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
-
 				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
->>>>>>> kauvery/main
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -404,19 +420,14 @@ class JigView(TemplateView):
 					'model_images': [],  # images resolved lazily in template via data-attribute only
 					'jig_hold_lot': getattr(stock, 'jig_hold_lot', False),
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
-<<<<<<< HEAD
-<<<<<<< HEAD
 					'previous_module': 'Brass Audit',
 					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
-
 					'type_of_input': get_type_of_input_for_batch(batch),
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
-
 					'jig_release_lot': getattr(stock, 'jig_release_lot', False),
 					'jig_release_reason': getattr(stock, 'jig_release_reason', ''),
 					'previous_module': 'Brass Audit',
 					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
->>>>>>> kauvery/main
+					'type_of_input': get_type_of_input_for_batch(batch),
 				}
 
 				# Use pre-fetched capacity map (no per-row DB query), then robust fallback
@@ -560,11 +571,8 @@ class JigView(TemplateView):
 						'model_images': [],
 						'jig_hold_lot': False,
 						'jig_holding_reason': '',
-<<<<<<< HEAD
-
 						'jig_release_lot': False,
 						'jig_release_reason': '',
->>>>>>> kauvery/main
 						'previous_module': 'Brass Audit',
 						'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') if stock else '',
 						'is_excess_lot': True,
@@ -3673,6 +3681,7 @@ class JigCompletedTable(TemplateView):
 					'is_multi_model': jig_rec.is_multi_model,
 					'no_of_model_cases': no_of_model_cases_str,
 					'lot_plating_stk_nos': plating_stock_num,
+					'model_images': get_model_image_urls(getattr(batch_obj, 'model_stock_no', None) if batch_obj else None),
 					'lot_polishing_stk_nos': polishing_stk_no or 'N/A',
 					'plating_color': p_color or 'N/A',
 					'polish_finish': p_finish or 'N/A',
@@ -3693,13 +3702,8 @@ class JigCompletedTable(TemplateView):
 					'multi_model_allocation': jig_rec.multi_model_allocation or [],
 					'IP_jig_pick_remarks': jig_rec.remarks or '',
 					'current_stage_display': current_stage_display,
-<<<<<<< HEAD
-<<<<<<< HEAD
-
 					'lot_status': lot_status,
->>>>>>> kauvery/main
 					'type_of_input': get_type_of_input_for_batch(batch_obj),
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 				}
 				jig_details.append(enriched)
 				

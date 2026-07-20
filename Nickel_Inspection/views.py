@@ -496,12 +496,7 @@ class NQ_PickTableView(APIView):
                         )
                         if model_master:
                             # Get images from ModelMaster
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
-=======
                             for img in _sort_images_front_first_safe(model_master.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                     except Exception as e:
@@ -514,12 +509,7 @@ class NQ_PickTableView(APIView):
                     if total_stock and total_stock.batch_id:
                         batch_obj = total_stock.batch_id
                         if batch_obj.model_stock_no:
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
-=======
                             for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
             # Priority 3: Use placeholder if no images found
@@ -676,12 +666,7 @@ class NickelQcRejectTableView(APIView):
                         )
                         if model_master:
                             # Get images from ModelMaster
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(model_master.images.all()):
-=======
                             for img in _sort_images_front_first_safe(model_master.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
                     except Exception as e:
@@ -694,12 +679,7 @@ class NickelQcRejectTableView(APIView):
                     if total_stock_obj and total_stock_obj.batch_id:
                         batch_obj = total_stock_obj.batch_id
                         if batch_obj.model_stock_no:
-<<<<<<< HEAD
-                            from modelmasterapp.image_utils import sort_images_front_first
-                            for img in sort_images_front_first(batch_obj.model_stock_no.images.all()):
-=======
                             for img in _sort_images_front_first_safe(batch_obj.model_stock_no.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                                 if img.master_image:
                                     images.append(img.master_image.url)
             # Priority 3: Use placeholder if no images found
@@ -1533,23 +1513,13 @@ class NQCompletedView(APIView):
                 prefix = str(obj.plating_stk_no)[:4]
                 mm = ModelMaster.objects.filter(model_no__startswith=prefix).prefetch_related('images').first()
                 if mm:
-<<<<<<< HEAD
-                    from modelmasterapp.image_utils import sort_images_front_first
-                    images = [img.master_image.url for img in sort_images_front_first(mm.images.all()) if img.master_image]
-=======
                     images = [img.master_image.url for img in _sort_images_front_first_safe(mm.images.all()) if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
             if not images and obj.combine_lot_ids:
                 first_lid = obj.combine_lot_ids[0] if obj.combine_lot_ids else None
                 if first_lid:
                     ts = TotalStockModel.objects.filter(lot_id=first_lid).first()
                     if ts and ts.batch_id and ts.batch_id.model_stock_no:
-<<<<<<< HEAD
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        images = [img.master_image.url for img in sort_images_front_first(ts.batch_id.model_stock_no.images.all()) if img.master_image]
-=======
                         images = [img.master_image.url for img in _sort_images_front_first_safe(ts.batch_id.model_stock_no.images.all()) if img.master_image]
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images

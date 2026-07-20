@@ -1,30 +1,3 @@
-<<<<<<< HEAD
-(function () {
-  function redirectToLogin() {
-    if (!window.location.pathname.includes("/accounts/login")) {
-      window.location.href = "/accounts/login/";
-    }
-  }
-
-  window.addEventListener("unhandledrejection", function (event) {
-    var reason = event.reason || {};
-    if (reason.code === "SESSION_EXPIRED") {
-      redirectToLogin();
-    }
-  });
-
-  var originalFetch = window.fetch;
-  if (typeof originalFetch === "function") {
-    window.fetch = function () {
-      return originalFetch.apply(this, arguments).then(function (response) {
-        if (response && response.status === 401) {
-          var cloned = response.clone();
-          cloned.json().then(function (data) {
-            if (data && data.code === "SESSION_EXPIRED") {
-              redirectToLogin();
-            }
-          }).catch(function () {});
-=======
 /**
  * session_guard.js — Global idle-session expiry handler.
  *
@@ -117,15 +90,11 @@
           // (SESSION_SAVE_EVERY_REQUEST) — restart the idle countdown.
           lastActivityAt = Date.now();
           scheduleIdleCheck(getExpirySeconds() * 1000 + IDLE_BUFFER_MS);
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
         }
         return response;
       });
     };
   }
-<<<<<<< HEAD
-})();
-=======
 
   // ── Reactive layer: jQuery-based AJAX calls ───────────────────────────────
   if (window.jQuery) {
@@ -207,4 +176,3 @@
     startIdleWatch();
   }
 })();
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5

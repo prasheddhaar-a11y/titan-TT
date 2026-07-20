@@ -145,12 +145,7 @@ def _get_model_images(jig_unload_obj):
                     model_no__startswith=model_no_prefix
                 ).prefetch_related('images').first()
                 if model_master:
-<<<<<<< HEAD
-                    from modelmasterapp.image_utils import sort_images_front_first
-                    for img in sort_images_front_first(model_master.images.all()):
-=======
                     for img in _sort_images_front_first_safe(model_master.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                         if img.master_image:
                             images.append(img.master_image.url)
             except Exception:
@@ -160,12 +155,7 @@ def _get_model_images(jig_unload_obj):
         if first_lot_id:
             total_stock = TotalStockModel.objects.filter(lot_id=first_lot_id).first()
             if total_stock and total_stock.batch_id and total_stock.batch_id.model_stock_no:
-<<<<<<< HEAD
-                from modelmasterapp.image_utils import sort_images_front_first
-                for img in sort_images_front_first(total_stock.batch_id.model_stock_no.images.all()):
-=======
                 for img in _sort_images_front_first_safe(total_stock.batch_id.model_stock_no.images.all()):
->>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
                     if img.master_image:
                         images.append(img.master_image.url)
     return images
