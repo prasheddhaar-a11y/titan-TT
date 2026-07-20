@@ -280,6 +280,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <th>
                 Process Status <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
+              <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>
                 Lot <br />
                 Status <i class="fa fa-filter" aria-hidden="true"></i>
@@ -299,7 +300,6 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                 Polish Finish <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
               <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
-              <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>In.p Info<i class="fa fa-filter" aria-hidden="true"></i></th>
               <th style="display: none">
                 Version <i class="fa fa-filter" aria-hidden="true"></i>
@@ -490,6 +490,8 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                   </div>
                 </div>
               </td>
+              <!-- Jig Type -->
+              <td>{{ data.jig_capacity }} Jig</td>
               <!-- Lot Status -->
               <td>
                 <div
@@ -534,8 +536,6 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
               <td>{{ data.polish_finish }}</td>
               <!-- Type of Input -->
               <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
-              <!-- Jig Type -->
-              <td>{{ data.jig_capacity }} Jig</td>
               <!-- In.p Info -->
               <td>
                 <span
@@ -550,7 +550,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                     src="{% static 'assets/icons/viewRemarks.png' %}"
                     alt="View Remarks"
                     style="width:22px; height:22px; object-fit:contain; {% if data.inprocess_remarks %}filter:none; opacity:1;{% else %}filter:grayscale(1); opacity:0.6;{% endif %}"
-                    title="{% if data.inprocess_remarks %}View Remarks{% else %}No remarks{% endif %}"
+                    title="{% if data.inprocess_remarks %}{{ data.inprocess_remarks }}{% else %}No remarks{% endif %}"
                   />
                 </span>
               </td>
@@ -2733,6 +2733,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Delink panel inputs
     document.querySelectorAll('#delinkPanelTableBody .split-scan-input').forEach(function(inp) {
       inp.addEventListener('input', function() {
+        if (this.classList.contains('validated')) _unlockRowForEdit(this);
         var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
@@ -2745,6 +2746,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Excess panel inputs
     document.querySelectorAll('#excessPanelTableBody .split-scan-input').forEach(function(inp) {
       inp.addEventListener('input', function() {
+        if (this.classList.contains('validated')) _unlockRowForEdit(this);
         var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
@@ -2758,6 +2760,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var topInp = document.getElementById('excessTopTrayScanInput');
     if (topInp) {
       topInp.addEventListener('input', function() {
+        if (this.classList.contains('validated')) _unlockRowForEdit(this);
         var raw = (this.value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
         if (raw.length > 9) raw = raw.slice(0, 9);
         this.value = raw;
@@ -2769,40 +2772,55 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ===== UNSCAN KEYDOWN: Backspace/Delete on validated readOnly split-scan-input revertes scan =====
+  // ===== UNLOCK ON EDIT: called the moment the user types into a previously-validated box =====
+  // Removes the locked/validated visuals and frees the row's checkbox WITHOUT touching the
+  // input's current value/cursor — the user's keystroke that triggered this stays exactly
+  // where they typed it. (Previously a click handler cleared the whole field, which is wrong —
+  // clicking should only place the cursor, same as any normal text box.)
+  function _unlockRowForEdit(inputEl) {
+    inputEl.classList.remove('validated', 'error-input');
+    inputEl.style.background = '';
+    inputEl.style.borderColor = '';
+    var tr = inputEl.closest('tr');
+    if (tr) {
+      var cb = tr.querySelector('.delink-row-checkbox');
+      if (cb) { cb.checked = false; cb.disabled = false; cb.classList.remove('locked'); }
+      tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
+      var lastCell = tr.cells[tr.cells.length - 1];
+      if (lastCell) lastCell.innerHTML = '';
+    }
+    if (inputEl.id === 'excessTopTrayScanInput') {
+      var topCb = document.getElementById('excessTopTrayCheckbox');
+      if (topCb) { topCb.checked = false; topCb.disabled = false; topCb.classList.remove('locked'); }
+      var topStatus = document.getElementById('excessTopTrayStatus');
+      if (topStatus) topStatus.innerHTML = '';
+    }
+    // Remove the OLD (pre-edit) tray id from the allocation tracker — captured at validation time.
+    var prevId = inputEl.dataset.lastValidatedId;
+    if (prevId && window._trayAllocations) {
+      delete window._trayAllocations[prevId];
+    }
+    delete inputEl.dataset.lastValidatedId;
+    console.log('[EDIT_UNLOCK] Row unlocked for editing (value preserved), previous id:', prevId);
+  }
+
+  // ===== UNSCAN: Backspace/Delete on validated split-scan-input clears it; click just focuses =====
   function _attachSplitUnscanKeydown(inp) {
     inp.addEventListener('keydown', function(e) {
       if (e.key !== 'Backspace' && e.key !== 'Delete') return;
-      if (!this.readOnly || !this.classList.contains('validated')) return;
-      e.preventDefault();
-      var removedId = this.value;
-      this.value = '';
-      this.readOnly = false;
-      this.classList.remove('validated', 'error-input');
-      this.style.background = '';
-      this.style.borderColor = '';
-      // Uncheck/unlock the row checkbox
-      var tr = this.closest('tr');
-      if (tr) {
-        var cb = tr.querySelector('.delink-row-checkbox');
-        if (cb) { cb.checked = false; cb.disabled = false; cb.classList.remove('locked'); }
-        tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
-        var lastCell = tr.cells[tr.cells.length - 1];
-        if (lastCell) lastCell.innerHTML = '';
-      }
-      // Top tray checkbox and status
-      if (this.id === 'excessTopTrayScanInput') {
-        var topCb = document.getElementById('excessTopTrayCheckbox');
-        if (topCb) { topCb.checked = false; topCb.disabled = false; topCb.classList.remove('locked'); }
-        var topStatus = document.getElementById('excessTopTrayStatus');
-        if (topStatus) topStatus.innerHTML = '';
-      }
-      // Remove from _trayAllocations
-      if (removedId && window._trayAllocations) {
-        delete window._trayAllocations[removedId.trim().toUpperCase()];
-      }
-      console.log('[UNSCAN_SPLIT] Cleared validated scan:', removedId);
+      if (!this.classList.contains('validated')) return;
+      // Field is editable (readOnly is only applied for locked/auto rows elsewhere) — let the
+      // browser perform the normal deletion; _unlockRowForEdit runs from the 'input' handler.
     });
+    // Tap/click on an already-scanned box → make it editable and place the cursor there.
+    // Does NOT clear the value or unlock the row; that only happens once the user actually
+    // types (handled in the 'input' listener via _unlockRowForEdit).
+    inp.addEventListener('mousedown', function() {
+      if (this.readOnly) this.readOnly = false;
+    });
+    inp.addEventListener('touchstart', function() {
+      if (this.readOnly) this.readOnly = false;
+    }, { passive: true });
   }
 
   // ===== VALIDATE SCAN FOR SPLIT PANELS =====
@@ -2860,6 +2878,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // ===== SAVE ALLOCATION TO GLOBAL TRACKER =====
         if (!window._trayAllocations) window._trayAllocations = {};
+        // Remember what this box was validated as, so a later edit can clean up the
+        // allocation tracker for the OLD id without wiping the value the user typed.
+        inputEl.dataset.lastValidatedId = trayId.toUpperCase();
 
         if (scanPanel === 'delink') {
           // ===== DELINK SCAN: lock the row, green status =====
@@ -3525,6 +3546,19 @@ document.addEventListener('DOMContentLoaded', function () {
     window._pendingSecondaryLot = _savedPendingSecondaryLot;
     console.log('[MERGE_RESTORE] Restored pending secondary lot:', _savedPendingSecondaryLot.lot_id);
   }
+  // Restore previously scanned/delinked tray IDs for the primary model so adding a second
+  // model doesn't wipe out delink scans already done on the first model. The split-panel
+  // render restores validated/locked state per row by matching window._trayAllocations[tray_id].
+  if (_hasExplicitModelSelection) {
+    try {
+      var _savedAllocRaw = sessionStorage.getItem('jig_tray_allocations');
+      if (_savedAllocRaw) {
+        window._trayAllocations = JSON.parse(_savedAllocRaw) || {};
+        console.log('[MERGE_RESTORE] Restored tray allocations from sessionStorage:', Object.keys(window._trayAllocations).length);
+      }
+    } catch(e) { console.warn('[MERGE_RESTORE] Failed to restore tray allocations', e); }
+    try { sessionStorage.removeItem('jig_tray_allocations'); } catch(e) {}
+  }
 
     // expose for external refresh (broken-hooks preview) and immediate refresh
   window.currentJigLotId = lotId;
@@ -3560,23 +3594,18 @@ document.addEventListener('DOMContentLoaded', function () {
           return { lot_id: s.lot_id, batch_id: s.batch_id || '', qty: parseInt(s.qty || 0) || 0 };
         });
         console.log('[MM] Models List Updated:', window._pendingSecondaryLots.length, 'secondary models');
-        // Include previously scanned trays so backend computes loaded_cases_qty from scanned only
+        // Include previously scanned (delinked) trays so backend computes loaded_cases_qty from scanned only
         try {
-          var rawScans = sessionStorage.getItem('scanned_trays');
-          if (rawScans) {
-            var savedScans = JSON.parse(rawScans);
-            var scannedList = [];
-            Object.keys(savedScans).forEach(function(key) {
-              (savedScans[key] || []).forEach(function(entry) {
-                if (entry.value && entry.validated) {
-                  scannedList.push({ tray_id: entry.value });
-                }
-              });
-            });
-            if (scannedList.length > 0) {
-              initPayload.scanned_trays = scannedList;
-              console.log('[MERGE_INIT] Included', scannedList.length, 'scanned trays in init payload');
+          var scannedList = [];
+          Object.keys(window._trayAllocations || {}).forEach(function(tid) {
+            var alloc = window._trayAllocations[tid];
+            if (alloc && alloc.type === 'delink') {
+              scannedList.push({ tray_id: tid });
             }
+          });
+          if (scannedList.length > 0) {
+            initPayload.scanned_trays = scannedList;
+            console.log('[MERGE_INIT] Included', scannedList.length, 'scanned trays in init payload');
           }
         } catch(e) { console.warn('[MERGE_INIT] Failed to read scanned trays from storage', e); }
       } else if (window._pendingSecondaryLot && window._pendingSecondaryLot.lot_id) {
@@ -4730,11 +4759,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return { lot_id: s.lot_id, batch_id: s.batch_id || '', qty: parseInt(s.qty || 0) || 0 };
       });
     }
-    
-    console.log('[RECALC PAYLOAD]', recalcPayload);
 
-    // RULE 2: BH changes do NOT send scanned_trays — hard reset, user must re-scan
-    // No auto-reallocation: backend recomputes counts only, frontend shows clean state
+    // RULE 2 (UPDATED): Preserve previously scanned tray IDs across BH change — only qty/capacity
+    // math should change. Backend uses scanned_trays to recompute loaded_cases_qty/delink_completed
+    // without discarding the user's existing scans.
+    try {
+      const preservedScans = collectValidatedScans();
+      if (preservedScans.length > 0) {
+        recalcPayload.scanned_trays = preservedScans;
+      }
+    } catch (e) { console.warn('[RECALC] Failed to collect preserved scans', e); }
+
+    console.log('[RECALC PAYLOAD]', recalcPayload);
 
     fetch('/jig_loading/api/load/init/', {
       method: 'POST',
@@ -4794,67 +4830,11 @@ document.addEventListener('DOMContentLoaded', function () {
       window._lastSentBH = bh;
       console.log('[BH_CHANGED] Triggering recalc with BH:', bh);
 
-      // ===== RULE 1: HARD RESET ON BH CHANGE =====
-      // Clear ALL scan state so user must re-scan everything after BH change.
-      // No auto-reallocation, no carry-over from previous BH value.
-      try {
-        // Clear global tray allocation tracker
-        window._trayAllocations = {};
-
-        // Clear all validated scan inputs in delink panel
-        document.querySelectorAll('#delinkPanelTableBody .split-scan-input').forEach(function(inp) {
-          inp.value = '';
-          inp.readOnly = false;
-          inp.disabled = false;
-          inp.style.background = '';
-          inp.style.borderColor = '';
-          inp.style.opacity = '';
-          inp.classList.remove('validated');
-          inp.title = '';
-        });
-        // Reset delink row visual state (scanned/disabled classes, checkboxes, status badges)
-        document.querySelectorAll('#delinkPanelTableBody tr').forEach(function(tr) {
-          tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
-          tr.title = '';
-          var cb = tr.querySelector('.delink-row-checkbox');
-          if (cb) { cb.checked = false; cb.disabled = false; cb.classList.remove('locked'); }
-          var lastCell = tr.cells[tr.cells.length - 1];
-          if (lastCell) lastCell.innerHTML = '';
-        });
-        // Clear top tray input
-        var topInp = document.getElementById('excessTopTrayScanInput');
-        if (topInp) {
-          topInp.value = '';
-          topInp.readOnly = false;
-          topInp.classList.remove('validated');
-          topInp.style.background = '';
-          topInp.style.borderColor = '';
-        }
-        var topStatus = document.getElementById('excessTopTrayStatus');
-        if (topStatus) topStatus.innerHTML = '';
-        // Clear excess panel inputs
-        document.querySelectorAll('#excessPanelTableBody .split-scan-input').forEach(function(inp) {
-          inp.value = '';
-          inp.readOnly = false;
-          inp.disabled = false;
-          inp.style.background = '';
-          inp.style.borderColor = '';
-          inp.style.opacity = '';
-          inp.classList.remove('validated');
-        });
-        // Uncheck Delink All checkbox
-        var delinkCb = document.getElementById('delinkAllCheckbox');
-        if (delinkCb && delinkCb.checked) {
-          delinkCb.checked = false;
-        }
-        // Clear select-all checkbox
-        var selectAllCb = document.getElementById('delinkSelectAll');
-        if (selectAllCb && selectAllCb.checked) {
-          selectAllCb.checked = false;
-        }
-        console.log('[BH_CHANGED] HARD RESET: All scan state cleared');
-      } catch (e) { console.warn('[BH_RESET] Error during hard reset:', e); }
-
+      // ===== RULE 1 (UPDATED): PRESERVE SCAN STATE ON BH CHANGE =====
+      // Broken hooks only affects capacity/qty math — previously scanned tray IDs must stay
+      // exactly as scanned. window._trayAllocations is left intact and the split-panel render
+      // (triggered by refreshTrayCalculation → applyResponseToUI) re-applies the validated/locked
+      // state for each tray_id still present after recalculation.
       refreshTrayCalculation(null, {bhUpdate: true});
     });
   }
@@ -5582,6 +5562,70 @@ document.addEventListener('click', function (e) {
     console.warn('[CANCEL_BTN] reset failed', err);
   }
 });
+
+// --- ESC key handler: confirm before closing the Add Jig modal ---
+// NOTE: The confirm dialog must not open in direct response to the SAME
+// keydown event that is still bubbling/capturing — SweetAlert2 registers its
+// own 'Escape' listener as soon as it opens, and if that registration happens
+// while this Escape keydown is still being dispatched, the popup can receive
+// (and self-dismiss on) that very same keystroke. We break that race by
+// deferring the dialog to the next tick (setTimeout 0) and by disabling
+// SweetAlert2's own escape-key handling (allowEscapeKey: false) so only our
+// explicit Yes/Cancel buttons can close it.
+let jigEscConfirmOpen = false;
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  const modal = document.getElementById('jigAddModal');
+  if (!modal || !modal.classList.contains('open')) return;
+  if (jigEscConfirmOpen) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  jigEscConfirmOpen = true;
+
+  function doClose() {
+    const cancelBtn = document.getElementById('cancelJigBtn');
+    if (cancelBtn) {
+      cancelBtn.click();
+    } else {
+      if (typeof clearCurrentEditingSession === 'function') clearCurrentEditingSession();
+      if (typeof closeJigModal === 'function') closeJigModal();
+      modal.classList.remove('open');
+    }
+  }
+
+  setTimeout(async function () {
+    try {
+      let shouldClose = false;
+      if (typeof Swal !== 'undefined') {
+        try {
+          const result = await Swal.fire({
+            title: 'Close without saving?',
+            text: 'Entered data will not be saved. Do you want to close this form?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Close',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            allowEscapeKey: false,
+            allowOutsideClick: false
+          });
+          shouldClose = result.isConfirmed;
+        } catch (err) {
+          console.warn('[ESC_CLOSE] SweetAlert error, using confirm:', err);
+          shouldClose = confirm('Close without saving? Entered data will not be saved.');
+        }
+      } else {
+        shouldClose = confirm('Close without saving? Entered data will not be saved.');
+      }
+      if (shouldClose) doClose();
+    } finally {
+      jigEscConfirmOpen = false;
+    }
+  }, 0);
+}, true);
 
 // --- Clear button handler: clear user-entered inputs only, keep modal open ---
 document.addEventListener('click', function (e) {
@@ -6342,6 +6386,12 @@ document.addEventListener('DOMContentLoaded', function () {
           if (typeof window.persistScannedTraysToStorage === 'function') {
             window.persistScannedTraysToStorage();
           }
+          // Persist already-scanned/delinked tray allocations so they survive the full page
+          // navigation to the Add Model filter screen and back (bug: previously scanned trays
+          // were cleared when adding a second model).
+          try {
+            sessionStorage.setItem('jig_tray_allocations', JSON.stringify(window._trayAllocations || {}));
+          } catch(e) {}
 
           // Build exclude param (all already-selected lot IDs)
           let excludeIds = [primary];

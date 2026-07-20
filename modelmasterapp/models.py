@@ -208,6 +208,12 @@ class ModelMaster(models.Model):
     date_time = models.DateTimeField(default=timezone.now)
     version = models.TextField()
     plating_stk_no=models.CharField(max_length=50,null=True, blank=True)
+    plating_color_code = models.CharField(
+        max_length=7,
+        null=True,
+        blank=True,
+        help_text="Hex color code uniquely assigned per Plating Stk No, used for model-presence circles",
+    )
     createdby= models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
 

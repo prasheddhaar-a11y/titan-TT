@@ -2893,8 +2893,16 @@ function reattachAllEventListenersAfterRebuild() {
               qtyInput.setAttribute('readonly', 'readonly');
               qtyInput.blur();
           }
+          if (ev.key === 'Escape' || ev.keyCode === 27) {
+              ev.preventDefault();
+              qtyInput.value = originalQuantity;
+              qtyInput.setAttribute('readonly', 'readonly');
+              if (errorFooter) errorFooter.textContent = '';
+              updateUIElements();
+              qtyInput.blur();
+          }
       });
-  
+
       qtyInput.addEventListener('blur', function () {
           qtyInput.setAttribute('readonly', 'readonly');
           if (errorFooter) errorFooter.textContent = '';
@@ -3267,6 +3275,47 @@ function resetTrayScanData() {
         });
       }
 
+      // Move-to-top + restore for the Delete and Edit Qty row actions (mirrors the
+      // tray-scan row highlight behavior above, kept independent since these actions
+      // live in inline confirm dialogs / inline inputs rather than the tray-scan modal).
+      let editBinMovedRow = null;
+      let editBinPlaceholderRow = null;
+
+      function restoreEditBinRow() {
+        if (editBinMovedRow && editBinPlaceholderRow && editBinPlaceholderRow.parentNode) {
+          editBinPlaceholderRow.parentNode.insertBefore(editBinMovedRow, editBinPlaceholderRow);
+          editBinPlaceholderRow.parentNode.removeChild(editBinPlaceholderRow);
+          editBinMovedRow.classList.remove('dp-row-action-highlight');
+        }
+        editBinMovedRow = null;
+        editBinPlaceholderRow = null;
+      }
+
+      function discardEditBinPlaceholder() {
+        // Row itself was removed (e.g. delete succeeded) - just drop the leftover placeholder.
+        if (editBinPlaceholderRow && editBinPlaceholderRow.parentNode) {
+          editBinPlaceholderRow.parentNode.removeChild(editBinPlaceholderRow);
+        }
+        editBinMovedRow = null;
+        editBinPlaceholderRow = null;
+      }
+
+      function moveEditBinRowToTop(row) {
+        const tbody = row.parentNode;
+        if (!tbody || tbody.firstElementChild === row) return;
+        restoreEditBinRow();
+        const originalIndex = Array.from(tbody.children).indexOf(row);
+        editBinMovedRow = row;
+        editBinPlaceholderRow = document.createElement('tr');
+        editBinPlaceholderRow.style.display = 'none';
+        for (let i = 0; i < row.children.length; i++) {
+          editBinPlaceholderRow.appendChild(document.createElement('td'));
+        }
+        tbody.insertBefore(editBinPlaceholderRow, tbody.children[originalIndex]);
+        tbody.insertBefore(row, tbody.firstElementChild);
+        row.classList.add('dp-row-action-highlight');
+      }
+
        // DELETE BUTTON HANDLER
       document.querySelectorAll('a[title="Delete"]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -3280,6 +3329,7 @@ function resetTrayScanData() {
             Swal.fire('Error', 'Batch ID not found!', 'error');
             return;
           }
+          moveEditBinRowToTop(row);
           Swal.fire({
             title: 'Are you sure?',
             text: 'Do you really want to delete this batch?',
@@ -3302,6 +3352,7 @@ function resetTrayScanData() {
               .then(res => res.json())
               .then(data => {
                 if (data.success) {
+                  discardEditBinPlaceholder();
                   row.remove();
                   Swal.fire({
                     icon: 'success',
@@ -3309,11 +3360,14 @@ function resetTrayScanData() {
                     text: 'Batch has been deleted.',
                     timer: 1200,
                     showConfirmButton: false
-                  });                  
+                  });
                 } else {
+                  restoreEditBinRow();
                   Swal.fire('Error', data.error || 'Delete failed', 'error');
                 }
               });
+            } else {
+              restoreEditBinRow();
             }
           });
         });
@@ -3330,6 +3384,8 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
 
     // Prevent multiple inputs
     if (qtyCell.querySelector('input')) return;
+
+    moveEditBinRowToTop(row);
 
     qtyCell.innerHTML = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
       <input type="number" min="1" class="form-control qty-input" value="${oldQty}" placeholder="Enter quantity" style="width: 80px; display:inline-block; padding: 4px 6px; font-size: 13px;" />
@@ -3364,6 +3420,7 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
       .then(data => {
         if (data.success) {
           qtyCell.textContent = newQty;
+          restoreEditBinRow();
           Swal.fire({
             icon: 'success',
             title: 'Quantity Updated!',
@@ -3382,8 +3439,12 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
       });
     }
 
+    let editCancelled = false;
+
     function revertChanges() {
+      editCancelled = true;
       qtyCell.textContent = oldQty;
+      restoreEditBinRow();
     }
 
     qtyInput.addEventListener('keydown', function(ev) {
@@ -3392,16 +3453,20 @@ document.querySelectorAll('.edit-qty-btn').forEach(function(btn) {
         ev.stopPropagation();
         saveQuantity();
       }
-      if (ev.key === 'Escape') {
+      if (ev.key === 'Escape' || ev.keyCode === 27) {
         ev.preventDefault();
         ev.stopPropagation();
         ev.stopImmediatePropagation();
+        // Restore original value and cancel edit before any blur logic runs
+        qtyInput.value = oldQty;
         revertChanges();
       }
     }, true);
 
     qtyInput.addEventListener('blur', function() {
+      if (editCancelled) return;
       setTimeout(() => {
+        if (editCancelled) return;
         if (!qtyCell.contains(document.activeElement)) {
           revertChanges();
         }
@@ -4614,6 +4679,14 @@ function attachEnhancedEventListeners() {
         newQtyInput.addEventListener('keydown', function (ev) {
             if (ev.key === 'Enter') {
                 newQtyInput.setAttribute('readonly', 'readonly');
+                newQtyInput.blur();
+            }
+            if (ev.key === 'Escape' || ev.keyCode === 27) {
+                ev.preventDefault();
+                newQtyInput.value = originalQuantity;
+                newQtyInput.setAttribute('readonly', 'readonly');
+                if (errorFooter) errorFooter.textContent = '';
+                updateUIElements();
                 newQtyInput.blur();
             }
         });
@@ -6001,18 +6074,20 @@ for (let i = 0; i < row.children.length; i++) {
   }
 
 
-  // On modal close for view icon, restore row to original position and remove highlight.
-  // FIX: Use the close button for the Day Planning modal ("closeTrayScanModal_DayPlanning")
+  // On modal close for the read-only tray-scan view (verified rows), restore row to
+  // original position and remove highlight. Shares the same tracked row/placeholder
+  // as the editable close button above — this modal is the same tray-scan row-move,
+  // just a different close control for the already-verified state.
   var jigCloseBtn = document.getElementById('closeTrayScanModal_DayPlanning');
   if (jigCloseBtn) {
     jigCloseBtn.addEventListener('click', function() {
-      if (movedRowJig && placeholderRowJig && placeholderRowJig.parentNode) {
-        placeholderRowJig.parentNode.insertBefore(movedRowJig, placeholderRowJig);
-        placeholderRowJig.parentNode.removeChild(placeholderRowJig);
-        movedRowJig.classList.remove('dp-row-action-highlight');
-        movedRowJig = null;
-        placeholderRowJig = null;
-        originalRowIndexJig = null;
+      if (movedRow && placeholderRow && placeholderRow.parentNode) {
+        placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
+        placeholderRow.parentNode.removeChild(placeholderRow);
+        movedRow.classList.remove('dp-row-action-highlight');
+        movedRow = null;
+        placeholderRow = null;
+        originalRowIndex = null;
       }
       document.querySelectorAll('tbody tr').forEach(function(row) {
         row.classList.remove('dp-row-action-highlight');

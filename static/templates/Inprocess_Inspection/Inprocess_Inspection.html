@@ -293,9 +293,15 @@
    #order-listing thead th {
    position: sticky;
    top: 0;
-   z-index: 40;
+   z-index: 50;
    background: #028084 !important;
    color: #e5fcff !important;
+   }
+   /* Frozen header cells must stay above the sticky header row and frozen body columns */
+   #order-listing th:nth-child(-n+3) {
+   position: sticky;
+   top: 0;
+   z-index: 55 !important;
    }
    }
    @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
@@ -357,13 +363,7 @@
    .table-bordered th, .table-bordered td {
    border: 1px solid #d9dedf !important;
    }
-   /* Make the table header sticky */
-   thead th {
-   position: sticky;
-   top: 0;
-   background-color: white; /* or your table header bg color */
-   z-index: 5; /* ensure it stays above the table rows */
-   }
+   /* Sticky header row for the IP pick table */
    #order-listing thead th {
    height: 38px !important; /* Increase as needed */
    background: #028084 !important;
@@ -597,7 +597,7 @@
    #order-listing thead th {
    position: sticky;
    top: 0;
-   z-index: 10;
+   z-index: 20;
    background: #028084 !important;
    color: #e5fcff !important;
    }
@@ -631,9 +631,11 @@
    min-width: 100px; /* Increased width 100 - old value*/
    max-width: 110px; /* Increased width  110 - old value*/
    }
-   /* Prevent sticky columns from overlapping sticky header */
+   /* Frozen header cells must stay above the sticky header row and frozen body columns */
    #order-listing th:nth-child(-n + 3) {
-   z-index: 12;
+   position: sticky;
+   top: 0;
+   z-index: 21;
    }
    #order-listing td:nth-child(-n + 3) {
    z-index: 11;
@@ -1296,6 +1298,7 @@
                         <th>Lot Qty <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th style = "min-width: 140px; max-width: 140px">Lot Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th style = "min-width: 100px; max-width: 100px">Current Stage<i class="fa fa-filter" aria-hidden="true"></i></th>
+                        <th>Type of Input</th>
                         <th style="min-width:130px;max-width:160px;white-space:normal;word-break:break-word;">Plating Stk No <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Plating Color <i class="fa fa-filter" aria-hidden="true"></i></th>
                         <th>Polish Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
@@ -1369,7 +1372,7 @@
                                          data-model-index="{{ forloop.counter }}"
                                          style="display:inline-block;position:relative;flex-shrink:0;">
                                       <div class="circle-indicator"
-                                           style="width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.25);transition:all 0.2s ease;"
+                                           style="width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:8px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.25);transition:all 0.2s ease;background:{{ jig_detail.model_colors|get_item:model_name|default:'#cccccc' }};"
                                            data-color-index="{{ forloop.counter0 }}">
                                         {{ forloop.counter }}
                                       </div>
@@ -1529,6 +1532,10 @@
                            style="border: 1px solid #9adeed; background-color: #d1edf3; color: #033b5d; font-size: 12px; white-space: nowrap; padding: 6px;">
                            {% if jig_detail.bath_numbers %}Inprocess Inspection{% else %}{{ jig_detail.last_process_module|default:"Jig Loading" }}{% endif %}
                         </div>
+                        </td>
+                        <!-- Type of Input -->
+                        <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
+                          {% include 'partials/_type_of_input_cell.html' with type_of_input=jig_detail.type_of_input %}
                         </td>
                         <!-- Plating Stock No - Separate Column -->
                         <td {% if jig_detail.inprocess_hold_lot %} class="row-inactive-blur" {% endif %}>
@@ -2668,13 +2675,16 @@
          }
 
          // --- Unified renderer for both single and multi-model ---
-         var circleColors = ['#007bff','#e67e22','#c0a000','#6f42c1','#28a745','#e65100','#c0226e','#388e3c','#d81b60','#00838f'];
+         // Use backend-persisted colors keyed by model name. Fall back to the
+         // global palette only when no backend color is present.
+         var backendColors = {};
+         try { backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}'); } catch(e) {}
          var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:16px 12px;justify-items:center;padding:4px 0;">';
          mmAlloc.forEach(function(m, idx) {
            var modelName  = m.model_name || m.model || '';
            var qty        = m.allocated_qty || 0;
            var imgUrl     = m.model_image_url || '/static/assets/images/imagePlaceholder.jpg';
-           var color      = circleColors[idx % circleColors.length];
+           var color      = backendColors[modelName] || getGlobalModelColor(modelName);
            var roleLabel  = m.model_role === 'primary' ? '<span style="font-size:8px;background:#28a745;color:#fff;border-radius:3px;padding:1px 4px;margin-top:2px;display:inline-block;">Primary</span>' : '';
            var platingStkNo = m.plating_stk_no || '';
            html += '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;" onclick="showModelImagesFull(' + JSON.stringify(modelName) + ',' + JSON.stringify([imgUrl]) + ')">'
@@ -3088,16 +3098,20 @@ document.addEventListener("DOMContentLoaded", function () {
      updateAllModelCircles();
    }
    
-   // Function to update all model circles with consistent colors
+   // Function to update all model circles with consistent colors.
+   // Backend-persisted colors (data-model-colors) take precedence; only
+   // fall back to the global palette when no backend color is available.
    function updateAllModelCircles() {
      document.querySelectorAll('.model-stock-no-cell').forEach(function(cell) {
        try {
          const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
+         const backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
          const circles = cell.querySelectorAll('.model-circle');
-         
+
          circles.forEach(function(circle, index) {
            if (modelList[index]) {
-             const color = getGlobalModelColor(modelList[index]);
+             const model = modelList[index];
+             const color = backendColors[model] || getGlobalModelColor(model);
              circle.style.backgroundColor = color;
            }
          });
@@ -3580,19 +3594,22 @@ document.addEventListener("DOMContentLoaded", function () {
        }
      }
      
-     // Function to preserve model circle colors when row is highlighted
+     // Function to preserve model circle colors when row is highlighted.
+     // Backend-persisted colors take precedence over the global palette.
      function preserveModelCircleColors(row) {
        const modelCell = row.querySelector('.model-stock-no-cell');
        if (modelCell) {
          try {
            const modelList = JSON.parse(modelCell.getAttribute('data-model-list') || '[]');
+           const backendColors = JSON.parse(modelCell.getAttribute('data-model-colors') || '{}');
            const circles = modelCell.querySelectorAll('.model-circle');
-           
+
            circles.forEach(function(circle, index) {
-             if (modelList[index] && window.globalModelColors) {
-               const globalColor = window.globalModelColors[modelList[index]];
-               if (globalColor) {
-                 circle.style.background = globalColor;
+             if (modelList[index]) {
+               const model = modelList[index];
+               const color = backendColors[model] || (window.globalModelColors && window.globalModelColors[model]);
+               if (color) {
+                 circle.style.background = color;
                }
              }
            });
@@ -3649,26 +3666,27 @@ document.addEventListener("DOMContentLoaded", function () {
          row.classList.remove('highlighted-tray-scan');
        });
        
-       // Restore all model circle colors after clearing highlights
-       if (window.globalModelColors) {
-         document.querySelectorAll('.model-stock-no-cell').forEach(function(cell) {
-           try {
-             const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
-             const circles = cell.querySelectorAll('.model-circle');
-             
-             circles.forEach(function(circle, index) {
-               if (modelList[index]) {
-                 const globalColor = window.globalModelColors[modelList[index]];
-                 if (globalColor) {
-                   circle.style.background = globalColor;
-                 }
+       // Restore all model circle colors after clearing highlights.
+       // Backend-persisted colors take precedence over the global palette.
+       document.querySelectorAll('.model-stock-no-cell').forEach(function(cell) {
+         try {
+           const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
+           const backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
+           const circles = cell.querySelectorAll('.model-circle');
+
+           circles.forEach(function(circle, index) {
+             if (modelList[index]) {
+               const model = modelList[index];
+               const color = backendColors[model] || (window.globalModelColors && window.globalModelColors[model]);
+               if (color) {
+                 circle.style.background = color;
                }
-             });
-           } catch (e) {
-             console.warn('Error restoring model circle colors:', e);
-           }
-         });
-       }
+             }
+           });
+         } catch (e) {
+           console.warn('Error restoring model circle colors:', e);
+         }
+       });
      }
    
      // Attach to all close buttons for tray scan/modal (including model gallery)
@@ -4140,14 +4158,43 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- Multi-Model Circle Indicators Script (Inprocess Inspection) -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
-  var circleColors = [
-    '#007bff','#e67e22','#c0a000','#6f42c1','#28a745','#e65100','#c0226e','#388e3c','#d81b60','#00838f'
-  ];
+  function extractModelNoPrefix(displayModel) {
+    var m = String(displayModel || '').match(/^\d+/);
+    return m ? m[0] : displayModel;
+  }
+
+  function resolveMultiModelColor(circle, container) {
+    var displayModel = circle.getAttribute('data-model') || '';
+    var modelNoPrefix = extractModelNoPrefix(displayModel);
+    var backendColors = {};
+    var cell = container && container.closest('.model-stock-no-cell');
+    if (cell) {
+      try {
+        backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
+      } catch (e) {
+        backendColors = {};
+      }
+    }
+
+    var color = backendColors[displayModel] ||
+                backendColors[modelNoPrefix] ||
+                (window.globalModelColors && window.globalModelColors[modelNoPrefix]) ||
+                (window.globalModelColors && window.globalModelColors[displayModel]);
+
+    if (!color && typeof getGlobalModelColor === 'function') {
+      color = getGlobalModelColor(modelNoPrefix);
+    }
+    if (!color && typeof getGlobalModelColor === 'function') {
+      color = getGlobalModelColor(displayModel);
+    }
+    return color || '#cccccc';
+  }
+
   document.querySelectorAll('.multi-model-circles-container').forEach(function(container) {
-    container.querySelectorAll('.multi-model-circle').forEach(function(circle, index) {
+    container.querySelectorAll('.multi-model-circle').forEach(function(circle) {
       var indicator = circle.querySelector('.circle-indicator');
-      var color = circleColors[index % circleColors.length];
       if (indicator) {
+        var color = resolveMultiModelColor(circle, container);
         indicator.style.backgroundColor = color;
         indicator.setAttribute('data-color', color);
       }

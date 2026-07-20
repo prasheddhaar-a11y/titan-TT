@@ -75,6 +75,10 @@ def _sync_total_stock_verification_flags(lot_id: str, verified: int, total: int)
         tray_verify=all_verified,
         draft_tray_verify=partial_verified,
     )
+    if all_verified:
+        from modelmasterapp.stage_service import update_stock_stage
+
+        update_stock_stage(lot_id, "Input Screening")
 
 
 def _prefetch_pick_table_extras(rows: List[Dict[str, Any]]):

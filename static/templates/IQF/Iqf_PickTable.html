@@ -1969,9 +1969,7 @@
                       </div>
                     </td>
                     <td class="{{ data.ui.row_blur }}">
-                      {% if data.tray_type %}
-                        {{data.tray_type}}-{{data.tray_capacity}}
-                      {% elif data.tray_capacity %}
+                      {% if data.tray_capacity %}
                         {{data.tray_capacity}}
                       {% else %}
                         <span style="color:#ccc;">—</span>

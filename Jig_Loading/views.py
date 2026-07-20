@@ -329,7 +329,10 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
+<<<<<<< HEAD
 				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
+>>>>>>> kauvery/main
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -339,7 +342,11 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
+<<<<<<< HEAD
 				'jig_hold_lot', 'jig_holding_reason', 'plating_color',
+
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
+>>>>>>> kauvery/main
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -398,19 +405,30 @@ class JigView(TemplateView):
 					'jig_hold_lot': getattr(stock, 'jig_hold_lot', False),
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
 <<<<<<< HEAD
+<<<<<<< HEAD
 					'previous_module': 'Brass Audit',
 					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
-=======
+
 					'type_of_input': get_type_of_input_for_batch(batch),
 >>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
+
+					'jig_release_lot': getattr(stock, 'jig_release_lot', False),
+					'jig_release_reason': getattr(stock, 'jig_release_reason', ''),
+					'previous_module': 'Brass Audit',
+					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
+>>>>>>> kauvery/main
 				}
 
-				# Use pre-fetched capacity map (no per-row DB query)
+				# Use pre-fetched capacity map (no per-row DB query), then robust fallback
 				model_obj = getattr(batch, 'model_stock_no', None) if batch else None
 				if model_obj:
 					cap = master_capacity_map.get(getattr(model_obj, 'id', None))
 					if cap:
 						data['jig_capacity'] = cap
+				if not data['jig_capacity'] and batch:
+					resolved_cap = resolve_jig_capacity_for_batch(batch)
+					if resolved_cap:
+						data['jig_capacity'] = resolved_cap
 				master_data.append(data)
 
 			_t4 = _time.time()
@@ -542,6 +560,11 @@ class JigView(TemplateView):
 						'model_images': [],
 						'jig_hold_lot': False,
 						'jig_holding_reason': '',
+<<<<<<< HEAD
+
+						'jig_release_lot': False,
+						'jig_release_reason': '',
+>>>>>>> kauvery/main
 						'previous_module': 'Brass Audit',
 						'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') if stock else '',
 						'is_excess_lot': True,
@@ -549,12 +572,16 @@ class JigView(TemplateView):
 						'half_filled_tray_info_json': json.dumps(jc.half_filled_tray_info or []),
 						'type_of_input': get_type_of_input_for_batch(batch),
 					}
-					# Use pre-fetched capacity map (no per-row DB query)
+					# Use pre-fetched capacity map (no per-row DB query), then robust fallback
 					model_obj = getattr(batch, 'model_stock_no', None) if batch else None
 					if model_obj:
 						cap = master_capacity_map.get(getattr(model_obj, 'id', None))
 						if cap:
 							excess_data['jig_capacity'] = cap
+					if not excess_data['jig_capacity'] and batch:
+						resolved_cap = resolve_jig_capacity_for_batch(batch)
+						if resolved_cap:
+							excess_data['jig_capacity'] = resolved_cap
 					master_data.append(excess_data)
 
 			except Exception:
@@ -651,6 +678,19 @@ class JigView(TemplateView):
 			page_number = self.request.GET.get('page', 1)
 			paginator = Paginator(master_data, 10)  # 10 records per page
 			page_obj = paginator.get_page(page_number)
+
+			# ===== IP INFO REMARK: shared per plating_stk_no (PSN), not per lot =====
+			# Resolved only for the current page (not all of master_data) to avoid a
+			# large IN() query when Add Model mode returns an unsliced result set.
+			try:
+				from .selectors import get_ip_info_remarks_by_psn
+				page_psns = {d.get('plating_stk_no', '') for d in page_obj.object_list if d.get('plating_stk_no')}
+				ip_info_remark_map = get_ip_info_remarks_by_psn(page_psns)
+				for d in page_obj.object_list:
+					d['inprocess_remarks'] = ip_info_remark_map.get(d.get('plating_stk_no', ''), '')
+			except Exception:
+				logging.exception('[JIG PICK] Failed to resolve IP Info remarks by PSN')
+
 			context['master_data'] = page_obj
 			context['page_obj'] = page_obj
 			# Pass Add Model filter context to template (for empty-state warning)
@@ -2336,6 +2376,50 @@ def get_next_jig_cycle(jig_id, lot_id):
 		}
 
 
+def resolve_jig_capacity_for_batch(batch_obj):
+	"""
+	Resolve jig capacity for a batch using JigLoadingMaster.
+
+	Fallback chain (in order):
+	  1. Direct model_stock_no ForeignKey match.
+	  2. Batch plating_stk_no -> ModelMaster -> JigLoadingMaster.
+	  3. Batch model_no prefix -> JigLoadingMaster.
+
+	This makes capacity resolution robust against minor data-linkage
+	variations while keeping JigLoadingMaster as the single source of truth.
+	"""
+	if not batch_obj:
+		return None
+
+	# 1. Direct model_stock_no match
+	model_obj = getattr(batch_obj, 'model_stock_no', None)
+	if model_obj:
+		master = JigLoadingMaster.objects.filter(model_stock_no=model_obj).first()
+		if master and getattr(master, 'jig_capacity', None):
+			return int(master.jig_capacity)
+
+	# 2. Lookup via batch plating_stk_no
+	plating_stk_no = getattr(batch_obj, 'plating_stk_no', '') or ''
+	if plating_stk_no:
+		master = JigLoadingMaster.objects.filter(
+			model_stock_no__plating_stk_no=plating_stk_no
+		).first()
+		if master and getattr(master, 'jig_capacity', None):
+			return int(master.jig_capacity)
+
+	# 3. Lookup via model_no prefix
+	if model_obj:
+		model_no = getattr(model_obj, 'model_no', '') or ''
+		if model_no:
+			master = JigLoadingMaster.objects.filter(
+				model_stock_no__model_no=model_no
+			).first()
+			if master and getattr(master, 'jig_capacity', None):
+				return int(master.jig_capacity)
+
+	return None
+
+
 def fetch_lot_data(lot_id, batch_id, jig_capacity_override=None):
 	"""Fetch lot qty, jig capacity, tray capacity, and model metadata from DB."""
 	lot_qty = 0
@@ -2368,12 +2452,10 @@ def fetch_lot_data(lot_id, batch_id, jig_capacity_override=None):
 			jig_capacity = int(jig_capacity_override)
 		else:
 			batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
-			model_obj = getattr(batch_obj, 'model_stock_no', None) if batch_obj else None
-			if model_obj:
-				master = JigLoadingMaster.objects.filter(model_stock_no=model_obj).first()
-				if master and getattr(master, 'jig_capacity', None):
-					jig_capacity = int(master.jig_capacity)
-			if not jig_capacity:
+			resolved = resolve_jig_capacity_for_batch(batch_obj)
+			if resolved:
+				jig_capacity = resolved
+			else:
 				jig_capacity = lot_qty
 	except Exception:
 		jig_capacity = lot_qty or 0
@@ -3573,6 +3655,15 @@ class JigCompletedTable(TemplateView):
 					or 'Jig Loading'
 				) if stock_model else 'Jig Loading'
 
+				# A Jig Loading completed row is not released while the lot is
+				# still at Jig Loading.  It is released only when IP Inspection
+				# records a real action and advances current_stage.
+				lot_status = (
+					'Yet to Release'
+					if current_stage_display == 'Jig Loading'
+					else 'Released'
+				)
+
 				enriched = {
 					'id': jig_rec.id,
 					'lot_id': jig_rec.lot_id,
@@ -3603,7 +3694,10 @@ class JigCompletedTable(TemplateView):
 					'IP_jig_pick_remarks': jig_rec.remarks or '',
 					'current_stage_display': current_stage_display,
 <<<<<<< HEAD
-=======
+<<<<<<< HEAD
+
+					'lot_status': lot_status,
+>>>>>>> kauvery/main
 					'type_of_input': get_type_of_input_for_batch(batch_obj),
 >>>>>>> bbe43247324160fbbaa6a2aa85e88e5e7ffdf8f5
 				}
@@ -3759,8 +3853,12 @@ class JigSaveAPI(APIView):
 			if not jig_id:
 				return Response({'status': 'error', 'message': 'jig_id is required for submit'}, status=status.HTTP_400_BAD_REQUEST)
 
-			# Jig ID format validation
-			lot_data = fetch_lot_data(lot_id, batch_id, jig_capacity)
+			# Jig ID format validation — always derive capacity fresh from the model's
+			# JigLoadingMaster record (Golden Rule: backend decides). Do NOT pass the
+			# frontend-supplied `jig_capacity` as an override here: that skips the DB
+			# lookup entirely and validates against whatever value the client sent,
+			# which can be stale (e.g. loaded before a JigLoadingMaster correction).
+			lot_data = fetch_lot_data(lot_id, batch_id)
 			jig_capacity_val = int(lot_data.get('jig_capacity', 0) or 0) or jig_capacity
 			expected_jig_prefix = f'J{jig_capacity_val:03d}-'
 			if not jig_id.startswith(expected_jig_prefix):
@@ -4361,6 +4459,12 @@ class JigHoldToggleAPI(APIView):
 			return Response({
 				'success': True,
 				'hold_status': hold_status,
+				'jig_hold_lot': lot_obj.jig_hold_lot,
+				'jig_holding_reason': lot_obj.jig_holding_reason or '',
+				'jig_release_lot': lot_obj.jig_release_lot,
+				'jig_release_reason': lot_obj.jig_release_reason or '',
+				'holding_reason': lot_obj.jig_holding_reason or '',
+				'release_reason': lot_obj.jig_release_reason or '',
 				'message': message,
 			}, status=status.HTTP_200_OK)
 

@@ -1312,20 +1312,33 @@ def finalize_submission_v2(
         used_global.add(tid)
 
     # Re-validate each scan server-side.
+    # NOTE: reject_qty/shortage_qty must be passed through so the emptied-tray
+    # drain calculation matches what the live /validate_scan/ endpoint used —
+    # omitting them defaults both to 0, which collapses emptied_count to 0 and
+    # rejects every legitimately reused/delinked tray at final submit.
     seen: List[str] = []
     for a in reject_assignments:
-        v = validate_scanned_tray(lot_id, "reject", a["tray_id"], seen)
+        v = validate_scanned_tray(
+            lot_id, "reject", a["tray_id"], seen,
+            reject_qty=total_non_shortage_reject, shortage_qty=shortage_qty,
+        )
         if not v["valid"]:
             raise ValueError(v["reason"])
         a["_source"] = v["source"]
         seen.append(v["tray_id"])
     for tid in delink_tray_ids or []:
-        v = validate_scanned_tray(lot_id, "delink", tid, seen)
+        v = validate_scanned_tray(
+            lot_id, "delink", tid, seen,
+            reject_qty=total_non_shortage_reject, shortage_qty=shortage_qty,
+        )
         if not v["valid"]:
             raise ValueError(v["reason"])
         seen.append(v["tray_id"])
     for a in accept_assignments:
-        v = validate_scanned_tray(lot_id, "accept", a["tray_id"], seen)
+        v = validate_scanned_tray(
+            lot_id, "accept", a["tray_id"], seen,
+            reject_qty=total_non_shortage_reject, shortage_qty=shortage_qty,
+        )
         if not v["valid"]:
             raise ValueError(v["reason"])
         a["_source"] = v["source"]

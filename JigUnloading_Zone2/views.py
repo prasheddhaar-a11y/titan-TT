@@ -825,9 +825,22 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                     return parsed
             except:
                 pass
-            
-            # Try to split by comma
-            return [x.strip() for x in no_of_model_cases.split(',') if x.strip()]
+
+            # Raw format written by Jig_Loading.JigSaveAPI for multi-model jigs:
+            # 'MODEL(lot_id):qty | MODEL2(lot_id):qty2'. Legacy format: 'MODEL:qty,MODEL2:qty2'.
+            # Split on ' | ' when present so multi-model jigs aren't collapsed into one
+            # entry (no comma exists in the pipe format). No dedup: two entries sharing
+            # the same Plating Stk No (ditto models) must stay separate so Model Presents
+            # renders one circle per entry.
+            _parts = no_of_model_cases.split(' | ') if ' | ' in no_of_model_cases else no_of_model_cases.split(',')
+            return [
+                cleaned
+                for cleaned in (
+                    re.split(r'[\(\[]', part, maxsplit=1)[0].split(':')[0].strip()
+                    for part in _parts
+                )
+                if cleaned
+            ]
         
         # If it's a single value, return as list
         return [str(no_of_model_cases)]
@@ -998,9 +1011,11 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 if isinstance(_raw_mc, list):
                     all_model_numbers.update([str(m) for m in _raw_mc])
                 elif isinstance(_raw_mc, str):
-                    # Handle pipe-separated format: "MODEL1 [LID...]:QTY | MODEL2 [LID...]:QTY"
+                    # Handle both separator styles used across the codebase:
+                    # 'MODEL1(LID...):QTY | MODEL2(LID...):QTY' (Jig_Loading.JigSaveAPI)
+                    # and legacy 'MODEL1 [LID...]:QTY, MODEL2 [LID...]:QTY'.
                     for _item in _raw_mc.replace('|', ',').split(','):
-                        _mn = _item.split(':')[0].split('[')[0].strip()
+                        _mn = re.split(r'[\(\[]', _item, maxsplit=1)[0].split(':')[0].strip()
                         if _mn:
                             all_model_numbers.add(_mn)
             # Always collect plating_stock_num (handles comma-separated multi-model)
@@ -1481,7 +1496,19 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                     _parsed = json.loads(model_cases)
                     jig_detail.no_of_model_cases = _parsed if isinstance(_parsed, list) else ([str(_parsed)] if _parsed else [])
                 except Exception:
-                    _parsed_items = [_i.split(':')[0].strip() for _i in model_cases.split(',') if _i.split(':')[0].strip()]
+                    # Raw format written by Jig_Loading.JigSaveAPI for multi-model jigs:
+                    # 'MODEL(lot_id):qty | MODEL2(lot_id):qty2'. Split on ' | ' when present
+                    # so multi-model jigs aren't collapsed into one entry; no dedup, so
+                    # ditto models (same Plating Stk No twice) stay as two entries.
+                    _mc_parts = model_cases.split(' | ') if ' | ' in model_cases else model_cases.split(',')
+                    _parsed_items = [
+                        _cleaned
+                        for _cleaned in (
+                            re.split(r'[\(\[]', _part, maxsplit=1)[0].split(':')[0].strip()
+                            for _part in _mc_parts
+                        )
+                        if _cleaned
+                    ]
                     jig_detail.no_of_model_cases = _parsed_items if _parsed_items else []
             elif isinstance(model_cases, list):
                 jig_detail.no_of_model_cases = model_cases
@@ -3078,6 +3105,18 @@ def JU_Zone_save_jig_unload_tray_ids(request):
         # Update Inprocess Inspection completed table records
         if cleaned_combined_lot_ids:
             try:
+                # Zone 2 work is the first real downstream action after
+                # Inprocess Inspection. Keep the shared stage SSOT in sync.
+                from modelmasterapp.stage_service import update_stock_stage
+                for _lot_id in cleaned_combined_lot_ids:
+                    try:
+                        update_stock_stage(_lot_id, 'Jig Unloading')
+                    except Exception:
+                        logger.exception(
+                            'Zone 2 current_stage update failed for lot_id=%s',
+                            _lot_id,
+                        )
+
                 from django.db.models import Q
                 # Find all JigCompleted records that contain any of the unloaded lot_ids
                 affected_jig_details = JigCompleted.objects.filter(

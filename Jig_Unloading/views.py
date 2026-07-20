@@ -385,9 +385,11 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
                 if isinstance(_raw_mc, list):
                     all_model_numbers.update([str(m) for m in _raw_mc])
                 elif isinstance(_raw_mc, str):
-                    # Parse comma-separated 'plating_stk_no:qty' format e.g. '1805NAK02:14,1805NAR02:13'
-                    for _item in _raw_mc.split(','):
-                        _mn = _item.split(':')[0].strip()
+                    # Handle both separator styles used across the codebase:
+                    # 'MODEL1(LID...):QTY | MODEL2(LID...):QTY' (Jig_Loading.JigSaveAPI)
+                    # and legacy 'MODEL1:QTY,MODEL2:QTY' / 'MODEL1 [LID...]:QTY'.
+                    for _item in _raw_mc.replace('|', ',').split(','):
+                        _mn = re.split(r'[\(\[]', _item, maxsplit=1)[0].split(':')[0].strip()
                         if _mn:
                             all_model_numbers.add(_mn)
             elif getattr(jig_detail, 'plating_stock_num', None):
@@ -1432,8 +1434,23 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
                     _parsed = json.loads(model_cases)
                     jig_detail.no_of_model_cases = _parsed if isinstance(_parsed, list) else ([str(_parsed)] if _parsed else [])
                 except:
-                    # Parse comma-separated 'plating_stk_no:qty' format e.g. '1805NAK02:14,1805NAR02:13'
-                    _parsed_items = [_i.split(':')[0].strip() for _i in model_cases.split(',') if _i.split(':')[0].strip()]
+                    # Raw format written by Jig_Loading.JigSaveAPI for multi-model jigs:
+                    # 'MODEL(lot_id):qty | MODEL2(lot_id):qty2'. Legacy single-model/no-lot
+                    # format: '1805NAK02:14,1805NAR02:13'. Split on ' | ' when present so
+                    # multi-model jigs aren't collapsed into one entry (no comma exists in
+                    # the pipe format, so a plain comma-split would treat the whole string
+                    # as a single garbled model). No dedup: two entries sharing the same
+                    # Plating Stk No (ditto models) must stay as two separate entries so
+                    # Model Presents renders one circle per entry.
+                    _mc_parts = model_cases.split(' | ') if ' | ' in model_cases else model_cases.split(',')
+                    _parsed_items = [
+                        _cleaned
+                        for _cleaned in (
+                            re.split(r'[\(\[]', _part, maxsplit=1)[0].split(':')[0].strip()
+                            for _part in _mc_parts
+                        )
+                        if _cleaned
+                    ]
                     jig_detail.no_of_model_cases = _parsed_items if _parsed_items else []
             elif isinstance(model_cases, list):
                 jig_detail.no_of_model_cases = model_cases
@@ -2902,6 +2919,59 @@ class GetUnloadModelsZ1View(APIView):
                 'jig_id': display_jig_id,
                 'merged_lots': restored_merged_lots,
             })
+
+        # ---------------------------------------------------------------
+        # STEP 3c: Merge ditto entries within THIS jig — when the same
+        # Plating Stk No shows up twice (e.g. two lots of "1805WBK02" loaded
+        # together on one jig), the unload/tray-scan flow must treat them as
+        # ONE model to scan with combined qty, not two separate rows.
+        # (The pick table's Model Presents circles deliberately do NOT
+        # dedupe ditto entries — this merge is scoped only to this scan-modal
+        # model list, mirroring the existing STEP 5 "Add Model" merge below.)
+        # ---------------------------------------------------------------
+        if len(models_list) > 1:
+            _merged_models_list = []
+            _by_model_no = {}
+            for m in models_list:
+                _key = m.get('model_no') or None
+                if _key and _key in _by_model_no:
+                    primary = _by_model_no[_key]
+                    if m['jig_id'] and m['jig_id'] not in primary['jig_id']:
+                        primary['jig_id'] = primary['jig_id'] + ', ' + m['jig_id']
+                    primary.setdefault('merged_lots', [])
+                    primary['merged_lots'].append({
+                        'jig_completed_id': int(jig_completed_id),
+                        'lot_id': m['lot_id'],
+                        'qty': m['qty'],
+                        'jig_id': m['jig_id'],
+                    })
+                    primary['merged_lots'].extend(m.get('merged_lots') or [])
+                    _info = f"+{m['qty']} from {m['lot_id']}"
+                    primary['merged_info'] = (primary.get('merged_info', '') + '; ' + _info) if primary.get('merged_info') else _info
+                    primary['qty'] += m['qty']
+                    _cap = primary['tray_capacity'] if primary['tray_capacity'] > 0 else 20
+                    _new_total = primary['qty']
+                    _num = math.ceil(_new_total / _cap) if _new_total > 0 else 1
+                    _rem = _new_total % _cap if _new_total % _cap != 0 else _cap
+                    primary['tray_slots'] = [
+                        {
+                            'slot': i + 1,
+                            'tray_id': '',
+                            'qty': _rem if i == 0 else _cap,
+                            'is_top_tray': i == 0,
+                            'editable_qty': i == 0,
+                        }
+                        for i in range(_num)
+                    ]
+                    primary['num_trays'] = len(primary['tray_slots'])
+                    # Combined entry counts as unloaded only once every merged lot is unloaded.
+                    primary['is_unloaded'] = primary['is_unloaded'] and m['is_unloaded']
+                    primary['is_draft'] = primary['is_draft'] or m['is_draft']
+                else:
+                    if _key:
+                        _by_model_no[_key] = m
+                    _merged_models_list.append(m)
+            models_list = _merged_models_list
 
         is_multi_model = len(models_list) > 1
 

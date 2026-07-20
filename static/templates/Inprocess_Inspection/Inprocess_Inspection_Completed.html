@@ -894,6 +894,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <th>Action <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Batch Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Stage <i class="fa fa-filter" aria-hidden="true"></i></th>
+                    <th>Type of Input</th>
                     <th>Remarks <i class="fa fa-filter" aria-hidden="true"></i></th>
                   </tr>
                 </thead>
@@ -1032,15 +1033,15 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       </td>
                       <!-- Batch Status (Completed) -->
                       <td>
-                        {% if jig_detail.last_process_module == "Inprocess Inspection" %}
+                        {% if jig_detail.lot_status == "Yet to Release" %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="border: 1px solid #0d5d17; background-color: #F0F5B7; color: #727c08; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Yet to release
+                          {{ jig_detail.lot_status }}
                         </div>
                         {% else %}
                          <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                            style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          Released
+                          {{ jig_detail.lot_status }}
                         </div>
                         {% endif %}
                       </td>
@@ -1051,6 +1052,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {{ jig_detail.last_process_module }}
                         </div>
                       </td>
+                      <!-- Type of Input -->
+                      <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=jig_detail.type_of_input %}</td>
                       <td>
 
                         <!-- Audio Remark Icon -->

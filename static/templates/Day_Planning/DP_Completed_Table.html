@@ -521,6 +521,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         <i class="fa fa-filter" aria-hidden="true" style="cursor: pointer; opacity: 0.7; font-size: 10px; display:none;" title="Filter Column"></i>
                       </span>
                     </th>
+                    <th>
+                      Type of Input
+                    </th>
                     <th data-column-index="10">
                       Polishing <br> Stk No
                       <span class="header-icons" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px;">
@@ -643,7 +646,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                   </td>
                   <!-- Tray Cate-Capacity -->
                   <td>
-                    {% if row.tray_type %}{{ row.tray_type }}{% else %}Nil{% endif %}-
+                    {% if row.tray_type %}{{ row.tray_type|tray_full_name }}{% else %}Nil{% endif %}-
                     {% if row.tray_capacity %}{{ row.tray_capacity }}{% endif %}
                   </td>
                   <!-- Process Status -->
@@ -676,6 +679,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         {{ row.current_stage_display|default:"N/A" }}
                       </div>
                     </td>
+                    <!-- Type of Input -->
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=row.type_of_input %}</td>
                     <!-- Polishing Stk No -->
                       <td>
                       {{ row.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}
@@ -729,7 +734,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="15" class="text-center">No records found.</td>
+                  <td colspan="16" class="text-center">No records found.</td>
                 </tr>
               {% endfor %}
             </tbody>
