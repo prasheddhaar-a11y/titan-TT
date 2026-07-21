@@ -2605,6 +2605,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.tray-scan-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.preventDefault();
+        // Re-entry guard: if the reject modal is already open, ignore this click.
+        // A scan inside the modal (via the global scanner / keyboard shortcut) can
+        // re-fire a click on the reject button; without this guard the open handler
+        // re-runs renderReasonsGrid() + re-fetches trays, wiping every reason qty
+        // and scanned tray ID the user already entered.
+        if (overlay.style.display === 'flex') {
+          return;
+        }
         var row = this.closest('tr');
         if (!row) return;
         _lotId = row.getAttribute('data-stock-lot-id');
@@ -2740,7 +2748,42 @@ document.addEventListener('DOMContentLoaded', function() {
           renderOriginalTrays();
           updateTotals();
         });
+
+        // Enter commits the reason qty immediately and hands off to the tray
+        // scan input, instead of leaving the scanner's next keystrokes to land
+        // back in this (still-focused) number field.
+        inp.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          this.blur();
+        });
+
+        // Blur (Enter above, or Tab/click-away) flushes the pending debounce
+        // right away so the reject tray scan input exists and is focused
+        // before the user's next scan arrives.
+        inp.addEventListener('blur', function() {
+          flushAllocation();
+        });
       });
+    }
+
+    // ── Immediately run the allocation fetch, but only if one is actually
+    //    pending. Without this guard, the blur our own focusNextAvailableTrayInput()
+    //    triggers (when it steals focus from the qty field into the freshly
+    //    rendered scan input) would re-enter here and fire a redundant second
+    //    ALLOCATE call — one that can resolve after the user has already scanned
+    //    a tray and wipe it out, since fetchAllocation always rebuilds slots empty. ──
+    function flushAllocation() {
+      if (!_allocateTimer) return; // nothing pending — already up to date
+      clearTimeout(_allocateTimer);
+      _allocateTimer = null;
+      var totalReject = 0;
+      reasonsGrid.querySelectorAll('.reject-qty-input').forEach(function(inp) {
+        totalReject += parseInt(inp.value || '0', 10);
+      });
+      if (totalReject > 0 && totalReject <= _totalQty && !fullLotCb.checked) {
+        fetchAllocation(totalReject);
+      }
     }
 
     // ── Update totals + trigger allocation ──
@@ -2842,6 +2885,9 @@ document.addEventListener('DOMContentLoaded', function() {
         delinkSection.style.display = 'none';
         updateSummary();
         allocationSection.style.display = '';
+        // Auto-focus first reject tray scan input so the scanner can type straight
+        // into it without the user needing to click the field first.
+        focusNextAvailableTrayInput();
       })
       .catch(function(err) {
         console.error('[BrassQC] Allocate error:', err);

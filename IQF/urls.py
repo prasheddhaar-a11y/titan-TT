@@ -16,6 +16,7 @@ urlpatterns = [
     path('iqf_accept_delink_modal/', iqf_accept_delink_modal, name='iqf_accept_delink_modal'),
     path('iqf_verify_trays_confirm/', iqf_verify_trays_confirm, name='iqf_verify_trays_confirm'),
     path('iqf_lot_rejection/', iqf_lot_rejection, name='iqf_lot_rejection'),
+    path('delink/', iqf_delink, name='iqf_delink'),
     path('iqf_save_hold_unhold_reason/', IQFSaveHoldUnholdReasonAPIView.as_view(), name='iqf_save_hold_unhold_reason'),
     path('iqf_completed_api/', IQFCompletedTableView.as_view(), name='iqf_completed_api'),
     path('iqf_completed_table/', IQFCompletedPageView.as_view(), name='iqf_completed_table'),

@@ -363,7 +363,8 @@ def _compute_brass_qc_display_stage(stock_obj):
               FULL_REJECT (own lot → IQF),
               PARTIAL     (child accept lot → Brass Audit).
     """
-    _npm = stock_obj.child_accept_stage or stock_obj.next_process_module
+    #_npm = stock_obj.child_accept_stage or stock_obj.next_process_module
+    _npm = getattr(stock_obj, 'child_accept_stage', None) or stock_obj.next_process_module
     _fallback = stock_obj.last_process_module or 'Brass QC'
 
     if not _npm or _npm not in _BQ_VALID_STAGE_NAMES:

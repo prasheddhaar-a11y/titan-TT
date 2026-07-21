@@ -2864,7 +2864,16 @@
         };
 
         // Handler collects current inputs and requests server to compute total (uses existing submit API with action 'draft')
+        // ── Debounced: the compute/re-render only runs after the user pauses typing (600ms).
+        //    Without this, every keystroke in a reject-qty box triggered a compute that
+        //    re-rendered the accept slots and stole focus, so only ONE digit could be
+        //    entered at a time. Debouncing lets multi-digit reject qty (e.g. "12") be typed. ──
+        var _iqfComputeDebounce = null;
         function inputChangedHandler(e){
+          if(_iqfComputeDebounce){ clearTimeout(_iqfComputeDebounce); }
+          _iqfComputeDebounce = setTimeout(_iqfRunComputeRequest, 600);
+        }
+        function _iqfRunComputeRequest(){
           try{
             var csrftoken = getCookie('csrftoken');
             var inputs = grid.querySelectorAll('.rejection-qty-input');
@@ -4006,11 +4015,20 @@ document.addEventListener('click', function(evt){
         var reusableHint = document.getElementById('iqf-reuse-hint');
         if(reusableHint) reusableHint.style.display = 'none';
 
-        // ✅ After all accept slots rendered: auto-focus first empty slot
-        var _allRendered = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
-        for(var _ai = 0; _ai < _allRendered.length; _ai++){
-          if(!_allRendered[_ai].value.trim()){ _iqfFocusAndRevealInput(_allRendered[_ai], false); break; }
-        }
+        // ✅ After all accept slots rendered: move cursor to first empty Accept slot,
+        //    but NEVER interrupt the user while they are typing a rejection qty.
+        //    The cursor is placed after a 3s delay; if the user is still editing a
+        //    rejection-qty box when the timer fires, the focus move is skipped.
+        if(window._iqfAcceptFocusTimer){ clearTimeout(window._iqfAcceptFocusTimer); }
+        window._iqfAcceptFocusTimer = setTimeout(function(){
+          var _ae = document.activeElement;
+          // Do not steal focus while the user is editing a rejection qty field
+          if(_ae && _ae.classList && _ae.classList.contains('rejection-qty-input')){ return; }
+          var _allRendered = document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input');
+          for(var _ai = 0; _ai < _allRendered.length; _ai++){
+            if(!_allRendered[_ai].value.trim()){ _iqfFocusAndRevealInput(_allRendered[_ai], false); break; }
+          }
+        }, 3000);
 
         console.log('[IQF TRAY SLOTS] Rendered ' + slots.length + ' slots, accepted=' + acceptedQty + ', max_reuse=' + maxReuse);
 
