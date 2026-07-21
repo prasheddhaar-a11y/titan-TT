@@ -1172,6 +1172,29 @@ def _na_do_submit_reject(request, lot_id, juat):
         return Response({'success': False, 'error': 'Rejected qty cannot exceed total qty'}, status=400)
     accepted_qty = total_qty - rejected_qty
     is_partial = accepted_qty > 0
+
+    # AQL enforcement: a partial reject whose rejected qty exceeds the AQL
+    # limit for this lot-qty band must be submitted as a Full Reject instead.
+    # Same AQL master data/rule as Brass Audit (shared AQLSamplingPlan table).
+    if is_partial:
+        _aql_plan = AQLSamplingPlan.objects.filter(
+            lot_qty_from__lte=total_qty,
+            lot_qty_to__gte=total_qty
+        ).first()
+        if _aql_plan and rejected_qty > _aql_plan.aql_limit:
+            logger.warning(
+                f"[AQL PARTIAL BLOCKED] lot_id={lot_id}, total_qty={total_qty}, "
+                f"rejected_qty={rejected_qty}, aql_limit={_aql_plan.aql_limit} — must submit as FULL_REJECT"
+            )
+            return Response({
+                'success': False,
+                'error': (
+                    f'Rejected qty ({rejected_qty}) exceeds the AQL limit '
+                    f'({_aql_plan.aql_limit}) for lot qty {total_qty}. '
+                    f'Submit this lot as a Full Reject instead.'
+                ),
+            }, status=400)
+
     tray_type = (juat.tray_type or '').strip().lower()
     accept_cap = _na_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20
     if tray_type.startswith('jb') or 'jumbo' in tray_type:

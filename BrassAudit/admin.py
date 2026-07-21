@@ -10,7 +10,21 @@ admin.site.register(Brass_Audit_TopTray_Draft_Store)
 admin.site.register(Brass_Audit_Rejected_TrayScan)
 admin.site.register(Brass_Audit_Accepted_TrayScan)
 admin.site.register(Brass_Audit_Accepted_TrayID_Store)
-admin.site.register(AQLSamplingPlan)
+
+
+# ── AQL Sampling Plan ────────────────────────────────────────────────────────
+# Single shared master table (aql_sampling_plan) — consumed by Brass Audit AND
+# Nickel Audit Zone 1 / Zone 2 (Nickel_Audit/views.py, nickel_audit_zone_two/
+# views.py both import AQLSamplingPlan from BrassAudit.models). Registered here
+# only: Django's admin site rejects registering the same model class twice, so
+# this is the one place to view/edit AQL limits for all three modules.
+class AQLSamplingPlanAdmin(admin.ModelAdmin):
+    list_display = ('lot_qty_from', 'lot_qty_to', 'sample_qty', 'aql_limit')
+    ordering = ('lot_qty_from',)
+    search_fields = ('lot_qty_from', 'lot_qty_to')
+
+
+admin.site.register(AQLSamplingPlan, AQLSamplingPlanAdmin)
 
 
 # ── Brass Audit Submission & Partial Lots ────────────────────────────────────

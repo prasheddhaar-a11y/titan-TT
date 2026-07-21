@@ -495,6 +495,7 @@ class NQ_Zone_RejectTableView(APIView):
                 "nq_last_process_date_time": obj.nq_last_process_date_time,
                 "nq_physical_qty": obj.nq_physical_qty,
                 "nq_missing_qty": obj.nq_missing_qty,
+                "nq_lot_qty": obj.nq_qc_accepted_qty or obj.total_case_qty or 0,
                 "send_to_nickel_brass": obj.send_to_nickel_brass,
                 "plating_stk_no_list": obj.plating_stk_no_list,
                 "polish_stk_no_list": obj.polish_stk_no_list,

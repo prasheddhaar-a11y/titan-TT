@@ -1019,9 +1019,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
           </div>
                       <p style="margin: 0 0 0 2px;">
-              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-              Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
+              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
             </p>
         </div>
       </div>
@@ -1708,10 +1706,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       
-      // Set dynamic values for Lot Qty, Missing Qty, Physical Qty
+      // Set dynamic value for Lot Qty
       document.getElementById('modalLotQty').textContent = displayAcceptedQty || '';
-      document.getElementById('modalMissingQty').textContent = brassMissingQty || '';
-      document.getElementById('modalPhysicalQty').textContent = brassPhysicalQty || '';
 
       // Ã¢Å“â€¦ ENHANCED: Dynamic quantity display based on verification status
       if (modalLotQty && modalQtyLabel) {

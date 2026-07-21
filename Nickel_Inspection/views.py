@@ -685,6 +685,7 @@ class NickelQcRejectTableView(APIView):
                 "nq_last_process_date_time": obj.nq_last_process_date_time,
                 "nq_physical_qty": obj.nq_physical_qty,
                 "nq_missing_qty": obj.nq_missing_qty,
+                "nq_lot_qty": obj.nq_qc_accepted_qty or obj.total_case_qty or 0,
                 "send_to_nickel_brass": obj.send_to_nickel_brass,
                 "plating_stk_no_list": obj.plating_stk_no_list,
                 "polish_stk_no_list": obj.polish_stk_no_list,
@@ -1079,7 +1080,7 @@ def _nq_do_full_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',
@@ -1247,7 +1248,7 @@ def _nq_do_submit_reject(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         if is_partial:
             juat.nq_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
@@ -1406,7 +1407,7 @@ def _nq_do_submit_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',
