@@ -2442,6 +2442,9 @@ class IQFRejectionTableView(APIView):
                     'submission_type': sub.submission_type,
                     # Original lot quantity BEFORE any rejection (preferred for UI display)
                     'original_lot_qty': int(sub.original_lot_qty or (sub.batch_id.total_batch_quantity if sub.batch_id and getattr(sub.batch_id, 'total_batch_quantity', None) else 0)),
+                    # Accepted qty from this submission — feeds the "Accept Qty" column and the
+                    # View-modal's Lot Qty display (template reads data.iqf_accepted_qty).
+                    'iqf_accepted_qty': int(sub.accepted_qty or 0),
                     'IQF_pick_remarks': pick_remarks_map.get(sub.lot_id) or '',
                     'type_of_input': get_type_of_input_for_batch(batch),
                 })
@@ -3246,12 +3249,15 @@ def iqf_accept_delink_modal(request):
         del_ids_raw = request.GET.get('delinked_tray_ids', '')
         accepted_tray_ids = [x.strip() for x in acc_ids_raw.split(',') if x.strip()] if acc_ids_raw else []
         delinked_tray_ids = [x.strip() for x in del_ids_raw.split(',') if x.strip()] if del_ids_raw else []
+        rej_ids_raw = request.GET.get('rejected_tray_ids', '')
+        rejected_tray_ids_in = [x.strip() for x in rej_ids_raw.split(',') if x.strip()] if rej_ids_raw else []
     else:
         payload = request.data or {}
         lot_id = (payload.get('lot_id') or '').strip()
         rej_total_str = str(payload.get('iqf_rejection_total', '0'))
         accepted_tray_ids = payload.get('accepted_tray_ids') or []
         delinked_tray_ids = payload.get('delinked_tray_ids') or []
+        rejected_tray_ids_in = payload.get('rejected_tray_ids') or []
         submitted_items = payload.get('items') or []
         remark = (payload.get('remark') or '').strip()
 
@@ -3379,6 +3385,18 @@ def iqf_accept_delink_modal(request):
                 pass
             return 16
 
+        # ── Resolve capacity for a directly-scanned reject tray ID (may be brand new, not in IQFTrayId) ──
+        def _resolve_cap_for_tray_id(tid):
+            brass = BrassTrayId.objects.filter(tray_id=tid).exclude(
+                tray_capacity__isnull=True).exclude(tray_capacity=0).first()
+            if brass and brass.tray_capacity and brass.tray_capacity > 0:
+                return brass.tray_capacity
+            tray_master = TrayId.objects.filter(tray_id=tid).exclude(
+                tray_capacity__isnull=True).exclude(tray_capacity=0).first()
+            if tray_master and tray_master.tray_capacity and tray_master.tray_capacity > 0:
+                return tray_master.tray_capacity
+            return tray_capacity
+
         # ── Get all original lot trays (non-delinked) — MULTI-SOURCE FALLBACK ──
         # PRIMARY: IQFTrayId (DB source of truth)
         all_trays_qs = list(IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).order_by('id'))
@@ -3450,63 +3468,104 @@ def iqf_accept_delink_modal(request):
         print(f'[DELINK MODAL] Delinked tray IDs: {delinked_tray_ids} (count={len(delinked_tray_ids)})')
         print(f'[DELINK MODAL] Original incoming trays: {original_tray_ids} (count={len(original_tray_ids)})')
 
-        # ── Compute max delink count — based on original tray capacity ──
-        non_accepted = [t for t in all_trays_qs if _get_tray_id(t) not in accepted_set]
-        min_reject_trays_needed = ceil(rejected_qty / tray_capacity) if rejected_qty > 0 else 0
-        max_delink_count = max(0, len(non_accepted) - min_reject_trays_needed)
+        # ── REJECT TRAY IDs FLEXIBILITY (same rule as accepted_tray_ids) ──
+        # When the caller explicitly scans reject trays (Accept Tray Scan + Reject Tray Scan
+        # workflow), those tray IDs are the SOURCE OF TRUTH for the reject allocation — they
+        # may be brand-new tray IDs never seen on the original incoming lot (e.g. only 1
+        # original tray existed and it was consumed entirely by Accept). The legacy
+        # "delink an original tray to free up reject capacity" algorithm below only applies
+        # when the caller does NOT supply rejected_tray_ids (older tap-to-delink modal flow).
+        rejected_tray_id_list = [str(x).strip().upper() for x in rejected_tray_ids_in if str(x).strip()]
+        explicit_reject_mode = bool(rejected_tray_id_list)
 
-        print(f'[DELINK MODAL] non_accepted={len(non_accepted)}, min_reject_trays_needed={min_reject_trays_needed}, max_delink_count={max_delink_count}')
+        if explicit_reject_mode:
+            print(f'[DELINK MODAL] Explicit reject tray IDs supplied: {rejected_tray_id_list} (count={len(rejected_tray_id_list)})')
+            max_delink_count = 0
+            show_reject = True
 
-        # Enforce delink limit — only valid original tray IDs, up to max
-        all_tray_id_set = set(_get_tray_id(t) for t in all_trays_qs if _get_tray_id(t))
-        valid_delinked = [tid for tid in delinked_tray_ids if tid in all_tray_id_set and tid not in accepted_set]
-        if len(valid_delinked) > max_delink_count:
-            valid_delinked = valid_delinked[:max_delink_count]
-        delinked_set = set(valid_delinked)
-
-        # ── Show reject allocation only when delink selection is complete ──
-        # Delink complete = user has selected max_delink_count trays (or no delinks possible)
-        show_reject = len(valid_delinked) >= max_delink_count
-
-        if show_reject:
-            # ── Build reject pool = non-accepted, non-delinked ──
-            reject_pool = [t for t in all_trays_qs
-                           if _get_tray_id(t) not in accepted_set
-                           and _get_tray_id(t) not in delinked_set]
-
-            # ── Allocate rejected_qty in REVERSE order — same algo as iqf_submit_audit ──
+            # ── Distribute rejected_qty across the explicitly-scanned reject trays ──
+            # Mirrors the accept-side distribution (rem + full slots) since the frontend
+            # only sends tray IDs, not per-tray quantities — backend owns the qty split.
             reject_allocation = []
             remaining_to_reject = rejected_qty
-            for t in reversed(reject_pool):
-                if remaining_to_reject <= 0:
-                    break
-                cap = _resolve_tray_cap(t)
-                tid = _get_tray_id(t)
-                is_top = False
-                if isinstance(t, dict):
-                    is_top = bool(t.get('top_tray', False))
-                else:
-                    is_top = bool(getattr(t, 'top_tray', False))
-                take = min(cap, remaining_to_reject)
-                reject_allocation.append({
-                    'tray_id': tid,
-                    'qty': take,
-                    'top_tray': is_top,
-                })
-                remaining_to_reject -= take
-            reject_allocation.reverse()
+            if rejected_qty > 0:
+                rem = rejected_qty % tray_capacity
+                full = rejected_qty // tray_capacity
+                slots = ([{'qty': rem, 'top_tray': True}] if rem > 0 else []) + \
+                        [{'qty': tray_capacity, 'top_tray': False} for _ in range(full)]
+                for i, tid in enumerate(rejected_tray_id_list):
+                    if i < len(slots):
+                        reject_allocation.append({
+                            'tray_id': tid,
+                            'qty': slots[i]['qty'],
+                            'top_tray': slots[i]['top_tray'],
+                        })
+                        remaining_to_reject -= slots[i]['qty']
+
+            reject_pool = [t for t in all_trays_qs if _get_tray_id(t) in set(rejected_tray_id_list)]
+            reject_pool_capacity = sum(_resolve_cap_for_tray_id(tid) for tid in rejected_tray_id_list)
+            # delinked_set already reflects the caller-supplied delinked_tray_ids (original trays
+            # not used in accept or reject) — no further adjustment needed here.
+
+            print(f'[DELINK MODAL] Explicit reject allocation={reject_allocation}, remaining={remaining_to_reject}, pool_capacity={reject_pool_capacity}')
         else:
-            # Delink not fully selected — don't compute reject yet
-            reject_pool = []
-            reject_allocation = []
-            remaining_to_reject = rejected_qty
+            # ── Compute max delink count — based on original tray capacity ──
+            non_accepted = [t for t in all_trays_qs if _get_tray_id(t) not in accepted_set]
+            min_reject_trays_needed = ceil(rejected_qty / tray_capacity) if rejected_qty > 0 else 0
+            max_delink_count = max(0, len(non_accepted) - min_reject_trays_needed)
 
-        # ── Compute reject pool capacity ──
-        reject_pool_capacity = 0
-        for t in all_trays_qs:
-            tid = _get_tray_id(t)
-            if tid not in accepted_set and tid not in delinked_set:
-                reject_pool_capacity += _resolve_tray_cap(t)
+            print(f'[DELINK MODAL] non_accepted={len(non_accepted)}, min_reject_trays_needed={min_reject_trays_needed}, max_delink_count={max_delink_count}')
+
+            # Enforce delink limit — only valid original tray IDs, up to max
+            all_tray_id_set = set(_get_tray_id(t) for t in all_trays_qs if _get_tray_id(t))
+            valid_delinked = [tid for tid in delinked_tray_ids if tid in all_tray_id_set and tid not in accepted_set]
+            if len(valid_delinked) > max_delink_count:
+                valid_delinked = valid_delinked[:max_delink_count]
+            delinked_set = set(valid_delinked)
+
+            # ── Show reject allocation only when delink selection is complete ──
+            # Delink complete = user has selected max_delink_count trays (or no delinks possible)
+            show_reject = len(valid_delinked) >= max_delink_count
+
+            if show_reject:
+                # ── Build reject pool = non-accepted, non-delinked ──
+                reject_pool = [t for t in all_trays_qs
+                               if _get_tray_id(t) not in accepted_set
+                               and _get_tray_id(t) not in delinked_set]
+
+                # ── Allocate rejected_qty in REVERSE order — same algo as iqf_submit_audit ──
+                reject_allocation = []
+                remaining_to_reject = rejected_qty
+                for t in reversed(reject_pool):
+                    if remaining_to_reject <= 0:
+                        break
+                    cap = _resolve_tray_cap(t)
+                    tid = _get_tray_id(t)
+                    is_top = False
+                    if isinstance(t, dict):
+                        is_top = bool(t.get('top_tray', False))
+                    else:
+                        is_top = bool(getattr(t, 'top_tray', False))
+                    take = min(cap, remaining_to_reject)
+                    reject_allocation.append({
+                        'tray_id': tid,
+                        'qty': take,
+                        'top_tray': is_top,
+                    })
+                    remaining_to_reject -= take
+                reject_allocation.reverse()
+            else:
+                # Delink not fully selected — don't compute reject yet
+                reject_pool = []
+                reject_allocation = []
+                remaining_to_reject = rejected_qty
+
+            # ── Compute reject pool capacity ──
+            reject_pool_capacity = 0
+            for t in all_trays_qs:
+                tid = _get_tray_id(t)
+                if tid not in accepted_set and tid not in delinked_set:
+                    reject_pool_capacity += _resolve_tray_cap(t)
 
         print(f'[DELINK MODAL] reject_pool={len(reject_pool)}, capacity={reject_pool_capacity} / {rejected_qty} needed')
 

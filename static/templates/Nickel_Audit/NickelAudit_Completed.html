@@ -23,6 +23,28 @@
 
 }
 
+.model-image-tooltip img,
+.model-image-tooltip .nickel-preview-img,
+.model-image-tooltip .model-preview-image {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+  filter: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.model-image-tooltip .image-container,
+.model-image-tooltip .preview-container,
+.model-image-tooltip .model-image-container {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 
   /* Core layout blocks */
   .content-wrapper,
@@ -566,6 +588,48 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     grid-template-columns: 30px 1fr 70px 90px !important;
   }
 }
+
+/* Nickel Audit model preview: show the full IV image without cropping */
+.model-image-tooltip .image-container {
+  width: 210px !important;
+  height: 190px !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.model-image-tooltip .nickel-preview-img,
+.model-image-tooltip .model-preview-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 210px !important;
+  max-height: 190px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  overflow: visible !important;
+  clip-path: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+}
+
+#trayScanModal_DayPlanning .user-profile img {
+  width: 64px !important;
+  height: 64px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 </style>
 
 <div class="content-wrapper">
@@ -727,7 +791,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.na_last_process_date_time|date:"h:i A" }}</span>
                         </td>
                                         <td >
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -743,9 +807,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
                             <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                            </div>
+                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;"></div>
                           </div>
                         </div>
                       </span>
@@ -886,10 +948,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                              data-stock-lot-id="{{ data.stock_lot_id }}"
                              data-batch-id="{{ data.batch_id }}"
                              data-model-no="{{ data.plating_stk_no }}"
+                         data-plating-stk-no="{{ data.plating_stk_no }}"
                              data-no-of-trays="{{ data.no_of_trays }}"
                              data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                              data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
-                             data-model-image="{{ data.model_images.0|default:'' }}"
+                             data-plating-stk-no="{{ data.plating_stk_no }}"
                              data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
                              data-brass-qc-accptance="{{ data.na_qc_accptance|default:'false' }}"
                              data-brass-qc-rejection="{{ data.na_qc_rejection|default:'false' }}"
@@ -999,7 +1062,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     
     <div class="modal-top-header" style="display: flex; align-items: center; gap: 20px; padding-bottom: 10px;">
       <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
-        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
+        <img src="/static/assets/images/imagePlaceholder.png" alt="Model preview" style="border:none; border-radius:0; box-shadow:none; background:transparent; width:64px; height:64px; object-fit:contain; object-position:center;" />
         <!-- Model No and Lot Qty in same line -->
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: center; gap: 15px;">
@@ -1694,11 +1757,37 @@ document.addEventListener("DOMContentLoaded", function () {
         modalModelNo.textContent = modelNo;
         
       }
-                  // Set model image
+      function setModalPreviewImage(link, modal) {
+        const modalUserImg = modal.querySelector('.user-profile img');
+        const stockNo = (link.dataset.platingStkNo || '').trim();
+        if (!modalUserImg || !stockNo) return;
+        const previewCache = window.NickelModelPreviewCache || new Map();
+        window.NickelModelPreviewCache = previewCache;
+        const renderPayload = function (payload) {
+          if (payload && payload.preview_image && modal.dataset.activePlatingStkNo === stockNo) {
+            modalUserImg.src = payload.preview_image;
+          }
+        };
+        modalUserImg.src = "";
+        if (previewCache.has(stockNo)) {
+          renderPayload(previewCache.get(stockNo));
+          return;
+        }
+        fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+          headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+        })
+          .then(function (response) { return response.ok ? response.json() : null; })
+          .then(function (payload) {
+            previewCache.set(stockNo, payload);
+            renderPayload(payload);
+          })
+          .catch(function () {});
+      }
+
+      modal.dataset.activePlatingStkNo = (link.dataset.platingStkNo || '').trim();
       const modalUserImg = modal.querySelector('.user-profile img');
-      const modelImage = link.getAttribute('data-model-image');
       if (modalUserImg) {
-        modalUserImg.src = modelImage || "/static/assets/images/imagePlaceholder.png";
+        setModalPreviewImage(link, modal);
       }
 
       
@@ -2290,48 +2379,51 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  document.querySelectorAll('.tray-scan-btn-Jig').forEach(function(link) {
-    link.addEventListener('click', function(event) {
-      // Remove highlight from all rows
-      document.querySelectorAll('tbody tr').forEach(function(row) {
-        row.classList.remove('dp-row-action-highlight');
-      });
-      // Move the clicked row to the top and highlight
-      var row = event.target.closest('tr');
-      if (row && row.parentNode) {
-        const tbody = row.parentNode;
-        // Only move if not already at top
-        if (tbody.firstElementChild !== row) {
-          // If a previous move exists, restore it first
-          if (movedRow && placeholderRow && placeholderRow.parentNode) {
-            placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-            placeholderRow.parentNode.removeChild(placeholderRow);
-            movedRow.classList.remove('dp-row-action-highlight');
-            movedRow = null;
-            placeholderRow = null;
-            originalRowIndex = null;
-          }
-          // Store original index and row
-          originalRowIndex = Array.from(tbody.children).indexOf(row);
-          movedRow = row;
-          // Insert a placeholder at the original position
-          placeholderRow = document.createElement('tr');
-          placeholderRow.style.display = 'none';
-          tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-          // Move row to top
-          tbody.insertBefore(row, tbody.firstElementChild);
-        }
-        row.classList.add('dp-row-action-highlight');
+  function highlightRow(row) {
+    if (!row || !row.parentNode) return;
+    restoreRowPosition();
+    var tbody = row.parentNode;
+    movedRow = row;
+    if (tbody.firstElementChild !== row) {
+      originalRowIndex = Array.from(tbody.children).indexOf(row);
+      placeholderRow = document.createElement('tr');
+      placeholderRow.style.display = 'none';
+      for (var i = 0; i < row.children.length; i += 1) {
+        placeholderRow.appendChild(document.createElement('td'));
       }
-    });
-  });
+      tbody.insertBefore(placeholderRow, row);
+      tbody.insertBefore(row, tbody.firstElementChild);
+    }
+    row.classList.add('dp-row-action-highlight');
+  }
+
+  function actionTarget(target) {
+    return target.closest(
+      '.hold-toggle-btn, .hold-remark-icon, .tray-scan-btn, .tray-scan-btn-Jig, .tray-scan-btn-BQ-view, .btn-accept-is:not(:disabled), .btn-reject-is:not(:disabled), .delete-batch-btn, .remark-send-btn, .remark-history-btn, .saved-remark-tooltip-trigger, .prev-remark-tooltip-trigger, .rejection-popup-trigger'
+    );
+  }
+
+  document.addEventListener('click', function(event) {
+    if (event.target.closest('.model-hover-trigger') || event.target.closest('.model-image-tooltip')) return;
+    var action = actionTarget(event.target);
+    if (!action) return;
+    highlightRow(action.closest('tr'));
+  }, true);
+
+  document.addEventListener('change', function(event) {
+    if (event.target.matches('.hold-toggle-btn')) {
+      highlightRow(event.target.closest('tr'));
+    }
+  }, true);
 
   // Handle multiple modal close buttons
   const closeButtons = [
     'closeTrayScanModal_DayPlanning',
     'closeTrayScanModal', 
     'closeNewPopupModal',
-    'closetrayScanModal_Jig'
+    'closetrayScanModal_Jig',
+    'closeHoldRemarkModal',
+    'closeRejectionPopup'
   ];
 
   closeButtons.forEach(function(buttonId) {
@@ -2345,7 +2437,9 @@ document.addEventListener("DOMContentLoaded", function() {
   const modals = [
     'trayScanModal_DayPlanning',
     'trayScanModal',
-    'newPopupModal'
+    'newPopupModal',
+    'holdRemarkModal',
+    'rejectionPopupModal'
   ];
 
   modals.forEach(function(modalId) {
@@ -2359,17 +2453,187 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
+  document.addEventListener('click', function(event) {
+    if (
+      event.target &&
+      (event.target.classList.contains('swal2-cancel') ||
+       event.target.classList.contains('swal2-close') ||
+       event.target.id === 'cancelButton' ||
+       event.target.id === 'naRejectCancelBtn')
+    ) {
+      restoreRowPosition();
+    }
+  });
+
   // Handle ESC key to restore position
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
       restoreRowPosition();
     }
   });
+  window.naRestoreRowPosition = restoreRowPosition;
 });
 </script>
 
 <!-- Plating Stk - Image hover - fixed position while hitting the Plating Stk No -->
 <script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  const previewCache = window.NickelModelPreviewCache || new Map();
+  window.NickelModelPreviewCache = previewCache;
+  let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+
+  function stockFromTrigger(trigger) {
+    return ((trigger && trigger.dataset.platingStkNo) || "").trim();
+  }
+
+  function fetchPreview(stockNo) {
+    if (previewCache.has(stockNo)) {
+      return Promise.resolve(previewCache.get(stockNo));
+    }
+    return fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (payload) {
+        previewCache.set(stockNo, payload);
+        return payload;
+      })
+      .catch(function () {
+        previewCache.set(stockNo, null);
+        return null;
+      });
+  }
+
+  function prepareTooltip(tooltip) {
+    if (!tooltip || tooltip.dataset.previewReady === "1") return;
+    tooltip.dataset.previewReady = "1";
+    tooltip.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;">' +
+        '<button type="button" class="info-btn" style="background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Info</button>' +
+        '<button type="button" class="close-btn" style="background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Close</button>' +
+      '</div>' +
+      '<div class="image-container" style="display:flex;align-items:center;justify-content:center;width:210px;height:190px;border:none;border-radius:0;background:transparent;box-shadow:none;overflow:visible;padding:0;">' +
+        '<img class="nickel-preview-img" src="" alt="Model preview" style="display:block;width:100%;height:100%;max-width:210px;max-height:190px;object-fit:contain;object-position:center;border:none;border-radius:0;box-shadow:none;background:transparent;outline:none;clip-path:none;" loading="lazy" />' +
+      '</div>';
+  }
+
+  function closeTooltip(tooltip, trigger) {
+    if (!tooltip) return;
+    tooltip.classList.remove("pinned");
+    tooltip.style.opacity = "0";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.display = "none";
+    if (trigger) {
+      trigger.style.backgroundColor = "";
+      trigger.style.borderRadius = "";
+    }
+    if (openTooltip === tooltip) {
+      openTooltip = null;
+      activeTrigger = null;
+      activeStockNo = "";
+    }
+  }
+
+  function renderPreview(trigger, stockNo, payload) {
+    if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const img = tooltip ? tooltip.querySelector(".nickel-preview-img") : null;
+    if (img && payload && payload.preview_image) {
+      img.src = payload.preview_image;
+    } else if (img) {
+      img.removeAttribute("src");
+    }
+  }
+
+  function showTooltip(trigger, pinned) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const stockNo = stockFromTrigger(trigger);
+    if (!tooltip || !stockNo) return;
+    if (openTooltip && openTooltip !== tooltip) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+    openTooltip = tooltip;
+    prepareTooltip(tooltip);
+    tooltip.style.display = "flex";
+    tooltip.style.visibility = "visible";
+    tooltip.style.opacity = "1";
+    tooltip.style.pointerEvents = "auto";
+    if (pinned) {
+      tooltip.classList.add("pinned");
+      trigger.style.backgroundColor = "#e3f2fd";
+      trigger.style.borderRadius = "4px";
+    }
+    fetchPreview(stockNo).then(function (payload) {
+      renderPreview(trigger, stockNo, payload);
+    });
+  }
+
+  document.querySelectorAll(".model-hover-trigger").forEach(function (trigger) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    if (!tooltip) return;
+    prepareTooltip(tooltip);
+
+    trigger.addEventListener("mouseenter", function () {
+      if (!tooltip.classList.contains("pinned")) showTooltip(trigger, false);
+    });
+    trigger.addEventListener("mouseleave", function () {
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
+    });
+    tooltip.addEventListener("mouseenter", function () {
+      if (openTooltip === tooltip) {
+        tooltip.style.display = "flex";
+        tooltip.style.visibility = "visible";
+        tooltip.style.opacity = "1";
+        tooltip.style.pointerEvents = "auto";
+      }
+    });
+    tooltip.addEventListener("mouseleave", function () {
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
+    });
+    trigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      showTooltip(trigger, true);
+    });
+
+    const infoBtn = tooltip.querySelector(".info-btn");
+    if (infoBtn) {
+      infoBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const stockNo = activeTrigger ? stockFromTrigger(activeTrigger) : stockFromTrigger(trigger);
+        if (!stockNo) return;
+        window.location.href = "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
+      });
+    }
+
+    const closeBtn = tooltip.querySelector(".close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTooltip(tooltip, trigger);
+      });
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (openTooltip && !e.target.closest(".model-image-tooltip") && !e.target.closest(".model-hover-trigger")) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && openTooltip) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+  });
+});
+
 document.addEventListener("DOMContentLoaded", function () {
   let openTooltip = null;
 
@@ -2407,7 +2671,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Tooltip show/hide logic
-  document.querySelectorAll(".model-hover-trigger").forEach(function (trigger) {
+  document.querySelectorAll(".model-hover-trigger[data-na-legacy-hover-disabled='true']").forEach(function (trigger) {
     const tooltip = trigger.querySelector(".model-image-tooltip");
 
     trigger.addEventListener("mouseenter", function () {

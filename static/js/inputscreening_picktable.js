@@ -307,65 +307,55 @@ document.addEventListener("DOMContentLoaded", function () {
     var style = document.createElement("style");
     style.id = "dp-row-action-highlight-style";
     style.innerHTML = `
-         .dp-row-action-highlight {
-           transition: box-shadow 1.3s;
+         .dp-row-action-highlight > td,
+         tr.action-row-highlight > td {
            background-color: #fff5bd !important;
-           animation: highlightAnimation 2s ease-in-out;
+           transition: background-color 0.2s ease;
          }
        `;
     document.head.appendChild(style);
   }
-  let originalRowIndex = null;
-  let movedRow = null;
-  let placeholderRow = null;
+  let activeRowState = null;
   // Function to handle row highlighting and movement
   function handleRowHighlight(event) {
-    // Remove highlight from all rows
-    document.querySelectorAll("tbody tr").forEach(function (row) {
-      row.classList.remove("dp-row-action-highlight");
-    });
     // Move the clicked row to the top and highlight
     var row = event.target.closest("tr");
+    console.log("🐛 [DEBUG] handleRowHighlight fired. event.target:", event.target.tagName, event.target.className, "| row found:", !!row);
     if (row && row.parentNode) {
-      const tbody = row.parentNode;
-      // Only move if not already at top
-      if (tbody.firstElementChild !== row) {
-        // If a previous move exists, restore it first
-        if (movedRow && placeholderRow && placeholderRow.parentNode) {
-          placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-          placeholderRow.parentNode.removeChild(placeholderRow);
-          movedRow.classList.remove("dp-row-action-highlight");
-          movedRow = null;
-          placeholderRow = null;
-          originalRowIndex = null;
-        }
-        // Store original index and row
-        originalRowIndex = Array.from(tbody.children).indexOf(row);
-        movedRow = row;
-        // Insert a placeholder at the original position
-        placeholderRow = document.createElement("tr");
-        placeholderRow.style.display = "none";
-        tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-        // Move row to top
-        tbody.insertBefore(row, tbody.firstElementChild);
-      }
-      row.classList.add("dp-row-action-highlight");
+      restoreRowPosition();
+      const parent = row.parentNode;
+      const nextSibling = row.nextSibling;
+      activeRowState = { row: row, parent: parent, nextSibling: nextSibling };
+      row.classList.add("dp-row-action-highlight", "action-row-highlight");
+      console.log("🐛 [DEBUG] before insertBefore. parent.tagName:", parent.tagName, "| row is currently child #", Array.from(parent.children).indexOf(row));
+      parent.insertBefore(row, parent.firstElementChild);
+      console.log("🐛 [DEBUG] after insertBefore. row is now child #", Array.from(parent.children).indexOf(row), "| row classList:", row.className);
+      setTimeout(function () {
+        console.log("🐛 [DEBUG] 500ms later, row is child #", Array.from(parent.children).indexOf(row), "| row classList:", row.className, "| still in DOM:", document.body.contains(row));
+      }, 500);
+    } else {
+      console.log("🐛 [DEBUG] handleRowHighlight aborted — no row or no parentNode found");
     }
   }
   // Function to restore row position and remove highlight
   function restoreRowPosition() {
-    if (movedRow && placeholderRow && placeholderRow.parentNode) {
-      placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-      placeholderRow.parentNode.removeChild(placeholderRow);
-      movedRow.classList.remove("dp-row-action-highlight");
+    if (activeRowState) {
+      const row = activeRowState.row;
+      const parent = activeRowState.parent;
+      const nextSibling = activeRowState.nextSibling;
+      row.classList.remove("dp-row-action-highlight", "action-row-highlight");
+      if (nextSibling && nextSibling.parentNode === parent) {
+        parent.insertBefore(row, nextSibling);
+      } else if (parent) {
+        parent.appendChild(row);
+      }
+      activeRowState = null;
     }
-    movedRow = null;
-    placeholderRow = null;
-    originalRowIndex = null;
     // Clear ALL possible highlight classes from all rows
     document.querySelectorAll("tbody tr").forEach(function (row) {
       row.classList.remove(
         "dp-row-action-highlight",
+        "action-row-highlight",
         "gkb-row-focus",
         "is-kbd-selected",
         "gs-active-scan",
@@ -381,11 +371,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   document.addEventListener("click", function (event) {
     var trigger = event.target.closest(
-      ".tray-scan-btn-Jig, .tray-scan-btn-DayPlanning-view, .btn-accept-is, .btn-reject-is"
+      ".tray-scan-btn-Jig, .tray-scan-btn-DayPlanning-view, .btn-accept-is, .btn-reject-is, .ip-remark-send-btn"
     );
     if (!trigger || !document.getElementById("order-listing") || !document.getElementById("order-listing").contains(trigger)) return;
     handleRowHighlight.call(trigger, event);
   });
+  // Expose handleRowHighlight globally so other scripts (e.g. hold/unhold toggle) can call it
+  window.handleRowHighlight = handleRowHighlight;
   document.addEventListener("globalScan:pageUpdated", restoreRowPosition);
   document.addEventListener("globalScan:closed", function (event) {
     if (event && event.detail && event.detail.reason === "success") return;
@@ -451,6 +443,9 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("🎯 Hold toggle clicked");
         const holdCell = newBtn.closest("td");
         const row = holdCell.closest("tr");
+        if (typeof window.handleRowHighlight === "function") {
+          window.handleRowHighlight(e);
+        }
         // Store state globally with all needed data
         window.holdToggleState = {
           currentHoldCell: holdCell,
@@ -478,6 +473,14 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
   // Save hold/unhold reason
+  function restoreHoldToggleState() {
+    if (!window.holdToggleState || !window.holdToggleState.currentHoldCell) return;
+    const toggle = window.holdToggleState.currentHoldCell.querySelector(".hold-toggle-btn");
+    if (toggle) {
+      toggle.checked = !window.holdToggleState.intendedState;
+    }
+  }
+
   function setupSaveButton() {
     const saveBtn = document.getElementById("saveHoldRemarkBtn");
     if (saveBtn && !window.holdSaveHandlerAttached) {
@@ -546,12 +549,19 @@ document.addEventListener("DOMContentLoaded", function () {
               }
               // Update UI immediately
               updateRowUI(window.holdToggleState.currentLotId, action, remark);
+              if (typeof window.restoreRowPosition === "function") {
+                window.restoreRowPosition();
+              }
               // Refresh page after a short delay
               setTimeout(() => {
                 location.reload();
               }, 1500);
             } else {
               errorDiv.textContent = data.error || "Failed to save reason!";
+              restoreHoldToggleState();
+              if (typeof window.restoreRowPosition === "function") {
+                window.restoreRowPosition();
+              }
             }
           })
           .catch((error) => {
@@ -559,6 +569,10 @@ document.addEventListener("DOMContentLoaded", function () {
             saveBtn.disabled = false;
             saveBtn.textContent = "Save";
             errorDiv.textContent = "Network error occurred!";
+            restoreHoldToggleState();
+            if (typeof window.restoreRowPosition === "function") {
+              window.restoreRowPosition();
+            }
           });
       };
     }
@@ -572,15 +586,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("�?� Close button clicked");
         document.getElementById("holdRemarkModal").style.display = "none";
         // Reset toggle to original state
-        if (window.holdToggleState.currentHoldCell) {
-          const toggle =
-            window.holdToggleState.currentHoldCell.querySelector(
-              ".hold-toggle-btn",
-            );
-          if (toggle) {
-            toggle.checked = !window.holdToggleState.intendedState; // Revert to original state
-          }
-        }
+        restoreHoldToggleState();
         // Clear state
         window.holdToggleState = {
           currentHoldCell: null,
@@ -589,6 +595,9 @@ document.addEventListener("DOMContentLoaded", function () {
           currentLotId: null,
           rowIdentifier: null,
         };
+        if (typeof window.restoreRowPosition === "function") {
+          window.restoreRowPosition();
+        }
       };
     }
   }
@@ -664,6 +673,109 @@ document.addEventListener("DOMContentLoaded", function () {
 // ====== Original inline block #6 ======
 document.addEventListener("DOMContentLoaded", function () {
   let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+  const previewCache = new Map();
+
+  function getStockNo(trigger) {
+    return (trigger && trigger.dataset ? trigger.dataset.platingStkNo : "").trim();
+  }
+
+  function normalizeImageUrl(rawUrl) {
+    const value = String(rawUrl || "").trim();
+    if (!value) return "";
+    try {
+      const parsed = new URL(value, window.location.origin);
+      if (parsed.origin === window.location.origin) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+      return parsed.href;
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function setTooltipLoading(tooltip) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;">Loading...</span>';
+  }
+
+  function setTooltipMessage(tooltip, message) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.textContent = "";
+    const messageEl = document.createElement("span");
+    messageEl.textContent = message;
+    messageEl.style.cssText = "font-size:12px;color:#777;text-align:center;";
+    gallery.appendChild(messageEl);
+  }
+
+  function renderPreviewImage(trigger, payload) {
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+
+    const imageUrl = normalizeImageUrl(payload && payload.preview_image);
+    if (!imageUrl) {
+      setTooltipMessage(tooltip, "Image unavailable");
+      return;
+    }
+
+    gallery.textContent = "";
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Model image";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.style.cssText =
+      "width:100%;height:100%;object-fit:contain;object-position:center;" +
+      "border-radius:6px;background:#fff;display:block;";
+
+    gallery.appendChild(image);
+  }
+
+  function loadStockPreview(trigger) {
+    const stockNo = getStockNo(trigger);
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    if (!stockNo || !tooltip) return;
+
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+
+    if (previewCache.has(stockNo)) {
+      renderPreviewImage(trigger, previewCache.get(stockNo));
+      return;
+    }
+
+    setTooltipLoading(tooltip);
+    fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: {
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        return response.json();
+      })
+      .then(function (payload) {
+        previewCache.set(stockNo, payload);
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) {
+          return;
+        }
+        renderPreviewImage(trigger, payload);
+      })
+      .catch(function () {
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) {
+          return;
+        }
+        setTooltipMessage(tooltip, "Image unavailable");
+      });
+  }
+
   // Helper function to completely close a tooltip
   function closeTooltip(tooltip, trigger) {
     if (tooltip) {
@@ -687,6 +799,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       // Clear global reference
       openTooltip = null;
+      if (activeTrigger === trigger) {
+        activeTrigger = null;
+        activeStockNo = "";
+      }
       console.log("✅ Tooltip completely closed");
     }
   }
@@ -695,21 +811,12 @@ document.addEventListener("DOMContentLoaded", function () {
     .forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        // Find the closest row
-        const row = btn.closest("tr");
-        let lotId = null;
-        let batchId = null;
-        if (row) {
-          batchId = row.getAttribute("data-batch-id");
-        }
-        // Build the URL with lot_id and batch_id if found
+        const trigger = btn.closest(".model-hover-trigger");
+        const stockNo = getStockNo(trigger);
+        if (!stockNo) return;
+
         let url = "/adminportal/dp_visualaid/";
-        if (lotId) {
-          url += encodeURIComponent(lotId) + "/";
-        }
-        if (batchId) {
-          url += "?batch_id=" + encodeURIComponent(batchId);
-        }
+        url += "?plating_stk_no=" + encodeURIComponent(stockNo);
         window.location.href = url;
       });
     });
@@ -718,6 +825,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const tooltip = trigger.querySelector(".model-image-tooltip");
     trigger.addEventListener("mouseenter", function () {
       if (tooltip && !tooltip.classList.contains("pinned")) {
+        loadStockPreview(trigger);
         tooltip.style.display = "flex"; // ✅ ADDED: Reset display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Reset visibility
         tooltip.style.opacity = "1";
@@ -775,6 +883,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const prevTrigger = openTooltip.closest(".model-hover-trigger");
           closeTooltip(openTooltip, prevTrigger);
         }
+        loadStockPreview(trigger);
         tooltip.classList.add("pinned");
         tooltip.style.display = "flex"; // ✅ ADDED: Ensure display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Ensure visibility
@@ -2184,6 +2293,7 @@ document.addEventListener("DOMContentLoaded", function () {
               window.alert(err);
             }
             restoreBtn();
+            restoreRowPosition();
             return;
           }
           if (typeof Swal !== "undefined") {
@@ -2209,6 +2319,7 @@ document.addEventListener("DOMContentLoaded", function () {
             window.alert("Network error.");
           }
           restoreBtn();
+          restoreRowPosition();
         });
     };
 
@@ -2235,15 +2346,14 @@ document.addEventListener("DOMContentLoaded", function () {
             else confirmBtn.focus();
           });
         },
-        willClose: function() {
-          restoreRowPosition();
-        },
       }).then(function (r) {
         if (r.isConfirmed) doSubmit();
         else restoreRowPosition();
       });
     } else if (window.confirm("Accept this lot? All trays have been verified.")) {
       doSubmit();
+    } else {
+      restoreRowPosition();
     }
   });
   // ─── Reject button click ── handled by inputscreening_reject_modal.js ──────
@@ -2286,6 +2396,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (typeof Swal !== "undefined") {
             Swal.fire({ icon: "error", title: "Error", text: data.error || "Failed to save remark.", timer: 2000, showConfirmButton: false });
           }
+          restoreRowPosition();
         }
       })
       .catch(function () {
@@ -2294,6 +2405,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof Swal !== "undefined") {
           Swal.fire({ icon: "error", title: "Network Error", text: "Could not save remark.", timer: 2000, showConfirmButton: false });
         }
+        restoreRowPosition();
       });
   });
 });

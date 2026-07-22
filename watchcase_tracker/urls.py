@@ -92,6 +92,7 @@ urlpatterns = [
     path('reports_module/', include('ReportsModule.urls', namespace='reports_module')),
     path('spider_spindle/', include('SpiderSpindle_Z1.urls')),
     path('spider_spindle_zone_two/', include('SpiderSpindle_Z2.urls')),
+    path('sop_management/', include('SOPManagement.urls', namespace='sop_management')),
     
     
     

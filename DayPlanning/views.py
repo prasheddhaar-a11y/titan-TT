@@ -26,6 +26,7 @@ from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
 from modelmasterapp.models import RowAccessLock, DraftTrayId
+from modelmasterapp.type_of_input import label_for_upload_type
 from watchcase_tracker.perf_logger import time_stage
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
@@ -1534,6 +1535,7 @@ class DayPlanningPickTableAPIView(APIView):
             'release_reason',
             'accepted_Ip_stock',
             'tray_scan_status',
+            'upload_type',
         ))
         dp_data_fetch.__exit__(None, None, None)
 
@@ -1594,6 +1596,7 @@ class DayPlanningPickTableAPIView(APIView):
             data['tray_capacity'] = prejig_cap
             tray_capacity = prejig_cap
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
+            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
 
             # ✅ ENHANCED: Determine if this lot needs top tray scan
             tray_scan_status = data.get('tray_scan_status', False)
@@ -1644,6 +1647,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status',
             'Lot Status',
             'Current Stage',
+            'Type of Input',
             'Polishing Stk No',
             'Plating Color',
             'Category',
@@ -1665,6 +1669,7 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status': 'Process Status',
             'Lot Status': 'Lot Status',
             'Current Stage': 'Current Stage',
+            'Type of Input': 'Type of Input',
             'Polishing Stk No': 'Polishing Stk No',
             'Plating Color': 'Plating Color',
             'Category': 'Category',
@@ -3184,7 +3189,8 @@ class DPCompletedTableView(APIView):
             'rejected_ip_stock',
             'few_cases_accepted_Ip_stock',
             'ip_person_qty_verified',
-            'draft_tray_verify'
+            'draft_tray_verify',
+            'upload_type',
         ))
 
         # ✅ PERF: Batch-fetch model images ONCE for the whole page instead of a
@@ -3211,6 +3217,7 @@ class DPCompletedTableView(APIView):
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
+            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
             # Backend-owned "Current Stage" display: use only the live
             # current_stage SSOT (written by each module on its own real
             # processing action — draft/verify/submit), falling back to

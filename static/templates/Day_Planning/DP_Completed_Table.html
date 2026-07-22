@@ -589,20 +589,21 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                 </td>           
                     <!-- Plating Stk No Column -->
 <td {% if row.hold_lot %}class="row-inactive-blur"{% endif %} style="white-space:normal;word-break:break-all;">
-  <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+  <span class="model-hover-trigger"
+        data-plating-stk-no="{{ row.plating_stk_no }}"
+        style="cursor: pointer; word-break: break-all; position: relative;">
     {{ row.plating_stk_no|highlight_plating_color|safe_html }}
 
     <div class="model-image-tooltip"
          style="position: absolute; left: 238%; top: 0%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 10010; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s;">          
       <button class="close-btn" style="position:absolute; top:8px; right:8px;">Close</button>
         <button class="info-btn" style="position:absolute; top:8px; left:8px;">Info</button>
-         <button class="img-scroll-left" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
-          <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-            <img src="{{ row.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" 
-                style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+         <button class="img-scroll-left" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
+          <div class="img-gallery" style="display: flex; justify-content:center; align-items:center; gap: 6px; overflow: hidden; width: 180px; min-height: 130px;">
+            <span style="font-size:12px;color:#777;text-align:center;">Loading...</span>
           </div>
 
-      <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
+      <button class="img-scroll-right" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
     </div>
   </span>
 </td>
@@ -771,7 +772,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         border-radius: 50%;
                         width: 50px;
                         height: 50px;
-                        object-fit: cover;
+                        object-fit: contain;
+                        object-position: center;
                       "
                     />
                     <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1023,6 +1025,131 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
   let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+  const previewCache = new Map();
+
+  function getStockNo(trigger) {
+    return (trigger && trigger.dataset ? trigger.dataset.platingStkNo : "").trim();
+  }
+
+  function normalizeImageUrl(rawUrl) {
+    const value = String(rawUrl || "").trim();
+    if (!value) return "";
+    try {
+      const parsed = new URL(value, window.location.origin);
+      if (parsed.origin === window.location.origin) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+      return parsed.href;
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function setTooltipLoading(tooltip) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;">Loading...</span>';
+  }
+
+  function setTooltipMessage(tooltip, message) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.textContent = "";
+    const messageEl = document.createElement("span");
+    messageEl.textContent = message;
+    messageEl.style.cssText = "font-size:12px;color:#777;text-align:center;";
+    gallery.appendChild(messageEl);
+  }
+
+  function renderPreviewImage(trigger, payload) {
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+
+    const imageUrl = normalizeImageUrl(payload && payload.preview_image);
+    if (!imageUrl) {
+      setTooltipMessage(tooltip, "Image unavailable");
+      return;
+    }
+
+    gallery.textContent = "";
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;";
+
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Model image";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.style.cssText =
+      "width:120px;height:120px;object-fit:contain;object-position:center;" +
+      "border-radius:6px;background:#fff;display:block;";
+
+    wrapper.appendChild(image);
+    gallery.appendChild(wrapper);
+  }
+
+  function positionTooltipInViewport(tooltip) {
+    if (!tooltip) return;
+    tooltip.style.left = "238%";
+    tooltip.style.right = "auto";
+    tooltip.style.transform = "translateX(-50%)";
+
+    const rect = tooltip.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      tooltip.style.left = "auto";
+      tooltip.style.right = "0";
+      tooltip.style.transform = "none";
+    }
+    if (rect.left < 8) {
+      tooltip.style.left = "0";
+      tooltip.style.right = "auto";
+      tooltip.style.transform = "none";
+    }
+  }
+
+  function loadStockPreview(trigger) {
+    const stockNo = getStockNo(trigger);
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    if (!stockNo || !tooltip) return;
+
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+
+    if (previewCache.has(stockNo)) {
+      renderPreviewImage(trigger, previewCache.get(stockNo));
+      return;
+    }
+
+    setTooltipLoading(tooltip);
+    fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: {
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        return response.json();
+      })
+      .then(function(payload) {
+        previewCache.set(stockNo, payload);
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) {
+          return;
+        }
+        renderPreviewImage(trigger, payload);
+      })
+      .catch(function() {
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) {
+          return;
+        }
+        setTooltipMessage(tooltip, "Image unavailable");
+      });
+  }
 
   // Helper function to completely close a tooltip
   function closeTooltip(tooltip, trigger) {
@@ -1052,6 +1179,10 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Clear global reference
       openTooltip = null;
+      if (activeTrigger === trigger) {
+        activeTrigger = null;
+        activeStockNo = "";
+      }
       
       console.log('✅ Tooltip completely closed');
     }
@@ -1060,22 +1191,12 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".model-image-tooltip .info-btn").forEach(function(btn) {
   btn.addEventListener("click", function(e) {
     e.stopPropagation();
-    // Find the closest row
-    const row = btn.closest('tr');
-    let lotId = null; 
-    let batchId = null;
-    if (row) {
-      lotId = row.getAttribute('data-lot-id');
-      batchId = row.getAttribute('data-batch-id');
-    }
-    // Build the URL with lot_id and batch_id if found
+    const trigger = btn.closest(".model-hover-trigger");
+    const stockNo = getStockNo(trigger);
+    if (!stockNo) return;
+
     let url = "/adminportal/dp_visualaid/";
-    if (lotId) {
-      url += encodeURIComponent(lotId) + "/";
-    }
-    if (batchId) {
-      url += "?batch_id=" + encodeURIComponent(batchId);
-    }
+    url += "?plating_stk_no=" + encodeURIComponent(stockNo);
     window.location.href = url;
   });
 });
@@ -1087,10 +1208,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
     trigger.addEventListener("mouseenter", function () {
       if (tooltip && !tooltip.classList.contains("pinned")) {
+        if (openTooltip && openTooltip !== tooltip) {
+          const prevTrigger = openTooltip.closest('.model-hover-trigger');
+          closeTooltip(openTooltip, prevTrigger);
+        }
+        openTooltip = tooltip;
+        loadStockPreview(trigger);
         tooltip.style.display = "flex"; // ✅ ADDED: Reset display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Reset visibility
         tooltip.style.opacity = "1";
         tooltip.style.pointerEvents = "auto";
+        positionTooltipInViewport(tooltip);
         
         // Show Info and Close buttons on hover
         const infoBtn = tooltip.querySelector('.info-btn');
@@ -1154,12 +1282,14 @@ document.addEventListener("DOMContentLoaded", function () {
           closeTooltip(openTooltip, prevTrigger);
         }
 
+        loadStockPreview(trigger);
         tooltip.classList.add("pinned");
         tooltip.style.display = "flex"; // ✅ ADDED: Ensure display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Ensure visibility
         tooltip.style.opacity = "1";
         tooltip.style.pointerEvents = "auto";
         openTooltip = tooltip;
+        positionTooltipInViewport(tooltip);
         
         // Keep buttons visible when pinned
         const infoBtn = tooltip.querySelector('.info-btn');
@@ -1674,14 +1804,45 @@ document.addEventListener("DOMContentLoaded", function () {
         modalInputQty.textContent = totalBatchQuantity;
       }
 
-      // Set model image
+      // Set the tray modal model image from the shared dynamic resolver.
+      // The API returns IV as preview_image when available, with
+      // TV -> FV -> RSV -> dynamic NO_IMAGE fallback handled by the backend.
       const modalUserImg = modal.querySelector('.user-profile img');
-      const modelImage = link.getAttribute('data-model-image');
       if (modalUserImg) {
-        if (modelImage) {
-          modalUserImg.src = modelImage;
-        } else {
-          modalUserImg.src = "/static/assets/images/imagePlaceholder.png";
+        modalUserImg.alt = modelNo ? `Model ${modelNo} preview` : "Model preview";
+        modalUserImg.style.objectFit = "contain";
+        modalUserImg.style.objectPosition = "center";
+
+        try {
+          const previewResponse = await fetch(
+            "/adminportal/api/model-hover-preview/?stock_no=" +
+              encodeURIComponent(modelNo || ""),
+            {
+              headers: {
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+              }
+            }
+          );
+
+          if (!previewResponse.ok) {
+            throw new Error(`Model preview request failed: ${previewResponse.status}`);
+          }
+
+          const previewPayload = await previewResponse.json();
+          if (!previewPayload || !previewPayload.preview_image) {
+            throw new Error("Model preview URL is missing");
+          }
+
+          modalUserImg.src = previewPayload.preview_image;
+        } catch (previewError) {
+          console.error("Unable to load dynamic model preview:", previewError);
+
+          // Preserve the existing row-provided image only as a network/error
+          // fallback. Normal model and NO_IMAGE selection comes from the API.
+          const legacyModelImage = link.getAttribute('data-model-image');
+          modalUserImg.src =
+            legacyModelImage || "/static/assets/images/imagePlaceholder.png";
         }
       }
 

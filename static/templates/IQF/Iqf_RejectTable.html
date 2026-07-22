@@ -1,115 +1,8 @@
-{% extends "base.html" %} {% load static %} {% block content %}
-{% load stock_filters %} 
-
+{% extends "base.html" %} 
+{% load static %}
+{% block content %} 
+{% load stock_filters %}
 <style nonce="{{ csp_nonce }}">
-
-/* ===== SORTING STYLES ===== */
-.table th {
-    position: relative;
-    padding-right: 30px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.table th .fa-filter,
-.table th .fa-sort,
-.table th .fa-sort-up,
-.table th .fa-sort-down {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: white;
-    font-size: 12px;
-}
-
-.table th .fa-sort-up {
-    color: #ffd700 !important; /* Active sort ascending - yellow */
-}
-
-.table th .fa-sort-down {
-    color: #ffd700 !important; /* Active sort descending - yellow */
-}
-
-.table th:hover .fa-filter,
-.table th:hover .fa-sort {
-    color: #ffd700 !important;
-}
-
-.table th.sortable {
-    cursor: pointer;
-}
-
-.table th.sortable:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-/* ===== END SORTING STYLES ===== */
-
-  .rejection-table td, .rejection-table th {
-  padding: 10px 12px;
-  border: 1px solid #e6e6e6;
-  vertical-align: middle;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 13px;
-}
-.rejection-table thead th { background:#028084; color:#000; font-weight:600; }
-
-.mark-circle {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:32px;
-  height:32px;
-  border-radius:50%;
-  color:#fff;
-  font-weight:700;
-  font-size:13px;
-  box-shadow: 0 0 0 2px #fff;
-  margin:0 auto;
-}
-
-/* small palette used for deterministic colors */
-.mark-circle.c0 { background:#2d3436; }
-.mark-circle.c1 { background:#d63031; }
-.mark-circle.c2 { background:#fdcb6e; color:#222; }
-.mark-circle.c3 { background:#0984e3; }
-.mark-circle.c4 { background:#6c5ce7; }
-
-/* keep modal table responsive */
-.rejection-table { width:100%; border-collapse:collapse; }
-.rejection-table tbody tr td { text-align:center; }
-.rejection-table tbody tr td.reason-cell { text-align:left; }
-
-  /* --- small, non-invasive styles for rejection circles --- */
-.rejection-popup-trigger { display: inline-flex !important; align-items: center; gap: 6px; vertical-align: middle; }
-.rejection-popup-trigger .remark-circle {
-  width: 22px; height: 22px; min-width:22px;
-  border-radius:50%;
-  display:inline-flex; align-items:center; justify-content:center;
-  color:#fff; font-weight:700; font-size:12px; line-height:1;
-  box-shadow: 0 0 0 2px #fff;
-  flex: 0 0 auto;
-  text-transform: uppercase;
-  margin: 0;
-}
-/* deterministic color set for first three circles */
-.rejection-popup-trigger .remark-circle[data-index="0"]{ background:#e74c3c !important; } /* red */
-.rejection-popup-trigger .remark-circle[data-index="1"]{ background:#f39c12 !important; } /* orange */
-.rejection-popup-trigger .remark-circle[data-index="2"]{ background:#3498db !important; } /* blue */
-
-.rejection-popup-trigger .remark-expand {
-  display:inline-flex; align-items:center; justify-content:center;
-  min-width:28px; height:22px; padding:0 6px;
-  border-radius:12px; background:#ecf0f1; border:1px solid #d0d6d9;
-  color:#2c3e50; cursor:pointer; flex:0 0 auto;
-}
-/* ensure table cell doesn't clip trigger */
-#order-listing td { overflow: visible; }
-/* responsive tweaks */
-@media (max-width:420px){
-  .rejection-popup-trigger .remark-circle{ width:20px; height:20px; font-size:11px; }
-  .rejection-popup-trigger .remark-expand{ min-width:26px; height:20px; font-size:11px; }
-}
 /* ========== Tablet override — paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
@@ -119,9 +12,11 @@
 }
 
 :root { --app-font-size: var(--ttt-font-size-tablet); }
+
 .rounded-circle{
   padding: 17px !important;
 }
+
 .model-image-tooltip{
   transform: translateX(-25%) !important;
   top: 45% !important;
@@ -190,8 +85,8 @@
   #order-listing td:nth-child(1) {
     position: sticky;
     left: 0 !important;
-    min-width: 110px !important;
-    max-width: 110px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
     background: #f7fafd;
     z-index: 30;
   }
@@ -200,7 +95,7 @@
   #order-listing th:nth-child(2),
   #order-listing td:nth-child(2) {
     position: sticky;
-    left: 110px !important;   /* = width of col1 */
+    left: 90px !important;   /* = width of col1 */
     min-width: 125px !important;
     max-width: 125px !important;
     background: #f7fafd;
@@ -211,7 +106,7 @@
   #order-listing th:nth-child(3),
   #order-listing td:nth-child(3) {
     position: sticky;
-    left: 235px !important;  /* 90 (col1) + 125 (col2 min) */
+    left: 215px !important;  /* 75 (col1) + 100 (col2 min) */
     min-width: 140px !important;
     max-width: 140px !important;
     background: #f7fafd;
@@ -237,16 +132,16 @@
   #order-listing th:nth-child(4)  { min-width: 135px !important; max-width: 135px !important; }
   #order-listing th:nth-child(5)  { min-width: 115px !important; max-width: 115px !important; }
   #order-listing th:nth-child(6)  { min-width: 135px !important; max-width: 135px !important; }
-  #order-listing th:nth-child(7)  { min-width: 130px !important; max-width: 130px !important; }
+  #order-listing th:nth-child(7)  { min-width: 135px !important; max-width: 140px !important; }
   #order-listing th:nth-child(8)  { min-width: 140px !important; max-width: 140px !important; }
   #order-listing th:nth-child(9)  { min-width: 140px !important; max-width: 145px !important; }
   #order-listing th:nth-child(10) { min-width: 140px !important; max-width: 140px !important; }
-  #order-listing th:nth-child(11) { min-width: 120px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(12) { min-width: 140px !important; max-width: 140px !important; }
-  #order-listing th:nth-child(13) { min-width: 140px !important; max-width: 150px !important; }
-  #order-listing th:nth-child(14) { min-width: 130px !important; max-width: 130px !important; }
-  #order-listing th:nth-child(15) { min-width: 110px !important; max-width: 100px !important; }
-  #order-listing th:nth-child(16) { min-width: 120px !important; max-width: 150px !important; }
+  #order-listing th:nth-child(11) { min-width: 130px !important; max-width: 130px !important; }
+  #order-listing th:nth-child(12) { min-width: 120px !important; max-width: 140px !important; }
+  #order-listing th:nth-child(13) { min-width: 120px !important; max-width: 120px !important; }
+  #order-listing th:nth-child(14) { min-width: 140px !important; max-width: 140px !important; }
+  #order-listing th:nth-child(15) { min-width: 130px !important; max-width: 130px !important; }
+  #order-listing th:nth-child(16) { min-width: 120px !important; max-width: 130px !important; }
   #order-listing th:nth-child(17) { min-width: 130px !important; max-width: 130px !important; }
   #order-listing th:nth-child(18) { min-width: 130px !important; max-width: 130px !important; }
   #order-listing th:nth-child(19) { min-width: 140px !important; max-width: 140px !important; }
@@ -265,671 +160,577 @@
     display: none !important;
   }
 }
-      /* Add to your CSS file for Excel-like grid lines */
-.table-bordered th, .table-bordered td {
-  border: 1px solid #d9dedf !important;
-}
+  /* Add to your CSS file for Excel-like grid lines */
+  .table-bordered th,
+  .table-bordered td {
+    border: 1px solid #d9dedf !important;
+  }
   /* Make the table header sticky */
-thead th {
-  position: sticky;
-  top: 0;
-  background-color: white; /* or your table header bg color */
-  z-index: 5; /* ensure it stays above the table rows */
-  
-}
+  thead th {
+    position: sticky;
+    top: 0;
+    background-color: white; /* or your table header bg color */
+    z-index: 5; /* ensure it stays above the table rows */
+  }
 
-#order-listing thead th {
-  height: 38px !important; /* Increase as needed */
-  background: #028084 !important;
-  color: #e5fcff !important;
-  vertical-align: middle !important;
-  border-bottom: 2.5px solid #bdbdbd !important; /* Thicker grey line below heading */
-}
-/* style for hol/unhold row - blurred bg */
-#order-listing tr:last-child td {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  /* background: #f4f3f3 !important; */
-}
-/* Gird line color combination */
-#order-listing th,
-#order-listing td {
-  border-right: 1.5px solid #bababa !important; /* Vertical lines: blue */
-  border-bottom: 1.5px solid #121413 !important; /* Horizontal lines: green */
-}
+  #order-listing thead th {
+    height: 38px !important; /* Increase as needed */
+    background: #028084 !important;
+    color: #e5fcff !important;
+    vertical-align: middle !important;
+    border-bottom: 2.5px solid #bdbdbd !important; /* Thicker grey line below heading */
+  }
+  /* style for hol/unhold row - blurred bg */
+  #order-listing tr:last-child td {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    /* background: #f4f3f3 !important; */
+  }
+  /* Gird line color combination */
+  #order-listing th,
+  #order-listing td {
+    border-right: 1.5px solid #bababa !important; /* Vertical lines: blue */
+    border-bottom: 1.5px solid #121413 !important; /* Horizontal lines: green */
+  }
 
-  
-/* Default: Desktop/Laptop (wider columns for larger font) - server */
-/* #order-listing th:nth-child(1) {
+  /* Default: Desktop/Laptop (wider columns for larger font) - server */
+  /* #order-listing th:nth-child(1) {
   min-width: 90px;
   max-width: 90px;
 } */ /* S.No */
-/* #order-listing th:nth-child(2) {
+  /* #order-listing th:nth-child(2) {
   min-width: 90px;
   max-width: 100px;
 } */ /* Last Updated */
-/* #order-listing th:nth-child(3) {
+  /* #order-listing th:nth-child(3) {
   min-width: 90px;
   max-width: 120px;
 } */ /* Plating */
-#order-listing th:nth-child(4) {
-  min-width: 110px;
-  max-width: 120px;
-} /* Polishing Stk No */
-#order-listing th:nth-child(5) {
-  min-width: 90px;
-  max-width: 100px;
-} /* Plating Color */
-#order-listing th:nth-child(6) {
-  min-width: 100px;
-  max-width: 110px;
-} /* Category */
-#order-listing th:nth-child(7) {
-  min-width: 100px;
-  max-width: 100px;
-} /* Polish Finish */
-#order-listing th:nth-child(8) {
-  min-width: 110px;
-  max-width: 110px;
-} /* Version */
-#order-listing th:nth-child(9) {
-  min-width: 105px;
-  max-width: 105px;
-} /* Tray Cate-Capacity */
-#order-listing th:nth-child(10) {
-  min-width: 110px;
-  max-width: 110px;
-} /* Source */
-#order-listing th:nth-child(11) {
-  min-width: 85px;
-  max-width: 85px;
-} /* No of Trays */
-#order-listing th:nth-child(12) {
-  min-width: 100px;
-  max-width: 105px;
-} /* Input Qty */
-#order-listing th:nth-child(13) {
-  min-width: 95px;
-  max-width: 100px;
-} /* Process Status */
-#order-listing th:nth-child(14) {
-  min-width: 95px;
-  max-width: 100px;
-} /*  Action */
-#order-listing th:nth-child(15) {
-  min-width: 90px;
-  max-width: 100px;
-} /* Lot Status */
-#order-listing th:nth-child(16) {
-  min-width: 100px;
-  max-width: 100px;
-} /* Current Stage */
-#order-listing th:nth-child(17) {
-  min-width: 110px;
-  max-width: 100px;
-} /* Remarks */
-#order-listing th:nth-child(18) {
-  min-width: 100px;
-  max-width: 110px;
-}
+  #order-listing th:nth-child(4) {
+    min-width: 110px;
+    max-width: 120px;
+  } /* Polishing Stk No */
+  #order-listing th:nth-child(5) {
+    min-width: 90px;
+    max-width: 100px;
+  } /* Plating Color */
+  #order-listing th:nth-child(6) {
+    min-width: 100px;
+    max-width: 110px;
+  } /* Category */
+  #order-listing th:nth-child(7) {
+    min-width: 100px;
+    max-width: 100px;
+  } /* Polish Finish */
+  #order-listing th:nth-child(8) {
+    min-width: 110px;
+    max-width: 110px;
+  } /* Version */
+  #order-listing th:nth-child(9) {
+    min-width: 115px;
+    max-width: 115px;
+  } /* Tray Cate-Capacity */
+  #order-listing th:nth-child(10) {
+    min-width: 105px;
+    max-width: 110px;
+  } /* Source */
+  #order-listing th:nth-child(11) {
+    min-width: 100px;
+    max-width: 100px;
+  } /* No of Trays */
+  #order-listing th:nth-child(12) {
+    min-width: 100px;
+    max-width: 105px;
+  } /* Input Qty */
+  #order-listing th:nth-child(13) {
+    min-width: 95px;
+    max-width: 100px;
+  } /* Process Status */
+  #order-listing th:nth-child(14) {
+    min-width: 95px;
+    max-width: 100px;
+  } /*  Action */
+  #order-listing th:nth-child(15) {
+    min-width: 90px;
+    max-width: 100px;
+  } /* Lot Status */
+  #order-listing th:nth-child(16) {
+    min-width: 100px;
+    max-width: 100px;
+  } /* Current Stage */
+  #order-listing th:nth-child(17) {
+    min-width: 110px;
+    max-width: 100px;
+  } /* Remarks */
+  #order-listing th:nth-child(18) {
+    min-width: 100px;
+    max-width: 110px;
+  }
 
-@media (min-width: 600px) and (max-width: 900px) {
-  #order-listing {
-    table-layout: auto !important; /* Let columns auto-fit content */
-    width: 100% !important;
-    min-width: unset !important;
-    max-width: 100vw !important;
+  @media (min-width: 600px) and (max-width: 900px) {
+    #order-listing {
+      table-layout: auto !important; /* Let columns auto-fit content */
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: 100vw !important;
+    }
+    /* Adjust width for all headings (th) and cells (td) */
+    #order-listing th,
+    #order-listing td {
+      min-width: 160px !important;
+      max-width: 260px !important;
+      width: 180px !important;
+    }
+    #order-listing th {
+      position: relative;
+      padding-right: 48px !important; /* More space for filter icon */
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: ellipsis;
+    }
+    #order-listing th .fa-filter {
+      position: absolute;
+      right: 18px !important;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      background: transparent;
+      pointer-events: auto;
+    }
   }
-  /* Adjust width for all headings (th) and cells (td) */
-  #order-listing th,
-  #order-listing td {
-    min-width: 160px !important;
-    max-width: 260px !important;
-    width: 180px !important;
-  }
-  #order-listing th {
-    position: relative;
-    padding-right: 48px !important; /* More space for filter icon */
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: ellipsis;
-  }
+  /* Right-align filter icons */
   #order-listing th .fa-filter {
     position: absolute;
-    right: 18px !important;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 2;
-    background: transparent;
-    pointer-events: auto;
+    font-size: 11px;
+    opacity: 0.7;
+    cursor: pointer;
+    transition: opacity 0.2s;
   }
-}
-/* Right-align filter icons */
-#order-listing th .fa-filter {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 11px;
-  opacity: 0.7;
+
+  #order-listing th .fa-filter:hover {
+    opacity: 1;
+  }
+ 
+/* Enhanced Column Sorting Styles - Same as Brass QC */
+.sort-icon, .sort-asc, .sort-desc {
+  color: white !important;
+  font-size: 12px !important;
+  margin-left: 5px;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 
-#order-listing th .fa-filter:hover {
-  opacity: 1;
+.sortable:hover .sort-icon,
+.sortable:hover .sort-asc, 
+.sortable:hover .sort-desc {
+  color: #FFD700 !important;
 }
 
-
-  
-#order-listing th:last-child,
-#order-listing td:last-child {
-  border-right: none;
-  max-width: 95px;
-  min-width: 100px;
+.sorted .sort-asc,
+.sorted .sort-desc {
+  color: #FFD700 !important;
 }
-/* Overall Table Shrink */
-#order-listing tr,
-#order-listing td,
-#order-listing th {
-  height: 20px !important;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
-  padding-left: 6px !important;
-  padding-right: 6px !important;
-}
-/* Table heading font size */
-/* Add this at the end of your <style> block in DP_PickTable.html */
 
-/* Professional table header styling with proper text wrapping */
-#order-listing th {
-  position: relative;
-  padding: 8px 12px 8px 16px !important;
-  text-align: left !important;
-  vertical-align: middle !important;
-  white-space: normal !important;
-  line-height: 1.3 !important;
-  word-break: keep-all !important;
-  hyphens: none !important;
-  /* font-size: 13px; */
-  /* font-weight: 600 !important; */
-  background: #028084 !important;
-  color: #e5fcff !important;
-  border-bottom: 2.5px solid #bdbdbd !important;
-  /* min-width: 80px;
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  background-color: rgba(255, 215, 0, 0.1) !important;
+}
+
+  #order-listing th:last-child,
+  #order-listing td:last-child {
+    border-right: none;
+    max-width: 95px;
+    min-width: 100px;
+  }
+  /* Overall Table Shrink */
+  #order-listing tr,
+  #order-listing td,
+  #order-listing th {
+    height: 20px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+  /* Table heading font size */
+  /* Add this at the end of your <style> block in DP_PickTable.html */
+
+  /* Professional table header styling with proper text wrapping */
+  #order-listing th {
+    position: relative;
+    padding: 8px 12px 8px 16px !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+    word-break: keep-all !important;
+    hyphens: none !important;
+    /* font-size: 13px; */
+    /* font-weight: 600 !important; */
+    background: #028084 !important;
+    color: #e5fcff !important;
+    border-bottom: 2.5px solid #bdbdbd !important;
+    /* min-width: 80px;
   max-width: 140px; */
-   overflow-wrap: break-word;
-  word-wrap: break-word;
-   z-index: 20 !important;
-}
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    z-index: 20 !important;
+  }
 
-/* Make sure header cells for sticky columns are always above body cells */
-/* Fix: Prevent shadow/rows from showing behind sticky columns while scrolling */
-#order-listing th:nth-child(-n+3),
-#order-listing td:nth-child(-n+3) {
-  z-index: 30 !important; 
-box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-}
+  /* Make sure header cells for sticky columns are always above body cells */
+  /* Fix: Prevent shadow/rows from showing behind sticky columns while scrolling */
+  #order-listing th:nth-child(-n + 3),
+  #order-listing td:nth-child(-n + 3) {
+    z-index: 30 !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  }
 
-/* Prevent sticky columns from overlapping sticky header */
-#order-listing td:nth-child(-n+3) {
-  z-index: 11 !important;
-}
+  /* Prevent sticky columns from overlapping sticky header */
+  #order-listing td:nth-child(-n + 3) {
+    z-index: 11 !important;
+  }
   /* Make the first column sticky and opaque */
-#order-listing td:first-child,
-#order-listing th:first-child {
-  position: sticky;
-  left: 0;
-  background: #fff;      /* Or match your table background */
-  z-index: 2;            /* Above blurred rows */
-  box-shadow: 2px 0 4px rgba(0,0,0,0.03); /* Optional: subtle shadow */
-}
-/* Force specific table headers to wrap onto two lines */
-#order-listing th:nth-child(4),   /* Polishing Stk No */
+  #order-listing td:first-child,
+  #order-listing th:first-child {
+    position: sticky;
+    left: 0;
+    background: #fff; /* Or match your table background */
+    z-index: 2; /* Above blurred rows */
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.03); /* Optional: subtle shadow */
+  }
+  /* Force specific table headers to wrap onto two lines */
+  #order-listing th:nth-child(4),   /* Polishing Stk No */
 #order-listing th:nth-child(5),   /* Plating Color */
 #order-listing th:nth-child(7),   /* Polish Finish */
 #order-listing th:nth-child(9),   /* Tray Cate-Capacity */
 #order-listing th:nth-child(11),  /* No of Tray */
 #order-listing th:nth-child(12),  /* Input Qty */
 #order-listing th:nth-child(13)   /* Process Status */ {
-  white-space: normal !important;
-  line-height: 1.2 !important;
-  word-break: break-word !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+    word-break: break-word !important;
 
-  text-align: center;
-  vertical-align: middle;
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
-}
-/* Freeze style for 1st - 3 columns */
-/* --- Freeze first 3 columns and table header for #order-listing --- */
-#order-listing {
-  position: relative;
-  border-collapse: separate !important;
-  border-spacing: 0;
-  background: #fff;
-  /* Ensure enough left padding for sticky columns */
-}
+    text-align: center;
+    vertical-align: middle;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+  }
+  /* Freeze style for 1st - 3 columns */
+  /* --- Freeze first 3 columns and table header for #order-listing --- */
+  #order-listing {
+    position: relative;
+    border-collapse: separate !important;
+    border-spacing: 0;
+    background: #fff;
+    /* Ensure enough left padding for sticky columns */
+  }
 
-#order-listing th,
-#order-listing td {
-  background-clip: padding-box;
-  /* Prevent overlap artifacts */
-  z-index: 1;
-}
+  #order-listing th,
+  #order-listing td {
+    background-clip: padding-box;
+    /* Prevent overlap artifacts */
+    z-index: 1;
+  }
 
-/* Sticky header */
-#order-listing thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #028084 !important;
-  color: #e5fcff !important;
-}
+  /* Sticky header */
+  #order-listing thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #028084 !important;
+    color: #e5fcff !important;
+  }
 
-/* Freeze 1st column */
-#order-listing th:nth-child(1),
-#order-listing td:nth-child(1) {
-  position: sticky;
-  left: 0 !important;
-  z-index: 12; /* Above header */
-  background: #f7fafd;
-  min-width: 75px;
-  max-width: 75px;
-}
+  /* Freeze 1st column */
+  #order-listing th:nth-child(1),
+  #order-listing td:nth-child(1) {
+    position: sticky;
+    left: 0 !important;
+    z-index: 12; /* Above header */
+    background: #f7fafd;
+    min-width: 75px;
+    max-width: 75px;
+  }
 
-/* Freeze 2nd column - Last Updated*/
-#order-listing th:nth-child(2),
-#order-listing td:nth-child(2) {
-  position: sticky;
-  left: 75px; /* Match min-width of 1st col */
-  z-index: 12;
-  background: #f7fafd;
-  min-width: 75px; /* Increased width */
-  max-width: 75px; /* Increased width */
-}
+  /* Freeze 2nd column - Last Updated*/
+  #order-listing th:nth-child(2),
+  #order-listing td:nth-child(2) {
+    position: sticky;
+    left: 75px; /* Match min-width of 1st col */
+    z-index: 12;
+    background: #f7fafd;
+    min-width: 100px; /* Increased width */
+    max-width: 110px; /* Increased width */
+  }
 
-/* Freeze 3rd column */
-#order-listing th:nth-child(3),
-#order-listing td:nth-child(3) {
-  position: sticky;
-  left: 150px; /* 100px (1st) + 90px (2nd) */
-  z-index: 12;
-  background: #f7fafd;
-  min-width: 95px; /* Increased width 100 - old value*/
-  max-width: 100px; /* Increased width  110 - old value*/
-}
+  /* Freeze 3rd column */
+  #order-listing th:nth-child(3),
+  #order-listing td:nth-child(3) {
+    position: sticky;
+    left: 175px; /* 100px (1st) + 90px (2nd) */
+    z-index: 12;
+    background: #f7fafd;
+    min-width: 130px; /* Increased width 100 - old value*/
+    max-width: 100px; /* Increased width  110 - old value*/
+  }
 
-/* Prevent sticky columns from overlapping sticky header */
-#order-listing th:nth-child(-n + 3) {
-  z-index: 12;
-}
-#order-listing td:nth-child(-n + 3) {
-  z-index: 11;
-}
+  /* ...existing code... */
 
-/* Ensure sticky columns and header work together */
-#order-listing th,
-#order-listing td {
-  box-sizing: border-box;
-  /* Prevent content shake */
-  /* overflow: hidden; */
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  /* Prevent sticky columns from overlapping sticky header */
+  #order-listing th:nth-child(-n + 3) {
+    z-index: 12;
+  }
+  #order-listing td:nth-child(-n + 3) {
+    z-index: 11;
+  }
 
+  /* Ensure sticky columns and header work together */
+  #order-listing th,
+  #order-listing td {
+    box-sizing: border-box;
+    /* Prevent content shake */
+    /* overflow: hidden; */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-
-    .blurred-heading, .blurred-cell {
+  .blurred-heading,
+  .blurred-cell {
     filter: blur(2px) grayscale(0.7) opacity(0.6);
     pointer-events: none !important;
     user-select: none;
     cursor: not-allowed;
     background: #f5f5f5 !important;
   }
-    /* Show remark tooltip above the trigger instead of below */
+  /* Show remark tooltip to the LEFT of the trigger — avoids sticky header overlap */
   .remark-tooltip {
-    top: auto !important;
-    bottom: 110% !important;
+    top: 50% !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: 110% !important;
+    transform: translateY(-50%) !important;
+    width: 280px !important;
   }
-#trayScanDetails.table-grid {
-  display: grid !important;
-  grid-template-columns: 94px 175px 150px !important;
-  gap: 0px !important;
-  max-height: 300px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding-right: 10px;
-  margin-top: 10px;
-  border: 1px solid #ddd;
-}
-
-#trayScanDetails.table-grid::-webkit-scrollbar {
-  width: 8px;
-}
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
- 
-#trayScanDetails.table-grid::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
- 
- 
-.tray-scan-modal.open {
-  width:500px !important;
-}
-/* For the 4-column layout (with validation status) */
-#trayScanDetails.table-grid.four-column {
-  grid-template-columns: 50px 1fr 100px 140px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-}
- 
-/* Styling individual grid cells, only inside trayScanDetails */
-#trayScanDetails.table-grid > div {
-  background: #f7f7f7;
-  padding: 8px 12px;
-  font-size: 12px;
-  border: 1px solid #ddd;
-  margin: 0; /* reset any margin from <p> or others */
-}
- 
-/* S.no column specific styling */
-#trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
-  text-align: center;
-  font-weight: 600;
-  padding: 8px 4px; /* Reduced horizontal padding for S.no */
-}
- 
-/* For mobile responsiveness */
-@media (max-width: 768px) {
   #trayScanDetails.table-grid {
-    grid-template-columns: 45px 1fr 1fr !important; /* Even smaller S.no column on mobile */
+    display: grid !important;
+    grid-template-columns: 94px 175px 150px !important;
+    gap: 0px !important;
+    max-height: 300px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 10px;
+    margin-top: 10px;
+    border: 1px solid #ddd;
   }
+
+  #trayScanModal {
+    overflow: scroll !important;
+    width: 435px !important;
+  }
+  #trayScanDetails.table-grid::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  #trayScanDetails.table-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  #trayScanDetails.table-grid::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  #trayScanDetails.table-grid::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+  .tray-scan-modal.open {
+    width: 500px !important;
+  }
+  /* For the 4-column layout (with validation status) */
   #trayScanDetails.table-grid.four-column {
-    grid-template-columns: 40px 1fr 80px 100px !important;
-  }
-  #trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
-    padding: 6px 2px; /* Further reduced padding on mobile */
-    font-size: 11px;
-  }
-}
- 
-/* For very small screens */
-@media (max-width: 480px) {
-  #trayScanDetails.table-grid {
-    grid-template-columns: 35px 1fr 80px !important; /* Minimal S.no column */
-  }
-  #trayScanDetails.table-grid.four-column {
-    grid-template-columns: 30px 1fr 70px 90px !important;
-  }
-}
-
-/* IQF Reject Page layout — mirrors DP Completed Table .dp-table-page pattern */
-.iqf-reject-page {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
-  max-height: calc(100vh - var(--ttt-navbar-height, 60px) - var(--ttt-footer-height, 32px)) !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  padding-top: 0.5rem !important;
-  padding-bottom: 0 !important;
-  margin-top: 0 !important;
-}
-
-.iqf-reject-page > .row,
-.iqf-reject-page > .row > .col-12.grid-margin.stretch-card,
-.iqf-reject-page .card,
-.iqf-reject-page .card-body {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.iqf-reject-page > .row {
-  margin: 0 !important;
-}
-
-.iqf-reject-page > .row > .col-12.grid-margin.stretch-card,
-.iqf-reject-page .card {
-  margin-bottom: 0 !important;
-}
-
-.iqf-reject-page .card-body {
-  flex-direction: column;
-  padding-bottom: 0.5rem !important;
-  overflow: hidden !important;
-}
-
-.iqf-reject-page h5.text-left,
-.iqf-reject-page .pagination-wrapper {
-  flex: 0 0 auto;
-}
-
-.iqf-reject-page .pagination-wrapper {
-  position: static !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  width: 100% !important;
-  min-height: 42px !important;
-  padding: 4px 0 0 !important;
-  margin-top: 0.35rem !important;
-  background: #f5f7ff !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 4 !important;
-}
-
-.iqf-reject-page .table-responsive {
-  flex: 1 1 0 !important;
-  width: 100%;
-  height: auto !important;
-  max-height: none !important;
-  min-height: 0;
-  overflow-x: auto !important;
-  overflow-y: auto !important;
-  scrollbar-gutter: stable;
-  margin-bottom: 0 !important;
-}
-
-#rejectionPopupModal {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: min(360px, calc(100vh - 120px)) !important;
-  width: min(380px, calc(100vw - 32px)) !important;
-  min-width: 320px !important;
-  overflow: hidden !important;
-  padding: 0 !important;
-}
-
-#rejectionPopupModal .iqf-rejection-popup-header {
-  position: relative;
-  padding: 10px 42px 8px 14px !important;
-  border-bottom: 1px solid #ececec;
-}
-
-#closeRejectionPopup {
-  position: absolute !important;
-  top: 8px !important;
-  right: 10px !important;
-  width: 24px !important;
-  height: 24px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  line-height: 1 !important;
-}
-
-#rejectionPopupModal .iqf-rejection-popup-body {
-  max-height: 286px;
-  overflow-y: auto;
-  padding: 8px 12px 10px !important;
-}
-
-#rejectionPopupModal .rejection-table th,
-#rejectionPopupModal .rejection-table td {
-  padding: 7px 9px !important;
-  font-size: 12px !important;
-}
-
-#imageSliderModal {
-  width: min(460px, calc(100vw - 32px)) !important;
-  height: auto !important;
-  max-height: calc(100vh - 96px) !important;
-  padding: 12px !important;
-  overflow: hidden !important;
-}
-
-#imageSliderModal h3 {
-  margin: 0 28px 10px 0 !important;
-  font-size: 16px !important;
-}
-
-#imageSliderModal .slider,
-#imageSliderModal .slide img {
-  height: 220px !important;
-}
-
-#imageSliderModal .slide img {
-  object-fit: cover !important;
-}
-
-@media (max-width: 600px) {
-  #rejectionPopupModal {
-    width: calc(100vw - 24px) !important;
-    min-width: 0 !important;
+    grid-template-columns: 50px 1fr 100px 140px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
-  #imageSliderModal {
-    top: 16px !important;
-    right: 12px !important;
-    width: calc(100vw - 24px) !important;
+  /* Styling individual grid cells, only inside trayScanDetails */
+  #trayScanDetails.table-grid > div {
+    background: #f7f7f7;
+    padding: 8px 12px;
+    font-size: 12px;
+    border: 1px solid #ddd;
+    margin: 0; /* reset any margin from <p> or others */
   }
 
-  #imageSliderModal .slider,
-  #imageSliderModal .slide img {
-    height: 180px !important;
+  /* S.no column specific styling */
+  #trayScanDetails.table-grid > div:nth-child(3n + 1):not(:nth-child(-n + 4)) {
+    text-align: center;
+    font-weight: 600;
+    padding: 8px 4px; /* Reduced horizontal padding for S.no */
   }
-}
+
+  /* For mobile responsiveness */
+  @media (max-width: 768px) {
+    #trayScanDetails.table-grid {
+      grid-template-columns: 45px 1fr 1fr !important; /* Even smaller S.no column on mobile */
+    }
+    #trayScanDetails.table-grid.four-column {
+      grid-template-columns: 40px 1fr 80px 100px !important;
+    }
+    #trayScanDetails.table-grid
+      > div:nth-child(3n + 1):not(:nth-child(-n + 4)) {
+      padding: 6px 2px; /* Further reduced padding on mobile */
+      font-size: 11px;
+    }
+  }
+
+  /* For very small screens */
+  @media (max-width: 480px) {
+    #trayScanDetails.table-grid {
+      grid-template-columns: 35px 1fr 80px !important; /* Minimal S.no column */
+    }
+    #trayScanDetails.table-grid.four-column {
+      grid-template-columns: 30px 1fr 70px 90px !important;
+    }
+  }
 </style>
-<div class="content-wrapper iqf-reject-page">
+<div class="content-wrapper">
+  <br />
+  <h5 class="text-left mt-0 mb-3">IQF Reject Table</h5>
   <div class="row">
     <div class="col-12 grid-margin stretch-card">
       <div class="card">
         <div class="card-body">
-               <!-- 🔥 NEW: Delink Selection Section -->
-              <div style="margin-bottom: 5px;display: flex;align-items: baseline;gap: 25px;">
-                <h5 class="text-left mt-0 mb-3">IQF / Rejected Table</h5>
-                <span id="selected-count" style="color: #2e7d32; font-weight: 600;">0 items selected</span>
-                <button id="delink-selected-btn" class="btn btn-secondary" style="margin-left: 0px;padding: 6px;border-radius: 30px;" disabled>Delink Selected</button>
-              </div>
-            <!-- Table Section -->
-            <div class="table-responsive">
-         
-
-              <table id="order-listing" class="table">
+          <!-- Table Section -->
+          <div class="table-responsive">
+            <table id="order-listing" class="table">
                 <thead>
                   <tr>
-                    <!-- Select All Checkbox Column -->
-                    <th style="background: #008080; color: #fff; text-align: center; vertical-align: middle;">
-                      <div style="display: flex;align-items: center;justify-content: center;flex-direction: row;">
-                        <input type="checkbox" id="select-all-checkbox" style="transform: scale(1.2); margin: 5px;" />
-                        <label for="select-all-checkbox" style="font-weight: 600; color: #fff; font-size: 13px; margin: 0; cursor:pointer;">Select All</label>
-                      </div>
+                    <th data-column-index="0" class="sortable">
+                      S.No 
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="1">
-                      S.No <i class="fa fa-sort" aria-hidden="true"></i>
-                    </th>
-                    <th class="sortable" data-column-index="2">
+                    <th data-column-index="1" class="sortable">
                       Last<br>Updated
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="3">
+                    <th data-column-index="2" class="sortable">
                       Plating <br> Stk No
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
                     <th>
                       Action
                     </th>
-                    <th class="sortable" data-column-index="9"> 
-                      Lot Qty
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    <th data-column-index="9" class="sortable">
+                      Accept Qty
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="10">
-                      Reject Qty
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    <th data-column-index="8" class="sortable">
+                      No of <br> Trays 
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="8">
-                      Tray Type <br> Capacity
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    <th data-column-index="10" class="sortable">
+                      Process Status
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="4">
-                      Polish <br> Stk No
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                    <th data-column-index="11" class="sortable">
+                      Batch Status
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="5">
+                    <th data-column-index="12" class="sortable">
+                       Current <br> Location
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
+                    </th>
+                    <th data-column-index="7" class="sortable">
+                      Tray Cate- <br> Capacity
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
+                    </th>
+                    <th data-column-index="3" class="sortable">
+                      Polishing <br> Stk No
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
+                    </th>
+                    <th data-column-index="4" class="sortable">
                       Plating Color
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="6">
+                    <th data-column-index="5" class="sortable">
                       Polish Finish
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th class="sortable" data-column-index="7">
+                    <th data-column-index="6" class="sortable">
                       Source - Location
-                      <i class="fa fa-sort" aria-hidden="true"></i>
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
                     <th>
                       Type of Input
                     </th>
-                    <th>
-                      Reject Reason
-                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    <th data-column-index="13" class="sortable">
+                       Accepted Remarks
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
-                    <th>
-                      Lot <br> Remark
-                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    <th data-column-index="14" class="sortable">
+                      Remarks 
+                      <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
+                      <i class="fa fa-sort-asc sort-asc" aria-hidden="true" style="display:none;"></i>
+                      <i class="fa fa-sort-desc sort-desc" aria-hidden="true" style="display:none;"></i>
                     </th>
                    
                   </tr>
-                </thead>
+                </thead> 
                 <tbody>
-                {% for data in master_data %}
+                  <!-- Row 1 - Highlighted -->
+                     {% for data in master_data %}
 
-                  <tr class="highlighted-tray-scan"
-                    data-lot-id="{{ data.delink_lot_id|default:data.stock_lot_id }}"
-                    data-submission-lot-id="{{ data.stock_lot_id }}"
-                    data-batch-id="{{ data.batch_id }}">
-                    <!-- 🔥 NEW: Individual Row Checkbox -->
-                    <td>
-                      {% if data.tray_id_in_trayid %}
-                        <input type="checkbox" class="row-checkbox" />
-                      {% else %}
-                        <input type="checkbox" class="row-checkbox" disabled title="Tray not found, cannot delink" />
-                      {% endif %}
-                    </td>
-                     <td>{{ page_obj.start_index|add:forloop.counter0 }}
+                  <tr class="highlighted-tray-scan" data-batch-id="{{ data.batch_id }}">
+                  <td>{{ forloop.counter }}
+                   
 
-                    </td>                 
+                  </td>
                     <td style="white-space:normal;word-break:break-all;">
                               {{ data.iqf_last_process_date_time|date:"d-M-y"  }}<br>
                         <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.iqf_last_process_date_time|date:"h:i A" }}</span>
-                        </td> 
-                            <td>
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                        </td>
+                                            <!-- Model/Stock No - Image hover -->  
+        <td>
+                      <span class="model-hover-trigger"
+                            data-plating-stk-no="{{ data.plating_stk_no }}"
+                            style="cursor: pointer; word-break: break-all; position: relative;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -945,89 +746,322 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
-                            <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                            <div class="img-gallery" style="display: flex; justify-content:center; align-items:center; gap: 6px; overflow: hidden; width: 180px; height: 130px;">
+                              <span style="font-size:12px;color:#777;text-align:center;">Loading...</span>
                             </div>
                           </div>
                         </div>
                       </span>
                     </td>
+<td>
+
+
+  <!-- Status Display (Simplified) -->
+  {% if data.iqf_acceptance %}
+    <!-- Show "Accepted" status -->
+    <span class="status-badge accepted" style="
+      background-color: #66bb6a; 
+      color: white; 
+      padding: 6px 12px; 
+      border-radius: 20px; 
+      font-size: 12px; 
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    ">
+      <i class="fa fa-check-circle"></i>Accepted
+    </span>
+
+  {% elif data.iqf_rejection %}
+    <!-- Show "Rejected" status -->
+    <span class="status-badge rejected" style="
+      background-color: #e57373; 
+      color: white; 
+      padding: 6px 12px; 
+      border-radius: 20px; 
+      font-size: 12px; 
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    ">
+      <i class="fa fa-times-circle"></i>Rejected
+    </span>
+
+  {% elif data.iqf_few_cases_acceptance %}
+    <!-- Show "Partial Reject" status -->
+    <span class="status-badge partial-rejected" style="
+      background-color: #fb9393; 
+      color: white; 
+      padding: 6px 12px; 
+      border-radius: 20px; 
+      font-size: 12px; 
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    ">
+      <i class="fa fa-adjust"></i>Partial Accepted
+    </span>
+
+  {% endif %}
+
+    <!-- Eye icon to view submitted "Tray Scan Table" -->
+    <a href="#"
+      title="View"
+      class="text-primary tray-scan-btn-Jig"
+      style="text-decoration: underline; margin-left: 8px;"
+      data-stock-lot-id="{{ data.stock_lot_id }}"
+      data-batch-id="{{ data.batch_id }}"
+      data-model-no="{{ data.plating_stk_no }}"
+      data-plating-stk-no="{{ data.plating_stk_no }}"
+      data-no-of-trays="{{ data.no_of_trays }}"
+      data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
+      data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
+      data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
+      data-accepted-ip-stock="{{ data.iqf_acceptance|yesno:'true,false' }}"
+      data-rejected-ip-stock="{{ data.iqf_rejection|yesno:'true,false' }}"
+      data-model-image="{{ data.model_images.0|default:'' }}"
+      data-few-cases-accepted-ip-stock="{{ data.iqf_few_cases_acceptance|yesno:'true,false' }}"
+        data-total-batch-quantity="{{ data.iqf_accepted_qty }}"
+    data-missing-qty="{{ data.iqf_missing_qty }}"
+    data-physical-qty="{{ data.iqf_physical_qty }}">
+
+      
+      <img src="{% static 'assets/icons/view.png' %}"
+          alt="View"
+          style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
+    </a>
+</td>
                     <td>
-                      <a href="#"
-                         title="View"
-                         class="text-primary tray-scan-btn-Jig"
-                         style="text-decoration: none;"
-                         data-stock-lot-id="{{ data.stock_lot_id }}"
-                         data-batch-id="{{ data.batch_id }}"
-                         data-model-no="{{ data.plating_stk_no }}"
-                         data-no-of-trays="{{ data.no_of_trays }}"
-                         data-model-image="{{ data.model_images.0|default:'' }}"
-                         data-total-batch-quantity="{{ data.brass_rejection_total_qty }}"
-                         data-missing-qty="{{ data.iqf_missing_qty }}">
-                        <img src="{% static 'assets/icons/view.png' %}"
-                             alt="View"
-                             style="width: 20px; height: auto; cursor:pointer;" />
-                      </a>
+                        {{data.iqf_accepted_qty}}
+                    </td>
+                    <td>{{ data.no_of_trays }}</td>
+                   <td>
+                      <div class="d-flex">
+                        <!-- Q: Green if iqf_accepted_qty_verified, else gray -->
+                        <div
+                          data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quantity"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 20px;
+                            height: 20px;
+                            background-color: {% if data.iqf_accepted_qty_verified %}#0c8249{% else %}#bdbdbd{% endif %};
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding-top: 1px;
+                            padding-right: 1px;
+                          "
+                        >
+                          Q
+                        </div>
+                        <!-- QC: Green if iqf_rejection or iqf_acceptance, else gray -->
+                        <div
+                          data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Quality Check"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 20px;
+                            height: 20px;
+                            background-color: {% if data.iqf_rejection or data.iqf_acceptance or data.iqf_few_cases_acceptance %}#0c8249{% else %}#bdbdbd{% endif %};
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding-top: 1px;
+                            padding-right: 1px;
+                          "
+                        >
+                          QC
+                        </div>
+                      </div>
                     </td>
                     <td>
-                      {% if data.original_lot_qty %}
-                        {{ data.original_lot_qty }}
-                      {% elif data.brass_rejection_total_qty %}
-                        {{ data.brass_rejection_total_qty }}
+                      {% if data.brass_onhold_picking  %}
+                        <div
+                          class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                          style="
+                            border: 2px solid #4997ac;
+                            background-color: #d1f2f3;
+                            color: #03425d;
+                            font-size: clamp(0.75rem, 2vw, 0.875rem);
+                            white-space: nowrap;
+                            padding-top: 0.5rem;
+                            padding-bottom: 0.5rem;
+                          "
+                        >
+                          On-Hold
+                        </div>
+                      {% elif data.iqf_rejection or data.iqf_few_cases_acceptance or data.iqf_acceptance %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                            style="border: 2px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: clamp(0.3rem, 2vw, 0.875rem); white-space: nowrap; padding: 0.3rem;">
+                          Yet to Release
+                        </div>
                       {% else %}
-                        0
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                            style="border: 2px solid #f9a825; background-color: #fff8e1; color: #b26a00; font-size: clamp(0.3rem, 2vw, 0.875rem); white-space: nowrap; padding: 0.3rem;">
+                          Yet to Start
+                        </div>
                       {% endif %}
                     </td>
                     <td>
-                      {{data.iqf_rejection_total_qty}}
+                      <div
+                        class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                        style="
+                          border: 2px solid
+                            {% if data.last_process_module == 'Input screening' %}
+                              #0d5d17
+                            {% elif data.last_process_module == 'Brass QC' %}
+                              #f9a825
+                            {% elif data.last_process_module == 'DayPlanning' %}
+                              #1976d2
+                            {% else %}
+                              #9adeed
+                            {% endif %};
+                          background-color:
+                            {% if data.last_process_module == 'Input screening' %}
+                              #c5f9c2
+                            {% elif data.last_process_module == 'Brass QC' %}
+                              #fff8e1
+                            {% elif data.last_process_module == 'DayPlanning' %}
+                              #d1eaff
+                            {% else %}
+                              #d1edf3
+                            {% endif %};
+                          color:
+                            {% if data.last_process_module == 'Input screening' %}
+                              #2f801b
+                            {% elif data.last_process_module == 'Brass QC' %}
+                              #b26a00
+                            {% elif data.last_process_module == 'DayPlanning' %}
+                              #033b5d
+                            {% else %}
+                              #033b5d
+                            {% endif %};
+                          font-size: clamp(0.75rem, 2vw, 0.875rem);
+                          white-space: nowrap;
+                          padding-top: 0.5rem;
+                          padding-bottom: 0.5rem;
+                        "
+                      >
+                        {{ data.last_process_module|default:"N/A" }}
+                      </div>
                     </td>
-                    <td>{{data.tray_type}} {{data.tray_capacity}}</td>
+                    <td>{{ data.tray_type|tray_full_name }} {{ data.tray_capacity }}</td>
                     <td>{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
                     <td>{{ data.plating_color }}</td>
-                    <td>{{data.polish_finish}}</td>
-                    <td>{{data.location__location_name}}</td>
+                    <td>{{ data.polish_finish }}</td>
+                    <td>{{ data.location__location_name }}</td>
                     <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
-        <td>
-  <div class="avatar-group rejection-popup-trigger"
-       style="cursor:pointer; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
-       onmouseover="this.style.overflow='visible'; this.style.whiteSpace='normal'; this.style.background='#f9f9f9'; this.style.zIndex='10';"
-       onmouseout="this.style.overflow='hidden'; this.style.whiteSpace='nowrap'; this.style.background=''; this.style.zIndex='';"
-       title="{% for letter in data.rejection_reason_letters %}{{ letter }} {% endfor %}{% if data.dp_missing_qty and data.dp_missing_qty > 0 %}S{% endif %}{% if data.batch_rejection and not data.rejection_reason_letters and not data.dp_missing_qty %}Lot Rejection{% endif %}">
-    {# render up to 3 colored circles #}
-    {% for letter in data.rejection_reason_letters|slice:":3" %}
-      <span class="remark-circle" data-index="{{ forloop.counter0 }}" aria-hidden="true">
-        {{ letter }}
-      </span>
-    {% endfor %}
+                    <td>{{data.accepted_comment}}</td>
+                    <td>
+                      {% if not data.iqf_acceptance and not data.iqf_rejection and not data.iqf_accepted_tray_scan_status and not data.iqf_few_cases_acceptance %}
 
-    {# if more than 3, show compact expand control (right arrow) #}
-    {% if data.rejection_reason_letters|length > 3 %}
-      <button type="button" class="remark-expand" aria-label="Expand rejection reasons" title="View all {{ data.rejection_reason_letters|length }} reasons">
-        <i class="fa fa-chevron-right" aria-hidden="true"></i>
-      </button>
-    {% endif %}
+                      <!-- VoiceRec with tooltip (audio remark) -->
+                        <a href="#" title="Add Audio Remark" class="remark-tooltip-trigger" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; position: relative; cursor: pointer;">
+                          <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec" style="width: 20px; height: 20px"/>
+                          <div class="remark-tooltip" style="position: absolute; top: 50%; left: auto; right: 110%; transform: translateY(-50%); width: 280px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;">
+                            
+                            <!-- Audio recording UI placeholder -->
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                              <button type="button" style="background: #28a745; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fa fa-microphone"></i>
+                              </button>
+                              <span style="font-size: 14px; color: #333;">Hold to record audio</span>
+                            </div>
+                            <div style="text-align: right; margin-top: 10px;">
+                              <button type="button" style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                <i class="fa fa-send"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </a>
 
-    {# keep existing Lot Rejection text if present #}
-    {% if data.batch_rejection and not data.rejection_reason_letters and not data.dp_missing_qty %}
-      <span style="color:#fb8c00;font-weight:500;white-space:nowrap;margin-left:6px;">
-        Lot Rejection
-      </span>
-    {% endif %}
-  </div>
-</td>
-                                        <td style="max-width:250px;">
-                      {% if data.lot_rejected_comment %}
-                        <span style="color:#fb8c00;font-weight:500;max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ data.lot_rejected_comment }}">
-                          {{ data.lot_rejected_comment|truncatechars:50 }}
-                        </span>
+                                            <a
+                        href="#"
+                        title="Add Remark"
+                        class="remark-tooltip-trigger"
+                        style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
+                      >
+                        <img
+                          src="{% static 'assets/icons/chat_icon.png' %}"
+                          alt="Chat"
+                          style="width: 20px; height: 20px"
+                        />
+                        <div
+                          class="remark-tooltip"
+                          style="position: absolute; top: 50%; left: auto; right: 110%; transform: translateY(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;"
+                        >
+                          <div
+                            style="position: absolute; top: 50%; right: -10px; transform: translateY(-50%); width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid #fff;"
+                          ></div>
+                          <textarea
+                            placeholder="Type your remark..."
+                            style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;"
+                            {% if data.IQF_pick_remarks %}readonly{% endif %}
+                          >{{ data.IQF_pick_remarks|default_if_none:"" }}</textarea>
+                          <div style="text-align: right; margin-top: -35px">
+                            {% if not data.IQF_pick_remarks %}
+                            <button
+                              type="button"
+                              data-iqf-save-remark
+                              style="background-color: #007bff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;"
+                            >
+                              <i class="fa fa-send"></i>
+                            </button>
+                            {% else %}
+               
+                            {% endif %}
+                          </div>
+                        </div>
+                      </a>
+                       {% else %}
+                      {% if data.IQF_pick_remarks %}
+                      <!-- Chat Remark Icon (read-only) — submitted lot with saved remark -->
+                      <a
+                        href="#"
+                        title="View Remark"
+                        class="remark-tooltip-trigger"
+                        style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; position: relative; cursor: pointer;"
+                      >
+                        <img
+                          src="{% static 'assets/icons/chat_icon.png' %}"
+                          alt="Chat"
+                          style="width: 20px; height: 20px; filter: grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2); opacity: 1;"
+                        />
+                        <div
+                          class="remark-tooltip"
+                          style="position: absolute; top: 50%; left: auto; right: 110%; transform: translateY(-50%); width: 300px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; z-index: 1000;"
+                        >
+                          <div
+                            style="position: absolute; top: 50%; right: -10px; transform: translateY(-50%); width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid #fff;"
+                          ></div>
+                          <textarea
+                            placeholder="No remark saved."
+                            style="width: 85%; height: 40px; resize: vertical; border: 1px solid #ccc; padding: 5px; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px;"
+                            readonly
+                          >{{ data.IQF_pick_remarks|default_if_none:"" }}</textarea>
+       
+                        </div>
+                      </a>
                       {% else %}
-                        <span style="color:#aaa;">-</span>
+                      <!-- Audio Remark Icon (disabled) -->
+                      <span title="Disabled after moved" style="display: inline-flex; align-items: center; height: 28px; margin-left: 0; opacity: 0.5; pointer-events: none;">
+                        <img src="{% static 'assets/icons/rec.png' %}" alt="VoiceRec Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
+                      </span>
+                      <!-- Chat Remark Icon (disabled) -->
+                      <span title="Disabled after moved" style="display: inline-flex; align-items: center; height: 20px; margin-left: 5px; opacity: 0.5; pointer-events: none;">
+                        <img src="{% static 'assets/icons/chat_icon.png' %}" alt="Chat Disabled" style="width: 20px; height: 20px; filter: grayscale(1) opacity(0.5);" />
+                      </span>
                       {% endif %}
+                    {% endif %}
                     </td>
+                   
                   </tr>
-                {% endfor %}
-
+           
+                 {% endfor %}
                 </tbody>
               </table>
 
@@ -1052,8 +1086,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
           </div>
           <p>
-              RW Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span>
+              Accepted Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> 
           </p>
         </div>
       </div>
@@ -1078,36 +1111,13 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   </div>
 </div>
 
-              <!-- Rejection Popup Modal -->
-                <div id="rejectionPopupModal"
-     class="new-popup-modal"
-     tabindex="-1"
-     aria-modal="true"
-     role="dialog"
-     style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:auto; min-width:320px; max-width:560px; max-height:60vh; overflow:auto; background:#fff; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.18); z-index:10001; display:none;">
-  <div class="iqf-rejection-popup-header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;/* background:#028084; */color: #222222;border-top-left-radius:12px;border-top-right-radius:12px;">
-    <h3 style="margin:0; font-size:16px; font-weight:600;">Rejection Details</h3>
-    <button id="closeRejectionPopup" title="Close" style="background:transparent; border:none; color:#e83d3d; font-size:20px; cursor:pointer;">&times;</button>
-  </div>
+               </div>
 
-  <div class="iqf-rejection-popup-body" style="padding:12px 14px;">
-    <div id="rejection-details-loader" style="display:none; text-align:center; padding:8px 0;">Loading...</div>
-
-    <table class="rejection-table" style="width:100%; border-collapse:collapse; font-family:Segoe UI, Tahoma, Arial, sans-serif; font-size:14px;">
-      <thead>
-        <tr>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #e6e6e6; background:#f6f6f6;">Rejected Reason</th>
-          <th style="width:110px; text-align:center; padding:10px; border-bottom:1px solid #e6e6e6; background:#f6f6f6;">Quantity</th>
-        </tr>
-      </thead>
-      <tbody id="rejection-details-body">
-        <!-- existing JS will populate rows here; keep this id unchanged -->
-      </tbody>
-    </table>
-  </div>
-</div>
+              
             </div>
             
+           
+          </div>
          <!-- Pagination Section -->
 
             <div class="pagination-wrapper">
@@ -1171,29 +1181,29 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
         </div>
       </div>
     </div>
-  </div>
-</div>
   <!-- Image Slider Modal (popup) -->
-  <div id="imageSliderModal" class="image-slider-modal" style="display: none; position: fixed; top: 40px; right: 20px; width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 20px; z-index: 10000; transition: right 0.3s ease;">
-    <span id="closeImageSliderModal" class="modal-close" style="position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; color: #666;">&times;</span>
+  <div id="imageSliderModal" class="image-slider-modal">
+    <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>
     <h3>Visual Aid</h3>
-    <div class="slider" id="slider" style="position: relative; overflow: hidden; height: 350px;">
-      <div class="slides" id="slidesContainer" style="display: flex; transition: transform 0.5s ease;">
-        <div class="slide active" style="flex: 0 0 100%; box-sizing: border-box; display: none;">
-          <img src="{% static 'assets/images/carousel/banner_1.jpg' %}" alt="Slide 1" style="width: 100%; height: 350px; object-fit: cover; display: block;">
+    <div class="slider" id="slider">
+      <div class="slides" id="slidesContainer">
+        <div class="slide active">
+          <img src="{% static 'assets/images/carousel/banner_1.jpg' %}" alt="Slide 1">
         </div>
-        <div class="slide" style="flex: 0 0 100%; box-sizing: border-box; display: none;">
-          <img src="{% static 'assets/images/carousel/banner_2.jpg' %}" alt="Slide 2" style="width: 100%; height: 350px; object-fit: cover; display: block;">
+        <div class="slide">
+          <img src="{% static 'assets/images/carousel/banner_2.jpg' %}" alt="Slide 2">
         </div>
-        <div class="slide" style="flex: 0 0 100%; box-sizing: border-box; display: none;">
-          <img src="{% static 'assets/images/carousel/banner_3.jpg' %}" alt="Slide 3" style="width: 100%; height: 350px; object-fit: cover; display: block;">
+        <div class="slide">
+          <img src="{% static 'assets/images/carousel/banner_3.jpg' %}" alt="Slide 3">
         </div>
       </div>
-      <button class="prev" id="prevBtn" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: #fff; padding: 8px; cursor: pointer; border-radius: 50%; user-select: none;">&#10094;</button>
-      <button class="next" id="nextBtn" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: #fff; padding: 8px; cursor: pointer; border-radius: 50%; user-select: none;">&#10095;</button>
+      <button class="prev" id="prevBtn">&#10094;</button>
+      <button class="next" id="nextBtn">&#10095;</button>
     </div>
   </div>
+            
   {% block script %}
+
 
   <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
@@ -1623,6 +1633,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const modalModelNo = document.getElementById("modalModelNo_DayPlanning");
           const modalLotQty = document.getElementById("modalLotQty");
           const modalMissingQty = document.getElementById("modalMissingQty");
+          const modalPhysicalQty = document.getElementById("modalPhysicalQty");
 
           modal.dataset.batchId = link.getAttribute('data-batch-id');
           const modelNo = link.getAttribute('data-model-no');
@@ -1630,19 +1641,38 @@ document.addEventListener("DOMContentLoaded", function () {
           const totalBatchQuantity = link.getAttribute('data-total-batch-quantity') || "0";
           const lotQty = link.getAttribute('data-lot-qty') || "0";
           const missingQty = link.getAttribute('data-missing-qty') || "0";
+          const physicalQty = link.getAttribute('data-physical-qty') || "0";
 
           if (modalModelNo && modelNo) modalModelNo.textContent = modelNo;
           if (modalLotQty) modalLotQty.textContent = totalBatchQuantity || lotQty || '0';
           if (modalMissingQty) modalMissingQty.textContent = missingQty || '0';
+          if (modalPhysicalQty) modalPhysicalQty.textContent = physicalQty || '0';
 
           const modalUserImg = modal.querySelector('.user-profile img');
-          const modelImage = link.getAttribute('data-model-image');
-          if (modalUserImg) modalUserImg.src = modelImage || "/static/assets/images/imagePlaceholder.jpg";
+          const previewStockNo = link.getAttribute('data-plating-stk-no') || modelNo || '';
+          if (modalUserImg && previewStockNo) {
+            modalUserImg.style.objectFit = 'contain';
+            modalUserImg.style.objectPosition = 'center';
+            try {
+              const previewResp = await fetch('/adminportal/api/model-hover-preview/?stock_no=' + encodeURIComponent(previewStockNo), {
+                credentials: 'same-origin',
+                headers: {"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"},
+              });
+              if (previewResp.ok) {
+                const previewPayload = await previewResp.json();
+                if (previewPayload && previewPayload.preview_image) {
+                  modalUserImg.src = previewPayload.preview_image;
+                }
+              }
+            } catch (previewError) {
+              console.error('Error fetching model preview:', previewError);
+            }
+          }
 
           // ===== Fetch from CONSOLIDATED API =====
           let accepted = [], rejected = [], delinked = [], summary = {};
           try {
-            const resp = await fetch('/iqf/iqf_lot_details/?lot_id=' + encodeURIComponent(stockLotId) + '&table=reject', { credentials: 'same-origin' });
+            const resp = await fetch('/iqf/iqf_lot_details/?lot_id=' + encodeURIComponent(stockLotId) + '&table=accept', { credentials: 'same-origin' });
             const result = await resp.json();
             if (result.success) {
               accepted = result.accepted || [];
@@ -1687,7 +1717,6 @@ document.addEventListener("DOMContentLoaded", function () {
             html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
             html += '<span style="padding:3px 10px;border-radius:8px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;">Accepted: '+(summary.accepted_qty||0)+'</span>';
             html += '<span style="padding:3px 10px;border-radius:8px;background:#ffebee;color:#c62828;font-size:12px;font-weight:600;">Rejected: '+(summary.rejected_qty||0)+'</span>';
-            html += '<span style="padding:3px 10px;border-radius:8px;background:#f5f5f5;color:#616161;font-size:12px;font-weight:600;">Delinked Trays: '+(summary.delink_tray_count||0)+'</span>';
             html += '<span style="padding:3px 10px;border-radius:8px;background:#e3f2fd;color:#1565c0;font-size:12px;font-weight:600;">Incoming: '+(summary.iqf_incoming_qty||0)+'</span>';
             html += '</div>';
             if (summary.status_label) {
@@ -1744,152 +1773,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 </script>
 
-  <!-- 🔥 NEW: Delink Selection JavaScript -->
-  <script nonce="{{ csp_nonce }}">
-  document.addEventListener("DOMContentLoaded", function () {
-    const selectAll = document.getElementById("select-all-checkbox");
-    const delinkBtn = document.getElementById("delink-selected-btn");
-    const selectedCount = document.getElementById("selected-count");
-
-    function updateCheckboxes() {
-      const allCheckboxes = document.querySelectorAll(".row-checkbox");
-      const enabledCheckboxes = document.querySelectorAll(".row-checkbox:not(:disabled)");
-      const checkedEnabledCheckboxes = document.querySelectorAll(".row-checkbox:not(:disabled):checked");
-      
-      const checkedCount = checkedEnabledCheckboxes.length;
-      const enabledCount = enabledCheckboxes.length;
-      
-      // Update selected count display
-      selectedCount.textContent = `${checkedCount} item${checkedCount === 1 ? '' : 's'} selected`;
-      
-      // Disable delink button if no items selected
-      delinkBtn.disabled = checkedCount === 0;
-      
-      // ✅ FIXED: Disable "Select All" if no enabled checkboxes
-      if (enabledCount === 0) {
-        selectAll.disabled = true;
-        selectAll.checked = false;
-        selectAll.indeterminate = false;
-      } else {
-        selectAll.disabled = false;
-        // Update select-all checkbox state based on enabled checkboxes only
-        if (checkedCount === enabledCount) {
-          selectAll.checked = true;
-          selectAll.indeterminate = false;
-        } else if (checkedCount > 0) {
-          selectAll.checked = false;
-          selectAll.indeterminate = true;
-        } else {
-          selectAll.checked = false;
-          selectAll.indeterminate = false;
-        }
-      }
-    }
-
-    // Select All logic - only affects enabled checkboxes
-    if (selectAll) {
-      selectAll.addEventListener("change", function () {
-        // ✅ FIXED: Only check/uncheck enabled checkboxes
-        const enabledCheckboxes = document.querySelectorAll(".row-checkbox:not(:disabled)");
-        enabledCheckboxes.forEach(cb => cb.checked = selectAll.checked);
-        updateCheckboxes();
-      });
-    }
-
-    // Row checkbox logic
-    document.addEventListener("change", function (e) {
-      if (e.target.classList.contains("row-checkbox")) {
-        updateCheckboxes();
-      }
-    });
-
-    // Initial update
-    updateCheckboxes();
-
-    // Delink button click with SweetAlert
-    delinkBtn.addEventListener("click", function () {
-      const selectedRows = Array.from(document.querySelectorAll(".row-checkbox:checked"))
-        .map(cb => cb.closest("tr"));
-      
-      // Get stock_lot_id from data attribute instead of trying to extract tray_id
-      const stockLotIds = selectedRows.map(row => {
-        return row.getAttribute('data-lot-id'); // This comes from data-lot-id="{{ data.stock_lot_id }}"
-      }).filter(Boolean);
-
-      if (stockLotIds.length === 0) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'No Selection',
-          text: 'No lots selected.',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#3085d6'
-        });
-        return;
-      }
-
-      // SweetAlert confirmation dialog
-      Swal.fire({
-        title: 'Confirm Delink',
-        text: `Delink only REJECTED trays for ${stockLotIds.length} selected lot(s)?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, Delink!',
-        cancelButtonText: 'Cancel'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          
-
-          // Send stock_lot_ids instead of tray_ids to IQF consolidated delink endpoint
-          fetch("/iqf/delink/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || ""
-            },
-            body: JSON.stringify({ 
-              stock_lot_ids: stockLotIds  // Send lot IDs instead of tray IDs
-            })
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              Swal.fire({
-                icon: 'success',
-                title: 'Delink Successful!',
-                text: `Delinked ${data.updated} REJECTED tray(s) from ${data.lots_processed} lot(s) successfully.`,
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#28a745'
-              }).then(() => {
-                location.reload();
-              });
-            } else {
-              Swal.fire({
-                icon: 'error',
-                title: 'Delink Failed',
-                text: data.error || "Unknown error occurred",
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#dc3545'
-              });
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({
-              icon: 'error',
-              title: 'Network Error',
-              text: 'Failed to connect to server. Please try again.',
-              confirmButtonText: 'OK',
-              confirmButtonColor: '#dc3545'
-            });
-          });
-        }
-      });
-    });
-  });
-  </script>
-
   <!-- Table Sorting Script -->
   <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
@@ -1920,76 +1803,153 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   </script>
 
+
+
+  <!-- Script for Text Remarks (unchanged) -->
   <script nonce="{{ csp_nonce }}">
-  document.addEventListener("DOMContentLoaded", function() {
-    // Attach event to all .rejection-popup-trigger elements
-    document.querySelectorAll('.rejection-popup-trigger').forEach(function(trigger, idx) {
-      trigger.addEventListener('click', function(e) {
-        const row = trigger.closest('tr');
-        let lot_id = null;
-        if (row) {
-          lot_id = row.dataset.submissionLotId || row.dataset.lotId || null;
-          if (!lot_id) {
-            lot_id = row.querySelector('.lot-id-cell')?.textContent?.trim();
+    document.addEventListener("DOMContentLoaded", function () {
+      var triggers = document.querySelectorAll(".remark-tooltip-trigger");
+      triggers.forEach(function (trigger) {
+        var tooltip = trigger.querySelector(".remark-tooltip");
+        var sendButton = tooltip ? tooltip.querySelector("button") : null;
+        function showTooltip() {
+          tooltip.style.opacity = "1";
+          tooltip.style.visibility = "visible";
+          var rect = tooltip.getBoundingClientRect();
+          if (rect.right > window.innerWidth) {
+            tooltip.style.left = "auto";
+            tooltip.style.right = "0";
+            tooltip.style.transform = "none";
+          }
+          if (rect.left < 0) {
+            tooltip.style.left = "0";
+            tooltip.style.transform = "none";
+          }
+          var textarea = tooltip.querySelector("textarea");
+          if (textarea) {
+            textarea.focus();
           }
         }
-        if (!lot_id) {
-          alert("Lot ID not found for this row.");
-          return;
+        function hideTooltip() {
+          tooltip.style.opacity = "0";
+          tooltip.style.visibility = "hidden";
         }
-  
-        // Show loader
-        document.getElementById('rejection-details-loader').style.display = 'block';
-        document.getElementById('rejection-details-body').innerHTML = '';
-  
-        // Open modal
-        document.getElementById('rejectionPopupModal').style.display = 'block';
-  
-        fetch(`/iqf/iqf_lot_details/?lot_id=${encodeURIComponent(lot_id)}&table=reject`, {
-          headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          document.getElementById('rejection-details-loader').style.display = 'none';
-          const tbody = document.getElementById('rejection-details-body');
-          tbody.innerHTML = '';
-          const reasons = data.rejection_reasons || data.reasons || [];
-          if (data.success && reasons.length > 0) {
-            reasons.forEach(item => {
-              const tr = document.createElement('tr');
-              tr.style.border = "1px solid #ddd";
-              const reasonTd = document.createElement('td');
-              reasonTd.style.cssText = "border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;";
-              reasonTd.textContent = item.reason || item.reason_text || '';
-              const qtyTd = document.createElement('td');
-              qtyTd.style.cssText = "border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;";
-              qtyTd.textContent = item.qty || item.iqf_qty || 0;
-              tr.appendChild(reasonTd);
-              tr.appendChild(qtyTd);
-              tbody.appendChild(tr);
-            });
-          } else {
-            tbody.innerHTML = `<tr><td colspan="2" style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;">No rejection details found.</td></tr>`;
-          }
-        })
-        .catch(err => {
-          document.getElementById('rejection-details-loader').style.display = 'none';
-          document.getElementById('rejection-details-body').innerHTML = `<tr><td colspan="2" style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px;">Error loading data.</td></tr>`;
+        trigger.addEventListener("mouseenter", showTooltip);
+        trigger.addEventListener("mouseleave", function () {
+          setTimeout(function () {
+            if (!trigger.matches(":hover") && !tooltip.matches(":hover")) {
+              hideTooltip();
+            }
+          }, 100);
         });
+        tooltip.addEventListener("mouseleave", function () {
+          setTimeout(function () {
+            if (!tooltip.matches(":hover") && !trigger.matches(":hover")) {
+              hideTooltip();
+            }
+          }, 100);
+        });
+        trigger.addEventListener("click", function (e) {
+          e.preventDefault();
+        });
+        if (sendButton) {
+          sendButton.addEventListener("click", hideTooltip);
+        }
       });
     });
-  
-    // Close modal
-    document.getElementById('closeRejectionPopup').addEventListener('click', function() {
-      document.getElementById('rejectionPopupModal').style.display = 'none';
-    });
-  });
   </script>
 
 <!-- Plating Stk - Image hover - fixed position while hitting the Plating Stk No -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
   let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+  const previewCache = new Map();
+
+  function getStockNo(trigger) {
+    return (trigger && trigger.dataset ? trigger.dataset.platingStkNo : "").trim();
+  }
+
+  function normalizeImageUrl(rawUrl) {
+    const value = String(rawUrl || "").trim();
+    if (!value) return "";
+    try {
+      const parsed = new URL(value, window.location.origin);
+      if (parsed.origin === window.location.origin) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+      return parsed.href;
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function setTooltipLoading(tooltip) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;">Loading...</span>';
+  }
+
+  function setTooltipMessage(tooltip, message) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.textContent = "";
+    const messageEl = document.createElement("span");
+    messageEl.textContent = message;
+    messageEl.style.cssText = "font-size:12px;color:#777;text-align:center;";
+    gallery.appendChild(messageEl);
+  }
+
+  function renderPreviewImage(trigger, payload) {
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    const imageUrl = normalizeImageUrl(payload && payload.preview_image);
+    if (!imageUrl) {
+      setTooltipMessage(tooltip, "Image unavailable");
+      return;
+    }
+    gallery.textContent = "";
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Model image";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.style.cssText =
+      "width:100%;height:100%;object-fit:contain;object-position:center;" +
+      "border-radius:6px;background:#fff;display:block;";
+    gallery.appendChild(image);
+  }
+
+  function loadStockPreview(trigger) {
+    const stockNo = getStockNo(trigger);
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    if (!stockNo || !tooltip) return;
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+    if (previewCache.has(stockNo)) {
+      renderPreviewImage(trigger, previewCache.get(stockNo));
+      return;
+    }
+    setTooltipLoading(tooltip);
+    fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: {"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"},
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function(payload) {
+        previewCache.set(stockNo, payload);
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+        renderPreviewImage(trigger, payload);
+      })
+      .catch(function() {
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+        setTooltipMessage(tooltip, "Image unavailable");
+      });
+  }
 
   // Helper function to completely close a tooltip
   function closeTooltip(tooltip, trigger) {
@@ -2019,6 +1979,10 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Clear global reference
       openTooltip = null;
+      if (activeTrigger === trigger) {
+        activeTrigger = null;
+        activeStockNo = "";
+      }
       
       console.log('✅ Tooltip completely closed');
     }
@@ -2027,22 +1991,9 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".model-image-tooltip .info-btn").forEach(function(btn) {
   btn.addEventListener("click", function(e) {
     e.stopPropagation();
-    // Find the closest row
-    const row = btn.closest('tr');
-    let lotId = null; 
-    let batchId = null;
-    if (row) {
-      batchId = row.getAttribute('data-batch-id');
-    }
-    // Build the URL with lot_id and batch_id if found
-    let url = "/adminportal/dp_visualaid/";
-    if (lotId) {
-      url += encodeURIComponent(lotId) + "/";
-    }
-    if (batchId) {
-      url += "?batch_id=" + encodeURIComponent(batchId);
-    }
-    window.location.href = url;
+    const trigger = btn.closest(".model-hover-trigger");
+    const stockNo = getStockNo(trigger);
+    if (stockNo) window.location.href = "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
   });
 });
   
@@ -2054,6 +2005,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     trigger.addEventListener("mouseenter", function () {
       if (tooltip && !tooltip.classList.contains("pinned")) {
+        loadStockPreview(trigger);
         tooltip.style.display = "flex"; // ✅ ADDED: Reset display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Reset visibility
         tooltip.style.opacity = "1";
@@ -2121,6 +2073,7 @@ document.addEventListener("DOMContentLoaded", function () {
           closeTooltip(openTooltip, prevTrigger);
         }
 
+        loadStockPreview(trigger);
         tooltip.classList.add("pinned");
         tooltip.style.display = "flex"; // ✅ ADDED: Ensure display
         tooltip.style.visibility = "visible"; // ✅ ADDED: Ensure visibility
@@ -2205,7 +2158,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- Script for Model / Stock No - Image Mouse Hover -->
 <script nonce="{{ csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.model-hover-trigger').forEach(function(trigger) {
+    document.querySelectorAll('.model-hover-trigger[data-local-slider-enabled="true"]').forEach(function(trigger) {
       const tooltip = trigger.querySelector('.model-image-tooltip');
       let currentIndex = 0;
       let tooltipPinned = false;
@@ -2380,6 +2333,167 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 </script>
 
+<!-- Show alert and highlight row -->
+<script nonce="{{ csp_nonce }}">
+  // filepath: a:\Workspace\Track_and_Trace_v2\static\templates\Day_Planning\DP_PickTable.html
+  document.addEventListener("DOMContentLoaded", function() {
+    const table = document.getElementById('order-listing');
+    const modal = document.getElementById('trayScanModal');
+    const msgBarId = 'dp-table-msg-bar';
+    let msgBar = document.getElementById(msgBarId);
+
+    // Create message bar if not present
+    if (!msgBar && table) {
+      msgBar = document.createElement('div');
+      msgBar.id = msgBarId;
+      msgBar.style.display = 'none';
+      msgBar.style.width = '100%';
+      msgBar.style.margin = '0 0 8px 0';
+      msgBar.style.padding = '10px 24px';
+      msgBar.style.background = '#d1eaff';
+      msgBar.style.color = '#0056b3';
+      msgBar.style.fontWeight = 'bold';
+      msgBar.style.borderRadius = '8px';
+      msgBar.style.fontSize = '1.1rem';
+      msgBar.style.textAlign = 'center';
+      msgBar.style.transition = 'opacity 0.3s, background 0.3s, color 0.3s';
+      table.parentNode.insertBefore(msgBar, table);
+    }
+
+    // Highlight style (if not present)
+    if (!document.getElementById('dp-row-action-highlight-style')) {
+      var style = document.createElement('style');
+      style.id = 'dp-row-action-highlight-style';
+      style.innerHTML = `
+        tr.dp-row-action-highlight > td,
+        tr.action-row-highlight > td {
+                    transition: background-color 0.2s ease;
+          background-color: #fff5bd !important;
+                  }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const btnMsg = {
+      "Draft": "Drafted successfully",
+      "Submit": "Submitted successfully",
+      "Cancel": "Cancelled successfully"
+    };
+    const btnBg = {
+      "Draft": "#d1eaff",    // blue
+      "Submit": "#d4f7d4",   // green
+      "Cancel": "#ffd6d6"    // red
+    };
+    const btnColor = {
+      "Draft": "#0056b3",
+      "Submit": "#218838",
+      "Cancel": "#b30000"
+    };
+
+    document.querySelectorAll('.tray-scan-modal-buttons button').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // 1. Close the modal immediately
+        if (modal) modal.classList.remove('open');
+
+        // 2. Show alert and highlight row
+        let btnText = btn.textContent.trim();
+        let msg = btnMsg[btnText] || "Action successful";
+        let bg = btnBg[btnText] || "#d1eaff";
+        let color = btnColor[btnText] || "#0056b3";
+        if (msgBar) {
+          msgBar.textContent = msg;
+          msgBar.style.display = 'block';
+          msgBar.style.opacity = '1';
+          msgBar.style.background = bg;
+          msgBar.style.color = color;
+        }
+        if (typeof window.restoreIqfAcceptActionRow === 'function') {
+          window.restoreIqfAcceptActionRow();
+        }
+
+        // 3. Hide alert after 2s (and redirect if needed)
+        setTimeout(function() {
+          if (msgBar) {
+            msgBar.style.opacity = '0';
+            setTimeout(function() { msgBar.style.display = 'none'; }, 300);
+          }
+          // Uncomment below if you want to redirect after alert
+          // window.location.href = "{% url 'dp_pick_table' %}";
+        }, 3000);
+      });
+    });
+  });
+</script>
+
+<!-- script for buttons in form & highlight -->
+<script nonce="{{ csp_nonce }}">
+      document.addEventListener("DOMContentLoaded", function () {
+        let activeRowState = null;
+
+        function restoreActionRow() {
+          if (!activeRowState) return;
+          const row = activeRowState.row;
+          const parent = activeRowState.parent;
+          const nextSibling = activeRowState.nextSibling;
+          row.classList.remove("dp-row-action-highlight", "action-row-highlight");
+          if (nextSibling && nextSibling.parentNode === parent) {
+            parent.insertBefore(row, nextSibling);
+          } else if (parent) {
+            parent.appendChild(row);
+          }
+          activeRowState = null;
+        }
+
+        function activateActionRow(row) {
+          if (!row || !row.parentNode) return;
+          restoreActionRow();
+          const parent = row.parentNode;
+          const nextSibling = row.nextSibling;
+          activeRowState = { row: row, parent: parent, nextSibling: nextSibling };
+          row.classList.add("dp-row-action-highlight", "action-row-highlight");
+          parent.insertBefore(row, parent.firstElementChild);
+        }
+
+        window.restoreIqfAcceptActionRow = restoreActionRow;
+        const closeTrayBtn = document.getElementById("closeTrayScanModal_DayPlanning");
+        if (closeTrayBtn) {
+          closeTrayBtn.addEventListener("click", restoreActionRow);
+        }
+
+        // 1. Save the active row when clicking a tray scan trigger.
+        document.querySelectorAll(".tray-scan-btn, .tray-scan-btn-Jig, .remark-tooltip-trigger, [data-iqf-save-remark]").forEach(function(btn) {
+          btn.addEventListener("click", function(e) {
+            const row = e.target.closest("tr");
+            if (row) {
+              window.activeRow = row;
+              activateActionRow(row);
+            }
+            // Open the left modal (trayScanModal) as needed.
+            const trayModal = document.getElementById("trayScanModal");
+            if (trayModal) {
+              trayModal.classList.add("open");
+            }
+          });
+        });
+
+        // 2. Attach click event handlers to popup action buttons (Draft, Submit, Cancel)
+        document.querySelectorAll('.tray-scan-modal-buttons button').forEach(function(btn) {
+          btn.addEventListener("click", function(e) {
+            e.preventDefault();
+            
+            // Close both modals
+            const newPopupModal = document.getElementById("newPopupModal");
+            const trayScanModal = document.getElementById("trayScanModal");
+            if (newPopupModal) newPopupModal.classList.remove("open");
+            if (trayScanModal) trayScanModal.classList.remove("open");
+
+            restoreActionRow();
+      });
+    });
+  });
+</script>
 
 <!-- // --- Child Screen Lock Feature ---
 // When child screen (tray scan modal) is open, only allow scroll and Eye icon (view) access on parent.
@@ -2488,69 +2602,134 @@ document.addEventListener("DOMContentLoaded", function () {
       setTimeout(unlockParentActions, 200);
     });
   }
-
-  // ===== SORTING FUNCTIONALITY =====
-  
-  // Column mapping for sorting
-  const columnMapping = {
-    1: 'serial_number',
-    2: 'iqf_rejected_last_process_date_time', 
-    3: 'plating_stk_no',
-    4: 'polishing_stk_no',
-    5: 'plating_color',
-    6: 'polish_finish',
-    7: 'vendor_location',
-    8: 'tray_type',
-    9: 'tray_capacity',
-    10: 'total_rejection_quantity'
-  };
-
-  // Get current sort parameters from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const currentSort = urlParams.get('sort');
-  const currentOrder = urlParams.get('order');
-
-  // Update sort icons on page load
-  if (currentSort && currentOrder) {
-    const currentColumn = Object.keys(columnMapping).find(key => columnMapping[key] === currentSort);
-    if (currentColumn) {
-      const th = document.querySelector(`th[data-column-index="${currentColumn}"]`);
-      if (th) {
-        const icon = th.querySelector('i');
-        if (icon) {
-          icon.className = currentOrder === 'asc' ? 'fa fa-sort-up' : 'fa fa-sort-down';
-        }
-      }
-    }
-  }
-
-  // Add click event listeners to sortable headers
-  document.querySelectorAll('th.sortable').forEach(function(th) {
-    th.addEventListener('click', function() {
-      const columnIndex = this.getAttribute('data-column-index');
-      const sortField = columnMapping[columnIndex];
-      
-      if (!sortField) return;
-
-      let newOrder = 'asc';
-      
-      // If clicking the same column, toggle order
-      if (currentSort === sortField) {
-        newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-      }
-
-      // Build new URL with sort parameters
-      const newUrl = new URL(window.location);
-      newUrl.searchParams.set('sort', sortField);
-      newUrl.searchParams.set('order', newOrder);
-      
-      // Navigate to the new URL
-      window.location.href = newUrl.toString();
-    });
-  });
-  
-  // ===== END SORTING FUNCTIONALITY =====
-
 });
 </script>
+
+<!-- IQF Reject Table Sorting JavaScript -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    // Column mapping for sorting
+    const columnMapping = {
+        '0': 'lot_id',
+        '1': 'date_time',
+        '2': 'model_no',
+        '3': 'polishing_stk_no',
+        '4': 'plating_color',
+        '5': 'polish_finish',
+        '6': 'vendor_location',
+        '7': 'tray_type',
+        '8': 'no_of_trays',
+        '9': 'accept_qty',
+        '10': 'process_status',
+        '11': 'batch_status',
+        '12': 'current_location',
+        '13': 'accepted_remarks',
+        '14': 'remarks'
+    };
+
+    // Get current sort parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort');
+    const currentDirection = urlParams.get('direction');
+
+    // Update header icons based on current sort
+    if (currentSort && currentDirection) {
+        const sortedColumn = Object.keys(columnMapping).find(key => columnMapping[key] === currentSort);
+        if (sortedColumn) {
+            const header = document.querySelector(`[data-column-index="${sortedColumn}"]`);
+            if (header) {
+                header.classList.add('sorted');
+                header.querySelector('.sort-icon').style.display = 'none';
+                
+                if (currentDirection === 'asc') {
+                    header.querySelector('.sort-asc').style.display = 'inline';
+                } else {
+                    header.querySelector('.sort-desc').style.display = 'inline';
+                }
+            }
+        }
+    }
+
+    // Add click handlers for sorting
+    document.querySelectorAll('.sortable').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const columnIndex = this.getAttribute('data-column-index');
+            const sortField = columnMapping[columnIndex];
+            
+            if (!sortField) return;
+
+            const url = new URL(window.location);
+            const currentSort = url.searchParams.get('sort');
+            const currentDirection = url.searchParams.get('direction');
+            
+            let newDirection = 'asc';
+            if (currentSort === sortField && currentDirection === 'asc') {
+                newDirection = 'desc';
+            }
+            
+            url.searchParams.set('sort', sortField);
+            url.searchParams.set('direction', newDirection);
+            url.searchParams.set('page', '1');
+            
+            window.location.href = url.toString();
+        });
+    });
+});
+</script>
+
+<!-- IQF Remarks Handler -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('click', function(e) {
+    var sendBtn = e.target.closest('[data-iqf-save-remark]');
+    if (!sendBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    var tooltipContainer = sendBtn.closest('.remark-tooltip');
+    var textarea = tooltipContainer ? tooltipContainer.querySelector('textarea') : null;
+    if (!textarea) { alert('Remark field not found.'); return; }
+
+    var remarkText = (textarea.value || '').trim();
+    if (!remarkText) { alert('Please enter a remark before sending.'); return; }
+
+    var row = sendBtn.closest('tr');
+    var lotId = row ? (row.getAttribute('data-stock-lot-id') || '') : '';
+    if (!lotId) { alert('Unable to identify lot.'); return; }
+
+    sendBtn.disabled = true;
+    var origHTML = sendBtn.innerHTML;
+    sendBtn.innerHTML = '&#x23F3;';
+
+    var csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+      || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+    fetch('/iqf/iqf_save_pick_remark/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ lot_id: lotId, IQF_pick_remarks: remarkText }),
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.success) {
+        textarea.setAttribute('readonly', 'readonly');
+        sendBtn.style.display = 'none';
+        var triggerLink = sendBtn.closest('.remark-tooltip-trigger');
+        if (triggerLink) {
+          var chatIcon = triggerLink.querySelector('img');
+          if (chatIcon) { chatIcon.style.filter = 'grayscale(0) brightness(1.1) sepia(1) hue-rotate(80deg) saturate(3) contrast(1.2)'; chatIcon.style.opacity = '1'; }
+        }
+        if (typeof window.restoreIqfAcceptActionRow === 'function') window.restoreIqfAcceptActionRow();
+      } else {
+        sendBtn.disabled = false; sendBtn.innerHTML = origHTML;
+        alert('Error: ' + (data.error || 'Failed to save remark'));
+        if (typeof window.restoreIqfAcceptActionRow === 'function') window.restoreIqfAcceptActionRow();
+      }
+    })
+    .catch(function() { sendBtn.disabled = false; sendBtn.innerHTML = origHTML; alert('Network error.'); if (typeof window.restoreIqfAcceptActionRow === 'function') window.restoreIqfAcceptActionRow(); });
+  }, true);
+});
+</script>
+
 {% endblock %} {% endblock content %}

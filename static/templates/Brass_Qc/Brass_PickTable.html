@@ -873,6 +873,39 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 /* ====================================================
    END UNIFIED BRASS QC ACTION BUTTON THEME
    ==================================================== */
+
+/* Brass QC Pick Table dynamic model hover */
+.model-image-tooltip {
+  box-shadow: none !important;
+  min-width: 240px !important;
+}
+
+.model-image-tooltip,
+.model-image-tooltip *,
+.model-image-tooltip .img-gallery,
+.model-image-tooltip .img-gallery > *,
+.model-image-tooltip img {
+  text-shadow: none !important;
+}
+
+.model-image-tooltip .img-gallery img {
+  width: 170px !important;
+  height: 150px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  display: block !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.model-image-tooltip.is-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 </style>
 
 <div class="content-wrapper">
@@ -1048,7 +1081,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       {% endif %}
                     </td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all; position: relative;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -1065,9 +1098,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
                             <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                            </div>
+                            <div class="img-gallery" style="display:flex;align-items:center;justify-content:center;overflow:hidden;width:180px;min-height:150px;">
+  <span class="model-preview-loading" style="font-size:12px;color:#777;text-align:center;">Loading...</span>
+</div>
                           </div>
                         </div>
                       </span>
@@ -3982,5 +4015,328 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Brass QC Keyboard Shortcuts (external JS) -->
 <script nonce="{{ csp_nonce }}" src="{% static 'js/brass_qc_shortcuts.js' %}"></script>
 <!-- bfcache + shortcut handlers moved to brass_qc_shortcuts.js -->
-<script src="{% static 'js/model_image_tooltip.js' %}"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  const triggers = Array.from(
+    document.querySelectorAll(
+      ".model-hover-trigger[data-plating-stk-no]"
+    )
+  );
+
+  if (!triggers.length) return;
+
+  const previewCache = new Map();
+  let activeTrigger = null;
+  let pinnedTrigger = null;
+  let requestToken = 0;
+  let hideTimer = null;
+
+  function getTooltip(trigger) {
+    return trigger ? trigger.querySelector(".model-image-tooltip") : null;
+  }
+
+  function getGallery(trigger) {
+    const tooltip = getTooltip(trigger);
+    return tooltip ? tooltip.querySelector(".img-gallery") : null;
+  }
+
+  function getStockNo(trigger) {
+    return String(
+      trigger && trigger.dataset
+        ? trigger.dataset.platingStkNo || ""
+        : ""
+    ).trim();
+  }
+
+  function renderLoading(trigger) {
+    const gallery = getGallery(trigger);
+    if (!gallery) return;
+    gallery.innerHTML =
+      '<span style="font-size:12px;color:#777;text-align:center;">Loading...</span>';
+  }
+
+  function renderMessage(trigger, message) {
+    const gallery = getGallery(trigger);
+    if (!gallery) return;
+    gallery.textContent = "";
+
+    const span = document.createElement("span");
+    span.textContent = message;
+    span.style.cssText =
+      "font-size:12px;color:#777;text-align:center;";
+    gallery.appendChild(span);
+  }
+
+  function renderPreview(trigger, payload) {
+    const gallery = getGallery(trigger);
+    if (!gallery) return;
+
+    const imageUrl = String(
+      payload && payload.preview_image
+        ? payload.preview_image
+        : ""
+    ).trim();
+
+    if (!imageUrl) {
+      renderMessage(trigger, "Image unavailable");
+      return;
+    }
+
+    gallery.textContent = "";
+
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Model IV preview";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.style.cssText =
+      "width:170px;height:150px;object-fit:contain;" +
+      "object-position:center;border-radius:6px;" +
+      "background:#fff;display:block;box-shadow:none;filter:none;";
+
+    image.addEventListener("error", function () {
+      renderMessage(trigger, "Image unavailable");
+    });
+
+    gallery.appendChild(image);
+  }
+
+  function positionTooltip(trigger) {
+    const tooltip = getTooltip(trigger);
+    if (!tooltip) return;
+
+    tooltip.style.left = "80%";
+    tooltip.style.right = "auto";
+    tooltip.style.top = "110%";
+    tooltip.style.transform = "translateX(-50%)";
+
+    const rect = tooltip.getBoundingClientRect();
+
+    if (rect.right > window.innerWidth - 8) {
+      tooltip.style.left = "auto";
+      tooltip.style.right = "0";
+      tooltip.style.transform = "none";
+    }
+
+    if (rect.left < 8) {
+      tooltip.style.left = "0";
+      tooltip.style.right = "auto";
+      tooltip.style.transform = "none";
+    }
+  }
+
+  function closeTrigger(trigger, force) {
+    if (!trigger) return;
+    if (!force && pinnedTrigger === trigger) return;
+
+    const tooltip = getTooltip(trigger);
+    if (tooltip) {
+      tooltip.classList.remove("is-visible", "pinned");
+      tooltip.style.opacity = "0";
+      tooltip.style.visibility = "hidden";
+      tooltip.style.pointerEvents = "none";
+    }
+
+    if (activeTrigger === trigger) {
+      activeTrigger = null;
+    }
+
+    if (force && pinnedTrigger === trigger) {
+      pinnedTrigger = null;
+    }
+  }
+
+  function closeOthers(current) {
+    triggers.forEach(function (trigger) {
+      if (trigger !== current) {
+        closeTrigger(trigger, true);
+      }
+    });
+  }
+
+  async function loadPreview(trigger) {
+    const stockNo = getStockNo(trigger);
+
+    if (!stockNo) {
+      renderMessage(trigger, "Stock number unavailable");
+      return;
+    }
+
+    if (previewCache.has(stockNo)) {
+      renderPreview(trigger, previewCache.get(stockNo));
+      return;
+    }
+
+    renderLoading(trigger);
+    const token = ++requestToken;
+
+    try {
+      const response = await fetch(
+        "/adminportal/api/model-hover-preview/?stock_no=" +
+          encodeURIComponent(stockNo),
+        {
+          headers: {
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const payload = await response.json();
+      previewCache.set(stockNo, payload);
+
+      if (token !== requestToken || activeTrigger !== trigger) {
+        return;
+      }
+
+      // Backend priority: IV -> TV -> FV -> RSV -> dynamic NO_IMAGE.
+      renderPreview(trigger, payload);
+    } catch (error) {
+      console.error("Brass QC model preview failed:", error);
+
+      if (token !== requestToken || activeTrigger !== trigger) {
+        return;
+      }
+
+      renderMessage(trigger, "Image unavailable");
+    }
+  }
+
+  function openTrigger(trigger) {
+    clearTimeout(hideTimer);
+    closeOthers(trigger);
+
+    const tooltip = getTooltip(trigger);
+    if (!tooltip) return;
+
+    activeTrigger = trigger;
+    tooltip.classList.add("is-visible");
+    tooltip.style.display = "flex";
+    tooltip.style.opacity = "1";
+    tooltip.style.visibility = "visible";
+    tooltip.style.pointerEvents = "auto";
+
+    positionTooltip(trigger);
+    loadPreview(trigger);
+  }
+
+  triggers.forEach(function (trigger) {
+    const tooltip = getTooltip(trigger);
+
+    if (
+      !tooltip ||
+      trigger.dataset.brassHoverBound === "1"
+    ) {
+      return;
+    }
+
+    trigger.dataset.brassHoverBound = "1";
+
+    const infoButton = tooltip.querySelector(".info-btn");
+    const closeButton = tooltip.querySelector(".close-btn");
+
+    trigger.addEventListener("mouseenter", function () {
+      openTrigger(trigger);
+    });
+
+    trigger.addEventListener("mouseleave", function () {
+      hideTimer = window.setTimeout(function () {
+        if (
+          pinnedTrigger !== trigger &&
+          !trigger.matches(":hover") &&
+          !tooltip.matches(":hover")
+        ) {
+          closeTrigger(trigger, false);
+        }
+      }, 120);
+    });
+
+    tooltip.addEventListener("mouseenter", function () {
+      clearTimeout(hideTimer);
+    });
+
+    tooltip.addEventListener("mouseleave", function () {
+      hideTimer = window.setTimeout(function () {
+        if (
+          pinnedTrigger !== trigger &&
+          !trigger.matches(":hover") &&
+          !tooltip.matches(":hover")
+        ) {
+          closeTrigger(trigger, false);
+        }
+      }, 120);
+    });
+
+    trigger.addEventListener("click", function (event) {
+      if (
+        event.target.closest(".info-btn") ||
+        event.target.closest(".close-btn")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (pinnedTrigger === trigger) {
+        closeTrigger(trigger, true);
+      } else {
+        closeOthers(trigger);
+        pinnedTrigger = trigger;
+        tooltip.classList.add("pinned");
+        openTrigger(trigger);
+      }
+    });
+
+    if (infoButton) {
+      infoButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const stockNo = getStockNo(trigger);
+        if (!stockNo) return;
+
+        window.location.href =
+          "/adminportal/dp_visualaid/?plating_stk_no=" +
+          encodeURIComponent(stockNo);
+      });
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeTrigger(trigger, true);
+      });
+    }
+  });
+
+  document.addEventListener("click", function (event) {
+    if (
+      pinnedTrigger &&
+      !pinnedTrigger.contains(event.target)
+    ) {
+      closeTrigger(pinnedTrigger, true);
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      triggers.forEach(function (trigger) {
+        closeTrigger(trigger, true);
+      });
+    }
+  });
+
+  window.addEventListener("resize", function () {
+    if (activeTrigger) {
+      positionTooltip(activeTrigger);
+    }
+  });
+});
+</script>
 {% endblock %} {% endblock content %}

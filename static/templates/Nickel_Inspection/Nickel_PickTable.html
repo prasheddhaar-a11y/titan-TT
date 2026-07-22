@@ -831,7 +831,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     <!-- Col 3: Plating Stk No -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -848,9 +848,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
                             <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                            </div>
+                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;"></div>
                           </div>
                         </div>
                       </span>
@@ -977,6 +975,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                           data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
                           data-model-image="{{ data.model_images.0|default:'' }}"
+                          data-plating-stk-no="{{ data.plating_stk_no }}"
                           data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
                             data-total-batch-quantity="{{ data.display_accepted_qty|default:0 }}"
                             data-brass-missing-qty="{{ data.nq_missing_qty|default:0 }}">
@@ -1241,7 +1240,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
         <div id="modalModelImages_DayPlanning" style="display: flex; gap: 6px;">
             <!-- Model images will be injected here by JS -->
-            <img id="modalUserImg_DayPlanning" src="{% static 'assets/images/imagePlaceholder.png' %}" alt="Model Image" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
+            <img id="modalUserImg_DayPlanning" src="{% static 'assets/images/imagePlaceholder.png' %}" alt="Model Image" style="border-radius: 50%; width: 50px; height: 50px; object-fit: contain; object-position: center;" />
           </div>  
         <!-- Model No and Lot Qty in same line -->
         <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1554,9 +1553,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
 <!-- Active table row highlight -->
 <script nonce="{{ csp_nonce }}">
-// Row highlight & position swap for Accept, Reject, and View actions (DP_PickTable style)
 document.addEventListener("DOMContentLoaded", function() {
-  // Add highlight style if not present
   if (!document.getElementById('dp-row-action-highlight-style')) {
     var style = document.createElement('style');
     style.id = 'dp-row-action-highlight-style';
@@ -1570,49 +1567,20 @@ document.addEventListener("DOMContentLoaded", function() {
     document.head.appendChild(style);
   }
 
-  document.querySelectorAll('#order-listing tbody tr').forEach(function(row) {
-    row.classList.remove('dp-row-action-highlight');
-    row.classList.remove('highlighted-tray-scan');
-  });
-
-  let originalRowIndex = null;
   let movedRow = null;
   let placeholderRow = null;
 
-  // --- Accept Alert Integration: Clear highlight and restore row on Yes/Cancel ---
-  document.querySelectorAll('.btn-twitter').forEach(function(acceptBtn) {
-    acceptBtn.addEventListener('click', function() {
-      if (typeof Swal !== 'undefined') {
-        const origSwalFire = Swal.fire;
-        Swal.fire = function(opts) {
-          // Force patch for any Accept button click (don't rely only on opts.title)
-          const swalPromise = origSwalFire.call(Swal, opts);
-          swalPromise.then(function(result) {
-            // Always restore row on Yes or Cancel
-            restoreRowPosition();
-            // Unpatch
-            Swal.fire = origSwalFire;
-          });
-          return swalPromise;
-        };
-      }
-    });
-  });
-
-  // Restore row to original position and remove highlight
   function restoreRowPosition() {
     if (movedRow && placeholderRow && placeholderRow.parentNode) {
       placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
       placeholderRow.parentNode.removeChild(placeholderRow);
-      movedRow.classList.remove('dp-row-action-highlight');
-      movedRow = null;
-      placeholderRow = null;
-      originalRowIndex = null;
     }
     document.querySelectorAll('tbody tr').forEach(function(row) {
       row.classList.remove('dp-row-action-highlight');
       row.classList.remove('highlighted-tray-scan');
     });
+    movedRow = null;
+    placeholderRow = null;
     if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
       window.GlobalShortcutManager.clear();
     }
@@ -1623,62 +1591,60 @@ document.addEventListener("DOMContentLoaded", function() {
     } catch (e) {}
   }
 
-  // Attach highlight/move for Accept, Reject, and View actions
-  function attachRowHighlight(selector) {
-    document.querySelectorAll(selector).forEach(function(btn) {
-      btn.addEventListener('click', function(event) {
-        var button = event.currentTarget;
-        var row = button.closest('tr');
-        document.querySelectorAll('tbody tr').forEach(function(row) {
-          row.classList.remove('dp-row-action-highlight');
-        });
-        if (row && row.parentNode) {
-          const tbody = row.parentNode;
-          if (tbody.firstElementChild !== row) {
-            if (movedRow && placeholderRow && placeholderRow.parentNode) {
-              placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-              placeholderRow.parentNode.removeChild(placeholderRow);
-              movedRow.classList.remove('dp-row-action-highlight');
-              movedRow = null;
-              placeholderRow = null;
-              originalRowIndex = null;
-            }
-            originalRowIndex = Array.from(tbody.children).indexOf(row);
-            movedRow = row;
-            placeholderRow = document.createElement('tr');
-            placeholderRow.style.display = 'none';
-            for (let i = 0; i < row.children.length; i++) {
-              placeholderRow.appendChild(document.createElement('td'));
-            }
-            tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-            tbody.insertBefore(row, tbody.firstElementChild);
-          }
-          row.classList.add('dp-row-action-highlight');
-        }
-      });
-    });
+  function highlightRow(row) {
+    if (!row || !row.parentNode) return;
+    restoreRowPosition();
+    var tbody = row.parentNode;
+    movedRow = row;
+    if (tbody.firstElementChild !== row) {
+      placeholderRow = document.createElement('tr');
+      placeholderRow.style.display = 'none';
+      for (var i = 0; i < row.children.length; i += 1) {
+        placeholderRow.appendChild(document.createElement('td'));
+      }
+      tbody.insertBefore(placeholderRow, row);
+      tbody.insertBefore(row, tbody.firstElementChild);
+    }
+    row.classList.add('dp-row-action-highlight');
   }
 
-  // Accept, Reject, View (tray-scan-btn, tray-scan-btn-Jig, btn-twitter, tray-scan-btn-BQ-view)
-  attachRowHighlight('.tray-scan-btn, .tray-scan-btn-Jig, .btn-twitter, .tray-scan-btn-BQ-view');
+  function actionTarget(target) {
+    return target.closest(
+      '.hold-toggle-btn, .hold-remark-icon, .tray-scan-btn, .tray-scan-btn-Jig, .tray-scan-btn-BQ-view, .btn-accept-is:not(:disabled), .btn-reject-is:not(:disabled), .delete-batch-btn, .remark-send-btn, .rejection-popup-trigger, #delink-selected-btn'
+    );
+  }
 
-  // Restore on all modal closes (tray scan, day planning, new popup, etc)
+  document.addEventListener('click', function(event) {
+    if (event.target.closest('.model-hover-trigger') || event.target.closest('.model-image-tooltip')) return;
+    var action = actionTarget(event.target);
+    if (!action) return;
+    highlightRow(action.closest('tr'));
+  }, true);
+
+  document.addEventListener('change', function(event) {
+    if (event.target.matches('.hold-toggle-btn')) {
+      highlightRow(event.target.closest('tr'));
+    }
+  }, true);
+
   [
     'closeTrayScanModal',
     'closeTrayScanModal_DayPlanning',
-    'closeNewPopupModal'
+    'closeNewPopupModal',
+    'closetrayScanModal_Jig',
+    'closeHoldRemarkModal',
+    'closeRejectionPopup'
   ].forEach(function(id) {
     var btn = document.getElementById(id);
-    if (btn) {
-      btn.addEventListener('click', restoreRowPosition);
-    }
+    if (btn) btn.addEventListener('click', restoreRowPosition);
   });
 
-  // Also restore on modal backdrop click (for all modals)
   [
     'trayScanModal',
     'trayScanModal_DayPlanning',
-    'newPopupModal'
+    'newPopupModal',
+    'holdRemarkModal',
+    'rejectionPopupModal'
   ].forEach(function(id) {
     var modal = document.getElementById(id);
     if (modal) {
@@ -1688,27 +1654,182 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // Restore on ESC key
-  document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') restoreRowPosition();
-  });
-
-  // --- Fix: Also restore on SweetAlert Cancel button click (native or custom) ---
   document.addEventListener('click', function(event) {
     if (
       event.target &&
-      (
-        event.target.classList.contains('swal2-cancel') ||
-        event.target.classList.contains('swal2-close') ||
-        event.target.id === 'cancelButton'
-      )
+      (event.target.classList.contains('swal2-cancel') ||
+       event.target.classList.contains('swal2-close') ||
+       event.target.id === 'cancelButton')
     ) {
       restoreRowPosition();
     }
   });
 
-  window.nqRestoreRowPosition = restoreRowPosition;
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') restoreRowPosition();
+  });
 
+  window.nqRestoreRowPosition = restoreRowPosition;
+});
+</script>
+
+<!-- Plating Stk - Image hover - fixed position while hitting the Plating Stk No -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  const previewCache = window.NickelModelPreviewCache || new Map();
+  window.NickelModelPreviewCache = previewCache;
+  let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+
+  function stockFromTrigger(trigger) {
+    return ((trigger && trigger.dataset.platingStkNo) || "").trim();
+  }
+
+  function fetchPreview(stockNo) {
+    if (previewCache.has(stockNo)) {
+      return Promise.resolve(previewCache.get(stockNo));
+    }
+    return fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (payload) {
+        previewCache.set(stockNo, payload);
+        return payload;
+      })
+      .catch(function () {
+        previewCache.set(stockNo, null);
+        return null;
+      });
+  }
+
+  function prepareTooltip(tooltip) {
+    if (!tooltip || tooltip.dataset.previewReady === "1") return;
+    tooltip.dataset.previewReady = "1";
+    tooltip.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;">' +
+        '<button type="button" class="info-btn" style="background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Info</button>' +
+        '<button type="button" class="close-btn" style="background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Close</button>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:center;width:180px;height:150px;border:none;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;">' +
+        '<img class="nickel-preview-img" src="" alt="Model preview" style="width:100%;height:100%;object-fit:contain;object-position:center;border:none;border-radius:0;box-shadow:none;background:transparent;outline:none;" loading="lazy" />' +
+      '</div>';
+  }
+
+  function closeTooltip(tooltip, trigger) {
+    if (!tooltip) return;
+    tooltip.classList.remove("pinned");
+    tooltip.style.opacity = "0";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.display = "none";
+    if (trigger) {
+      trigger.style.backgroundColor = "";
+      trigger.style.borderRadius = "";
+    }
+    if (openTooltip === tooltip) {
+      openTooltip = null;
+      activeTrigger = null;
+      activeStockNo = "";
+    }
+  }
+
+  function renderPreview(trigger, stockNo, payload) {
+    if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const img = tooltip ? tooltip.querySelector(".nickel-preview-img") : null;
+    if (img && payload && payload.preview_image) {
+      img.src = payload.preview_image;
+    } else if (img) {
+      img.removeAttribute("src");
+    }
+  }
+
+  function showTooltip(trigger, pinned) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const stockNo = stockFromTrigger(trigger);
+    if (!tooltip || !stockNo) return;
+    if (openTooltip && openTooltip !== tooltip) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+    openTooltip = tooltip;
+    prepareTooltip(tooltip);
+    tooltip.style.display = "flex";
+    tooltip.style.visibility = "visible";
+    tooltip.style.opacity = "1";
+    tooltip.style.pointerEvents = "auto";
+    if (pinned) {
+      tooltip.classList.add("pinned");
+      trigger.style.backgroundColor = "#e3f2fd";
+      trigger.style.borderRadius = "4px";
+    }
+    fetchPreview(stockNo).then(function (payload) {
+      renderPreview(trigger, stockNo, payload);
+    });
+  }
+
+  document.querySelectorAll(".model-hover-trigger").forEach(function (trigger) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    if (!tooltip) return;
+    prepareTooltip(tooltip);
+
+    trigger.addEventListener("mouseenter", function () {
+      if (!tooltip.classList.contains("pinned")) showTooltip(trigger, false);
+    });
+    trigger.addEventListener("mouseleave", function () {
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
+    });
+    tooltip.addEventListener("mouseenter", function () {
+      if (openTooltip === tooltip) {
+        tooltip.style.display = "flex";
+        tooltip.style.visibility = "visible";
+        tooltip.style.opacity = "1";
+        tooltip.style.pointerEvents = "auto";
+      }
+    });
+    tooltip.addEventListener("mouseleave", function () {
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
+    });
+    trigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      showTooltip(trigger, true);
+    });
+
+    const infoBtn = tooltip.querySelector(".info-btn");
+    if (infoBtn) {
+      infoBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const stockNo = activeTrigger ? stockFromTrigger(activeTrigger) : stockFromTrigger(trigger);
+        if (!stockNo) return;
+        window.location.href = "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
+      });
+    }
+
+    const closeBtn = tooltip.querySelector(".close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTooltip(tooltip, trigger);
+      });
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (openTooltip && !e.target.closest(".model-image-tooltip") && !e.target.closest(".model-hover-trigger")) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && openTooltip) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+  });
 });
 </script>
 
@@ -2893,6 +3014,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="{% static 'js/model_image_tooltip.js' %}"></script>
 
 {% endblock %} {% endblock content %}

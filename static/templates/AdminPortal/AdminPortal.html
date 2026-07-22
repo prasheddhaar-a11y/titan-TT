@@ -1547,7 +1547,27 @@
      }
    }
 
-   @media (max-width: 640px) {
+   .back-to-dashboard-btn {
+     background-color: #e7f6f7;
+     color: #028084;
+     border: 1px solid #028084;
+     border-radius: 25px;
+     padding: 5px 12px;
+     font-weight: 600;
+     font-size: 0.9rem;
+     transition: background 0.2s, color 0.2s;
+     text-decoration: none;
+     display: inline-flex;
+     align-items: center;
+     gap: 6px;
+  }
+  .back-to-dashboard-btn:hover {
+     background-color: #028084;
+     color: #fff;
+     text-decoration: none;
+  }
+
+  @media (max-width: 640px) {
      .wz-stepper {
        padding: 0.5rem 0.2rem 0.2rem;
        margin-bottom: 0.6rem;
@@ -1580,6 +1600,9 @@
 
 <!-- Animated Wizard Stepper -->
 <main class="main">
+   <div style="padding: 0 0 12px;">
+      <a href="{% url 'index' %}" class="back-to-dashboard-btn" title="Back to Dashboard"><i class="fa fa-arrow-left"></i> Back</a>
+   </div>
    <nav aria-label="Wizard Progress" style="margin-bottom: 0.2rem;">
       <div class="wz-stepper" id="wizardStepper">
          <!-- Step 1: User Details -->
