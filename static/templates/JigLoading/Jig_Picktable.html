@@ -347,7 +347,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                     <span
                       class="hold-remark-icon{% if data.jig_hold_lot or data.jig_release_lot or data.jig_holding_reason or data.jig_release_reason %} has-reason{% endif %}"
                       style="cursor: pointer"
-                      title="{% if data.jig_holding_reason %}Holding Reason: {{ data.jig_holding_reason }}{% endif %}{% if data.jig_holding_reason and data.jig_release_reason %}&#10;{% endif %}{% if data.jig_release_reason %}Release Reason: {{ data.jig_release_reason }}{% endif %}"
+                      title="{% if data.jig_holding_reason %}Holding Reason: {{ data.jig_holding_reason }} (by {{ data.jig_hold_by }} on {{ data.jig_hold_at }}){% endif %}{% if data.jig_holding_reason and data.jig_release_reason %}&#10;{% endif %}{% if data.jig_release_reason %}Release Reason: {{ data.jig_release_reason }} (by {{ data.jig_release_by }} on {{ data.jig_release_at }}){% endif %}"
                     >
                       <img
                         src="{% static 'assets/icons/view2.png' %}"
@@ -5084,6 +5084,10 @@ function clearJigUserInputs() {
   // 1. Jig ID (user types this)
   var jigIdInput = document.getElementById('jigIdInput');
   if (jigIdInput) { jigIdInput.value = ''; jigIdInput.classList.remove('jig-id-error', 'jig-id-valid'); }
+  // Also purge the value stashed for Add-Model round trips — otherwise a stale
+  // (or invalid) Jig ID saved before Clear was clicked gets silently restored
+  // into the now-empty field the next time the Add Model flow returns.
+  try { sessionStorage.removeItem('jig_id_add_model'); } catch (e) {}
   // Reset cycle count display
   var cycleEl = document.getElementById('modalNoOfCycle');
   if (cycleEl) cycleEl.textContent = '1';
@@ -5569,6 +5573,24 @@ document.addEventListener('click', function (e) {
         body: JSON.stringify({ action: 'clear', lot_id: _cancelLot, batch_id: _cancelBatch, broken_hooks: 0, scanned_trays: [] })
       }).catch(function(err) { console.warn('[CANCEL_BTN] active draft clear failed:', err); });
       console.log('[CANCEL_BTN] Clearing active draft for lot:', _cancelLot);
+    }
+
+    // If this modal was reopened as part of the "+ Add Model" flow (filter/eligible-lot
+    // screen, or the return_to_modal/merge_model reopen step), closing it should exit
+    // that flow entirely and land on the plain Pick Table — not just hide the modal and
+    // leave the Add-Model filter screen visible underneath it.
+    var _cancelParams = new URLSearchParams(window.location.search);
+    var _onAddModelFlow = _cancelParams.has('exclude_lot_id') || _cancelParams.has('eligible_models') ||
+      _cancelParams.has('primary_lot_id') || _cancelParams.has('primary_lot') ||
+      _cancelParams.get('return_to_modal') === '1' || _cancelParams.get('merge_model') === '1';
+    if (_onAddModelFlow) {
+      try { sessionStorage.removeItem('secondary_lots'); } catch (e) {}
+      try { sessionStorage.removeItem('secondary_lot'); } catch (e) {}
+      try { localStorage.removeItem('secondary_lot'); } catch (e) {}
+      try { sessionStorage.removeItem('jig_id_add_model'); } catch (e) {}
+      console.log('[CANCEL_BTN] Exiting Add-Model flow, returning to plain Pick Table');
+      window.location.href = '/jig_loading/JigView/';
+      return;
     }
 
     console.log('[CANCEL_BTN] Closed modal. Saved draft preserved.');
@@ -6433,10 +6455,17 @@ document.addEventListener('DOMContentLoaded', function () {
             + (nonEligibleParam ? '&non_eligible_models=' + nonEligibleParam : '')
             + (selectedParam ? '&selected_models=' + selectedParam : '');
 
-          // Save Jig ID before navigating — will be restored when returning from filter screen
+          // Save Jig ID before navigating — will be restored when returning from filter screen.
+          // Only persist a VALID Jig ID (J###-####); otherwise an incomplete/invalid value typed
+          // just before clicking Add Model (or left over from before a Clear) gets silently
+          // restored into the field on return, making Clear look like it didn't work.
           try {
             var _jigIdVal = (document.getElementById('jigIdInput') || {}).value || '';
-            if (_jigIdVal) sessionStorage.setItem('jig_id_add_model', _jigIdVal);
+            if (_jigIdVal && /^J\d{3}-\d{4}$/.test(_jigIdVal)) {
+              sessionStorage.setItem('jig_id_add_model', _jigIdVal);
+            } else {
+              sessionStorage.removeItem('jig_id_add_model');
+            }
           } catch(e) {}
 
           console.log('[ADD_MODEL] Navigating to filter screen with eligibility params');
@@ -6464,23 +6493,24 @@ document.addEventListener('DOMContentLoaded', function () {
   // Reveal per-row checkbox (keeps table structure intact)
   document.querySelectorAll('.add-model-checkbox').forEach(cb => cb.style.display = 'inline-block');
 
-  // Add Cancel/Exit button to return to the Add Jig modal without adding a model
+  // Cancel button — abandon the Add Model flow entirely and return to the plain
+  // Pick Table. Deliberately does NOT use return_to_modal=1: that flag tells
+  // handleMergeFlow() to reopen the Add Jig modal for the primary lot, which put
+  // the user right back into the Add Model flow instead of the Pick Table.
   try {
     var exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.className = 'btn btn-secondary';
     exitBtn.style.cssText = 'margin-left:12px; padding:6px 18px; font-size:13px; font-weight:600; border-radius:50px; background:#ff4747; color:#fff; border:none; cursor:pointer;';
     exitBtn.innerHTML = 'Cancel';
-    exitBtn.title = 'Return to Add Jig without adding a model';
+    exitBtn.title = 'Cancel and return to the Pick Table';
     exitBtn.addEventListener('click', function() {
-      var primary = params.get('primary_lot_id') || params.get('primary_lot') || params.get('exclude_lot_id') || '';
-      var primaryBatch = params.get('primary_batch_id') || params.get('primary_batch') || '';
-      var returnParams = new URLSearchParams();
-      if (primary) returnParams.set('primary_lot_id', primary);
-      if (primaryBatch) returnParams.set('primary_batch_id', primaryBatch);
-      returnParams.set('return_to_modal', '1');
-      var returnUrl = '/jig_loading/JigView/?' + returnParams.toString();
-      window.location.href = returnUrl;
+      // Discard any model selections made during this Add Model attempt.
+      try { sessionStorage.removeItem('secondary_lots'); } catch (e) {}
+      try { sessionStorage.removeItem('secondary_lot'); } catch (e) {}
+      try { localStorage.removeItem('secondary_lot'); } catch (e) {}
+      try { sessionStorage.removeItem('jig_id_add_model'); } catch (e) {}
+      window.location.href = '/jig_loading/JigView/';
     });
     var headerArea = document.querySelector('.d-flex.align-items-center.gap-2.mb-4');
     if (headerArea) headerArea.appendChild(exitBtn);
@@ -7299,7 +7329,7 @@ if (window.jQuery) {
       if (!/^J\d{3}-\d{4}$/.test(val)) {
         this.classList.add('jig-id-error');
         this.classList.remove('jig-id-valid');
-        if (jigIdErrEl) { jigIdErrEl.textContent = 'Invalid format. Expected J###-#### (e.g. J098-0001)'; jigIdErrEl.style.display = 'block'; }
+        if (jigIdErrEl) { jigIdErrEl.textContent = 'Invalid format'; jigIdErrEl.style.display = 'block'; }
         return;
       }
       

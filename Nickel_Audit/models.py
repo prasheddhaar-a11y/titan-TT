@@ -1,5 +1,6 @@
 from django.db import models
 from modelmasterapp.models import *
+from BrassAudit.models import AQLSamplingPlan
 
 # Create your models here.
 
@@ -264,6 +265,18 @@ class NickelAudit_PartialRejectLot(models.Model):
         return f"NA-PartialReject: {self.new_lot_id} (from {self.parent_lot_id}, qty={self.rejected_qty})"
 
 
-
-
+class NickelAudit_AQLSamplingPlan(AQLSamplingPlan):
+    """
+    Proxy onto BrassAudit.AQLSamplingPlan (table: aql_sampling_plan).
+    Same shared master data Brass Audit uses — proxied here purely so it is
+    registered and visible under the Nickel Audit admin section too. Django
+    forbids registering one model class twice, so this proxy (own model
+    class, same table, no schema change) is how both modules get their own
+    admin entry against the identical AQL limits.
+    """
+    class Meta:
+        proxy = True
+        app_label = 'Nickel_Audit'
+        verbose_name = 'AQL Sampling Plan'
+        verbose_name_plural = 'AQL Sampling Plans'
 

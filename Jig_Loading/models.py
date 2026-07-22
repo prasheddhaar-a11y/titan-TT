@@ -235,6 +235,14 @@ class JigCompleted(models.Model):
     scanned_trays = models.JSONField(default=list, blank=True, null=True, help_text="List of scanned tray IDs with qty")
     empty_hooks = models.IntegerField(default=0, blank=True, null=True)
     excess_qty = models.IntegerField(default=0, blank=True, null=True)
+    unload_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Jig Unloading Reason for holding the lot")
+    unload_release_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Jig Unloading Reason for releasing the lot")
+    unload_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold in Jig Unloading")
+    unload_release_lot = models.BooleanField(default=False)
+    unload_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='unload_hold_events', help_text="User who held this lot in Jig Unloading")
+    unload_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Jig Unloading")
+    unload_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='unload_release_events', help_text="User who released this lot in Jig Unloading")
+    unload_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Jig Unloading")
 
     class Meta:
         unique_together = ['batch_id', 'lot_id', 'user']

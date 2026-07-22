@@ -12,6 +12,7 @@ from InputScreening.models import *
 from Brass_QC.models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 import traceback
 import uuid
@@ -50,6 +51,7 @@ from Jig_Loading.models import JigCompleted
 from Jig_Unloading.tray_utils import (
     get_upstream_tray_distribution,
     get_model_master_tray_info,
+    normalize_combine_lot_id,
 )
 from Nickel_Inspection.services import (
     build_nq_rejection_allocation,
@@ -345,7 +347,7 @@ class NQ_PickTableView(APIView):
         )
         # ✅ CHANGED: Query JigUnloadAfterTable instead of TotalStockModel with zone filtering
         queryset = (
-            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish")
+            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish", "nq_hold_by", "nq_release_by")
             .prefetch_related("location")  # ManyToManyField requires prefetch_related
             .filter(
                 total_case_qty__gt=0,  # Only show records with quantity > 0
@@ -388,6 +390,47 @@ class NQ_PickTableView(APIView):
                 | Q(rejected_nickle_ip_stock=True, nq_onhold_picking=True)  # Rejected but on hold
             )
         ).order_by("-created_at", "-lot_id")
+
+        # ✅ SECONDARY MULTI-MODEL LOT FILTER (same convention as Jig_Unloading/JigUnloading_Zone2):
+        # When two lots are combined into a single jig (Add Model / multi-model Jig Loading),
+        # Jig Unloading's "Submit All" creates one JigUnloadAfterTable source row per original
+        # lot for traceability. The secondary lot's row carries no plating/tray reference of its
+        # own — the combined data already lives on the primary row — so it must not surface here
+        # as a separate, blank "no ref" entry.
+        secondary_lot_ids = set()
+        for _mm_rec in JigCompleted.objects.filter(
+            is_multi_model=True,
+            multi_model_allocation__isnull=False
+        ).only('lot_id', 'multi_model_allocation'):
+            if not _mm_rec.multi_model_allocation:
+                continue
+            _primary_model = ''
+            for _alloc in _mm_rec.multi_model_allocation:
+                if isinstance(_alloc, dict) and _alloc.get('lot_id') == _mm_rec.lot_id:
+                    _primary_model = str(_alloc.get('model') or _alloc.get('model_name') or '').strip()
+                    break
+            for _alloc in _mm_rec.multi_model_allocation:
+                if not isinstance(_alloc, dict):
+                    continue
+                _alloc_lot = _alloc.get('lot_id', '')
+                if not _alloc_lot or _alloc_lot == _mm_rec.lot_id:
+                    continue
+                _alloc_model = str(_alloc.get('model') or _alloc.get('model_name') or '').strip()
+                # Only fold a secondary lot into the primary row (hide it here) when its
+                # plating stock number is identical ("ditto") to the primary's. If the
+                # combined lots are DIFFERENT models, the secondary lot must keep showing
+                # as its own separate row in Nickel Wiping, not be hidden/lost.
+                if _primary_model and _alloc_model and _alloc_model == _primary_model:
+                    secondary_lot_ids.add(_alloc_lot)
+        if secondary_lot_ids:
+            queryset = [
+                row for row in queryset
+                if not (
+                    row.combine_lot_ids
+                    and {normalize_combine_lot_id(cid) for cid in row.combine_lot_ids}.issubset(secondary_lot_ids)
+                )
+            ]
+
         # Pagination
         page_number = request.GET.get("page", 1)
         paginator = Paginator(queryset, 10)
@@ -459,6 +502,10 @@ class NQ_PickTableView(APIView):
                 "nq_holding_reason": jig_unload_obj.nq_holding_reason,  # Not applicable
                 "nq_release_lot": jig_unload_obj.nq_release_lot,
                 "nq_release_reason": jig_unload_obj.nq_release_reason,
+                "nq_hold_by": jig_unload_obj.nq_hold_by.username if jig_unload_obj.nq_hold_by else '',
+                "nq_hold_at": timezone.localtime(jig_unload_obj.nq_hold_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_hold_at else '',
+                "nq_release_by": jig_unload_obj.nq_release_by.username if jig_unload_obj.nq_release_by else '',
+                "nq_release_at": timezone.localtime(jig_unload_obj.nq_release_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_release_at else '',
                 "has_draft": jig_unload_obj.has_draft,
                 "draft_type": jig_unload_obj.draft_type,
                 "brass_rejection_total_qty": jig_unload_obj.brass_rejection_total_qty,
@@ -643,6 +690,7 @@ class NickelQcRejectTableView(APIView):
                 "nq_last_process_date_time": obj.nq_last_process_date_time,
                 "nq_physical_qty": obj.nq_physical_qty,
                 "nq_missing_qty": obj.nq_missing_qty,
+                "nq_lot_qty": obj.nq_qc_accepted_qty or obj.total_case_qty or 0,
                 "send_to_nickel_brass": obj.send_to_nickel_brass,
                 "plating_stk_no_list": obj.plating_stk_no_list,
                 "polish_stk_no_list": obj.polish_stk_no_list,
@@ -774,6 +822,66 @@ def nq_toggle_verified(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def nq_hold_unhold(request):
+    """Hold/Release toggle for Nickel Wiping pick table (Z1 + Z2 share this view)."""
+    from django.db import transaction
+    from django.utils import timezone
+    lot_id = request.data.get('lot_id')
+    action = request.data.get('action')  # 'hold' or 'unhold'
+    remark = (request.data.get('remark', '') or '').strip()
+
+    if not lot_id:
+        return Response({'success': False, 'error': 'lot_id is required'}, status=400)
+    if action not in ('hold', 'unhold'):
+        return Response({'success': False, 'error': "action must be 'hold' or 'unhold'"}, status=400)
+    if not remark:
+        return Response({'success': False, 'error': 'Remark is required'}, status=400)
+    if len(remark) > 50:
+        return Response({'success': False, 'error': 'Remark must be 50 characters or less'}, status=400)
+
+    try:
+        with transaction.atomic():
+            juat = JigUnloadAfterTable.objects.select_for_update().filter(lot_id=lot_id).first()
+            if not juat:
+                return Response({'success': False, 'error': 'Lot not found'}, status=404)
+
+            now = timezone.now()
+            if action == 'hold':
+                juat.nq_hold_lot = True
+                juat.nq_holding_reason = remark
+                juat.nq_hold_by = request.user
+                juat.nq_hold_at = now
+                juat.nq_release_lot = False
+                juat.nq_release_reason = ''
+            else:
+                juat.nq_hold_lot = False
+                juat.nq_release_reason = remark
+                juat.nq_release_by = request.user
+                juat.nq_release_at = now
+                juat.nq_release_lot = True
+
+            juat.save(update_fields=[
+                'nq_hold_lot', 'nq_holding_reason', 'nq_hold_by', 'nq_hold_at',
+                'nq_release_lot', 'nq_release_reason', 'nq_release_by', 'nq_release_at',
+            ])
+        logger.info("[nq_hold_unhold] lot=%s action=%s user=%s", lot_id, action, request.user)
+        return Response({
+            'success': True, 'lot_id': lot_id, 'action': action,
+            'holding_reason': juat.nq_holding_reason or '', 'release_reason': juat.nq_release_reason or '',
+            'hold_lot': juat.nq_hold_lot, 'release_lot': juat.nq_release_lot,
+            'hold_by': juat.nq_hold_by.username if juat.nq_hold_by else '',
+            'hold_at': timezone.localtime(juat.nq_hold_at).strftime("%d-%b-%Y %I:%M %p") if juat.nq_hold_at else '',
+            'release_by': juat.nq_release_by.username if juat.nq_release_by else '',
+            'release_at': timezone.localtime(juat.nq_release_at).strftime("%d-%b-%Y %I:%M %p") if juat.nq_release_at else '',
+            'message': f"Lot {'held' if action == 'hold' else 'released'} successfully.",
+        })
+    except Exception:
+        logger.exception("[nq_hold_unhold] error lot=%s action=%s", lot_id, action)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def nq_action(request):
     """Unified NQ action handler: GET_REASONS, GET_TRAYS, ALLOCATE, SUBMIT_REJECT, SUBMIT_ACCEPT."""
     from django.db import transaction
@@ -811,6 +919,8 @@ def nq_action(request):
     juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
     if not juat:
         return Response({'success': False, 'error': 'Lot not found'}, status=404)
+    if juat.nq_hold_lot:
+        return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
     if action == 'GET_TRAYS':
         trays_qs = NickelQcTrayId.objects.filter(
             lot_id=lot_id, rejected_tray=False
@@ -1037,7 +1147,7 @@ def _nq_do_full_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',
@@ -1061,13 +1171,18 @@ def _nq_do_submit_reject(request, lot_id, juat):
     accept_trays = data.get('accept_trays', [])   # [{tray_id, qty, is_top}]
     submitted_delink_trays = data.get('delink_trays', [])
     remarks = (data.get('remarks', '') or '').strip()
-    if not reason_ids or rejected_qty <= 0:
-        return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
+    if rejected_qty <= 0:
+        return Response({'success': False, 'error': 'rejected_qty required'}, status=400)
     total_qty = juat.total_case_qty or 0
     if rejected_qty > total_qty:
         return Response({'success': False, 'error': 'rejected_qty exceeds lot qty'}, status=400)
     accepted_qty = total_qty - rejected_qty
     is_partial = accepted_qty > 0
+    # Full lot rejection (rejected_qty == total_qty) does not require picking a
+    # rejection reason — only a partial rejection needs a reason to explain why
+    # the non-rejected remainder is being split out.
+    if is_partial and not reason_ids:
+        return Response({'success': False, 'error': 'reason_ids required for partial rejection'}, status=400)
     # Validate reject tray prefix
     tray_type = (juat.tray_type or '').strip().lower()
     if tray_type.startswith('jb') or 'jumbo' in tray_type:
@@ -1114,8 +1229,16 @@ def _nq_do_submit_reject(request, lot_id, juat):
             )
     with transaction.atomic():
         reasons_qs = Nickel_QC_Rejection_Table.objects.filter(id__in=reason_ids)
-        if not reasons_qs.exists():
+        if reason_ids and not reasons_qs.exists():
             return Response({'success': False, 'error': 'Invalid rejection reason'}, status=400)
+        if not reasons_qs.exists():
+            # Full lot rejection with no reason picked: Nickel_QC_Rejected_TrayScan.rejection_reason
+            # is a mandatory FK, so fall back to a single system placeholder reason instead of
+            # forcing the operator to choose one for a full-lot reject.
+            full_reject_reason, _ = Nickel_QC_Rejection_Table.objects.get_or_create(
+                rejection_reason='Full Lot Rejection',
+            )
+            reasons_qs = Nickel_QC_Rejection_Table.objects.filter(id=full_reject_reason.id)
         # Save or update rejection reason store
         reason_store, _ = Nickel_QC_Rejection_ReasonStore.objects.update_or_create(
             lot_id=lot_id,
@@ -1192,7 +1315,7 @@ def _nq_do_submit_reject(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         if is_partial:
             juat.nq_qc_accepted_qty = accepted_qty
         juat.save(update_fields=[
@@ -1351,7 +1474,7 @@ def _nq_do_submit_accept(request, lot_id, juat):
         juat.nq_onhold_picking = False
         juat.nq_last_process_date_time = tz.now()
         juat.last_process_module = 'Nickel QC'
-        juat.current_stage = 'Nickel Inspection'
+        juat.current_stage = 'Nickel Wiping'
         juat.save(update_fields=[
             'nq_qc_accptance', 'nq_qc_accepted_qty',
             'nq_draft', 'nq_onhold_picking',

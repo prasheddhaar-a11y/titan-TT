@@ -810,7 +810,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         <!-- Hold remark icon -->
                         <span class="hold-remark-icon" 
                               style="display:{% if data.nq_hold_lot or data.nq_release_lot or data.nq_holding_reason or data.nq_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
-                              title="{% if data.nq_holding_reason %}Holding Reason: {{ data.nq_holding_reason }}{% endif %}{% if data.nq_holding_reason and data.nq_release_reason %}&#10;{% endif %}{% if data.nq_release_reason %}Release Reason: {{ data.nq_release_reason }}{% endif %}">
+                              title="{% if data.nq_holding_reason %}Holding Reason: {{ data.nq_holding_reason }} (by {{ data.nq_hold_by }} on {{ data.nq_hold_at }}){% endif %}{% if data.nq_holding_reason and data.nq_release_reason %}&#10;{% endif %}{% if data.nq_release_reason %}Release Reason: {{ data.nq_release_reason }} (by {{ data.nq_release_by }} on {{ data.nq_release_at }}){% endif %}">
                           {% if data.nq_hold_lot or data.nq_release_lot or data.nq_holding_reason or data.nq_release_reason %}
                             <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:12px; height:12px;" />
                           {% endif %}
@@ -820,7 +820,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         {% if data.nq_hold_lot or data.nq_release_lot or data.nq_holding_reason or data.nq_release_reason %}
                           <span class="hold-remark-icon" 
                                 style="display:inline-block; cursor:pointer;" 
-                                title="{% if data.nq_holding_reason %}Holding Reason: {{ data.nq_holding_reason }}{% endif %}{% if data.nq_holding_reason and data.nq_release_reason %}&#10;{% endif %}{% if data.nq_release_reason %}Release Reason: {{ data.nq_release_reason }}{% endif %}">
+                                title="{% if data.nq_holding_reason %}Holding Reason: {{ data.nq_holding_reason }} (by {{ data.nq_hold_by }} on {{ data.nq_hold_at }}){% endif %}{% if data.nq_holding_reason and data.nq_release_reason %}&#10;{% endif %}{% if data.nq_release_reason %}Release Reason: {{ data.nq_release_reason }} (by {{ data.nq_release_by }} on {{ data.nq_release_at }}){% endif %}">
                             <img src="{% static 'assets/icons/view2.png' %}" alt="View Reason" style="width:18px; height:18px;" />
                           </span>
                         {% endif %}
@@ -2788,7 +2788,12 @@ document.addEventListener("DOMContentLoaded", function () {
         errDiv.textContent = '';
         var payload = buildPayload();
         payload.action = 'SUBMIT_REJECT';
-        if (!payload.reason_ids.length) { errDiv.textContent = 'Select at least one rejection reason.'; return; }
+        // Full Lot Rejection intentionally skips per-reason quantity entry (see fullRejCb
+        // handler above) — only a partial rejection needs a reason to justify the split.
+        if (!(fullRejCb && fullRejCb.checked) && !payload.reason_ids.length) {
+          errDiv.textContent = 'Select at least one rejection reason.';
+          return;
+        }
         if (!payload.rejected_qty) { errDiv.textContent = 'Enter rejected quantity.'; return; }
         submitBtn.disabled = true;
         submitBtn.textContent = 'Saving...';
@@ -2949,6 +2954,129 @@ document.addEventListener('DOMContentLoaded', function () {
       }));
     }, 300);
   });
+});
+</script>
+
+<!-- Hold / Release Toggle (Nickel Wiping Zone 2) -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var HOLD_API = '/nickle_inspection_zone_two/api/hold-unhold/';
+  var holdCsrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+  document.querySelectorAll('.hold-remark-icon').forEach(function (icon) {
+    icon.addEventListener('click', function () {
+      var title = this.getAttribute('title') || '';
+      if (!title) return;
+      if (window.Swal && typeof Swal.fire === 'function') {
+        Swal.fire({ icon: 'info', title: 'Hold / Release Remark', html: '<div style="text-align:left;">' + title.replace(/&#10;/g, '<br>') + '</div>', confirmButtonColor: '#028084' });
+      } else {
+        alert(title);
+      }
+    });
+  });
+
+  (function initNqHoldToggle() {
+    var holdModal = document.getElementById('holdRemarkModal');
+    var holdInput = document.getElementById('holdRemarkInput');
+    var holdError = document.getElementById('holdRemarkError');
+    var holdTitle = holdModal ? holdModal.querySelector('h5') : null;
+    var saveBtn = document.getElementById('saveHoldRemarkBtn');
+    var closeBtn = document.getElementById('closeHoldRemarkModal');
+
+    if (!holdModal || !holdInput || !saveBtn) return;
+
+    window.nqHoldToggleState = null;
+
+    document.querySelectorAll('.hold-toggle-btn').forEach(function (toggle) {
+      toggle.addEventListener('change', function (e) {
+        e.preventDefault();
+        var row = this.closest('tr');
+        var lotId = row ? row.getAttribute('data-stock-lot-id') : null;
+        if (!lotId) return;
+
+        // checked = active (not held), unchecked = held
+        var intendedHold = !this.checked;
+        var action = intendedHold ? 'hold' : 'unhold';
+
+        window.nqHoldToggleState = {
+          toggle: this,
+          row: row,
+          lotId: lotId,
+          action: action,
+          originalChecked: !intendedHold
+        };
+        // Revert toggle visually until modal confirms
+        this.checked = !intendedHold;
+
+        if (holdTitle) holdTitle.textContent = action === 'hold' ? 'Hold Reason' : 'Release Reason';
+        holdInput.value = '';
+        if (holdError) holdError.textContent = '';
+        holdModal.style.display = 'flex';
+        holdInput.focus();
+      });
+    });
+
+    saveBtn.addEventListener('click', function () {
+      var state = window.nqHoldToggleState;
+      if (!state) return;
+
+      var remark = holdInput.value.trim();
+      if (!remark) {
+        if (holdError) holdError.textContent = 'Remark is required.';
+        return;
+      }
+      if (remark.length > 50) {
+        if (holdError) holdError.textContent = 'Max 50 characters allowed.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      fetch(HOLD_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': holdCsrf },
+        body: JSON.stringify({ lot_id: state.lotId, action: state.action, remark: remark })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          saveBtn.disabled = false;
+          if (data.success) {
+            holdModal.style.display = 'none';
+            if (window.Swal && typeof Swal.fire === 'function') {
+              Swal.fire({
+                icon: 'success',
+                title: state.action === 'hold' ? 'Lot Held' : 'Lot Released',
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false
+              });
+            }
+            setTimeout(function () { location.reload(); }, 1500);
+          } else {
+            if (holdError) holdError.textContent = data.error || 'Failed to save.';
+          }
+        })
+        .catch(function (err) {
+          saveBtn.disabled = false;
+          if (holdError) holdError.textContent = 'Network error.';
+          console.error('[NickelWiping Z2] Hold/Unhold error:', err);
+        });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        holdModal.style.display = 'none';
+        window.nqHoldToggleState = null;
+      });
+    }
+
+    holdModal.addEventListener('click', function (e) {
+      if (e.target === holdModal) {
+        holdModal.style.display = 'none';
+        window.nqHoldToggleState = null;
+      }
+    });
+  })();
 });
 </script>
 

@@ -327,10 +327,14 @@ class JigUnloadAfterTable(models.Model):
 
     rejected_audit_nickle_ip_stock = models.BooleanField(default=False, help_text="Rejected Nickle Audit Stock")
     audit_check = models.BooleanField(default=False, help_text="Audit Check")
-    nq_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")  
+    nq_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")
     nq_release_reason= models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for releasing the batch")
     nq_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold n Brass")
     nq_release_lot =models.BooleanField(default=False)
+    nq_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='nq_hold_events', help_text="User who held this lot in Nickel Wiping")
+    nq_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Nickel Wiping")
+    nq_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='nq_release_events', help_text="User who released this lot in Nickel Wiping")
+    nq_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Nickel Wiping")
     nq_pick_remarks= models.CharField(max_length=100, null=True, blank=True, help_text="JIG Pick Remarks")  # New field
     nq_missing_qty = models.IntegerField(default=0, help_text="Missing quantity in IQF")
     nq_physical_qty = models.IntegerField(help_text="Original physical quantity in IQF", default=0)  # New field
@@ -343,10 +347,14 @@ class JigUnloadAfterTable(models.Model):
     nq_draft=models.BooleanField(default=False, help_text="Nickle QC Draft Save")
     nq_qc_accepted_qty_verified= models.BooleanField(default=False, help_text="Nickle QC Accepted Quantity Verified")  # New field
     nq_last_process_date_time = models.DateTimeField(null=True, blank=True, help_text="Last Process Date Time")
-    na_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")  
+    na_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")
     na_release_reason= models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for releasing the batch")
     na_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold n Brass")
     na_release_lot =models.BooleanField(default=False)
+    na_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='na_hold_events', help_text="User who held this lot in Nickel Audit")
+    na_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Nickel Audit")
+    na_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='na_release_events', help_text="User who released this lot in Nickel Audit")
+    na_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Nickel Audit")
     na_pick_remarks= models.CharField(max_length=100, null=True, blank=True, help_text="JIG Pick Remarks")  # New field
     na_missing_qty = models.IntegerField(default=0, help_text="Missing quantity in IQF")
     na_physical_qty = models.IntegerField(help_text="Original physical quantity in IQF", default=0)  # New field

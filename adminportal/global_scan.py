@@ -169,6 +169,17 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         lot_ids = set()
         batch_ids = set()
 
+        # Jig ID lookup: a scanned Jig ID (the "JIG ID" column shown in the
+        # Jig Unloading Pick/Completed tables) identifies every lot ever loaded
+        # onto that physical jig, whether or not it has been unloaded yet.
+        try:
+            from Jig_Loading.models import JigCompleted
+            for lid in JigCompleted.objects.filter(jig_id__iexact=tray_id).values_list('lot_id', flat=True):
+                if lid:
+                    lot_ids.add(str(lid))
+        except Exception as e:
+            logger.debug('%s JigCompleted jig_id probe failed: %s', SCAN_TAG, e)
+
         # Jig Loading draft lookup: a scanned Jig ID identifies the drafted lot,
         # even before any tray table contains the scanned value.
         try:
@@ -513,20 +524,44 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             logger.error('%s _check_lot_in_jig_loading: %s', SCAN_TAG, e)
             return None
 
+    def _find_completed_jig_unload_for_lot(self, lot_id):
+        from Jig_Loading.models import JigCompleted
+        return JigCompleted.objects.filter(
+            lot_id=lot_id, last_process_module='Jig Unloading'
+        ).order_by('-updated_at').first()
+
     def _check_lot_in_jig_unloading(self, lot_id):
         try:
             jig = self._find_active_jig_unload_for_lot(lot_id)
-            if not jig:
+            if jig:
+                stock = self._stock_for(lot_id)
+                module_name, module_url = self._jig_unload_route(jig)
+                return {
+                    'module': module_name,
+                    'url': module_url,
+                    'lot_id': jig.lot_id,
+                    'stock_lot_id': lot_id,
+                    'jig_completed_id': jig.id,
+                    'batch_id': self._batch_str(stock, getattr(jig, 'batch_id', lot_id)),
+                }
+
+            # Not pending pick anymore - check if it already finished unloading
+            # and is sitting in the Completed table instead.
+            completed_jig = self._find_completed_jig_unload_for_lot(lot_id)
+            if not completed_jig:
                 return None
             stock = self._stock_for(lot_id)
-            module_name, module_url = self._jig_unload_route(jig)
+            module_name, module_url = self._jig_unload_route(completed_jig)
+            completed_url_name = (
+                'JigUnloading_Completedtable' if module_name == 'Jig Unloading' else 'JU_Zone_Completedtable'
+            )
             return {
                 'module': module_name,
-                'url': module_url,
-                'lot_id': jig.lot_id,
+                'url': reverse(completed_url_name),
+                'lot_id': completed_jig.lot_id,
                 'stock_lot_id': lot_id,
-                'jig_completed_id': jig.id,
-                'batch_id': self._batch_str(stock, getattr(jig, 'batch_id', lot_id)),
+                'jig_completed_id': completed_jig.id,
+                'batch_id': self._batch_str(stock, getattr(completed_jig, 'batch_id', lot_id)),
             }
         except Exception as e:
             logger.error('%s _check_lot_in_jig_unloading: %s', SCAN_TAG, e)

@@ -1,8 +1,19 @@
-from django.utils.decorators import method_decorator
+﻿from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from modelmasterapp.models import *
-from modelmasterapp.image_utils import sort_images_front_first
+from modelmasterapp.image_utils import (
+    build_model_image_key_from_filename,
+    build_model_image_keys_from_stock,
+    detect_image_type,
+    get_global_no_image,
+    get_image_url,
+    get_model_image_lookup_name,
+    get_model_view_images,
+    get_no_image,
+    is_no_image_model_image,
+    sort_images_front_first,
+)
 from rest_framework import status
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,6 +24,7 @@ from django.conf import settings
 import json
 import re
 import logging
+import hashlib
 import time as perf_time
 from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
@@ -44,44 +56,196 @@ import json
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.templatetags.static import static
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import escape
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Module, UserModuleProvision
 from Recovery_DP.models import *
-from watchcase_tracker.performance_logging.logger import emit_perf_event
-from watchcase_tracker.performance_logging.sanitizer import hash_value
-from .image_performance_logging import (
-    duration_ms as image_duration_ms,
-    emit_image_error,
-    emit_image_event,
-    emit_lookup_not_found,
-    emit_lookup_start,
-    emit_media_delete,
-    emit_media_read,
-    emit_media_write,
-    perf_counter as image_perf_counter,
-)
 
 
 def _perf_username(username):
-    return hash_value((username or '').strip().lower()) if username else None
+    normalized_username = str(username or '').strip().lower()
+    if not normalized_username:
+        return ''
+    return hashlib.sha256(normalized_username.encode('utf-8')).hexdigest()[:16]
 
 
-def _emit_auth_event(request, event_type, level, message, metadata=None):
-    try:
-        emit_perf_event(
-            'AUTH',
-            event_type,
-            level,
-            message,
-            metadata=metadata or {},
-            request=request,
-        )
-    except Exception:
+def _emit_auth_event(request, event_name, level, message, details=None):
+    security_logger = logging.getLogger('security.auth')
+    log_level = getattr(logging, str(level or 'INFO').upper(), logging.INFO)
+    security_logger.log(
+        log_level,
+        '%s: %s path=%s details=%s',
+        event_name,
+        message,
+        getattr(request, 'path', ''),
+        details or {},
+    )
+
+
+def image_perf_counter():
+    return perf_time.perf_counter()
+
+
+def image_duration_ms(started_at):
+    return round((perf_time.perf_counter() - started_at) * 1000, 3)
+
+
+def hash_value(value, prefix='value'):
+    normalized_value = str(value or '').strip().upper()
+    if not normalized_value:
+        return ''
+    digest = hashlib.sha256(normalized_value.encode('utf-8')).hexdigest()[:16]
+    return f'{prefix}:{digest}'
+
+
+def emit_image_event(request, event_name, level, message, details=None):
+    log_level = getattr(logging, str(level or 'INFO').upper(), logging.INFO)
+    logger.log(
+        log_level,
+        '%s: %s path=%s details=%s',
+        event_name,
+        message,
+        getattr(request, 'path', ''),
+        details or {},
+    )
+
+
+def emit_lookup_start(request, lookup_source, **details):
+    emit_image_event(
+        request,
+        'IMAGE.LOOKUP.START',
+        'DEBUG',
+        'Image lookup started',
+        {'lookup_source': lookup_source, **details},
+    )
+
+
+def emit_lookup_not_found(request, lookup_source, duration_ms, reason, details=None):
+    emit_image_event(
+        request,
+        'IMAGE.LOOKUP.NOT_FOUND',
+        'INFO',
+        'Image lookup returned no result',
+        {
+            'lookup_source': lookup_source,
+            'duration_ms': duration_ms,
+            'reason': reason,
+            **(details or {}),
+        },
+    )
+
+
+def emit_media_read(request, file_field, lookup_source=''):
+    if not file_field:
         return
+    emit_image_event(
+        request,
+        'IMAGE.MEDIA.READ',
+        'DEBUG',
+        'Media file referenced',
+        {
+            'lookup_source': lookup_source,
+            'file_name': getattr(file_field, 'name', ''),
+        },
+    )
+
+
+def emit_media_write(request, file_field, duration_ms, result='saved'):
+    if not file_field:
+        return
+    emit_image_event(
+        request,
+        'IMAGE.MEDIA.WRITE',
+        'INFO',
+        'Media file written',
+        {
+            'lookup_source': 'model_image_upload',
+            'duration_ms': duration_ms,
+            'result': result,
+            'file_name': getattr(file_field, 'name', ''),
+            'content_type': getattr(file_field, 'content_type', ''),
+            'size': getattr(file_field, 'size', None),
+        },
+    )
+
+
+def emit_media_delete(request, file_field, duration_ms, result='file_deleted'):
+    if not file_field:
+        return
+    emit_image_event(
+        request,
+        'IMAGE.MEDIA.DELETE',
+        'INFO',
+        'Media file deleted',
+        {
+            'lookup_source': 'model_image_delete',
+            'duration_ms': duration_ms,
+            'result': result,
+            'file_name': getattr(file_field, 'name', ''),
+        },
+    )
+
+
+def emit_image_error(request, lookup_source, error):
+    emit_image_event(
+        request,
+        'IMAGE.ERROR',
+        'ERROR',
+        'Image operation failed',
+        {
+            'lookup_source': lookup_source,
+            'error_type': error.__class__.__name__,
+            'error': str(error),
+        },
+    )
+
+
+def _only_model_view_images(images_payload):
+    return [
+        image
+        for image in images_payload
+        if image.get('view_code') in _ALLOWED_MODEL_IMAGE_VIEWS
+    ]
+
+
+def _build_placeholder_image_payload(stock_no, request=None, metadata_model=None):
+    placeholder = _get_no_image_placeholder()
+    placeholder_url = ''
+    placeholder_image = None
+
+    if placeholder:
+        image_url = get_image_url(placeholder)
+        if image_url:
+            placeholder_url = (
+                request.build_absolute_uri(image_url)
+                if request is not None
+                else image_url
+            )
+            placeholder_image = {
+                'id': placeholder.id,
+                'url': placeholder_url,
+                'view_code': 'NO_IMAGE',
+                'view': 'No Image',
+                'is_placeholder': True,
+            }
+
+    return {
+        'found': False,
+        'stock_no': stock_no,
+        'raw_stock_no': stock_no,
+        'model_no': getattr(metadata_model, 'model_no', '') or '',
+        'version': '',
+        'bath_type': '',
+        'ep_bath_type': getattr(metadata_model, 'ep_bath_type', '') or '',
+        'images': [placeholder_image] if placeholder_image else [],
+        'preview_image': placeholder_url,
+        'preview_view': 'No Image',
+        'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + str(stock_no or ''),
+    }
 
 
 def get_allowed_modules_for_user(user):
@@ -229,19 +393,9 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
     def post(self, request, *args, **kwargs):
         from django.conf import settings
         import time as _time
-
         login_start = perf_time.perf_counter()
         username = request.POST.get('username', '').strip()
-        _emit_auth_event(
-            request,
-            'AUTH.LOGIN.START',
-            'INFO',
-            'Login attempt started',
-            {
-                'username_hash': _perf_username(username),
-                'authentication_method': 'password',
-            },
-        )
+
         # request.limited is set by the ratelimit decorator above.
         if getattr(request, 'limited', False):
             security_logger = logging.getLogger('security.auth')
@@ -601,76 +755,76 @@ class Visual_AidView(APIView):
 
         # Handle lot_id parameter - NEW ADDITION
         if lot_id:
-            print(f"🔍 Visual_AidView received lot_id: {lot_id}")
+            logger.debug("Visual_AidView received lot_id: %s", lot_id)
             
             # Find TotalStockModel by lot_id to get batch_id
             total_stock_obj = TotalStockModel.objects.filter(lot_id=lot_id).first()
             
             if total_stock_obj and hasattr(total_stock_obj, 'batch_id'):
                 batch_id_obj = total_stock_obj.batch_id
-                print(f"Found batch_id object from TotalStockModel: {batch_id_obj}")
-                print(f"Type of batch_id object: {type(batch_id_obj)}")
+                logger.debug("Found batch_id object from TotalStockModel: %s", batch_id_obj)
+                logger.debug("Type of batch_id object: %s", type(batch_id_obj))
                 
                 # Check if batch_id is a ForeignKey (ModelMasterCreation object) or string
                 if hasattr(batch_id_obj, 'batch_id'):
                     # batch_id is a ForeignKey to ModelMasterCreation
                     batch_obj = batch_id_obj  # This IS the ModelMasterCreation object
-                    print(f"batch_id is ForeignKey, using object directly: {batch_obj}")
+                    logger.debug("batch_id is ForeignKey, using object directly: %s", batch_obj)
                     model_master_obj = batch_obj.model_stock_no
                     data_source = "ModelMasterCreation"
                 elif isinstance(batch_id_obj, str):
                     # batch_id is a string field
                     full_batch_id_str = str(batch_id_obj)
-                    print(f"batch_id is string: {full_batch_id_str}")
+                    logger.debug("batch_id is string: %s", full_batch_id_str)
                     
                     # Extract only the BATCH part after " - " if it exists
                     if " - " in full_batch_id_str:
                         batch_id = full_batch_id_str.split(" - ", 1)[1]
-                        print(f"Extracted batch_id: {batch_id}")
+                        logger.debug("Extracted batch_id: %s", batch_id)
                     else:
                         batch_id = full_batch_id_str
-                        print(f"Using full batch_id as no separator found: {batch_id}")
+                        logger.debug("Using full batch_id as no separator found: %s", batch_id)
                     
                     # Find ModelMasterCreation by batch_id string
                     batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
                     if batch_obj:
-                        print(f"Found batch_obj by batch_id: {batch_obj}")
+                        logger.debug("Found batch_obj by batch_id: %s", batch_obj)
                         model_master_obj = batch_obj.model_stock_no
                         data_source = "ModelMasterCreation"
                     else:
-                        print(f"No ModelMasterCreation found for batch_id: {batch_id}")
+                        logger.debug("No ModelMasterCreation found for batch_id: %s", batch_id)
                 else:
-                    print(f"Unknown batch_id type: {type(batch_id_obj)}")
+                    logger.debug("Unknown batch_id type: %s", type(batch_id_obj))
             else:
-                print(f"No TotalStockModel found with lot_id: {lot_id} or no batch_id attribute")
+                logger.debug("No TotalStockModel found with lot_id %s or no batch_id attribute", lot_id)
 
         # Handle plating_stk_no parameter
         elif plating_stk_no:
-            print(f"🔍 Visual_AidView received plating_stk_no: {plating_stk_no}")
+            logger.debug("Visual_AidView received plating_stk_no: %s", plating_stk_no)
             
             # First, try to find ModelMasterCreation through ModelMaster
             model_master_obj = ModelMaster.objects.filter(plating_stk_no=plating_stk_no).first()
-            print(f"Found ModelMaster by plating_stk_no: {model_master_obj}")
+            logger.debug("Found ModelMaster by plating_stk_no: %s", model_master_obj)
             
             if model_master_obj:
                 # Try to find corresponding ModelMasterCreation
                 batch_obj = ModelMasterCreation.objects.filter(model_stock_no=model_master_obj).first()
                 
                 if batch_obj:
-                    print(f"Found batch_obj by ModelMaster: {batch_obj}")
+                    logger.debug("Found batch_obj by ModelMaster: %s", batch_obj)
                     data_source = "ModelMasterCreation"
                 else:
-                    print(f"No ModelMasterCreation found, using ModelMaster data directly")
+                    logger.debug("No ModelMasterCreation found, using ModelMaster data directly")
                     data_source = "ModelMaster"
             else:
-                print(f"No ModelMaster found with plating_stk_no: {plating_stk_no}")
+                logger.debug("No ModelMaster found with plating_stk_no: %s", plating_stk_no)
                 
         # Handle batch_id parameter
         elif batch_id:
-            print(f"🔍 Visual_AidView received batch_id: {batch_id}")
+            logger.debug("Visual_AidView received batch_id: %s", batch_id)
             batch_obj = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
             if batch_obj:
-                print(f"Found batch_obj by batch_id: {batch_obj}")
+                logger.debug("Found batch_obj by batch_id: %s", batch_obj)
                 model_master_obj = batch_obj.model_stock_no
                 data_source = "ModelMasterCreation"
 
@@ -681,16 +835,19 @@ class Visual_AidView(APIView):
                 stock_for_images = batch_obj.plating_stk_no or getattr(batch_obj.model_stock_no, 'plating_stk_no', '')
                 hover_payload = _get_model_hover_payload(
                     request,
-                    stock_for_images,
-                    fallback_images=batch_obj.images.all(),
+                    plating_stk_no or stock_for_images,
                 )
                 images_payload = hover_payload.get('images', []) if hover_payload else []
-                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
+                image_data = _only_model_view_images(images_payload)
+                if not image_data:
+                    image_data = [img for img in images_payload if img.get('url')][:1]
+                image_urls = [img['url'] for img in image_data]
                 
                 context.update({
                     'batch_id': batch_obj.batch_id,
                     'lot_id': lot_id,  # Include lot_id in context if it was provided
                     'image_urls': image_urls,
+                    'image_data': image_data,
                     'plating_stk_no': batch_obj.plating_stk_no,
                     'changes': batch_obj.changes,
                     'polish_finish': batch_obj.polish_finish,
@@ -703,16 +860,19 @@ class Visual_AidView(APIView):
                 # Use ModelMaster data directly
                 hover_payload = _get_model_hover_payload(
                     request,
-                    model_master_obj.plating_stk_no,
-                    fallback_images=model_master_obj.images.all(),
+                    plating_stk_no or model_master_obj.plating_stk_no,
                 )
                 images_payload = hover_payload.get('images', []) if hover_payload else []
-                image_urls = [img['url'] for img in _only_isometric_view(images_payload)]
+                image_data = _only_model_view_images(images_payload)
+                if not image_data:
+                    image_data = [img for img in images_payload if img.get('url')][:1]
+                image_urls = [img['url'] for img in image_data]
                 
                 context.update({
                     'batch_id': None,
                     'lot_id': lot_id,  # Include lot_id in context if it was provided
                     'image_urls': image_urls,
+                    'image_data': image_data,
                     'plating_stk_no': model_master_obj.plating_stk_no,
                     'changes': getattr(model_master_obj, 'changes', 'N/A'),  # May not exist in ModelMaster
                     'polish_finish': model_master_obj.polish_finish,
@@ -724,47 +884,30 @@ class Visual_AidView(APIView):
                 })
                 model_master_instance = model_master_obj
 
-            print(f"Using {data_source} as data source")
-            print(f"Context plating_stk_no: {context.get('plating_stk_no')}")
+            logger.debug("Using %s as data source", data_source)
+            logger.debug("Context plating_stk_no: %s", context.get('plating_stk_no'))
 
             # Get related versions and similar models
             if model_master_instance:
                 # Get all ModelMaster objects with same model_no for variants
                 masters = ModelMaster.objects.filter(model_no=model_master_instance.model_no)
-                version_list = [m.version for m in masters if m.version]
-                version_labels = [str(v) for v in version_list]
+                version_labels = []
+                seen_versions = set()
+
+                for master in masters:
+                    if not master.version:
+                        continue
+                    version_text = str(master.version)
+                    if version_text in seen_versions:
+                        continue
+                    seen_versions.add(version_text)
+                    version_labels.append(version_text)
+
                 context['modelmaster_versions'] = version_labels
-
-                # Find similar models through LookLikeModel
-                look_like_obj = LookLikeModel.objects.filter(same_plating_stk_no=model_master_instance).first()
-                print(f"LookLikeModel object: {look_like_obj}")
-
-                if look_like_obj:
-                    # Get all related ModelMaster objects
-                    related_model_masters = look_like_obj.plating_stk_no.all()
-                    same_model_list = []
-                    
-                    for related_master in related_model_masters:
-                        # Check if this ModelMaster has a corresponding ModelMasterCreation
-                        has_creation = ModelMasterCreation.objects.filter(
-                            model_stock_no=related_master
-                        ).exists()
-                        
-                        model_info = {
-                            'plating_stk_no': related_master.plating_stk_no,
-                            'model_master_id': related_master.id,
-                            'has_creation': has_creation,
-                            'has_model_master': True,  # Always true since we're iterating ModelMaster objects
-                            'version': related_master.version,
-                            'polish_finish': str(related_master.polish_finish) if related_master.polish_finish else None,
-                        }
-                        
-                        same_model_list.append(model_info)
-                    
-                    context['same_model_list'] = same_model_list
-                    print(f"Same model list with ModelMaster details: {same_model_list}")
-                else:
-                    context['same_model_list'] = []
+                context['same_model_list'] = _build_similar_model_list(
+                    model_master_instance,
+                    creation_model=ModelMasterCreation,
+                )
             else:
                 context['same_model_list'] = []
                 context['modelmaster_versions'] = []
@@ -799,8 +942,7 @@ _STOCK_NO_CANONICAL_RE = re.compile(r'(\d{4})([A-Z])([A-Z])([A-Z])(\d{2})', re.I
 _IMAGE_VIEW_LABELS = {
     'TV': 'Top View',
     'FV': 'Front View',
-    'FSV': 'Front Side View',
-    'IV': 'Isometric View',
+    'IV': 'Inside View',
     'RSV': 'Right Side View',
     'LSV': 'Left Side View',
     'BV': 'Bottom View',
@@ -809,20 +951,86 @@ _IMAGE_VIEW_LABELS = {
 _IMAGE_VIEW_ORDER = {
     'TV': 0,
     'FV': 1,
-    'FSV': 2,
-    'IV': 3,
-    'RSV': 4,
-    'LSV': 5,
-    'BV': 6,
+    'IV': 2,
+    'RSV': 3,
 }
 
-_ALLOWED_MODEL_IMAGE_VIEWS = {'TV', 'FV', 'FSV', 'IV', 'RSV'}
+_ALLOWED_MODEL_IMAGE_VIEWS = {'TV', 'FV', 'IV', 'RSV'}
 
-# Preference order for the single hover "Front View" preview image: an exact
-# Front View wins; Front-Side View is the closest available substitute when a
-# model has no dedicated FV upload yet. Any other view code is never used as
-# the preview so the wrong angle can never be shown for the requested feature.
-_FRONT_VIEW_PREFERENCE = ('FV', 'FSV')
+_HOVER_PREVIEW_PREFERENCE = ('IV',)
+SIMILAR_MODEL_PREFIX_MAP = {
+    '2617': '2648',
+    '2648': '2617',
+}
+
+
+def _build_similar_model_list(model_master_instance, creation_model=None):
+    if not model_master_instance:
+        return []
+
+    creation_model = creation_model or ModelMasterCreation
+    current_pk = getattr(model_master_instance, 'pk', None)
+    seen = set()
+    current_stock_no = str(getattr(model_master_instance, 'plating_stk_no', '') or '').strip()
+    current_model_no = str(getattr(model_master_instance, 'model_no', '') or '').strip()
+    current_prefix = (current_stock_no or current_model_no)[:4]
+    similar_prefix = SIMILAR_MODEL_PREFIX_MAP.get(current_prefix)
+
+    if similar_prefix:
+        return [{
+            'model_no': similar_prefix,
+            'plating_stk_no': '',
+            'model_master_id': None,
+            'has_creation': False,
+            'has_model_master': False,
+            'version': '',
+            'polish_finish': None,
+        }]
+
+    def add_model(model, items):
+        stock_no = str(getattr(model, 'plating_stk_no', '') or '').strip()
+        if not stock_no or getattr(model, 'pk', None) == current_pk:
+            return
+
+        key = stock_no.upper()
+        if key in seen:
+            return
+
+        seen.add(key)
+        items.append({
+            'plating_stk_no': stock_no,
+            'model_master_id': model.pk,
+            'has_creation': False,
+            'has_model_master': True,
+            'version': model.version,
+            'polish_finish': str(model.polish_finish) if model.polish_finish else None,
+        })
+
+    look_like_items = []
+    look_like_obj = (
+        LookLikeModel.objects
+        .filter(same_plating_stk_no=model_master_instance)
+        .prefetch_related('plating_stk_no')
+        .first()
+    )
+    logger.debug("LookLikeModel object: %s", look_like_obj)
+
+    if look_like_obj:
+        for related_master in look_like_obj.plating_stk_no.all():
+            add_model(related_master, look_like_items)
+
+    if look_like_items:
+        target_ids = [item['model_master_id'] for item in look_like_items]
+        creation_ids = set(
+            creation_model.objects
+            .filter(model_stock_no_id__in=target_ids)
+            .values_list('model_stock_no_id', flat=True)
+        )
+        for item in look_like_items:
+            item['has_creation'] = item['model_master_id'] in creation_ids
+        return look_like_items
+
+    return []
 
 
 def _parse_stock_no(raw_stock_no):
@@ -835,89 +1043,123 @@ def _parse_stock_no(raw_stock_no):
         return None
 
     model_no, polish_code, plating_code, bath_code, version_code = match.groups()
+    image_keys = build_model_image_keys_from_stock(stock_no)
     canonical = ''.join(match.groups()).upper()
     return {
         'raw': stock_no,
         'canonical': canonical,
+        'lookup_stock_no': stock_no,
         'model_no': model_no,
         'polish_code': polish_code.upper(),
         'plating_code': plating_code.upper(),
         'bath_code': bath_code.upper(),
         'version_code': version_code,
-        'image_key': f'{model_no}xx{bath_code.lower()}{version_code}',
+        'image_key': image_keys[0] if image_keys else '',
+        'image_keys': image_keys,
     }
 
 
-def _detect_image_view(image_name):
-    base_name = os.path.splitext(os.path.basename(image_name or ''))[0].upper()
-    for suffix in ('RSV', 'LSV', 'FSV', 'TV', 'FV', 'IV', 'BV'):
-        if base_name.endswith(suffix) or base_name.endswith('_' + suffix):
-            return suffix, _IMAGE_VIEW_LABELS[suffix]
+def _resolve_base_model_number(raw_model_number):
+    raw_value = (raw_model_number or '').strip()
+    if not raw_value:
+        return ''
+
+    model_master = (
+        ModelMaster.objects
+        .filter(Q(plating_stk_no__iexact=raw_value) | Q(model_no__iexact=raw_value))
+        .only('model_no')
+        .first()
+    )
+    if model_master and model_master.model_no:
+        return str(model_master.model_no).strip()
+
+    stock_parts = _parse_stock_no(raw_value)
+    if stock_parts:
+        return stock_parts['model_no']
+
+    return raw_value.upper()
+
+
+def _detect_image_view(image_or_name):
+    for attr_name in ('view_code', 'image_view', 'view'):
+        explicit_view = getattr(image_or_name, attr_name, '')
+        explicit_view = str(explicit_view or '').strip().upper()
+        if explicit_view in _ALLOWED_MODEL_IMAGE_VIEWS:
+            return explicit_view, _IMAGE_VIEW_LABELS[explicit_view]
+
+    if hasattr(image_or_name, 'master_image'):
+        image_name = _get_model_image_lookup_name(image_or_name)
+    else:
+        image_name = image_or_name
+
+    view_code = detect_image_type(image_name)
+    if view_code in _ALLOWED_MODEL_IMAGE_VIEWS:
+        return view_code, _IMAGE_VIEW_LABELS[view_code]
     return 'VIEW', 'View'
 
 def _get_model_image_lookup_name(img):
-    return (
-        getattr(img, 'original_filename', '')
-        or getattr(getattr(img, 'master_image', None), 'name', '')
-        or ''
-    )
+    return get_model_image_lookup_name(img)
 
 
 def _image_matches_key(img, image_key):
-    return image_key.lower() in _get_model_image_lookup_name(img).lower()
+    return (
+        build_model_image_key_from_filename(_get_model_image_lookup_name(img))
+        == str(image_key or '').lower()
+    )
 
 
-def _filter_images_by_key(images, image_key):
-    return [
-        img
-        for img in images
-        if getattr(img, 'master_image', None)
-        and _image_matches_key(img, image_key)
+def _filter_images_by_key(images, image_keys):
+    valid_images = list(images)
+    for image_key in image_keys:
+        matched_images = [
+            img
+            for img in valid_images
+            if getattr(img, 'master_image', None)
+            and _image_matches_key(img, image_key)
+        ]
+        if matched_images:
+            return matched_images
+    return []
+
+
+def _link_model_image_to_matching_masters(model_image):
+    image_key = build_model_image_key_from_filename(
+        _get_model_image_lookup_name(model_image)
+    )
+    if not image_key:
+        return 0
+
+    matching_masters = [
+        master
+        for master in ModelMaster.objects.prefetch_related('images').all()
+        if image_key in build_model_image_keys_from_stock(master.plating_stk_no)
     ]
+
+    linked_count = 0
+    for master in matching_masters:
+        if not master.images.filter(pk=model_image.pk).exists():
+            master.images.add(model_image)
+            linked_count += 1
+
+    return linked_count
 
 
 def _get_no_image_placeholder():
-    placeholder_filenames = (
-        'NO_IMAGE.jpg',
-        'NO_IMAGE.jpeg',
-        'NO_IMAGE.png',
-        'noimage.jpg',
-        'noimage.jpeg',
-        'noimage.png',
-        'no_image.jpg',
-        'no_image.jpeg',
-        'no_image.png',
-    )
-
-    for filename in placeholder_filenames:
-        placeholder = ModelImage.objects.filter(
-            original_filename__iexact=filename
-        ).first()
-
-        if placeholder and getattr(placeholder, 'master_image', None):
-            return placeholder
-
-    for filename in placeholder_filenames:
-        placeholder = ModelImage.objects.filter(
-            master_image__iendswith=filename
-        ).first()
-
-        if placeholder and getattr(placeholder, 'master_image', None):
-            return placeholder
-
-    return None
+    return get_global_no_image()
 
 def _sort_model_images(images):
     selected_by_view = {}
+    seen_images = set()
 
     def sort_key(img):
         lookup_name = _get_model_image_lookup_name(img)
         return (
             _IMAGE_VIEW_ORDER.get(
-                _detect_image_view(lookup_name)[0],
+                _detect_image_view(img)[0],
                 99,
             ),
             os.path.basename(lookup_name).lower(),
+            getattr(img, 'id', 0) or 0,
         )
 
     valid_images = [
@@ -928,7 +1170,15 @@ def _sort_model_images(images):
 
     for img in sorted(valid_images, key=sort_key):
         lookup_name = _get_model_image_lookup_name(img)
-        view_code = _detect_image_view(lookup_name)[0]
+        image_key = (
+            getattr(img, 'pk', None),
+            str(getattr(getattr(img, 'master_image', None), 'name', '') or '').strip().lower(),
+        )
+        if image_key in seen_images:
+            continue
+        seen_images.add(image_key)
+
+        view_code = _detect_image_view(img)[0]
 
         if view_code not in _ALLOWED_MODEL_IMAGE_VIEWS:
             continue
@@ -937,7 +1187,7 @@ def _sort_model_images(images):
 
     return [
         selected_by_view[view_code]
-        for view_code in ('TV', 'FV', 'FSV', 'IV', 'RSV')
+        for view_code in ('TV', 'FV', 'IV', 'RSV')
         if view_code in selected_by_view
     ]
 
@@ -945,72 +1195,96 @@ def _sort_model_images(images):
 def _get_images_for_stock(
     stock_parts,
     model_master=None,
-    fallback_images=None,
+    model_creation=None,
 ):
-    keyed_images = ModelImage.objects.filter(
-        original_filename__icontains=stock_parts['image_key']
-    )
-
-    if keyed_images.exists():
-        return _sort_model_images(keyed_images)
-
-    # Backward compatibility for older files whose stored filename
-    # still contains the image key.
-    keyed_images = ModelImage.objects.filter(
-        master_image__icontains=stock_parts['image_key']
-    )
-
-    if keyed_images.exists():
-        return _sort_model_images(keyed_images)
-
     if model_master:
-        model_images = _filter_images_by_key(
-            model_master.images.all(),
-            stock_parts['image_key'],
-        )
+        model_images = list(model_master.images.all())
+        matched_model_images = _filter_images_by_key(model_images, stock_parts['image_keys'])
+        no_image = get_no_image(model_images)
 
-        if model_images:
-            return _sort_model_images(model_images)
+        if matched_model_images or no_image:
+            source_images = list(matched_model_images)
+            if no_image and no_image not in source_images:
+                source_images.append(no_image)
+            return source_images
 
-    if fallback_images is not None:
-        matched_fallback_images = _filter_images_by_key(
-            fallback_images,
-            stock_parts['image_key'],
-        )
+    if model_creation:
+        creation_images = list(model_creation.images.all())
+        matched_creation_images = _filter_images_by_key(creation_images, stock_parts['image_keys'])
+        no_image = get_no_image(creation_images)
 
-        if matched_fallback_images:
-            return _sort_model_images(matched_fallback_images)
+        if matched_creation_images or no_image:
+            source_images = list(matched_creation_images)
+            if no_image and no_image not in source_images:
+                source_images.append(no_image)
+            return source_images
 
-    placeholder = _get_no_image_placeholder()
-
-    if placeholder:
-        return [placeholder]
-
-    return []
+    placeholder = get_global_no_image()
+    return [placeholder] if placeholder else []
 
 
 def _build_image_payload(request, images):
     payload = []
 
     for img in images:
+        if is_no_image_model_image(img):
+            continue
+
         try:
             emit_media_read(
                 request,
                 img.master_image,
                 lookup_source='image_payload',
             )
-            image_url = request.build_absolute_uri(img.master_image.url)
+            image_url = get_image_url(img)
+            if not image_url:
+                continue
+            image_url = request.build_absolute_uri(image_url)
         except Exception:
             continue
 
-        lookup_name = _get_model_image_lookup_name(img)
-        view_code, view_label = _detect_image_view(lookup_name)
+        view_code, view_label = _detect_image_view(img)
 
         payload.append({
             'id': img.id,
             'url': image_url,
             'view_code': view_code,
             'view': view_label,
+            'is_placeholder': False,
+        })
+
+    return payload
+
+
+def _build_model_view_payload(request, images):
+    payload = []
+
+    for view_code in ('TV', 'FV', 'IV', 'RSV'):
+        img = next(iter(get_model_view_images(images, view_sequence=(view_code,))), None)
+        if not img:
+            continue
+        if is_no_image_model_image(img):
+            continue
+
+        try:
+            emit_media_read(
+                request,
+                img.master_image,
+                lookup_source='image_payload',
+            )
+            image_url = get_image_url(img)
+            if not image_url:
+                continue
+            image_url = request.build_absolute_uri(image_url)
+        except Exception:
+            continue
+
+        payload.append({
+            'id': img.id,
+            'url': image_url,
+            'view_code': view_code,
+            'view': _IMAGE_VIEW_LABELS[view_code],
+            'is_placeholder': is_no_image_model_image(img),
         })
 
     return payload
@@ -1039,7 +1313,7 @@ def _only_isometric_view(images_payload):
     return images_payload[:1]
 
 
-def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
+def _get_model_hover_payload(request, raw_stock_no):
     feature_started = image_perf_counter()
     stock_parts = _parse_stock_no(raw_stock_no)
     if not stock_parts:
@@ -1054,7 +1328,7 @@ def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
     emit_lookup_start(
         request,
         'hover_preview_payload',
-        stock_no=stock_parts['canonical'],
+        stock_no=stock_parts['lookup_stock_no'],
         model_no=stock_parts['model_no'],
         view_requested='hover',
     )
@@ -1062,60 +1336,74 @@ def _get_model_hover_payload(request, raw_stock_no, fallback_images=None):
     model_master = (
         ModelMaster.objects
         .prefetch_related('images')
-        .filter(plating_stk_no__iexact=stock_parts['canonical'])
+        .filter(plating_stk_no__iexact=stock_parts['lookup_stock_no'])
         .first()
     )
-    if not model_master:
-        model_master = (
-            ModelMaster.objects
-            .prefetch_related('images')
-            .filter(model_no=stock_parts['model_no'])
-            .first()
+    model_creation = (
+        ModelMasterCreation.objects
+        .select_related('model_stock_no')
+        .prefetch_related('images')
+        .filter(
+            Q(plating_stk_no__iexact=stock_parts['lookup_stock_no'])
+            | Q(model_stock_no__plating_stk_no__iexact=stock_parts['lookup_stock_no'])
+        )
+        .first()
     )
 
-    if not model_master:
+    metadata_model = model_master or getattr(model_creation, 'model_stock_no', None)
+    resolved_images = _get_images_for_stock(
+        stock_parts,
+        model_master=model_master,
+        model_creation=model_creation,
+    )
+    ordered_images = _sort_model_images(resolved_images)
+    images_payload = _build_image_payload(request, ordered_images)
+
+    preview = next(
+        (img for img in images_payload if img.get('view_code') == 'IV'),
+        None,
+    )
+    if not preview and images_payload:
+        preview = images_payload[0]
+
+    if not preview:
         emit_lookup_not_found(
             request,
             'hover_preview_payload',
             image_duration_ms(feature_started),
-            'model_master_not_found',
+            'model_images_not_found',
             {
-                'stock_hash': hash_value(stock_parts['canonical'], prefix='stock'),
+                'stock_hash': hash_value(stock_parts['lookup_stock_no'], prefix='stock'),
                 'model_hash': hash_value(stock_parts['model_no'], prefix='model'),
             },
         )
-        return {
-            'found': False,
-            'stock_no': stock_parts['canonical'],
-            'images': [],
-            'preview_image': '',
-            'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + stock_parts['canonical'],
-        }
-
-    images_payload = _build_image_payload(
-        request,
-        _get_images_for_stock(stock_parts, model_master=model_master, fallback_images=fallback_images),
-    )
-    preview = {}
-    for view_code in _FRONT_VIEW_PREFERENCE:
-        preview = next((img for img in images_payload if img['view_code'] == view_code), None)
-        if preview:
-            break
-    if not preview:
-        preview = images_payload[0] if images_payload else {}
+        placeholder_payload = _build_placeholder_image_payload(
+            stock_parts['lookup_stock_no'],
+            request=request,
+            metadata_model=metadata_model,
+        )
+        if metadata_model:
+            placeholder_payload.update({
+                'found': True,
+                'model_no': metadata_model.model_no or stock_parts['model_no'],
+                'version': stock_parts['version_code'],
+                'bath_type': stock_parts['bath_code'],
+                'ep_bath_type': metadata_model.ep_bath_type or '',
+            })
+        return placeholder_payload
 
     return {
         'found': True,
-        'stock_no': stock_parts['canonical'],
+        'stock_no': stock_parts['lookup_stock_no'],
         'raw_stock_no': stock_parts['raw'],
-        'model_no': model_master.model_no or stock_parts['model_no'],
+        'model_no': getattr(metadata_model, 'model_no', '') or stock_parts['model_no'],
         'version': stock_parts['version_code'],
         'bath_type': stock_parts['bath_code'],
-        'ep_bath_type': model_master.ep_bath_type or '',
+        'ep_bath_type': getattr(metadata_model, 'ep_bath_type', '') or '',
         'images': images_payload,
         'preview_image': preview.get('url', ''),
         'preview_view': preview.get('view', ''),
-        'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + stock_parts['canonical'],
+        'visual_aid_url': '/adminportal/dp_visualaid/?plating_stk_no=' + stock_parts['lookup_stock_no'],
     }
 
 
@@ -1139,7 +1427,507 @@ class ModelHoverPreviewAPIView(APIView):
             raise
         if payload is None:
             return Response({'error': 'Invalid stock number'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(payload, status=status.HTTP_200_OK)
+        response = Response(payload, status=status.HTTP_200_OK)
+        response['Cache-Control'] = 'no-store'
+        return response
+
+
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+class ModelVersionComparisonAPIView(APIView):
+    renderer_classes = [JSONRenderer]
+    http_method_names = ['get']
+
+    def get(self, request, format=None):
+        requested_model_number = request.GET.get('model_number', '')
+        requested_version = request.GET.get('version', '').strip().upper()
+        if not requested_model_number or not requested_model_number.strip():
+            return Response({
+                'success': False,
+                'message': 'model_number is required.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        requested_model_number = requested_model_number.strip().upper()
+        base_model_number = _resolve_base_model_number(requested_model_number).strip().upper()
+        if requested_version:
+            is_allowed, validation_message = validate_model_version(base_model_number, requested_version)
+            if not is_allowed:
+                return Response({
+                    'success': False,
+                    'message': validation_message,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        model_filters = Q(model_number__iexact=requested_model_number)
+        if base_model_number:
+            model_filters |= Q(model_number__iexact=base_model_number)
+
+        comparisons = ModelVersionComparison.objects.filter(
+            model_filters,
+            is_active=True
+        ).prefetch_related('images')
+
+        if requested_version:
+            comparisons = comparisons.filter(version__iexact=requested_version)
+
+        comparison = (
+            comparisons
+            .order_by('model_number', 'version')
+            .first()
+        )
+
+        images = _get_version_comparison_image_urls(comparison) if comparison else []
+
+        if not comparison or not images:
+            return Response({
+                'success': False,
+                'message': 'No variant comparison image is available for this model.',
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'success': True,
+            'model_number': comparison.model_number,
+            'version': comparison.version or comparison.title or '',
+            'title': comparison.title or f'Difference between different variants of {comparison.model_number}',
+            'description': comparison.description or '',
+            'info': _build_version_info_payload(comparison),
+            'comparison_image': images[0],
+            'images': images,
+        }, status=status.HTTP_200_OK)
+
+
+_VERSION_COMPARISON_ALLOWED_MIME = frozenset({
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+})
+_VERSION_COMPARISON_ALLOWED_EXT = frozenset({
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+})
+_VERSION_COMPARISON_MAX_SIZE = 10 * 1024 * 1024
+ALLOWED_MODEL_VERSIONS = {
+    '2617': {'A', 'B', 'C', 'D'},
+    '2648': {'A', 'B', 'D', 'E'},
+    '1805': {'D', 'K'},
+}
+_VERSION_INFO_DECIMAL_FIELDS = (
+    ('thickness', 'Thickness'),
+    ('bcb_to_lug_bottom', 'BCB to Lug Bottom'),
+    ('dial_slant_angle', 'Dial Slant Angle'),
+    ('dial_slant_height', 'Dial Slant Height'),
+)
+VERSION_INFO_FIELDS = {
+    '2617': {
+        'o_ring_pocket',
+        'cph_depth',
+        'cph_centre_to_dial_butting',
+    },
+    '2648': {
+        'o_ring_pocket',
+        'dial_slant_finish',
+        'thickness',
+        'bcb_to_lug_bottom',
+        'dial_slant_angle',
+        'dial_slant_height',
+    },
+    '1805': {
+        'outer_wall_thickness',
+        'cph_centre_to_bc_butting',
+        'crm_length',
+    },
+}
+VERSION_INFO_NUMERIC_FIELDS = {
+    'cph_depth',
+    'cph_centre_to_dial_butting',
+    'thickness',
+    'bcb_to_lug_bottom',
+    'dial_slant_angle',
+    'dial_slant_height',
+    'outer_wall_thickness',
+    'cph_centre_to_bc_butting',
+    'crm_length',
+}
+VERSION_INFO_O_RING_OPTIONS = {
+    '2617': {'Yes', 'No', 'Without O Ring Box in Case Centre'},
+    '2648': {'Yes', 'No'},
+}
+
+
+def validate_model_version(model_number, version):
+    normalized_model = (model_number or '').strip().upper()
+    normalized_version = (version or '').strip().upper()
+    allowed_versions = ALLOWED_MODEL_VERSIONS.get(normalized_model)
+
+    if not allowed_versions:
+        return False, 'Unsupported model number.'
+
+    if normalized_version not in allowed_versions:
+        allowed_text = ', '.join(sorted(allowed_versions))
+        return (
+            False,
+            f'Version {normalized_version} is not allowed for model '
+            f'{normalized_model}. Allowed versions: {allowed_text}.'
+        )
+
+    return True, ''
+
+
+def _parse_optional_decimal(value, label):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return None, ''
+
+    try:
+        return Decimal(raw_value), ''
+    except (InvalidOperation, ValueError):
+        return None, f'{label} must be a valid number.'
+
+
+def _format_optional_decimal(value):
+    if value is None:
+        return ''
+
+    formatted_value = format(value, 'f')
+    if '.' in formatted_value:
+        formatted_value = formatted_value.rstrip('0').rstrip('.')
+    return formatted_value
+
+
+def _legacy_version_info_payload(item):
+    return {
+        'o_ring_pocket': item.o_ring_pocket or '',
+        'dial_slant_finish': item.dial_slant_finish or '',
+        'thickness': _format_optional_decimal(item.thickness),
+        'bcb_to_lug_bottom': _format_optional_decimal(item.bcb_to_lug_bottom),
+        'dial_slant_angle': _format_optional_decimal(item.dial_slant_angle),
+        'dial_slant_height': _format_optional_decimal(item.dial_slant_height),
+    }
+
+
+def _build_version_info_payload(item):
+    if not item:
+        return {}
+
+    model_number = (item.model_number or '').strip().upper()
+    allowed_fields = VERSION_INFO_FIELDS.get(model_number, set())
+    stored_info = item.version_info if isinstance(item.version_info, dict) else {}
+    if stored_info:
+        return {
+            field_name: str(stored_info.get(field_name, '')).strip()
+            for field_name in allowed_fields
+            if str(stored_info.get(field_name, '')).strip()
+        }
+
+    if model_number == '2648':
+        legacy_info = _legacy_version_info_payload(item)
+        return {
+            field_name: value
+            for field_name, value in legacy_info.items()
+            if field_name in allowed_fields and value
+        }
+
+    return {}
+
+
+def _extract_legacy_version_info_from_post(post_data):
+    legacy_info = {}
+    for field_name in VERSION_INFO_FIELDS['2648']:
+        raw_value = (post_data.get(field_name, '') or '').strip()
+        if raw_value:
+            legacy_info[field_name] = raw_value
+    return legacy_info
+
+
+def _validate_version_info_payload(model_number, info_payload):
+    normalized_model = (model_number or '').strip().upper()
+    allowed_fields = VERSION_INFO_FIELDS.get(normalized_model)
+    if allowed_fields is None:
+        return None, 'Unsupported model number.'
+
+    if not isinstance(info_payload, dict):
+        return None, 'version_info must be a JSON object.'
+
+    cleaned_info = {}
+    for raw_key, raw_value in info_payload.items():
+        field_name = str(raw_key or '').strip()
+        if field_name not in allowed_fields:
+            return None, f'{field_name} is not allowed for model {normalized_model}.'
+
+        value = '' if raw_value is None else str(raw_value).strip()
+        if not value or value == 'Not specified':
+            continue
+
+        if field_name == 'o_ring_pocket':
+            allowed_options = VERSION_INFO_O_RING_OPTIONS.get(normalized_model, set())
+            if value not in allowed_options:
+                allowed_text = ', '.join(sorted(allowed_options))
+                return None, f'O Ring Pocket must be one of: {allowed_text}.'
+
+        if field_name in VERSION_INFO_NUMERIC_FIELDS:
+            _, error_message = _parse_optional_decimal(value, field_name.replace('_', ' ').title())
+            if error_message:
+                return None, error_message
+
+        cleaned_info[field_name] = value
+
+    return cleaned_info, ''
+
+
+def _extract_version_info_from_post(post_data):
+    return _extract_legacy_version_info_from_post(post_data), ''
+
+def _extract_version_info_json_from_post(model_number, post_data):
+    raw_info = post_data.get('version_info')
+    if raw_info is None:
+        legacy_info, _ = _extract_version_info_from_post(post_data)
+        return _validate_version_info_payload(model_number, legacy_info)
+
+    try:
+        parsed_info = json.loads(raw_info or '{}')
+    except json.JSONDecodeError:
+        return None, 'version_info contains malformed JSON.'
+
+    return _validate_version_info_payload(model_number, parsed_info)
+
+
+def _build_legacy_version_info_defaults(model_number, version_info):
+    if model_number != '2648':
+        return {
+            'o_ring_pocket': None,
+            'dial_slant_finish': None,
+            'thickness': None,
+            'bcb_to_lug_bottom': None,
+            'dial_slant_angle': None,
+            'dial_slant_height': None,
+        }
+
+    defaults = {
+        'o_ring_pocket': version_info.get('o_ring_pocket') or None,
+        'dial_slant_finish': version_info.get('dial_slant_finish') or None,
+    }
+    for field_name, _label in _VERSION_INFO_DECIMAL_FIELDS:
+        value = version_info.get(field_name)
+        defaults[field_name] = Decimal(value) if value else None
+    return defaults
+
+
+def _get_version_comparison_image_items(item):
+    if not item:
+        return []
+
+    image_items = [
+        {
+            'id': image_item.id,
+            'url': image_item.image.url,
+            'filename': image_item.original_filename or os.path.basename(image_item.image.name),
+            'display_order': image_item.display_order,
+        }
+        for image_item in item.images.all()
+        if image_item.image
+    ]
+
+    if not image_items and item.comparison_image:
+        image_items.append({
+            'id': None,
+            'url': item.comparison_image.url,
+            'filename': os.path.basename(item.comparison_image.name),
+            'display_order': 0,
+        })
+
+    return image_items
+
+
+def _get_version_comparison_image_urls(item):
+    return [image_item['url'] for image_item in _get_version_comparison_image_items(item)]
+
+
+def _build_version_comparison_payload(item):
+    image_items = _get_version_comparison_image_items(item)
+    return {
+        'id': item.id,
+        'model_number': item.model_number,
+        'version': item.version or item.title or '',
+        'title': item.title or '',
+        'comparison_image': image_items[0]['url'] if image_items else '',
+        'images': image_items,
+        'image_count': len(image_items),
+        'description': item.description or '',
+        'info': _build_version_info_payload(item),
+        'is_active': item.is_active,
+        'updated_at': item.updated_at.isoformat() if item.updated_at else '',
+    }
+
+
+def _validate_version_comparison_image(uploaded_file):
+    if not uploaded_file:
+        return 'Image is required.'
+
+    if uploaded_file.size and uploaded_file.size > _VERSION_COMPARISON_MAX_SIZE:
+        return 'Image exceeds maximum allowed size of 10 MB.'
+
+    _, ext = os.path.splitext((uploaded_file.name or '').lower())
+    if ext not in _VERSION_COMPARISON_ALLOWED_EXT:
+        return 'File extension is not allowed. Allowed: jpg, jpeg, png, webp.'
+
+    content_type = getattr(uploaded_file, 'content_type', '') or ''
+    if content_type and content_type not in _VERSION_COMPARISON_ALLOWED_MIME:
+        return 'File type is not allowed. Only PNG, JPG, JPEG and WEBP images are accepted.'
+
+    return None
+
+
+@login_required(login_url='login-api')
+@require_admin
+@require_GET
+def model_version_comparison_list(request):
+    items = (
+        ModelVersionComparison.objects
+        .prefetch_related('images')
+        .order_by('model_number', 'version')
+    )
+    return JsonResponse({
+        'success': True,
+        'items': [_build_version_comparison_payload(item) for item in items],
+    })
+
+
+@login_required(login_url='login-api')
+@require_admin
+@require_POST
+def model_version_comparison_upload(request):
+    raw_model_number = request.POST.get('model_number', '').strip().upper()
+    version = request.POST.get('version', '').strip().upper()
+    uploaded_files = request.FILES.getlist('comparison_images')
+    if not uploaded_files:
+        uploaded_files = request.FILES.getlist('comparison_image')
+
+    if not raw_model_number:
+        return JsonResponse({
+            'success': False,
+            'message': 'Base model number is required.',
+        }, status=400)
+
+    if not version:
+        return JsonResponse({
+            'success': False,
+            'message': 'Version is required.',
+        }, status=400)
+
+    base_model_number = _resolve_base_model_number(raw_model_number).strip().upper()
+    if not base_model_number:
+        return JsonResponse({
+            'success': False,
+            'message': 'Base model number is required.',
+        }, status=400)
+
+    is_allowed, validation_message = validate_model_version(base_model_number, version)
+    if not is_allowed:
+        return JsonResponse({
+            'success': False,
+            'message': validation_message,
+        }, status=400)
+
+    version_info, info_error = _extract_version_info_json_from_post(base_model_number, request.POST)
+    if info_error:
+        return JsonResponse({
+            'success': False,
+            'message': info_error,
+        }, status=400)
+
+    existing_comparison = ModelVersionComparison.objects.filter(
+        model_number=base_model_number,
+        version=version,
+    ).first()
+    if not uploaded_files and not existing_comparison:
+        return JsonResponse({
+            'success': False,
+            'message': 'At least one image is required for a new version record.',
+        }, status=400)
+
+    for uploaded_file in uploaded_files:
+        validation_error = _validate_version_comparison_image(uploaded_file)
+        if validation_error:
+            return JsonResponse({
+                'success': False,
+                'message': f'{uploaded_file.name}: {validation_error}',
+            }, status=400)
+
+    with transaction.atomic():
+        comparison, created = ModelVersionComparison.objects.update_or_create(
+            model_number=base_model_number,
+            version=version,
+            defaults={
+                'title': version,
+                'version_info': version_info,
+                **_build_legacy_version_info_defaults(base_model_number, version_info),
+                'is_active': True,
+            }
+        )
+
+        start_order = comparison.images.count()
+        existing_filenames = set(
+            comparison.images
+            .exclude(original_filename='')
+            .values_list('original_filename', flat=True)
+        )
+        seen_request_filenames = set()
+        created_image_count = 0
+        skipped_duplicate_count = 0
+        for uploaded_file in uploaded_files:
+            original_filename = uploaded_file.name or ''
+            if original_filename and (
+                original_filename in existing_filenames or
+                original_filename in seen_request_filenames
+            ):
+                skipped_duplicate_count += 1
+                continue
+
+            ModelVersionComparisonImage.objects.create(
+                comparison=comparison,
+                image=uploaded_file,
+                original_filename=original_filename,
+                display_order=start_order + created_image_count,
+            )
+            if original_filename:
+                seen_request_filenames.add(original_filename)
+            created_image_count += 1
+
+    return JsonResponse({
+        'success': True,
+        'created': created,
+        'message': 'Version images uploaded successfully.',
+        'model_number': comparison.model_number,
+        'version': comparison.version or '',
+        'uploaded_count': created_image_count,
+        'skipped_duplicate_count': skipped_duplicate_count,
+        'comparison_image': _build_version_comparison_payload(comparison)['comparison_image'],
+        'item': _build_version_comparison_payload(comparison),
+    })
+
+
+@login_required(login_url='login-api')
+@require_admin
+@require_POST
+def model_version_comparison_delete(request):
+    item_id = request.POST.get('id')
+    if not item_id:
+        return JsonResponse({
+            'success': False,
+            'message': 'Version image ID is required.',
+        }, status=400)
+
+    comparison = get_object_or_404(ModelVersionComparison, pk=item_id)
+    for image_item in comparison.images.all():
+        if image_item.image:
+            image_item.image.delete(save=False)
+    if comparison.comparison_image:
+        comparison.comparison_image.delete(save=False)
+    comparison.delete()
+    return JsonResponse({
+        'success': True,
+        'message': 'Version image deleted successfully.',
+    })
 
 
 @method_decorator(login_required(login_url='login-api'), name='dispatch')
@@ -1207,7 +1995,7 @@ class Rec_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "RecoveryMasterCreation" and batch_obj:
                 # Use RecoveryMasterCreation data (preferred)
-                images = sort_images_front_first(batch_obj.images.all())
+                images = get_model_view_images(batch_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
@@ -1227,7 +2015,7 @@ class Rec_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-                images = sort_images_front_first(model_master_obj.images.all())
+                images = get_model_view_images(model_master_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
@@ -1259,36 +2047,11 @@ class Rec_Visual_AidView(APIView):
                 version_labels = [str(v) for v in version_list]
                 context['modelmaster_versions'] = version_labels
 
-                # Find similar models through LookLikeModel
-                look_like_obj = LookLikeModel.objects.filter(same_plating_stk_no=model_master_instance).first()
-                print(f"LookLikeModel object: {look_like_obj}")
-
-                if look_like_obj:
-                    # Get all related ModelMaster objects
-                    related_model_masters = look_like_obj.plating_stk_no.all()
-                    same_model_list = []
-                    
-                    for related_master in related_model_masters:
-                        # Check if this ModelMaster has a corresponding RecoveryMasterCreation
-                        has_creation = RecoveryMasterCreation.objects.filter(
-                            model_stock_no=related_master
-                        ).exists()
-                        
-                        model_info = {
-                            'plating_stk_no': related_master.plating_stk_no,
-                            'model_master_id': related_master.id,
-                            'has_creation': has_creation,
-                            'has_model_master': True,  # Always true since we're iterating ModelMaster objects
-                            'version': related_master.version,
-                            'polish_finish': str(related_master.polish_finish) if related_master.polish_finish else None,
-                        }
-                        
-                        same_model_list.append(model_info)
-                    
-                    context['same_model_list'] = same_model_list
-                    print(f"Same model list with ModelMaster details: {same_model_list}")
-                else:
-                    context['same_model_list'] = []
+                context['same_model_list'] = _build_similar_model_list(
+                    model_master_instance,
+                    creation_model=RecoveryMasterCreation,
+                )
+                print(f"Same model list with ModelMaster details: {context['same_model_list']}")
             else:
                 context['same_model_list'] = []
                 context['modelmaster_versions'] = []
@@ -1404,7 +2167,7 @@ class Other_Visual_AidView(APIView):
         if batch_obj or model_master_obj:
             if data_source == "ModelMasterCreation" and batch_obj:
                 # Use ModelMasterCreation data (preferred)
-                images = sort_images_front_first(batch_obj.images.all())
+                images = get_model_view_images(batch_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
@@ -1424,7 +2187,7 @@ class Other_Visual_AidView(APIView):
                 
             elif data_source == "ModelMaster" and model_master_obj:
                 # Use ModelMaster data directly
-                images = sort_images_front_first(model_master_obj.images.all())
+                images = get_model_view_images(model_master_obj.images.all())
                 image_urls = _build_image_url_list(
                     request,
                     images,
@@ -2201,6 +2964,7 @@ class ModelImageAPIView(APIView):
                     if serializer.is_valid():
                         write_started = image_perf_counter()
                         model_image = serializer.save()
+                        _link_model_image_to_matching_masters(model_image)
                         emit_media_write(
                             request,
                             image,

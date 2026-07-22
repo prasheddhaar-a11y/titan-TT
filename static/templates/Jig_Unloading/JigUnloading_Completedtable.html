@@ -1307,8 +1307,6 @@ body.add-model-mode #selectAllCheckbox {
                     <th>Process Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Batch Status <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Current Location <i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Plating<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>
-                    <th>Polishing<br>Stk No<i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Plating <br> Color <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Polish <br> Finish <i class="fa fa-filter" aria-hidden="true"></i></th>
                     <th>Type of Input <i class="fa fa-filter" aria-hidden="true"></i></th>
@@ -1319,7 +1317,7 @@ body.add-model-mode #selectAllCheckbox {
                 </thead>
                 <tbody>
                   {% for jig_detail in completed_unloads %}
-                    <tr class="highlighted-tray-scan" data-lot-id="{{ jig_detail.lot_id }}" data-lot-id-quantities='{{ jig_detail.lot_id_quantities|json_encode }}' data-lot-id-model-map='{{ jig_detail.lot_id_model_map|json_encode }}'>
+                    <tr class="highlighted-tray-scan" data-lot-id="{{ jig_detail.lot_id }}" data-jig-id="{{ jig_detail.jig_qr_id }}" data-lot-id-quantities='{{ jig_detail.lot_id_quantities|json_encode }}' data-lot-id-model-map='{{ jig_detail.lot_id_model_map|json_encode }}'>
                       <!-- S.No-->
 
                      <td>{{forloop.counter }}
@@ -1457,12 +1455,6 @@ body.add-model-mode #selectAllCheckbox {
                         </div>
                       </td>
                       
-                      <!-- Plating Stk No -->
-                      <td>{{ jig_detail.all_plating_stk_nos|join:", " }}</td>
-                      
-                      <!-- Polishing Stk No -->
-                      <td>{{ jig_detail.all_polishing_stk_nos|join:", " }}</td>
-
                       <!-- Plating Color -->
                     <td {% if jig_detail.unload_hold_lot %} class="row-inactive-blur" {% endif %}>
                       {{ jig_detail.plating_color|highlight_plating_color|safe|default:"N/A" }}
@@ -2912,7 +2904,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Get all table rows
   document.querySelectorAll("#order-listing tbody tr").forEach(function (row) {
     // Column structure includes Model Presents, Action, Lot Qty, tray/status/location before Plating Color.
-    var cell = row.children[12]; // Plating Color column
+    var cell = row.children[10]; // Plating Color column (shifted after removing Plating/Polishing Stk No)
     
     if (!cell) return;
 

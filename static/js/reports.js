@@ -188,12 +188,24 @@ document.addEventListener("DOMContentLoaded", function () {
   }, true);
 
   // --- Preview (10 rows/page, same query as download) ---
+  // Module column order must match ReportsModule/selectors.py MODULE_COLUMNS
+  // and the <th> order in reports.html so cells line up with their headers.
+  var MODULE_COLUMNS = [
+    "Day Planning", "Input Screening", "Brass QC", "IQF", "Brass Audit",
+    "Jig Loading", "IP Inspection",
+    "Jig Unloading Z1", "Jig Unloading Z2",
+    "Nickel Wiping Z1", "Nickel Wiping Z2",
+    "Nickel Audit Z1", "Nickel Audit Z2",
+    "Spider Spindle Z1", "Spider Spindle Z2",
+  ];
+  var PREVIEW_COLUMN_COUNT = 4 + MODULE_COLUMNS.length + 1; // + S.No group + Remarks
+
   function renderPreview(data) {
     previewBody.innerHTML = "";
     if (!data.results.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = PREVIEW_COLUMN_COUNT;
       td.style.textAlign = "center";
       td.textContent = "No records found for the selected filters.";
       tr.appendChild(td);
@@ -201,10 +213,11 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       data.results.forEach(function (row) {
         const tr = document.createElement("tr");
-        [
-          row.s_no, row.plating_stk_no, row.lot_qty, row.accept_reject,
-          row.current_stage, row.next_stage, row.remarks,
-        ].forEach(function (value) {
+        const modules = row.modules || {};
+        const values = [row.s_no, row.plating_stk_no, row.lot_qty]
+          .concat(MODULE_COLUMNS.map(function (name) { return modules[name]; }))
+          .concat([row.remarks]);
+        values.forEach(function (value) {
           const td = document.createElement("td");
           td.textContent = value === null || value === undefined ? "" : value;
           tr.appendChild(td);

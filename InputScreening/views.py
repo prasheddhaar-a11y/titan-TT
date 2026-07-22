@@ -809,6 +809,12 @@ class IS_SaveTVMDraftAPI(APIView):
                     {"success": False, "error": "Lot not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            # Draft save is real processing activity at Input Screening — move the
+            # current_stage SSOT off "Day Planning" now, not only on full verify.
+            # Otherwise the Day Planning Complete Table keeps showing "Day Planning"
+            # for a lot that is actually sitting as an Input Screening draft.
+            from modelmasterapp.stage_service import update_stock_stage
+            update_stock_stage(lot_id, "Input Screening")
             logger.info("IS TVM draft saved for lot_id=%s by user=%s", lot_id, request.user)
             return Response(
                 {"success": True, "message": "TVM draft saved.", "lot_id": lot_id},

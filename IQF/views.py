@@ -4422,3 +4422,100 @@ class IQFSaveHoldUnholdReasonAPIView(APIView):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+
+
+# ══ IQF Reject Table — Delink Selected Lots ══
+# Frees the REJECTED trays of selected IQF reject lots so the tray IDs become
+# reusable across the system (TrayId master reset to a fresh, unallocated state).
+# Frontend (Iqf_RejectTable.html) posts { stock_lot_ids: [...] } and expects
+# { success, updated, lots_processed, error }.
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def iqf_delink(request):
+    """Delink the rejected trays of the selected IQF reject lot(s).
+
+    For each lot_id (the reject/delink lot shown in the IQF Reject Table):
+      1. Mark its active IQFTrayId rows as delinked (delink_tray=True).
+      2. Free those tray IDs in the TrayId master table so they can be scanned
+         again as brand-new trays (delink_tray=True, lot_id=None, batch_id=None,
+         new_tray=True, scanned/verify/rejected/top flags cleared).
+      3. Delink the same tray IDs in the other module tray tables
+         (BrassTrayId, BrassAuditTrayId, IPTrayId) so they are no longer
+         reported as "occupied in another module".
+
+    Response fields match the frontend contract: updated, lots_processed.
+    """
+    try:
+        stock_lot_ids = request.data.get('stock_lot_ids', []) or []
+        # Backward compatibility: also accept a single lot_id or tray_ids list
+        if not stock_lot_ids and request.data.get('lot_id'):
+            stock_lot_ids = [request.data.get('lot_id')]
+
+        stock_lot_ids = [str(lid).strip() for lid in stock_lot_ids if str(lid or '').strip()]
+
+        if not stock_lot_ids:
+            return Response({'success': False, 'error': 'No lots selected for delink'}, status=400)
+
+        updated = 0
+        lots_processed = 0
+        not_found = []
+
+        with transaction.atomic():
+            for lot_id in stock_lot_ids:
+                # Active (non-delinked) IQF trays for this reject lot — the ones to free
+                tray_ids = list(
+                    IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False)
+                    .values_list('tray_id', flat=True)
+                )
+                tray_ids = [tid for tid in tray_ids if tid]
+
+                if not tray_ids:
+                    not_found.append(lot_id)
+                    continue
+
+                # 1. Delink IQF trays for this lot
+                IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).update(delink_tray=True)
+
+                # 2. Free the tray IDs in the TrayId master → reusable as new
+                freed = TrayId.objects.filter(tray_id__in=tray_ids).update(
+                    delink_tray=True,
+                    lot_id=None,
+                    batch_id=None,
+                    scanned=False,
+                    IP_tray_verified=False,
+                    rejected_tray=False,
+                    brass_rejected_tray=False,
+                    top_tray=False,
+                    new_tray=True,
+                )
+                updated += freed
+
+                # 3. Delink the same trays in the other module tables so they are
+                #    not reported as occupied elsewhere on the next scan.
+                BrassTrayId.objects.filter(tray_id__in=tray_ids).update(delink_tray=True)
+                BrassAuditTrayId.objects.filter(tray_id__in=tray_ids).update(delink_tray=True)
+                IPTrayId.objects.filter(tray_id__in=tray_ids).update(delink_tray=True)
+
+                lots_processed += 1
+
+        print(f'[IQF DELINK] lots={stock_lot_ids}, processed={lots_processed}, '
+              f'trays_freed={updated}, not_found={not_found}')
+
+        if lots_processed == 0:
+            return Response({
+                'success': False,
+                'error': 'No rejected trays found to delink for the selected lot(s).',
+                'not_found': not_found,
+            }, status=400)
+
+        return Response({
+            'success': True,
+            'updated': updated,
+            'lots_processed': lots_processed,
+            'not_found': not_found,
+        })
+
+    except Exception as e:
+        print('[IQF DELINK ERROR]', str(e))
+        traceback.print_exc()
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)

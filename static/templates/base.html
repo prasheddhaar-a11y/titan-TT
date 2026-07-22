@@ -3405,6 +3405,14 @@
     return normalized || '/';
   }
 
+  function isJigUnloadingContext() {
+    return /^\/(jig_unloading|jigunloading_zone2)\//i.test(String(window.location.pathname || ''));
+  }
+
+  function getScanFieldLabel() {
+    return isJigUnloadingContext() ? 'Jig ID' : 'Tray ID';
+  }
+
   function getCookie(name) {
     const value = '; ' + document.cookie;
     const parts = value.split('; ' + name + '=');
@@ -3465,7 +3473,7 @@
     sessionStorage.removeItem('globalScanLotId');
     if (scanResult) scanResult.innerHTML = '';
     if (!settings.keepInput) scanInput.value = '';
-    if (!settings.keepMessage) setScanMessage('Scan or Type Tray ID', '#028084');
+    if (!settings.keepMessage) setScanMessage('Scan or Type ' + getScanFieldLabel(), '#028084');
   }
 
   function getGlobalShortcutKeyDisplay(shortcutCode) {
@@ -3488,7 +3496,7 @@
     scanStatus.style.display = 'block';
     resetPreviousScanState();
     scanInput.disabled = false;
-    setInfo('scanner', 'Ready - scan tray', '#028084');
+    setInfo('scanner', 'Ready - scan ' + getScanFieldLabel().toLowerCase(), '#028084');
     focusScanInput(false);
   }
 
@@ -3507,8 +3515,8 @@
   }
 
   function handleEmptyInput() {
-    setInfo('!', 'Enter Tray ID', '#ff6b00');
-    setScanMessage('Enter Tray ID', '#ff6b00');
+    setInfo('!', 'Enter ' + getScanFieldLabel(), '#ff6b00');
+    setScanMessage('Enter ' + getScanFieldLabel(), '#ff6b00');
     focusScanInput(true);
   }
 
@@ -3564,7 +3572,7 @@
 
       window.clearTimeout(scanTimeout);
       if (!normalized) {
-        setInfo('scanner', 'Ready - scan tray', '#028084');
+        setInfo('scanner', 'Ready - scan ' + getScanFieldLabel().toLowerCase(), '#028084');
         return;
       }
 
@@ -3718,7 +3726,8 @@
       'data-tray-id',
       'data-tray-ids',
       'data-original-batch-id',
-      'data-stock-id'
+      'data-stock-id',
+      'data-jig-id'
     ];
 
     function addValue(rawValue) {
@@ -3744,7 +3753,7 @@
     }
 
     readElement(row);
-    row.querySelectorAll('[data-lot-id], [data-stock-lot-id], [data-batch-id], [data-tray-id], [data-tray-ids], [data-original-batch-id], [data-stock-id]')
+    row.querySelectorAll('[data-lot-id], [data-stock-lot-id], [data-batch-id], [data-tray-id], [data-tray-ids], [data-original-batch-id], [data-stock-id], [data-jig-id]')
       .forEach(readElement);
     addValue(row.textContent || '');
 

@@ -75,7 +75,12 @@ def _sync_total_stock_verification_flags(lot_id: str, verified: int, total: int)
         tray_verify=all_verified,
         draft_tray_verify=partial_verified,
     )
-    if all_verified:
+    if all_verified or partial_verified:
+        # Draft (partial verification) is real processing activity at the Input
+        # Screening stage — current_stage must move off "Day Planning" as soon as
+        # scanning starts here, not only once every tray is verified. Otherwise a
+        # lot sitting as an Input Screening draft still shows "Day Planning" as its
+        # current stage in the Day Planning Complete Table.
         from modelmasterapp.stage_service import update_stock_stage
 
         update_stock_stage(lot_id, "Input Screening")

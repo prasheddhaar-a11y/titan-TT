@@ -99,6 +99,10 @@ urlpatterns = [
     # Model hover preview API (used by stock-number preview popups)
     path('api/model-hover-preview/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview'),
     path('api/model-hover-preview/<path:stock_no>/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview-detail'),
+    path('api/model-version-comparison/', ModelVersionComparisonAPIView.as_view(), name='model-version-comparison'),
+    path('api/model-version-comparison/upload/', model_version_comparison_upload, name='model-version-comparison-upload'),
+    path('api/model-version-comparison/list/', model_version_comparison_list, name='model-version-comparison-list'),
+    path('api/model-version-comparison/delete/', model_version_comparison_delete, name='model-version-comparison-delete'),
 
     # Lot remark history API — returns all pick-stage remarks for a lot
     path('api/lot_remark_history/', LotRemarkHistoryAPIView.as_view(), name='lot-remark-history'),

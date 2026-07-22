@@ -67,11 +67,21 @@ PICK_TABLE_COLUMNS = (
 def _latest(field: str):
     """Return a Subquery that pulls ``field`` from the most recent
     ``TotalStockModel`` row for the outer ``ModelMasterCreation``.
+
+    Excludes synthetic ``EX-*`` excess-lot rows: Jig Loading creates its own
+    ``TotalStockModel`` row (sharing the same ``batch_id``) when a lot has
+    leftover excess quantity, and that row keeps advancing through later
+    stages (Jig Unloading, Nickel Inspection, ...) independently of the
+    original lot. Once it becomes the newest row for the batch it would
+    otherwise hijack every annotated field here — including ``stock_lot_id``
+    — making the Input Screening pick table show the excess lot (with no
+    Input Screening data of its own) instead of the real production lot.
     """
     from modelmasterapp.models import TotalStockModel
 
     return Subquery(
         TotalStockModel.objects.filter(batch_id=OuterRef("pk"))
+        .exclude(lot_id__startswith="EX-")
         .order_by("-id")
         .values(field)[:1]
     )

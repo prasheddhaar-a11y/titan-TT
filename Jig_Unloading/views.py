@@ -29,6 +29,7 @@ from Jig_Unloading.tray_utils import (
     find_jig_unload_tray_conflict,
     is_valid_jig_unload_tray_id_format,
     normalize_jig_unload_tray_id,
+    normalize_combine_lot_id,
 )
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -108,6 +109,32 @@ def _jul_enrich_tray_data_with_sources(tray_data, source_metadata):
         else:
             enriched.append(entry)
     return enriched
+
+
+def _jul_find_after_table_by_source_lot_id(lot_id):
+    """Find a JigUnloadAfterTable row whose combine_lot_ids contains lot_id.
+
+    Tries an exact-match containment filter first (fast path for Zone 1's own
+    plain lot_id entries), then falls back to a normalised comparison because
+    Zone 2 stores combine_lot_ids entries in a prefixed format (e.g.
+    'JLOT-xxx-LIDyyy' or 'JLOT-xxx:LIDyyy'). Without the fallback, the same
+    source lot already merged in via Zone 2 is invisible to Zone 1 lookups,
+    letting Zone 1 create a duplicate standalone record for it.
+    """
+    existing = JigUnloadAfterTable.objects.filter(
+        combine_lot_ids__contains=[lot_id]
+    ).first()
+    if existing:
+        return existing
+    for candidate in JigUnloadAfterTable.objects.filter(
+        combine_lot_ids__isnull=False
+    ).exclude(combine_lot_ids__exact=[]).order_by('-id'):
+        if any(
+            normalize_combine_lot_id(cid) == lot_id
+            for cid in (candidate.combine_lot_ids or [])
+        ):
+            return candidate
+    return None
 
 class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
     template_name = "Jig_Unloading/Jig_Unloading_Main.html"
@@ -274,7 +301,7 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
             lot_id=OuterRef('lot_id')
         ).values('polish_finish__polish_finish')[:1]
         
-        jig_unload = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jig_unload = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -283,10 +310,10 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
         ).exclude(
             last_process_module='Jig Unloading'
         ).order_by('-IP_loaded_date_time')
-        
-        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data 
+
+        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data
         # but can be determined from TotalStockModel or RecoveryStockModel
-        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -2894,10 +2921,10 @@ class GetUnloadModelsZ1View(APIView):
                 if _jc_pc and isinstance(_jc_pc.get('draft_data'), dict):
                     plating_color_name = _jc_pc['draft_data'].get('plating_color', '') or ''
 
-            # Check if already submitted as standalone lot
-            is_submitted_lot = JigUnloadAfterTable.objects.filter(
-                combine_lot_ids__contains=[lot_id]
-            ).exists()
+            # Check if already submitted as standalone lot (normalised: Zone 2
+            # stores combine_lot_ids in a prefixed format, see
+            # _jul_find_after_table_by_source_lot_id)
+            is_submitted_lot = _jul_find_after_table_by_source_lot_id(lot_id) is not None
 
             models_list.append({
                 'lot_id': lot_id,
@@ -3495,6 +3522,21 @@ class SubmitAllUnloadZ1View(APIView):
         after_table = JigUnloadAfterTable.objects.filter(
             combine_lot_ids__contains=[source_lot_id]
         ).order_by('-id').first()
+        if not after_table:
+            # Zone 2 stores combine_lot_ids entries in a prefixed format
+            # (e.g. 'JLOT-xxx-LIDyyy') rather than the plain lot_id Zone 1 uses above,
+            # so the exact-match filter never finds a Zone-2-created row for the same
+            # source lot. Fall back to a normalised comparison so the same lot
+            # submitted from either zone merges into one combined record.
+            for candidate in JigUnloadAfterTable.objects.filter(
+                combine_lot_ids__isnull=False
+            ).exclude(combine_lot_ids__exact=[]).order_by('-id'):
+                if any(
+                    normalize_combine_lot_id(cid) == source_lot_id
+                    for cid in (candidate.combine_lot_ids or [])
+                ):
+                    after_table = candidate
+                    break
         action = 'updated' if after_table else 'created'
 
         if after_table:
@@ -3567,6 +3609,9 @@ class SubmitAllUnloadZ1View(APIView):
             jc = JigCompleted.objects.get(id=jig_completed_id)
         except JigCompleted.DoesNotExist:
             return Response({'error': 'JigCompleted not found'}, status=404)
+
+        if jc.unload_hold_lot:
+            return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
 
         # Verify all models are unloaded
         draft_data = jc.draft_data or {}
@@ -3763,6 +3808,9 @@ class SubmitSingleModelZ1View(APIView):
         except JigCompleted.DoesNotExist:
             return Response({'error': 'JigCompleted not found'}, status=404)
 
+        if jc.unload_hold_lot:
+            return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
+
         # Verify this model has been unloaded (final, not draft)
         sub = JUSubmittedZ1.objects.filter(
             jig_completed_id=jig_completed_id, lot_id=lot_id, is_draft=False
@@ -3770,10 +3818,14 @@ class SubmitSingleModelZ1View(APIView):
         if not sub:
             return Response({'error': 'Model not yet unloaded. Complete tray scan first.'}, status=400)
 
-        # Idempotency: return existing record if already submitted
-        existing = JigUnloadAfterTable.objects.filter(
-            combine_lot_ids__contains=[lot_id]
-        ).first()
+        # Idempotency: return existing record if already submitted. Uses a
+        # normalised fallback because Zone 2 stores combine_lot_ids in a
+        # prefixed format (e.g. 'JLOT-xxx-LIDyyy'), so without it, a lot
+        # already merged in via Zone 2 is invisible here and this endpoint
+        # creates a duplicate standalone JigUnloadAfterTable row for it —
+        # the duplicate then shows as a second lot in downstream Nickel
+        # Inspection Zone 1/2 pick tables instead of one combined lot.
+        existing = _jul_find_after_table_by_source_lot_id(lot_id)
         if existing:
             return Response({
                 'success': True,
@@ -3895,6 +3947,65 @@ class JigUnloadPickRemarkZ1View(APIView):
             return Response({'success': True, 'message': 'Remark saved'})
         except Exception as e:
             return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class JigUnloadHoldUnholdZ1View(APIView):
+    """
+    POST /jig_unloading/api/hold_unhold_z1/
+    Holds or releases a JigCompleted lot with a mandatory remark.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from django.utils import timezone
+
+        lot_id = request.data.get('lot_id')
+        action = request.data.get('action')
+        remark = (request.data.get('remark') or '').strip()
+
+        if not lot_id:
+            return Response({'success': False, 'error': 'lot_id is required'}, status=400)
+        if action not in ('hold', 'unhold'):
+            return Response({'success': False, 'error': "action must be 'hold' or 'unhold'"}, status=400)
+        if not remark:
+            return Response({'success': False, 'error': 'Remark is required'}, status=400)
+        if len(remark) > 50:
+            return Response({'success': False, 'error': 'Remark must be 50 characters or less'}, status=400)
+
+        jc = JigCompleted.objects.filter(lot_id=lot_id).first()
+        if not jc:
+            return Response({'success': False, 'error': 'Lot not found'}, status=404)
+
+        now = timezone.now()
+        if action == 'hold':
+            jc.unload_hold_lot = True
+            jc.unload_holding_reason = remark
+            jc.unload_hold_by = request.user
+            jc.unload_hold_at = now
+            jc.unload_release_lot = False
+            jc.unload_release_reason = ''
+        else:
+            jc.unload_hold_lot = False
+            jc.unload_release_reason = remark
+            jc.unload_release_by = request.user
+            jc.unload_release_at = now
+            jc.unload_release_lot = True
+
+        jc.save(update_fields=[
+            'unload_hold_lot', 'unload_holding_reason', 'unload_hold_by', 'unload_hold_at',
+            'unload_release_lot', 'unload_release_reason', 'unload_release_by', 'unload_release_at',
+        ])
+        return Response({
+            'success': True, 'lot_id': lot_id, 'action': action,
+            'holding_reason': jc.unload_holding_reason or '', 'release_reason': jc.unload_release_reason or '',
+            'hold_lot': jc.unload_hold_lot, 'release_lot': jc.unload_release_lot,
+            'hold_by': jc.unload_hold_by.username if jc.unload_hold_by else '',
+            'hold_at': timezone.localtime(jc.unload_hold_at).strftime("%d-%b-%Y %I:%M %p") if jc.unload_hold_at else '',
+            'release_by': jc.unload_release_by.username if jc.unload_release_by else '',
+            'release_at': timezone.localtime(jc.unload_release_at).strftime("%d-%b-%Y %I:%M %p") if jc.unload_release_at else '',
+            'message': f"Lot {'held' if action == 'hold' else 'released'} successfully.",
+        })
 
 
 @method_decorator(csrf_exempt, name='dispatch')

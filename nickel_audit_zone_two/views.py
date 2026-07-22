@@ -24,6 +24,7 @@ from math import ceil
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 from IQF.models import *
 from BrassAudit.models import *
 from Nickel_Audit.models import *
@@ -233,7 +234,7 @@ class NA_Zone_PickTableView(APIView):
         ).values_list('id', flat=True)
 
         queryset = JigUnloadAfterTable.objects.select_related(
-            'version', 'plating_color', 'polish_finish'
+            'version', 'plating_color', 'polish_finish', 'na_hold_by', 'na_release_by'
         ).prefetch_related('location').filter(
             total_case_qty__gt=0,
             plating_color_id__in=allowed_color_ids
@@ -335,6 +336,10 @@ class NA_Zone_PickTableView(APIView):
                 'na_holding_reason': jig_unload_obj.na_holding_reason,
                 'na_release_lot': jig_unload_obj.na_release_lot,
                 'na_release_reason': jig_unload_obj.na_release_reason,
+                'na_hold_by': jig_unload_obj.na_hold_by.username if jig_unload_obj.na_hold_by else '',
+                'na_hold_at': timezone.localtime(jig_unload_obj.na_hold_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.na_hold_at else '',
+                'na_release_by': jig_unload_obj.na_release_by.username if jig_unload_obj.na_release_by else '',
+                'na_release_at': timezone.localtime(jig_unload_obj.na_release_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.na_release_at else '',
                 'has_draft': jig_unload_obj.has_draft,
                 'draft_type': jig_unload_obj.draft_type,
                 'brass_rejection_total_qty': jig_unload_obj.brass_rejection_total_qty,

@@ -513,12 +513,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   background: #555;
 }
 
-/* Fix: action column view icon remains clickable & unblurred for held rows */
-tr.row-inactive td.action-td {
-  filter: none !important;
-  pointer-events: auto !important;
-  cursor: default !important;
-}
 .tray-scan-modal.open {
   width:500px !important;
 }
@@ -1025,9 +1019,9 @@ tr.row-inactive td.action-td {
                           <span class="sno-value" style="font-weight:600; font-size:13px; color:#333; min-width:18px; text-align:center;{% if data.brass_hold_lot %} filter:none;opacity:1;{% endif %}">{{ forloop.counter }}</span>
                           <!-- Hold/Release remark view icon -->
                           {% if data.brass_hold_lot or data.brass_release_lot or data.brass_holding_reason or data.brass_release_reason %}
-                            <span class="hold-remark-icon" 
-                                  style="display:inline-block; cursor:pointer;" 
-                                    data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.brass_holding_reason %}Holding Reason: {{ data.brass_holding_reason }}{% endif %}{% if data.brass_holding_reason and data.brass_release_reason %}&#10;{% endif %}{% if data.brass_release_reason %}Release Reason: {{ data.brass_release_reason }}{% endif %}">
+                            <span class="hold-remark-icon"
+                                  style="display:inline-block; cursor:pointer;"
+                                    data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.brass_holding_reason %}Holding Reason: {{ data.brass_holding_reason }} (by {{ data.brass_hold_by }} on {{ data.brass_hold_at }}){% endif %}{% if data.brass_holding_reason and data.brass_release_reason %}&#10;{% endif %}{% if data.brass_release_reason %}Release Reason: {{ data.brass_release_reason }} (by {{ data.brass_release_by }} on {{ data.brass_release_at }}){% endif %}">
                               <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:14px; height:14px;" />
                             </span>
                           {% endif %}
@@ -1039,7 +1033,7 @@ tr.row-inactive td.action-td {
                         {% elif data.send_brass_qc %}
                           <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
                         {% endif %}
-                    </td>                     
+                    </td>
                     <td {% if data.brass_hold_lot %} class="row-inactive-blur" {% endif %} style="white-space:normal;word-break:break-all;">
                       {% if data.send_brass_qc %}
                         {{ data.iqf_last_process_date_time|date:"d-M-y" }}<br>
@@ -2605,6 +2599,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.tray-scan-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.preventDefault();
+        // Re-entry guard: if the reject modal is already open, ignore this click.
+        // A scan inside the modal (via the global scanner / keyboard shortcut) can
+        // re-fire a click on the reject button; without this guard the open handler
+        // re-runs renderReasonsGrid() + re-fetches trays, wiping every reason qty
+        // and scanned tray ID the user already entered.
+        if (overlay.style.display === 'flex') {
+          return;
+        }
         var row = this.closest('tr');
         if (!row) return;
         _lotId = row.getAttribute('data-stock-lot-id');
@@ -2740,7 +2742,42 @@ document.addEventListener('DOMContentLoaded', function() {
           renderOriginalTrays();
           updateTotals();
         });
+
+        // Enter commits the reason qty immediately and hands off to the tray
+        // scan input, instead of leaving the scanner's next keystrokes to land
+        // back in this (still-focused) number field.
+        inp.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          this.blur();
+        });
+
+        // Blur (Enter above, or Tab/click-away) flushes the pending debounce
+        // right away so the reject tray scan input exists and is focused
+        // before the user's next scan arrives.
+        inp.addEventListener('blur', function() {
+          flushAllocation();
+        });
       });
+    }
+
+    // ── Immediately run the allocation fetch, but only if one is actually
+    //    pending. Without this guard, the blur our own focusNextAvailableTrayInput()
+    //    triggers (when it steals focus from the qty field into the freshly
+    //    rendered scan input) would re-enter here and fire a redundant second
+    //    ALLOCATE call — one that can resolve after the user has already scanned
+    //    a tray and wipe it out, since fetchAllocation always rebuilds slots empty. ──
+    function flushAllocation() {
+      if (!_allocateTimer) return; // nothing pending — already up to date
+      clearTimeout(_allocateTimer);
+      _allocateTimer = null;
+      var totalReject = 0;
+      reasonsGrid.querySelectorAll('.reject-qty-input').forEach(function(inp) {
+        totalReject += parseInt(inp.value || '0', 10);
+      });
+      if (totalReject > 0 && totalReject <= _totalQty && !fullLotCb.checked) {
+        fetchAllocation(totalReject);
+      }
     }
 
     // ── Update totals + trigger allocation ──
@@ -2842,6 +2879,9 @@ document.addEventListener('DOMContentLoaded', function() {
         delinkSection.style.display = 'none';
         updateSummary();
         allocationSection.style.display = '';
+        // Auto-focus first reject tray scan input so the scanner can type straight
+        // into it without the user needing to click the field first.
+        focusNextAvailableTrayInput();
       })
       .catch(function(err) {
         console.error('[BrassQC] Allocate error:', err);

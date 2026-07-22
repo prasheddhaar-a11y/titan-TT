@@ -226,6 +226,121 @@ class ModelMaster(models.Model):
             return self.plating_stk_no
         else:
             return f"ModelMaster ID: {self.id}" 
+
+
+class ModelVersionComparison(models.Model):
+    model_number = models.CharField(
+        max_length=100
+    )
+
+    version = models.CharField(
+        max_length=20,
+        blank=True,
+        default="ALL"
+    )
+
+    title = models.CharField(
+        max_length=200,
+        blank=True
+    )
+
+    comparison_image = models.ImageField(
+        upload_to="model_version_comparisons/",
+        blank=True,
+        null=True
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    version_info = models.JSONField(
+        default=dict,
+        blank=True
+    )
+
+    o_ring_pocket = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True
+    )
+
+    dial_slant_finish = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
+    thickness = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        blank=True,
+        null=True
+    )
+
+    bcb_to_lug_bottom = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        blank=True,
+        null=True
+    )
+
+    dial_slant_angle = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        blank=True,
+        null=True
+    )
+
+    dial_slant_height = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        blank=True,
+        null=True
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["model_number", "version"],
+                name="unique_model_version_comparison"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.model_number} - {self.version}"
+
+
+class ModelVersionComparisonImage(models.Model):
+    comparison = models.ForeignKey(
+        ModelVersionComparison,
+        on_delete=models.CASCADE,
+        related_name="images"
+    )
+
+    image = models.ImageField(
+        upload_to="model_version_comparisons/"
+    )
+
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    display_order = models.PositiveIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+
+    def __str__(self):
+        return f"{self.comparison} image {self.display_order}"
       
         
 class LookLikeModel(models.Model):

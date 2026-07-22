@@ -19,6 +19,27 @@ def normalize_jig_unload_tray_id(raw_tray_id):
     return str(raw_tray_id or '').strip().upper()
 
 
+def normalize_combine_lot_id(combined):
+    """Normalise a JigUnloadAfterTable.combine_lot_ids entry to its plain source lot_id.
+
+    Zone 1 stores plain lot_ids (e.g. 'LID210820252112300004') while Zone 2 stores
+    prefixed variants (e.g. 'JLOT-8CEDE491A4A3-LID210820252112300004' or
+    'JLOT-8CEDE491A4A3:LID210820252112300004'). Without normalising both formats to
+    the same plain lot_id, the same source lot submitted from both zones is treated
+    as two unrelated lots instead of being merged into a single combined lot.
+    """
+    if not combined:
+        return combined
+    s = str(combined).strip().lstrip('-')
+    if ':' in s:
+        possible_lot = s.rsplit(':', 1)[-1].strip()
+        if possible_lot:
+            return possible_lot
+    if s.startswith('JLOT-') and '-' in s[5:]:
+        return s.rsplit('-', 1)[1]
+    return s
+
+
 def is_valid_jig_unload_tray_id_format(raw_tray_id):
     return bool(TRAY_ID_FORMAT_PATTERN.match(normalize_jig_unload_tray_id(raw_tray_id)))
 

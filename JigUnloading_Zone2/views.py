@@ -30,6 +30,7 @@ from Jig_Unloading.tray_utils import (
     find_jig_unload_tray_conflict,
     is_valid_jig_unload_tray_id_format,
     normalize_jig_unload_tray_id,
+    normalize_combine_lot_id,
 )
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -895,7 +896,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             lot_id=OuterRef('lot_id')
         ).values('polish_finish__polish_finish')[:1]
         
-        jig_unload = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jig_unload = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -904,10 +905,10 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             Q(last_process_module='Inprocess Inspection') |
             Q(last_process_module='Jig Unloading')
         ).order_by('-IP_loaded_date_time')
-        
-        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data 
+
+        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data
         # but can be determined from TotalStockModel or RecoveryStockModel
-        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -2260,33 +2261,57 @@ class JU_Zone_SaveHoldUnholdReasonAPIView(APIView):
         "lot_id": "LOT123"
     }
     """
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
+        from django.utils import timezone
         try:
             data = request.data if hasattr(request, 'data') else json.loads(request.body.decode('utf-8'))
-            jig_lot_id = data.get('jig_lot_id')
-            remark = data.get('remark', '').strip()
-            action = data.get('action', '').strip().lower()
+            lot_id = data.get('lot_id')
+            remark = (data.get('remark') or '').strip()
+            action = (data.get('action') or '').strip().lower()
 
-            if not jig_lot_id or not remark or action not in ['hold', 'unhold']:
+            if not lot_id or not remark or action not in ['hold', 'unhold']:
                 return JsonResponse({'success': False, 'error': 'Missing or invalid parameters.'}, status=400)
 
             # Only use JigCompleted table
-            obj = JigCompleted.objects.filter(jig_lot_id=jig_lot_id).first()
+            obj = JigCompleted.objects.filter(lot_id=lot_id).first()
             if not obj:
                 return JsonResponse({'success': False, 'error': 'JigCompleted record not found.'}, status=404)
 
+            now = timezone.now()
             if action == 'hold':
                 obj.unload_holding_reason = remark
                 obj.unload_hold_lot = True
+                obj.unload_hold_by = request.user
+                obj.unload_hold_at = now
                 obj.unload_release_reason = ''
                 obj.unload_release_lot = False
             elif action == 'unhold':
                 obj.unload_release_reason = remark
                 obj.unload_hold_lot = False
                 obj.unload_release_lot = True
+                obj.unload_release_by = request.user
+                obj.unload_release_at = now
 
-            obj.save(update_fields=['unload_holding_reason', 'unload_release_reason', 'unload_hold_lot', 'unload_release_lot'])
-            return JsonResponse({'success': True, 'message': 'Reason saved.'})
+            obj.save(update_fields=[
+                'unload_holding_reason', 'unload_release_reason', 'unload_hold_lot', 'unload_release_lot',
+                'unload_hold_by', 'unload_hold_at', 'unload_release_by', 'unload_release_at',
+            ])
+            return JsonResponse({
+                'success': True,
+                'lot_id': lot_id,
+                'action': action,
+                'holding_reason': obj.unload_holding_reason or '',
+                'release_reason': obj.unload_release_reason or '',
+                'hold_lot': obj.unload_hold_lot,
+                'release_lot': obj.unload_release_lot,
+                'hold_by': obj.unload_hold_by.username if obj.unload_hold_by else '',
+                'hold_at': timezone.localtime(obj.unload_hold_at).strftime("%d-%b-%Y %I:%M %p") if obj.unload_hold_at else '',
+                'release_by': obj.unload_release_by.username if obj.unload_release_by else '',
+                'release_at': timezone.localtime(obj.unload_release_at).strftime("%d-%b-%Y %I:%M %p") if obj.unload_release_at else '',
+                'message': 'Reason saved.',
+            })
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
@@ -2523,6 +2548,12 @@ def JU_Zone_save_jig_unload_tray_ids(request):
         print(f"[SMART SAVE] main_lot_id: '{main_lot_id}'")
         print(f"[SMART SAVE] jig_aware_sources: {jig_aware_sources}")
         print(f"[SMART SAVE] trays count: {len(trays)}")
+
+        _hold_check_lot_id = jig_lot_id or main_lot_id
+        if _hold_check_lot_id:
+            _hold_check_jc = JigCompleted.objects.filter(lot_id=_hold_check_lot_id).only('unload_hold_lot').first()
+            if _hold_check_jc and _hold_check_jc.unload_hold_lot:
+                return JsonResponse({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
 
         if not trays:
             return JsonResponse({'success': False, 'error': 'Trays data is missing.'})
@@ -2846,15 +2877,24 @@ def JU_Zone_save_jig_unload_tray_ids(request):
             # Check if there's an existing record we should update
             existing_record = None
             
-            # Find record that contains any of these specific formatted lot_ids
+            # Find record that contains any of these specific formatted lot_ids.
+            # Zone 1 stores plain lot_ids in combine_lot_ids while this zone stores
+            # prefixed ids (e.g. 'JLOT-xxx-LIDyyy'), so an exact-string containment
+            # check never matches a Zone-1-created row for the same source lot_id,
+            # causing a duplicate JigUnloadAfterTable row instead of a merge. Compare
+            # normalised (plain) lot_ids instead so either zone can find the other's row.
             potential_records = JigUnloadAfterTable.objects.filter(
                 combine_lot_ids__isnull=False
             ).exclude(combine_lot_ids__exact=[])
-            
+
+            new_plain_ids = {normalize_combine_lot_id(fid) for fid in final_db_combined_lot_ids}
+
             for record in potential_records:
                 if record.combine_lot_ids:
-                    # Check if this record contains any of our new formatted lot_ids
-                    if any(formatted_id in record.combine_lot_ids for formatted_id in final_db_combined_lot_ids):
+                    record_plain_ids = {
+                        normalize_combine_lot_id(cid) for cid in record.combine_lot_ids
+                    }
+                    if record_plain_ids & new_plain_ids:
                         existing_record = record
                         break
 
@@ -3024,10 +3064,14 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                     logger.error(f"Error creating JigUnloadAfterTable: {str(e)}")
                     return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'})
 
-        # Fallback: if all IDs were duplicates (already in DB), find the existing record
+        # Fallback: if all IDs were duplicates (already in DB), find the existing record.
+        # Uses the shared normalize_combine_lot_id() (handles both the ':'-separated
+        # and 'JLOT-...-LIDyyy' formats) rather than a plain rsplit('-', 1), which
+        # mis-splits the ':'-separated variant (e.g. 'JLOT-xxx:LIDyyy') on the hyphen
+        # inside 'JLOT-xxx' and never reaches the plain lot_id after the colon.
         if not unload_lot_id:
             _search_lot_ids = [
-                fid.rsplit('-', 1)[-1] if '-' in fid else fid
+                normalize_combine_lot_id(fid)
                 for fid in (final_formatted_combined_lot_ids or list(all_lot_ids_from_trays))
             ]
             for _record in JigUnloadAfterTable.objects.filter(
@@ -3035,7 +3079,7 @@ def JU_Zone_save_jig_unload_tray_ids(request):
             ).exclude(combine_lot_ids__exact=[]).order_by('-id'):
                 if _record.combine_lot_ids:
                     _stored_lids = [
-                        cid.rsplit('-', 1)[-1] if '-' in cid else cid
+                        normalize_combine_lot_id(cid)
                         for cid in _record.combine_lot_ids
                     ]
                     if any(sl in _stored_lids for sl in _search_lot_ids):

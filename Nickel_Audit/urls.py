@@ -7,7 +7,7 @@ from .views import (
     na_completed_tray_list,
     na_completed_tray_validate,
     na_delink_selected_trays,
-    na_save_pick_remark,
+    na_hold_unhold,
     na_toggle_verified,
 )
 
@@ -16,8 +16,8 @@ urlpatterns = [
     path('NA_Completed/', NACompletedView.as_view(), name='NA_Completed'),
     # Action APIs
     path('api/toggle-verified/', na_toggle_verified, name='na_toggle_verified'),
-    path('api/save-remark/', na_save_pick_remark, name='na_save_pick_remark'),
     path('api/action/', na_action, name='na_action'),
+    path('api/hold-unhold/', na_hold_unhold, name='na_hold_unhold'),
     path('nickel_audit_delink_selected_trays/', na_delink_selected_trays, name='na_delink_selected_trays'),
     path('pick_CompleteTable_tray_id_list/', na_completed_tray_list, name='na_completed_tray_list'),
     path('pick_complete_tray_validate/', na_completed_tray_validate, name='na_completed_tray_validate'),

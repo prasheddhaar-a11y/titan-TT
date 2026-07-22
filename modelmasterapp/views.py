@@ -101,8 +101,8 @@ class BaseAPIView(APIView):
 
                         # Fetch associated images
                         mmc = batch_id  # assuming batch_id is ModelMasterCreation instance
-                        from modelmasterapp.image_utils import sort_images_front_first
-                        model_images = [img.master_image.url for img in sort_images_front_first(mmc.images.all())] if mmc else []
+                        from modelmasterapp.image_utils import get_model_view_image_urls
+                        model_images = get_model_view_image_urls(mmc.images.all()) if mmc else []
                         print(f"[DEBUG] ModelMasterCreation images fetched: {model_images}")
                         
                         # Add ModelMasterCreation details to the response
@@ -181,8 +181,8 @@ class GetLotByModelAPIView(APIView):
             batch = tray.batch_id
             if batch:
                 try:
-                    from modelmasterapp.image_utils import sort_images_front_first
-                    model_images = [img.master_image.url for img in sort_images_front_first(batch.images.all())] if hasattr(batch, 'images') else []
+                    from modelmasterapp.image_utils import get_model_view_image_urls
+                    model_images = get_model_view_image_urls(batch.images.all()) if hasattr(batch, 'images') else []
                     # Determine vendor/internal source string: prefer batch.vendor_internal (explicit),
                     # otherwise try the related ModelMaster -> Vendor.vendor_internal
                     vendor_internal_value = None
@@ -551,26 +551,10 @@ def get_plating_images(request):
                     plating_stk_no__startswith=_m.group(1)
                 ).first()
 
-        if mm and mm.images.exists():
-            from modelmasterapp.image_utils import sort_images_front_first
-            image_urls = []
-            for img in sort_images_front_first(mm.images.all()):
-                if img.master_image:
-                    emit_media_read(
-                        request,
-                        img.master_image,
-                        lookup_source='modelmaster.get_plating_images',
-                    )
-                    image_urls.append(img.master_image.url)
-            emit_lookup_end(
-                request,
-                'modelmaster.get_plating_images',
-                image_duration_ms(lookup_started),
-                len(image_urls),
-                model_found=True,
-                extra={'stock_hash': hash_value(plating_stk_no, prefix='stock')},
-            )
-            return JsonResponse({'images': image_urls})
+    if mm and mm.images.exists():
+        from modelmasterapp.image_utils import get_model_view_image_urls
+        image_urls = get_model_view_image_urls(mm.images.all())
+        return JsonResponse({'images': image_urls})
 
         emit_lookup_not_found(
             request,
