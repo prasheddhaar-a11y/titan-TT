@@ -12,6 +12,7 @@ from InputScreening.models import *
 from Brass_QC.models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 import traceback
 import uuid
@@ -346,7 +347,7 @@ class NQ_PickTableView(APIView):
         )
         # ✅ CHANGED: Query JigUnloadAfterTable instead of TotalStockModel with zone filtering
         queryset = (
-            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish")
+            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish", "nq_hold_by", "nq_release_by")
             .prefetch_related("location")  # ManyToManyField requires prefetch_related
             .filter(
                 total_case_qty__gt=0,  # Only show records with quantity > 0
@@ -501,6 +502,10 @@ class NQ_PickTableView(APIView):
                 "nq_holding_reason": jig_unload_obj.nq_holding_reason,  # Not applicable
                 "nq_release_lot": jig_unload_obj.nq_release_lot,
                 "nq_release_reason": jig_unload_obj.nq_release_reason,
+                "nq_hold_by": jig_unload_obj.nq_hold_by.username if jig_unload_obj.nq_hold_by else '',
+                "nq_hold_at": timezone.localtime(jig_unload_obj.nq_hold_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_hold_at else '',
+                "nq_release_by": jig_unload_obj.nq_release_by.username if jig_unload_obj.nq_release_by else '',
+                "nq_release_at": timezone.localtime(jig_unload_obj.nq_release_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_release_at else '',
                 "has_draft": jig_unload_obj.has_draft,
                 "draft_type": jig_unload_obj.draft_type,
                 "brass_rejection_total_qty": jig_unload_obj.brass_rejection_total_qty,
@@ -817,6 +822,66 @@ def nq_toggle_verified(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def nq_hold_unhold(request):
+    """Hold/Release toggle for Nickel Wiping pick table (Z1 + Z2 share this view)."""
+    from django.db import transaction
+    from django.utils import timezone
+    lot_id = request.data.get('lot_id')
+    action = request.data.get('action')  # 'hold' or 'unhold'
+    remark = (request.data.get('remark', '') or '').strip()
+
+    if not lot_id:
+        return Response({'success': False, 'error': 'lot_id is required'}, status=400)
+    if action not in ('hold', 'unhold'):
+        return Response({'success': False, 'error': "action must be 'hold' or 'unhold'"}, status=400)
+    if not remark:
+        return Response({'success': False, 'error': 'Remark is required'}, status=400)
+    if len(remark) > 50:
+        return Response({'success': False, 'error': 'Remark must be 50 characters or less'}, status=400)
+
+    try:
+        with transaction.atomic():
+            juat = JigUnloadAfterTable.objects.select_for_update().filter(lot_id=lot_id).first()
+            if not juat:
+                return Response({'success': False, 'error': 'Lot not found'}, status=404)
+
+            now = timezone.now()
+            if action == 'hold':
+                juat.nq_hold_lot = True
+                juat.nq_holding_reason = remark
+                juat.nq_hold_by = request.user
+                juat.nq_hold_at = now
+                juat.nq_release_lot = False
+                juat.nq_release_reason = ''
+            else:
+                juat.nq_hold_lot = False
+                juat.nq_release_reason = remark
+                juat.nq_release_by = request.user
+                juat.nq_release_at = now
+                juat.nq_release_lot = True
+
+            juat.save(update_fields=[
+                'nq_hold_lot', 'nq_holding_reason', 'nq_hold_by', 'nq_hold_at',
+                'nq_release_lot', 'nq_release_reason', 'nq_release_by', 'nq_release_at',
+            ])
+        logger.info("[nq_hold_unhold] lot=%s action=%s user=%s", lot_id, action, request.user)
+        return Response({
+            'success': True, 'lot_id': lot_id, 'action': action,
+            'holding_reason': juat.nq_holding_reason or '', 'release_reason': juat.nq_release_reason or '',
+            'hold_lot': juat.nq_hold_lot, 'release_lot': juat.nq_release_lot,
+            'hold_by': juat.nq_hold_by.username if juat.nq_hold_by else '',
+            'hold_at': timezone.localtime(juat.nq_hold_at).strftime("%d-%b-%Y %I:%M %p") if juat.nq_hold_at else '',
+            'release_by': juat.nq_release_by.username if juat.nq_release_by else '',
+            'release_at': timezone.localtime(juat.nq_release_at).strftime("%d-%b-%Y %I:%M %p") if juat.nq_release_at else '',
+            'message': f"Lot {'held' if action == 'hold' else 'released'} successfully.",
+        })
+    except Exception:
+        logger.exception("[nq_hold_unhold] error lot=%s action=%s", lot_id, action)
+        return Response({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def nq_action(request):
     """Unified NQ action handler: GET_REASONS, GET_TRAYS, ALLOCATE, SUBMIT_REJECT, SUBMIT_ACCEPT."""
     from django.db import transaction
@@ -854,6 +919,8 @@ def nq_action(request):
     juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
     if not juat:
         return Response({'success': False, 'error': 'Lot not found'}, status=404)
+    if juat.nq_hold_lot:
+        return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
     if action == 'GET_TRAYS':
         trays_qs = NickelQcTrayId.objects.filter(
             lot_id=lot_id, rejected_tray=False

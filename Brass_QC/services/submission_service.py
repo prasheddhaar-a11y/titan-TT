@@ -81,6 +81,11 @@ def handle_submission(request, action):
         else:
             return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
 
+    # ── Hold guard: held lots must not be processed further until released ──
+    if stock.brass_hold_lot:
+        logger.warning(f"[submission_service] Blocked: lot_id={lot_id} is on hold (action={action})")
+        return JsonResponse({"success": False, "error": "This lot is on hold and cannot be processed until released."}, status=400)
+
     # ── SAVE_REMARK — no stage movement ──
     if action == "SAVE_REMARK":
         if not remarks:

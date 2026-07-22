@@ -221,7 +221,7 @@ class JigView(TemplateView):
 			base_qs = TotalStockModel.objects.filter(
 				_Q(brass_audit_accptance=True) |
 				_Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
-			).select_related('batch_id', 'batch_id__model_stock_no')
+			).select_related('batch_id', 'batch_id__model_stock_no', 'jig_hold_by', 'jig_release_by')
 			# Optional exclusion: when JigView is opened to "Add Model", exclude already-selected lots
 			# Frontend sends comma-separated lot IDs: exclude_lot_id=LID1,LID2,LID3
 			exclude_lot_raw = self.request.GET.get('exclude_lot_id', '')
@@ -241,6 +241,11 @@ class JigView(TemplateView):
 			try:
 				is_merge_return = bool(self.request.GET.get('merge_model'))
 				is_add_model_popup = bool(exclude_lot_raw) and not is_merge_return
+				# Held lots must never be selectable in the Add Jig -> Model Filter screen.
+				# They remain visible (blurred) on the main pick table, so this exclusion
+				# is scoped strictly to the Add Model popup context.
+				if is_add_model_popup:
+					base_qs = base_qs.exclude(jig_hold_lot=True)
 				# Exclude exact selected lots by lot_id only. Same/ditto PSN lots are valid
 				# Add Model candidates when another accepted lot exists for the same model.
 				if is_add_model_popup and selected_model_psns:
@@ -329,7 +334,8 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
-				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason',
+				'jig_hold_by', 'jig_hold_at', 'jig_release_by', 'jig_release_at', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -339,7 +345,8 @@ class JigView(TemplateView):
 				'brass_audit_physical_qty', 'total_stock',
 				'brass_audit_last_process_date_time',
 				'BA_pick_remarks',
-				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason', 'plating_color',
+				'jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason',
+				'jig_hold_by', 'jig_hold_at', 'jig_release_by', 'jig_release_at', 'plating_color',
 				'batch_id__batch_id', 'batch_id__plating_stk_no',
 				'batch_id__polishing_stk_no', 'batch_id__plating_color',
 				'batch_id__polish_finish', 'batch_id__model_stock_no',
@@ -399,6 +406,10 @@ class JigView(TemplateView):
 					'jig_holding_reason': getattr(stock, 'jig_holding_reason', ''),
 					'jig_release_lot': getattr(stock, 'jig_release_lot', False),
 					'jig_release_reason': getattr(stock, 'jig_release_reason', ''),
+					'jig_hold_by': stock.jig_hold_by.username if getattr(stock, 'jig_hold_by', None) else '',
+					'jig_hold_at': timezone.localtime(stock.jig_hold_at).strftime("%d-%b-%Y %I:%M %p") if getattr(stock, 'jig_hold_at', None) else '',
+					'jig_release_by': stock.jig_release_by.username if getattr(stock, 'jig_release_by', None) else '',
+					'jig_release_at': timezone.localtime(stock.jig_release_at).strftime("%d-%b-%Y %I:%M %p") if getattr(stock, 'jig_release_at', None) else '',
 					'previous_module': 'Brass Audit',
 					'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') or '',
 				}
@@ -3777,6 +3788,9 @@ class JigSaveAPI(APIView):
 		if action not in ('draft', 'submit'):
 			return Response({'status': 'error', 'message': 'action must be "draft" or "submit"'}, status=status.HTTP_400_BAD_REQUEST)
 
+		if TotalStockModel.objects.filter(lot_id=lot_id, jig_hold_lot=True).exists():
+			return Response({'status': 'error', 'message': 'This lot is on hold and cannot be processed until released.'}, status=status.HTTP_400_BAD_REQUEST)
+
 		# Extract EXACT UI values — no recalculation
 		lot_qty = int(payload.get('lot_qty', 0) or 0)
 		jig_capacity = int(payload.get('jig_capacity', 0) or 0)
@@ -4385,8 +4399,8 @@ class JigHoldToggleAPI(APIView):
 				return Response({'success': False, 'error': 'batch_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 			if action not in ['hold', 'unhold']:
 				return Response({'success': False, 'error': 'action must be hold or unhold'}, status=status.HTTP_400_BAD_REQUEST)
-			if action == 'hold' and not reason:
-				return Response({'success': False, 'error': 'reason is required for hold action'}, status=status.HTTP_400_BAD_REQUEST)
+			if not reason:
+				return Response({'success': False, 'error': f'reason is required for {action} action'}, status=status.HTTP_400_BAD_REQUEST)
 
 			# ===== FETCH LOT =====
 			lot_obj = TotalStockModel.objects.filter(lot_id=lot_id).first()
@@ -4402,28 +4416,31 @@ class JigHoldToggleAPI(APIView):
 				'user': request.user.username,
 			}))
 
+			now = timezone.now()
 			if action == 'hold':
 				lot_obj.jig_hold_lot = True
 				lot_obj.jig_holding_reason = reason
+				lot_obj.jig_hold_by = request.user
+				lot_obj.jig_hold_at = now
 				# clear any previous release flags when newly holding
 				lot_obj.jig_release_lot = False
 				lot_obj.jig_release_reason = ''
 				message = 'Lot moved to hold'
 				hold_status = True
 			else:  # unhold
-				# mark as released; preserve previous holding reason and record release reason if provided
+				# mark as released; preserve previous holding reason and record release reason
 				lot_obj.jig_hold_lot = False
-				if reason:
-					lot_obj.jig_release_lot = True
-					lot_obj.jig_release_reason = reason
-				else:
-					# still mark as released even if no explicit reason provided
-					lot_obj.jig_release_lot = True
-					lot_obj.jig_release_reason = ''
+				lot_obj.jig_release_lot = True
+				lot_obj.jig_release_reason = reason
+				lot_obj.jig_release_by = request.user
+				lot_obj.jig_release_at = now
 				message = 'Lot released from hold'
 				hold_status = False
 
-			lot_obj.save(update_fields=['jig_hold_lot', 'jig_holding_reason', 'jig_release_lot', 'jig_release_reason'])
+			lot_obj.save(update_fields=[
+				'jig_hold_lot', 'jig_holding_reason', 'jig_hold_by', 'jig_hold_at',
+				'jig_release_lot', 'jig_release_reason', 'jig_release_by', 'jig_release_at',
+			])
 
 			logging.info(json.dumps({
 				'event': 'JIG_HOLD_TOGGLE_COMPLETE',
@@ -4441,6 +4458,10 @@ class JigHoldToggleAPI(APIView):
 				'jig_release_reason': lot_obj.jig_release_reason or '',
 				'holding_reason': lot_obj.jig_holding_reason or '',
 				'release_reason': lot_obj.jig_release_reason or '',
+				'hold_by': lot_obj.jig_hold_by.username if lot_obj.jig_hold_by else '',
+				'hold_at': timezone.localtime(lot_obj.jig_hold_at).strftime("%d-%b-%Y %I:%M %p") if lot_obj.jig_hold_at else '',
+				'release_by': lot_obj.jig_release_by.username if lot_obj.jig_release_by else '',
+				'release_at': timezone.localtime(lot_obj.jig_release_at).strftime("%d-%b-%Y %I:%M %p") if lot_obj.jig_release_at else '',
 				'message': message,
 			}, status=status.HTTP_200_OK)
 
@@ -4772,7 +4793,7 @@ class LotFetchAPI(APIView):
 			base_qs = TotalStockModel.objects.filter(
 				_Q(brass_audit_accptance=True) |
 				_Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
-			).select_related('batch_id', 'batch_id__model_stock_no')
+			).select_related('batch_id', 'batch_id__model_stock_no').exclude(jig_hold_lot=True)
 			if primary_lot_id:
 				if eligible_psns:
 					base_qs = base_qs.filter(batch_id__plating_stk_no__in=eligible_psns)
@@ -4829,7 +4850,7 @@ class LotFetchAPI(APIView):
 			base_qs = TotalStockModel.objects.filter(
 				_Q(brass_audit_accptance=True) |
 				_Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
-			).select_related('batch_id', 'batch_id__model_stock_no')
+			).select_related('batch_id', 'batch_id__model_stock_no').exclude(jig_hold_lot=True)
 
 			# Exclude submitted lots
 			try:

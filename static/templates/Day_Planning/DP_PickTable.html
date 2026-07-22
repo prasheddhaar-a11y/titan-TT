@@ -1222,7 +1222,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
             <button class="img-scroll-left" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
             <div class="img-gallery" style="display: flex; justify-content:center; gap: 6px; overflow: hidden; width: 180px;">
               <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" 
-              style="width: 120px; height: 120px; object-fit: contain; border-radius: 6px; background:#fff;" />
+              style="width: 120px; height: 120px; object-fit: contain; object-position: center; border-radius: 6px; background:#fff;" />
             </div>
 
             <button class="img-scroll-right" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
@@ -6009,47 +6009,59 @@ console.log('✅ Enhanced tray scan modal with dynamic row management loaded');
     document.head.appendChild(style);
   }
 
-  let originalRowIndex = null;
   let movedRow = null;
   let placeholderRow = null;
 
+  function restoreDpActionRow() {
+    if (movedRow && placeholderRow && placeholderRow.parentNode) {
+      placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
+      placeholderRow.parentNode.removeChild(placeholderRow);
+      movedRow.classList.remove('dp-row-action-highlight');
+    } else if (movedRow) {
+      movedRow.classList.remove('dp-row-action-highlight');
+    }
+    movedRow = null;
+    placeholderRow = null;
+  }
+
+  function activateDpActionRow(row) {
+    if (!row || !row.parentNode) return null;
+
+    restoreDpActionRow();
+    document.querySelectorAll('tbody tr').forEach(function(rowItem) {
+      rowItem.classList.remove('dp-row-action-highlight');
+    });
+
+    const tbody = row.parentNode;
+    if (tbody.firstElementChild !== row) {
+      const originalRowIndex = Array.from(tbody.children).indexOf(row);
+      movedRow = row;
+      placeholderRow = document.createElement('tr');
+      placeholderRow.style.display = 'none';
+      for (let i = 0; i < row.children.length; i++) {
+        placeholderRow.appendChild(document.createElement('td'));
+      }
+      tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
+      tbody.insertBefore(row, tbody.firstElementChild);
+    } else {
+      movedRow = row;
+      placeholderRow = null;
+    }
+
+    row.classList.add('dp-row-action-highlight');
+    return {
+      row: row,
+      placeholder: placeholderRow
+    };
+  }
+
+  window.activateDpActionRow = activateDpActionRow;
+  window.restoreDpActionRow = restoreDpActionRow;
+
   document.querySelectorAll('.tray-scan-btn').forEach(function(link) {
     link.addEventListener('click', function(event) {
-      // Remove highlight from all rows
-      document.querySelectorAll('tbody tr').forEach(function(row) {
-        row.classList.remove('dp-row-action-highlight');
-      });
-      // Move the clicked row to the top and highlight
       var row = event.target.closest('tr');
-      if (row && row.parentNode) {
-        const tbody = row.parentNode;
-        // Only move if not already at top
-        if (tbody.firstElementChild !== row) {
-          // If a previous move exists, restore it first
-          if (movedRow && placeholderRow && placeholderRow.parentNode) {
-            placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-            placeholderRow.parentNode.removeChild(placeholderRow);
-            movedRow.classList.remove('dp-row-action-highlight');
-            movedRow = null;
-            placeholderRow = null;
-            originalRowIndex = null;
-          }
-          // Store original index and row
-          originalRowIndex = Array.from(tbody.children).indexOf(row);
-          movedRow = row;
-          // Insert a placeholder at the original position
-          placeholderRow = document.createElement('tr');
-          placeholderRow.style.display = 'none';
-          // Add same number of <td> as the moved row
-for (let i = 0; i < row.children.length; i++) {
-  placeholderRow.appendChild(document.createElement('td'));
-}
-          tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-          // Move row to top
-          tbody.insertBefore(row, tbody.firstElementChild);
-        }
-        row.classList.add('dp-row-action-highlight');
-      }
+      activateDpActionRow(row);
     });
   });
 
@@ -6057,14 +6069,7 @@ for (let i = 0; i < row.children.length; i++) {
   var closeBtn = document.getElementById('closeTrayScanModal');
   if (closeBtn) {
     closeBtn.addEventListener('click', function() {
-      if (movedRow && placeholderRow && placeholderRow.parentNode) {
-        placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-        placeholderRow.parentNode.removeChild(placeholderRow);
-        movedRow.classList.remove('dp-row-action-highlight');
-        movedRow = null;
-        placeholderRow = null;
-        originalRowIndex = null;
-      }
+      restoreDpActionRow();
       // Also remove highlight from any row just in case
       document.querySelectorAll('tbody tr').forEach(function(row) {
         row.classList.remove('dp-row-action-highlight');
@@ -6081,14 +6086,7 @@ for (let i = 0; i < row.children.length; i++) {
   var jigCloseBtn = document.getElementById('closeTrayScanModal_DayPlanning');
   if (jigCloseBtn) {
     jigCloseBtn.addEventListener('click', function() {
-      if (movedRow && placeholderRow && placeholderRow.parentNode) {
-        placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-        placeholderRow.parentNode.removeChild(placeholderRow);
-        movedRow.classList.remove('dp-row-action-highlight');
-        movedRow = null;
-        placeholderRow = null;
-        originalRowIndex = null;
-      }
+      restoreDpActionRow();
       document.querySelectorAll('tbody tr').forEach(function(row) {
         row.classList.remove('dp-row-action-highlight');
         row.classList.remove('highlighted-tray-scan');
@@ -6138,8 +6136,49 @@ for (let i = 0; i < row.children.length; i++) {
   // Updated JavaScript for hold toggle functionality
   document.addEventListener("DOMContentLoaded", function () {
   let currentHoldCell = null;
+  let currentHoldToggle = null;
   let intendedState = null;
+  let previousToggleState = null;
   let currentBatchId = null;
+
+  function restoreHoldToggleRowState(revertToggle) {
+    if (revertToggle && currentHoldToggle && previousToggleState !== null) {
+      currentHoldToggle.checked = previousToggleState;
+    }
+    if (window.restoreDpActionRow) {
+      window.restoreDpActionRow();
+    } else {
+      document.querySelectorAll('tbody tr').forEach(function(row) {
+        row.classList.remove('dp-row-action-highlight');
+      });
+    }
+    currentHoldCell = null;
+    currentHoldToggle = null;
+    intendedState = null;
+    previousToggleState = null;
+    currentBatchId = null;
+  }
+
+  function restoreFailedHoldAction() {
+    if (currentHoldToggle && previousToggleState !== null) {
+      currentHoldToggle.checked = previousToggleState;
+    }
+    if (window.restoreDpActionRow) {
+      window.restoreDpActionRow();
+    } else {
+      document.querySelectorAll('tbody tr').forEach(function(row) {
+        row.classList.remove('dp-row-action-highlight');
+      });
+    }
+  }
+
+  function closeHoldRemarkModal(revertToggle) {
+    const modal = document.getElementById('holdRemarkModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+    restoreHoldToggleRowState(revertToggle);
+  }
 
   // Attach batch_id to each row for easy access
   document.querySelectorAll("tbody tr").forEach(function (row) {
@@ -6153,10 +6192,18 @@ for (let i = 0; i < row.children.length; i++) {
   document.querySelectorAll('.hold-toggle-btn').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
+      if (currentHoldToggle && currentHoldToggle !== btn) {
+        restoreHoldToggleRowState(true);
+      }
+      previousToggleState = !btn.checked;
+      currentHoldToggle = btn;
       currentHoldCell = btn.closest('td');
       intendedState = btn.checked;
       const row = currentHoldCell.closest('tr');
       currentBatchId = row.getAttribute('data-batch-id');
+      if (window.activateDpActionRow) {
+        window.activateDpActionRow(row);
+      }
       
       document.getElementById('holdRemarkModal').querySelector('h5').textContent = 
         intendedState ? 'Unholding Reason' : 'Holding Reason';
@@ -6233,21 +6280,40 @@ for (let i = 0; i < row.children.length; i++) {
         }
         
         document.getElementById('holdRemarkModal').style.display = 'none';
+        restoreHoldToggleRowState(false);
         location.reload(); // <-- Add this line to reload the page
 
       } else {
         document.getElementById('holdRemarkError').textContent = data.error || 'Failed to save reason!';
+        restoreFailedHoldAction();
       }
     })
     .catch(() => {
       document.getElementById('holdRemarkError').textContent = 'Network error!';
+      restoreFailedHoldAction();
     });
   };
 
   // Modal close
   document.getElementById('closeHoldRemarkModal').onclick = function () {
-    document.getElementById('holdRemarkModal').style.display = 'none';
+    closeHoldRemarkModal(true);
   };
+
+  const holdRemarkModal = document.getElementById('holdRemarkModal');
+  if (holdRemarkModal) {
+    holdRemarkModal.addEventListener('click', function(event) {
+      if (event.target === holdRemarkModal) {
+        closeHoldRemarkModal(true);
+      }
+    });
+  }
+
+  document.addEventListener('keydown', function(event) {
+    const modal = document.getElementById('holdRemarkModal');
+    if (event.key === 'Escape' && modal && modal.style.display === 'flex') {
+      closeHoldRemarkModal(true);
+    }
+  });
 
   // Helper for CSRF
   function getCookie(name) {
@@ -6351,18 +6417,22 @@ for (let i = 0; i < row.children.length; i++) {
    document.addEventListener("DOMContentLoaded", function () {
      let openTooltip = null;
      const stockPreviewCache = {};
+     const stockPreviewPlaceholder = "{% static 'assets/images/imagePlaceholder.jpg' %}";
 
      function setTooltipPreview(trigger, imageUrl, viewText) {
        const tooltip = trigger.querySelector(".model-image-tooltip");
        const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
        if (!gallery) return;
 
+       imageUrl = imageUrl || stockPreviewPlaceholder;
+       viewText = viewText || "No Image";
+
        if (imageUrl) {
-         gallery.innerHTML = '<img src="' + imageUrl + '" alt="' + (viewText || 'Model image') + '" style="width:120px;height:120px;object-fit:contain;border-radius:6px;background:#fff;" />';
+         gallery.innerHTML = '<img src="' + imageUrl + '" alt="' + viewText + '" onerror="this.onerror=null;this.src=\'' + stockPreviewPlaceholder + '\';" style="width:120px;height:120px;object-fit:contain;object-position:center;border-radius:6px;background:#fff;" />';
        } else if (viewText === 'Loading') {
          gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;display:block;width:100%;">Loading...</span>';
        } else {
-         gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;display:block;width:100%;">No image</span>';
+         gallery.innerHTML = '<img src="' + stockPreviewPlaceholder + '" alt="No Image" style="width:120px;height:120px;object-fit:contain;object-position:center;border-radius:6px;background:#fff;" />';
        }
      }
 
@@ -6400,7 +6470,7 @@ function loadStockPreview(trigger) {
   if (fallbackImage) {
     setTooltipPreview(trigger, fallbackImage, "Model image");
   } else {
-    setTooltipPreview(trigger, "", "Loading");
+    setTooltipPreview(trigger, stockPreviewPlaceholder, "Loading");
   }
 
   const xhr = new XMLHttpRequest();
@@ -6411,17 +6481,17 @@ function loadStockPreview(trigger) {
     if (xhr.readyState !== 4) return;
 
     if (xhr.status < 200 || xhr.status >= 300) {
-      setTooltipPreview(trigger, fallbackImage, fallbackImage ? "Model image" : "");
+      setTooltipPreview(trigger, fallbackImage || stockPreviewPlaceholder, fallbackImage ? "Model image" : "No Image");
       return;
     }
 
     try {
       const data = JSON.parse(xhr.responseText || "{}");
-      data.preview_image = data.preview_image || fallbackImage;
+      data.preview_image = data.preview_image || fallbackImage || stockPreviewPlaceholder;
       stockPreviewCache[stockNo] = data;
       setTooltipPreview(trigger, data.preview_image, data.preview_view || "Model image");
     } catch (err) {
-      setTooltipPreview(trigger, fallbackImage, fallbackImage ? "Model image" : "");
+      setTooltipPreview(trigger, fallbackImage || stockPreviewPlaceholder, fallbackImage ? "Model image" : "No Image");
     }
   };
   xhr.send();

@@ -12,6 +12,7 @@ from InputScreening.models import *
 from Brass_QC.models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 import traceback
 import uuid
@@ -119,7 +120,7 @@ class NQ_Zone_PickTableView(APIView):
         )
         # ✅ CHANGED: Query JigUnloadAfterTable instead of TotalStockModel with zone filtering
         queryset = (
-            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish")
+            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish", "nq_hold_by", "nq_release_by")
             .prefetch_related("location")  # ManyToManyField requires prefetch_related
             .filter(
                 total_case_qty__gt=0,  # Only show records with quantity > 0
@@ -273,6 +274,10 @@ class NQ_Zone_PickTableView(APIView):
                 "nq_holding_reason": jig_unload_obj.nq_holding_reason,  # Not applicable
                 "nq_release_lot": jig_unload_obj.nq_release_lot,
                 "nq_release_reason": jig_unload_obj.nq_release_reason,
+                "nq_hold_by": jig_unload_obj.nq_hold_by.username if jig_unload_obj.nq_hold_by else '',
+                "nq_hold_at": timezone.localtime(jig_unload_obj.nq_hold_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_hold_at else '',
+                "nq_release_by": jig_unload_obj.nq_release_by.username if jig_unload_obj.nq_release_by else '',
+                "nq_release_at": timezone.localtime(jig_unload_obj.nq_release_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.nq_release_at else '',
                 "has_draft": jig_unload_obj.has_draft,
                 "draft_type": jig_unload_obj.draft_type,
                 "brass_rejection_total_qty": jig_unload_obj.brass_rejection_total_qty,

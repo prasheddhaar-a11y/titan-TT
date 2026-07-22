@@ -347,7 +347,7 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                     <span
                       class="hold-remark-icon{% if data.jig_hold_lot or data.jig_release_lot or data.jig_holding_reason or data.jig_release_reason %} has-reason{% endif %}"
                       style="cursor: pointer"
-                      title="{% if data.jig_holding_reason %}Holding Reason: {{ data.jig_holding_reason }}{% endif %}{% if data.jig_holding_reason and data.jig_release_reason %}&#10;{% endif %}{% if data.jig_release_reason %}Release Reason: {{ data.jig_release_reason }}{% endif %}"
+                      title="{% if data.jig_holding_reason %}Holding Reason: {{ data.jig_holding_reason }} (by {{ data.jig_hold_by }} on {{ data.jig_hold_at }}){% endif %}{% if data.jig_holding_reason and data.jig_release_reason %}&#10;{% endif %}{% if data.jig_release_reason %}Release Reason: {{ data.jig_release_reason }} (by {{ data.jig_release_by }} on {{ data.jig_release_at }}){% endif %}"
                     >
                       <img
                         src="{% static 'assets/icons/view2.png' %}"

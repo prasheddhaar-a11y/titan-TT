@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/save_jig_pick_remark_z1/', JigUnloadPickRemarkZ1View.as_view(), name='save_jig_pick_remark_z1'),
     path('api/get_jig_for_tray_z1/', GetJigForTrayZ1View.as_view(), name='get_jig_for_tray_z1'),
     path('api/validate_tray_occupancy_z1/', validate_tray_occupancy_z1, name='validate_tray_occupancy_z1'),
+    path('api/hold_unhold_z1/', JigUnloadHoldUnholdZ1View.as_view(), name='hold_unhold_z1'),
     # Completed table APIs
     path('jig_unload_view_tray_list/', jig_unload_view_tray_list_z1, name='jig_unload_view_tray_list_z1'),
     path('get_model_images/', jig_unload_get_model_images_z1, name='jig_unload_get_model_images_z1'),

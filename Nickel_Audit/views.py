@@ -23,6 +23,7 @@ from math import ceil
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 from IQF.models import *
 from BrassAudit.models import *
 from Nickel_Audit.models import *
@@ -471,7 +472,9 @@ class NA_PickTableView(APIView):
         queryset = JigUnloadAfterTable.objects.select_related(
             'version',
             'plating_color',
-            'polish_finish'
+            'polish_finish',
+            'na_hold_by',
+            'na_release_by'
         ).prefetch_related(
             'location'  # ManyToManyField requires prefetch_related
         ).filter(
@@ -595,6 +598,10 @@ class NA_PickTableView(APIView):
                 'na_holding_reason': jig_unload_obj.na_holding_reason,  # Not applicable
                 'na_release_lot': jig_unload_obj.na_release_lot,
                 'na_release_reason': jig_unload_obj.na_release_reason,
+                'na_hold_by': jig_unload_obj.na_hold_by.username if jig_unload_obj.na_hold_by else '',
+                'na_hold_at': timezone.localtime(jig_unload_obj.na_hold_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.na_hold_at else '',
+                'na_release_by': jig_unload_obj.na_release_by.username if jig_unload_obj.na_release_by else '',
+                'na_release_at': timezone.localtime(jig_unload_obj.na_release_at).strftime("%d-%b-%Y %I:%M %p") if jig_unload_obj.na_release_at else '',
                 'has_draft': jig_unload_obj.has_draft,
                 'draft_type': jig_unload_obj.draft_type,
                 'brass_rejection_total_qty': jig_unload_obj.brass_rejection_total_qty,
@@ -875,6 +882,59 @@ def na_toggle_verified(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def na_hold_unhold(request):
+    """Hold/Release toggle for Nickel Audit pick-table lots (shared by Zone 1 and Zone 2)."""
+    lot_id = (request.data.get('lot_id') or '').strip()
+    action = request.data.get('action')
+    remark = (request.data.get('remark') or '').strip()
+
+    if not lot_id:
+        return Response({"success": False, "error": "lot_id is required"}, status=400)
+    if action not in ('hold', 'unhold'):
+        return Response({"success": False, "error": "action must be 'hold' or 'unhold'"}, status=400)
+    if not remark:
+        return Response({"success": False, "error": "Remark is required"}, status=400)
+    if len(remark) > 50:
+        return Response({"success": False, "error": "Remark must be 50 characters or less"}, status=400)
+
+    juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
+    if not juat:
+        return Response({"success": False, "error": "Lot not found"}, status=404)
+
+    now = timezone.now()
+    if action == 'hold':
+        juat.na_hold_lot = True
+        juat.na_holding_reason = remark
+        juat.na_hold_by = request.user
+        juat.na_hold_at = now
+        juat.na_release_lot = False
+        juat.na_release_reason = ''
+    else:
+        juat.na_hold_lot = False
+        juat.na_release_reason = remark
+        juat.na_release_by = request.user
+        juat.na_release_at = now
+        juat.na_release_lot = True
+
+    juat.save(update_fields=[
+        'na_hold_lot', 'na_holding_reason', 'na_hold_by', 'na_hold_at',
+        'na_release_lot', 'na_release_reason', 'na_release_by', 'na_release_at',
+    ])
+    logger.info("[na_hold_unhold] lot=%s action=%s user=%s", lot_id, action, request.user)
+    return Response({
+        "success": True, "lot_id": lot_id, "action": action,
+        "holding_reason": juat.na_holding_reason or '', "release_reason": juat.na_release_reason or '',
+        "hold_lot": juat.na_hold_lot, "release_lot": juat.na_release_lot,
+        "hold_by": juat.na_hold_by.username if juat.na_hold_by else '',
+        "hold_at": timezone.localtime(juat.na_hold_at).strftime("%d-%b-%Y %I:%M %p") if juat.na_hold_at else '',
+        "release_by": juat.na_release_by.username if juat.na_release_by else '',
+        "release_at": timezone.localtime(juat.na_release_at).strftime("%d-%b-%Y %I:%M %p") if juat.na_release_at else '',
+        "message": f"Lot {'held' if action == 'hold' else 'released'} successfully.",
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def na_action(request):
     """Unified NA action handler: GET_REASONS, GET_TRAYS, ALLOCATE, SUBMIT_REJECT, SUBMIT_ACCEPT, FULL_ACCEPT."""
     from django.db import transaction
@@ -914,6 +974,8 @@ def na_action(request):
     juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
     if not juat:
         return Response({'success': False, 'error': 'Lot not found'}, status=404)
+    if juat.na_hold_lot:
+        return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
     if action == 'SAVE_REMARK':
         remark = (request.data.get('remark') or '').strip()
         if not remark:

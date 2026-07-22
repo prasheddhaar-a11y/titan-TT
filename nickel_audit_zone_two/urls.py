@@ -6,6 +6,7 @@ from Nickel_Audit.views import (
     na_completed_tray_list,
     na_completed_tray_validate,
     na_delink_selected_trays,
+    na_hold_unhold,
     na_toggle_verified,
 )
 
@@ -15,6 +16,7 @@ urlpatterns = [
     # Action APIs (reuse Zone 1 views)
     path('api/toggle-verified/', na_toggle_verified, name='na_zone_toggle_verified'),
     path('api/action/', na_action, name='na_zone_action'),
+    path('api/hold-unhold/', na_hold_unhold, name='na_zone_hold_unhold'),
     path('nickel_audit_delink_selected_trays/', na_delink_selected_trays, name='na_zone_delink_selected_trays'),
     path('pick_CompleteTable_tray_id_list/', na_completed_tray_list, name='na_zone_completed_tray_list'),
     path('pick_complete_tray_validate/', na_completed_tray_validate, name='na_zone_completed_tray_validate'),

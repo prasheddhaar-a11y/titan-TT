@@ -26,22 +26,11 @@ from rest_framework.decorators import api_view, permission_classes
 from .models import *
 from adminportal.views import *
 from modelmasterapp.models import RowAccessLock, DraftTrayId
-from modelmasterapp.type_of_input import label_for_upload_type
 from watchcase_tracker.perf_logger import time_stage
 
 # ── Pre-compiled regex patterns (compiled once at import, reused every row) ────
 _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
 _RE_SUFFIX = re.compile(r'^[A-Z][A-Z]02$')
-
-# Recovery uploads are always sourced from a single fixed location.
-# Backend-enforced (Golden Rule: Backend decides) — never trusts frontend-submitted Source.
-RECOVERY_SOURCE_LOCATION_NAME = "EPSF"
-
-
-def get_recovery_source_location():
-    """Return (creating if needed) the single Location used for all Recovery uploads."""
-    location_obj, _ = Location.objects.get_or_create(location_name=RECOVERY_SOURCE_LOCATION_NAME)
-    return location_obj
 
 
 
@@ -530,7 +519,6 @@ class DPBulkUploadView(APIView):
             categories = {obj.category_name: obj for obj in Category.objects.all()}
             vendors = {obj.vendor_name: obj for obj in Vendor.objects.all()}
             locations = {obj.location_name: obj for obj in Location.objects.all()}
-            recovery_location = get_recovery_source_location() if upload_type == 'recovery' else None
 
             # Pre-build suggestion strings from cached dicts (avoids per-error DB hits)
             _color_hint = ", ".join(list(plating_colors_name.keys())[:5])
@@ -569,8 +557,7 @@ class DPBulkUploadView(APIView):
                     if not plating_colour:     empty_fields.append("Plating Colour")
                     if not category:           empty_fields.append("Category")
                     if input_qty in [None, '', 0]: empty_fields.append("Input Qty")
-                    if upload_type != 'recovery' and not source:
-                        empty_fields.append("Source")
+                    if not source:             empty_fields.append("Source")
 
                     if empty_fields:
                         failed_rows.append(f"Row {idx}: ❌ {', '.join(empty_fields)} should not be empty.")
@@ -647,11 +634,7 @@ class DPBulkUploadView(APIView):
                     # 7. Source (Vendor_Location or Location-only)
                     vendor_obj = None
                     location_obj = None
-                    if upload_type == 'recovery':
-                        # Recovery uploads are always sourced from EPSF — backend enforced,
-                        # regardless of whatever Source value the frontend submitted.
-                        location_obj = recovery_location
-                    elif "_" in source:
+                    if "_" in source:
                         vendor_name, loc_name = source.split("_", 1)
                         vendor_obj = vendors.get(vendor_name)
                         if not vendor_obj:
@@ -786,7 +769,6 @@ class DPBulkUploadView(APIView):
             categories = {obj.category_name: obj for obj in Category.objects.all()}
             vendors = {obj.vendor_name: obj for obj in Vendor.objects.all()}
             locations = {obj.location_name: obj for obj in Location.objects.all()}
-            recovery_location = get_recovery_source_location() if upload_type == 'recovery' else None
 
             # Pre-build suggestion strings (avoids per-error DB queries inside the loop)
             _color_hint = ", ".join(list(plating_colors_name.keys())[:5])
@@ -835,7 +817,7 @@ class DPBulkUploadView(APIView):
                     empty_fields.append("Column E (Category)")
                 if input_qty in [None, '', 0]:
                     empty_fields.append("Column F (Input Qty)")
-                if upload_type != 'recovery' and not source:
+                if not source:
                     empty_fields.append("Column G (Source)")
 
                 if empty_fields:
@@ -921,11 +903,7 @@ class DPBulkUploadView(APIView):
                 vendor_obj = None
                 location_obj = None
 
-                if upload_type == 'recovery':
-                    # Recovery uploads are always sourced from EPSF — backend enforced,
-                    # regardless of whatever Source value was in the uploaded file.
-                    location_obj = recovery_location
-                elif "_" in source:
+                if "_" in source:
                     # Format: Vendor_Location (e.g., Titan_CPSE)
                     vendor_name, loc_name = source.split("_", 1)
                     
@@ -1402,20 +1380,9 @@ class GetLocationsAPIView(APIView):
     
     def get(self, request):
         try:
-            upload_type = request.GET.get('upload_type', 'day_planning')
-            if upload_type == 'recovery':
-                # Recovery uploads only ever use the single EPSF source.
-                location_obj = get_recovery_source_location()
-                locations = [{'location_name': location_obj.location_name}]
-            else:
-                # EPSF is reserved exclusively for Recovery uploads (see RECOVERY_SOURCE_LOCATION_NAME);
-                # never offer it as a source for regular Day Planning uploads.
-                locations = list(
-                    Location.objects.exclude(location_name=RECOVERY_SOURCE_LOCATION_NAME)
-                    .values('location_name')
-                    .order_by('location_name')
-                )
-
+            # Location model should already be imported
+            locations = list(Location.objects.values('location_name').order_by('location_name'))
+            
             return JsonResponse({
                 'success': True,
                 'locations': locations,
@@ -1567,7 +1534,6 @@ class DayPlanningPickTableAPIView(APIView):
             'release_reason',
             'accepted_Ip_stock',
             'tray_scan_status',
-            'upload_type',
         ))
         dp_data_fetch.__exit__(None, None, None)
 
@@ -1590,16 +1556,27 @@ class DayPlanningPickTableAPIView(APIView):
         # Model images per batch (replaces per-row ModelMasterCreation fetch +
         # images.all()). One query for the rows, one for the M2M via prefetch.
         images_by_batch = {}
-        from modelmasterapp.image_utils import sort_images_front_first
+        from modelmasterapp.image_utils import (
+            get_model_view_image_urls,
+            get_uploaded_model_image_urls,
+        )
         for mmc in ModelMasterCreation.objects.filter(
             batch_id__in=page_batch_ids
-        ).prefetch_related('images'):
-            urls = [
-                img.master_image.url
-                for img in sort_images_front_first(mmc.images.all())
-                if getattr(img, 'master_image', None)
-            ]
-            images_by_batch[mmc.batch_id] = urls
+        ).select_related('model_stock_no').prefetch_related('model_stock_no__images', 'images'):
+            source_images = []
+            uploaded_urls = []
+            if getattr(mmc, 'model_stock_no', None):
+                source_images = list(mmc.model_stock_no.images.all())
+                uploaded_urls = get_uploaded_model_image_urls(source_images)
+            if not uploaded_urls:
+                source_images = list(mmc.images.all())
+                uploaded_urls = get_uploaded_model_image_urls(source_images)
+
+            urls = get_model_view_image_urls(source_images)
+            images_by_batch[mmc.batch_id] = {
+                'images': urls,
+                'preview_image': uploaded_urls[0] if uploaded_urls else (urls[0] if urls else ''),
+            }
 
         # Helper: normalize tray type string to pre-jig category and capacity
         def _get_prejig_tray(tray_type_str):
@@ -1617,7 +1594,6 @@ class DayPlanningPickTableAPIView(APIView):
             data['tray_capacity'] = prejig_cap
             tray_capacity = prejig_cap
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
 
             # ✅ ENHANCED: Determine if this lot needs top tray scan
             tray_scan_status = data.get('tray_scan_status', False)
@@ -1651,11 +1627,10 @@ class DayPlanningPickTableAPIView(APIView):
                 data['no_of_trays'] = 0
                 data['tray_qty_list'] = []
             # Add model images (precomputed once above — no per-row query).
-            images = list(images_by_batch.get(data['batch_id'], []))
-            if not images:
-                from django.templatetags.static import static
-                images = [static('assets/images/imagePlaceholder.jpg')]
+            image_payload = images_by_batch.get(data['batch_id'], {})
+            images = list(image_payload.get('images', []))
             data['model_images'] = images
+            data['model_preview_image'] = image_payload.get('preview_image', '')
         dp_processing.__exit__(None, None, None)
 
         # ✅ ENHANCED: Define correct column order for table headers
@@ -1669,7 +1644,6 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status',
             'Lot Status',
             'Current Stage',
-            'Type of Input',
             'Polishing Stk No',
             'Plating Color',
             'Category',
@@ -1691,7 +1665,6 @@ class DayPlanningPickTableAPIView(APIView):
             'Process Status': 'Process Status',
             'Lot Status': 'Lot Status',
             'Current Stage': 'Current Stage',
-            'Type of Input': 'Type of Input',
             'Polishing Stk No': 'Polishing Stk No',
             'Plating Color': 'Plating Color',
             'Category': 'Category',
@@ -3211,31 +3184,33 @@ class DPCompletedTableView(APIView):
             'rejected_ip_stock',
             'few_cases_accepted_Ip_stock',
             'ip_person_qty_verified',
-            'draft_tray_verify',
-            'upload_type',
+            'draft_tray_verify'
         ))
 
         # ✅ PERF: Batch-fetch model images ONCE for the whole page instead of a
         # per-row ModelMasterCreation query inside the loop (was N+1).
         page_batch_ids = [d['batch_id'] for d in master_data]
         images_by_batch = {}
-        from modelmasterapp.image_utils import sort_images_front_first
+        from modelmasterapp.image_utils import (
+            get_model_view_image_urls,
+            get_uploaded_model_image_urls,
+        )
         for mmc in ModelMasterCreation.objects.filter(
             batch_id__in=page_batch_ids
         ).prefetch_related('images'):
-            urls = [
-                img.master_image.url
-                for img in sort_images_front_first(mmc.images.all())
-                if getattr(img, 'master_image', None)
-            ]
-            images_by_batch[mmc.batch_id] = urls
+            source_images = list(mmc.images.all())
+            uploaded_urls = get_uploaded_model_image_urls(source_images)
+            urls = get_model_view_image_urls(source_images)
+            images_by_batch[mmc.batch_id] = {
+                'images': urls,
+                'preview_image': uploaded_urls[0] if uploaded_urls else (urls[0] if urls else ''),
+            }
 
         # Calculate no_of_trays dynamically and add tray_qty_list
         for data in master_data:
             total_batch_quantity = data.get('total_batch_quantity', 0)
             tray_capacity = data.get('tray_capacity', 0)
             data['vendor_location'] = f"{data.get('vendor_internal', '')}_{data.get('location__location_name', '')}"
-            data['type_of_input'] = label_for_upload_type(data.get('upload_type'))
             # Backend-owned "Current Stage" display: use only the live
             # current_stage SSOT (written by each module on its own real
             # processing action — draft/verify/submit), falling back to
@@ -3247,6 +3222,7 @@ class DPCompletedTableView(APIView):
             # ever opened it.
             data['current_stage_display'] = (
                 data.get('current_stage')
+                or data.get('next_process_module')
                 or data.get('last_process_module')
                 or 'N/A'
             )
@@ -3274,11 +3250,10 @@ class DPCompletedTableView(APIView):
                 data['tray_qty_list'] = []
 
             # Add model images (precomputed once above — no per-row query).
-            images = list(images_by_batch.get(data['batch_id'], []))
-            if not images:
-                from django.templatetags.static import static
-                images = [static('assets/images/imagePlaceholder.jpg')]
+            image_payload = images_by_batch.get(data['batch_id'], {})
+            images = list(image_payload.get('images', []))
             data['model_images'] = images
+            data['model_preview_image'] = image_payload.get('preview_image', '')
 
         context = {
             'master_data': master_data,

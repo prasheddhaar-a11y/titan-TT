@@ -6,6 +6,10 @@
 /* ═══ Model Master — Refined Design System ═══════════════════════════════ */
 :root {
   --mm-teal:        #0d9488;
+  --mm-theme-teal:  #0f9d8f;
+  --mm-theme-teal-dark: #087f74;
+  --mm-theme-teal-soft: #e7f6f3;
+  --mm-danger:      #dc3545;
   --mm-teal-dark:   #0f766e;
   --mm-teal-xdark:  #134e4a;
   --mm-teal-light:  #f0fdfa;
@@ -28,10 +32,28 @@
   background: var(--mm-card);
   border-radius: 14px;
   box-shadow: 0 14px 36px rgba(15,23,42,.08);
-  margin: 18px auto;
+  margin: 0 auto;
   max-width: 1320px;
   overflow: hidden;
   border: 1px solid var(--mm-border);
+  height: calc(100vh - var(--top-header-height, 96px) - var(--ttt-footer-height, 32px));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.dp-modelmaster-page-active {
+  overflow: hidden;
+}
+
+body.dp-modelmaster-page-active .main-panel,
+body.dp-modelmaster-page-active .content-wrapper {
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.dp-modelmaster-main {
+  min-height: 0;
 }
 
 /* ── Header ── */
@@ -39,6 +61,7 @@
   background: linear-gradient(135deg, var(--mm-teal-dark) 0%, var(--mm-teal-xdark) 100%);
   color: #fff;
   padding: 16px 24px;
+  flex: 0 0 auto;
 }
 .model-master-header h3 {
   font-size: 1.15rem;
@@ -65,6 +88,19 @@
 .model-master-content {
   padding: 20px;
   background: var(--mm-bg);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-master-content > .container-fluid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* ── Tab navigation ── */
@@ -79,6 +115,7 @@
   box-shadow: none;
   padding: 0;
   overflow-x: auto;
+  flex: 0 0 auto;
 }
 .elegant-tabs .nav-item { flex: 0 0 auto; margin: 0; }
 .elegant-tabs .nav-link {
@@ -114,6 +151,43 @@
   border-radius: var(--mm-radius-lg);
   border: 1px solid var(--mm-border);
   padding: 20px;
+}
+
+#modelTabsContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#modelTabsContent > .tab-pane {
+  min-height: 0;
+  overflow: hidden;
+}
+
+#modelTabsContent > .tab-pane.active {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.model-image-management-frame {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-images-tab-pane.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-image-management-frame > .message-area {
+  flex: 0 0 auto;
 }
 
 /* ── Form grid ── */
@@ -385,10 +459,32 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 }
 /* ── Phase 2: Split-panel layout ── */
 .mm-tab-layout { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.image-management-layout { flex: 1 1 auto; height: 100%; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(300px, 330px) minmax(0, 1fr); gap: 18px; align-items: stretch; }
+.image-upload-sidebar { height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+.upload-column-scroll { height: 100%; min-height: 0; overflow-y: auto !important; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 56px; display: flex; flex-direction: column; gap: 16px; }
+.image-album-viewer { height: 100%; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.album-column-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 28px; }
+.album-type-switch { display: inline-flex; gap: 6px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: 8px; padding: 4px; }
+.album-switch-btn { border: none; border-radius: 6px; background: transparent; color: #64748b; font-size: .74rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
+.album-switch-btn.active { background: #fff; color: var(--mm-teal-dark); box-shadow: 0 1px 4px rgba(15,23,42,.08); }
+.mm-panel-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .mm-form-panel { background: var(--mm-soft); border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 16px 18px; }
 .mm-form-panel .mm-form { grid-template-columns: 1fr; }
 .mm-form-panel .submit-section { padding-top: 4px; }
 .mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 14px 16px; min-height: 180px; max-height: min(430px, calc(100vh - 255px)); overflow: hidden; display: flex; flex-direction: column; }
+.image-management-layout .mm-form-panel { height: auto; padding: 14px 16px; }
+.upload-column-scroll > .mm-form-panel { flex: 0 0 auto; }
+.image-album-viewer .mm-list-panel { flex: 1 1 auto; min-height: 0; max-height: none; overflow: hidden; }
+.image-album-viewer > .mm-list-panel > .mm-list-header { flex: 0 0 auto; }
+#modelImageAlbumPanel,
+#versionImageAlbumPanel { min-height: 0; overflow: visible; flex-direction: column; }
+#modelImageAlbumPanel:not([hidden]),
+#versionImageAlbumPanel:not([hidden]) { display: flex; }
+#modelImageAlbumPanel > .mm-list-header,
+#versionImageAlbumPanel > .mm-list-header { flex: 0 0 auto; }
+#images-gallery { flex: 1 1 auto; min-height: 0; overflow: visible; padding-right: 0; padding-bottom: 0; }
+#versionAlbumGalleryView { flex: 1 1 auto; min-height: 0; overflow: visible; display: flex; flex-direction: column; }
+#versionAlbumInlineImageView { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .mm-panel-title { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--mm-muted); margin-bottom: 0; }
 .mm-panel-title-border { border-bottom:1px solid var(--mm-border); padding-bottom:8px; margin-bottom:14px; }
 .mm-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--mm-border); gap: 8px; }
@@ -424,6 +520,87 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 .mm-album-thumb { width: 58px; height: 58px; flex: 0 0 auto; border: 2px solid transparent; border-radius: 7px; padding: 2px; background: #f8fafc; cursor: pointer; }
 .mm-album-thumb.active { border-color: var(--mm-teal); background: #ecfeff; }
 .mm-album-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.version-image-card { border-top-color: var(--mm-teal); }
+.version-image-upload-card { padding: 16px; border-radius: 12px; height: auto !important; min-height: 0 !important; overflow: visible; flex: 0 0 auto; border-top: 3px solid var(--mm-theme-teal) !important; }
+.version-image-upload-card .mm-form { gap: 10px; }
+.version-image-upload-card .form-label { margin-bottom: 4px; font-size: 12px; }
+.version-image-upload-card input[type="text"],
+.version-image-upload-card input[type="number"],
+.version-image-upload-card input[type="file"],
+.version-image-upload-card select { min-height: 34px; padding-top: 5px; padding-bottom: 5px; }
+.version-image-upload-card input:focus,
+.version-image-upload-card select:focus {
+  border-color: var(--mm-theme-teal) !important;
+  box-shadow: 0 0 0 3px rgba(15, 157, 143, 0.12) !important;
+}
+.version-image-upload-card .help-text { display: block; margin: 4px 0 8px; font-size: 11px; line-height: 1.3; }
+.version-image-upload-card .submit-section { padding-top: 0; }
+.version-image-upload-card button { margin-top: 4px; }
+.version-select-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.version-info-toggle-btn { border: 1px solid var(--mm-theme-teal); border-radius: 8px; background: #f8fafc; color: var(--mm-theme-teal-dark); font-size: 12px; font-weight: 700; min-height: 34px; padding: 6px 12px; }
+.version-info-toggle-btn:hover,
+.version-info-toggle-btn[aria-expanded="true"] { border-color: var(--mm-theme-teal); color: #fff; background: var(--mm-theme-teal); }
+.version-config-message { display: block; min-height: 14px; margin-top: 4px; color: var(--mm-muted); font-size: 11px; line-height: 1.25; }
+.version-info-state { display: block; min-height: 14px; margin-top: 4px; color: #166534; font-size: 11px; font-weight: 700; line-height: 1.25; }
+.version-info-modal .modal-content { border: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 55px rgba(0, 0, 0, 0.22); }
+.version-info-dialog { max-width: 680px; }
+.version-info-modal .modal-header { padding: 20px 24px; border-bottom: 1px solid #e5eceb; background: linear-gradient(135deg, rgba(8, 129, 120, 0.10), rgba(255, 255, 255, 1)); }
+.version-info-modal .modal-title { margin: 0; font-weight: 700; color: #164e49; }
+.version-info-context-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px 9px; border-radius: 999px; background: var(--mm-theme-teal-soft); color: var(--mm-theme-teal-dark); font-size: 12px; font-weight: 600; }
+.version-info-modal .modal-body { max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px; }
+.version-info-modal-fields,
+.version-info-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.version-info-field-full { grid-column: 1 / -1; }
+.version-info-modal .form-label { margin-bottom: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: #475569; text-transform: uppercase; }
+.version-info-modal .form-control,
+.version-info-modal .form-select { min-height: 42px !important; border-radius: 9px !important; border: 1px solid #d9e2e1 !important; background: #fff !important; }
+.version-info-modal .form-control:focus,
+.version-info-modal .form-select:focus { border-color: var(--mm-theme-teal) !important; box-shadow: 0 0 0 3px rgba(15, 157, 143, 0.13) !important; }
+.version-info-modal .modal-footer { padding: 16px 24px 20px; border-top: 1px solid #e8eeee; background: #fbfdfd; }
+.version-info-save-btn { min-width: 125px; border: 0; border-radius: 9px; background: var(--mm-theme-teal); color: #fff; font-weight: 700; box-shadow: 0 5px 12px rgba(7, 152, 139, 0.22); }
+.version-info-save-btn:hover { background: var(--mm-theme-teal-dark); color: #fff; }
+.version-info-close-btn { min-width: 95px; border: 1px solid var(--mm-danger); border-radius: 9px; background: #fff; color: var(--mm-danger); font-weight: 700; }
+.version-info-close-btn:hover { background: var(--mm-danger); color: #fff; }
+.version-info-modal .btn-close:hover { filter: invert(28%) sepia(96%) saturate(3221%) hue-rotate(340deg) brightness(91%); }
+.version-info-validation { min-height: 18px; margin-top: 8px; color: #991b1b; font-size: 12px; font-weight: 700; }
+.version-image-album-list { flex: 1 1 auto; min-height: 0; display: grid; align-content: start; gap: 10px; overflow: visible; padding-right: 0; padding-bottom: 0; }
+.version-image-album-card { border: 1px solid var(--mm-border); border-radius: 10px; background: #fff; padding: 12px; }
+.version-image-thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 2px; }
+.version-image-thumb,
+.version-image-inline-view-trigger { width: 118px; height: 86px; flex: 0 0 auto; border: 1px solid var(--mm-border); border-radius: 8px; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; cursor: zoom-in; }
+.version-image-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.version-image-inline-view-trigger img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.version-image-meta { min-width: 0; }
+.version-image-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.version-image-model { color: var(--mm-text); font-size: .86rem; font-weight: 700; }
+.version-image-status { font-size: .65rem; font-weight: 700; border-radius: 999px; padding: 2px 7px; background: #dcfce7; color: #166534; white-space: nowrap; }
+.version-image-name { color: #334155; font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.version-image-updated { color: var(--mm-muted); font-size: .7rem; margin-top: 3px; }
+.version-image-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.version-image-actions .versionComparisonInfoBtn { border-color: var(--mm-theme-teal); color: var(--mm-theme-teal-dark); font-weight: 700; }
+.version-image-actions .versionComparisonInfoBtn:hover { background: var(--mm-theme-teal); border-color: var(--mm-theme-teal); color: #fff; }
+.version-inline-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+#versionAlbumInlineZoomLabel { min-width: 52px; text-align: center; font-weight: 700; }
+#versionAlbumInlineImageViewport { height: 420px; overflow: auto; background: #111; display: flex; align-items: center; justify-content: center; overscroll-behavior: contain; border-radius: 8px; }
+#versionAlbumInlineImage { max-width: 100%; max-height: 100%; transform-origin: center center; transition: transform .15s ease; }
+@media (max-width: 991px) {
+  .image-management-layout { grid-template-columns: 1fr; }
+  .model-master-frame { height: auto; min-height: calc(100vh - var(--top-header-height, 96px) - var(--ttt-footer-height, 32px) - 16px); }
+  .model-master-content { overflow: visible; }
+  .model-master-content > .container-fluid,
+  #modelTabsContent { overflow: visible; }
+  body.dp-modelmaster-page-active { overflow: auto; }
+  body.dp-modelmaster-page-active .main-panel,
+  body.dp-modelmaster-page-active .content-wrapper { overflow: visible !important; }
+  .image-upload-sidebar,
+  .upload-column-scroll,
+  .image-album-viewer,
+  .album-column-scroll { height: auto; overflow: visible; }
+}
+@media (max-width: 640px) {
+  .version-info-modal-fields,
+  .version-info-fields-grid { grid-template-columns: 1fr; }
+}
 /* ── Empty/loading states ── */
 .mm-list-empty { text-align: center; padding: 24px 12px; color: #94a3b8; font-size: .83rem; display: block; }
 /* ── Model master compact table ── */
@@ -467,15 +644,15 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 @media (max-width: 640px) { .mm-model-form-panel .mm-form { grid-template-columns: 1fr; } .mm-picker-browser { grid-template-columns: 1fr; } .mm-picker-nav { width: 100%; border-radius: 7px; } }
 </style>
 
-<div class="model-master-frame">
-  <div class="model-master-header d-flex justify-content-between align-items-center">
+<div class="model-master-frame dp-modelmaster-main">
+  <div class="model-master-header dp-modelmaster-titlebar d-flex justify-content-between align-items-center">
     <h3>Model Master Management System</h3>
     <a href="{% url 'view_master' %}" class="btn view-data-btn">View Masters</a>
   </div>
 
   <div class="model-master-content">
     <div class="container-fluid p-0">
-      <ul class="nav nav-tabs elegant-tabs" id="modelTabs" role="tablist">
+      <ul class="nav nav-tabs elegant-tabs dp-modelmaster-tabs" id="modelTabs" role="tablist">
         <!-- Polish Finish Master -->
         <li class="nav-item" role="presentation">
           <button
@@ -643,7 +820,7 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
         </li>
       </ul>
 
-      <div class="tab-content mt-3" id="modelTabsContent">
+      <div class="tab-content mt-3 dp-modelmaster-tab-content" id="modelTabsContent">
         
         <!-- 1. Model Master -->
         <div class="tab-pane fade show active" id="model" role="tabpanel" aria-labelledby="model-tab">
@@ -893,11 +1070,13 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
         </div>
 
         <!-- 5. Model Images -->
-        <div class="tab-pane fade" id="images" role="tabpanel" aria-labelledby="images-tab">
-          <div class="tab-content-frame">
+        <div class="tab-pane fade model-images-tab-pane" id="images" role="tabpanel" aria-labelledby="images-tab">
+          <div class="tab-content-frame model-image-management-frame">
             <div id="images-message-area" class="message-area"></div>
-            <div class="mm-tab-layout">
-              <div class="mm-form-panel">
+            <div class="image-management-layout model-image-management-layout">
+              <div class="image-upload-sidebar">
+                <div class="upload-column-scroll">
+                <div class="mm-form-panel model-upload-card">
                 <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Upload Model Image</p>
                 <form class="mm-form" id="images-form" enctype="multipart/form-data">
                   {% csrf_token %}
@@ -910,15 +1089,79 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
                     <button type="submit" class="btn btn-elegant-primary">Upload Images</button>
                   </div>
                 </form>
-              </div>
-              <div class="mm-list-panel">
-                <div class="mm-list-header">
-                  <p class="mm-panel-title">Image Albums <span id="images-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" id="images-refresh-btn">↺ Refresh</button>
                 </div>
-                <div id="images-gallery" class="mm-gallery"><span class="mm-list-empty">Loading…</span></div>
+              <div class="mm-form-panel version-upload-card version-image-card version-image-upload-card">
+                <p class="mm-panel-title" style="border-bottom:1px solid var(--mm-border);padding-bottom:8px;margin-bottom:14px;">Upload Version Image</p>
+                <form class="mm-form" id="versionComparisonUploadForm" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  <div>
+                    <label for="versionComparisonBaseModelNumber" class="form-label">Base Model Number</label>
+                    <input type="text" class="form-control" id="versionComparisonBaseModelNumber" name="model_number" placeholder="Example: 2617" autocomplete="off" required />
+                  </div>
+                  <div>
+                    <label for="versionComparisonVersion" class="form-label">Version</label>
+                    <div class="version-select-row">
+                      <select class="form-control" id="versionComparisonVersion" name="version" disabled required>
+                        <option value="">Select model first</option>
+                      </select>
+                      <button type="button" id="toggleVersionInfoBtn" class="version-info-toggle-btn" aria-haspopup="dialog">Info</button>
+                    </div>
+                    <small id="versionComparisonModelMessage" class="version-config-message">Select a configured model to choose a version.</small>
+                    <small id="versionInfoStateMessage" class="version-info-state"></small>
+                  </div>
+                  <div>
+                    <label for="versionComparisonImageInput" class="form-label">Select Version Images</label>
+                    <input type="file" class="form-control" id="versionComparisonImageInput" name="comparison_images" accept="image/png,image/jpeg,image/webp" multiple required />
+                    <small class="text-muted help-text">PNG, JPG, JPEG or WEBP. Hold Ctrl to select multiple.</small>
+                  </div>
+                  <div class="submit-section">
+                    <button type="submit" class="btn btn-elegant-primary" id="versionComparisonUploadBtn">Upload Version Images</button>
+                  </div>
+                </form>
+                <div id="versionComparisonUploadStatus" class="message-area" style="margin-top:12px;margin-bottom:0;"></div>
+              </div>
+                </div>
+              </div>
+              <div class="image-album-viewer">
+                <div class="mm-list-panel">
+                  <div class="mm-list-header album-toolbar">
+                    <div class="album-type-switch" role="group" aria-label="Image album type">
+                      <button type="button" id="showModelImageAlbumsBtn" class="album-switch-btn active">Model Image Albums</button>
+                      <button type="button" id="showVersionImageAlbumsBtn" class="album-switch-btn">Version Image Albums</button>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="images-refresh-btn">↺ Refresh</button>
+                  </div>
+                  <div class="album-column-scroll">
+                  <div id="modelImageAlbumPanel">
+                    <div class="mm-list-header">
+                      <p class="mm-panel-title">Image Albums <span id="images-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                    </div>
+                    <div id="images-gallery" class="mm-gallery"><span class="mm-list-empty">Loading…</span></div>
+                  </div>
+                  <div id="versionImageAlbumPanel" hidden>
+                  <div class="mm-list-header">
+                    <p class="mm-panel-title">Version Image Albums <span id="versionComparisonCountBadge" class="badge bg-secondary mm-count-badge">0</span></p>
+                  </div>
+                  <div id="versionAlbumGalleryView">
+                  <div id="versionComparisonGallery" class="version-image-album-list"><span class="mm-list-empty">Loading…</span></div>
+                  </div>
+                  <div id="versionAlbumInlineImageView" hidden>
+                    <div class="version-inline-toolbar">
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="versionAlbumInlineBackBtn">Back to Images</button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="versionAlbumInlineZoomOutBtn">-</button>
+                      <span id="versionAlbumInlineZoomLabel">100%</span>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="versionAlbumInlineZoomInBtn">+</button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" id="versionAlbumInlineResetBtn">Reset</button>
+                    </div>
+                    <div id="versionAlbumInlineImageViewport">
+                      <img id="versionAlbumInlineImage" src="" alt="Version image preview">
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
           </div>
         </div>
 
@@ -1162,6 +1405,28 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   </div> <!-- End model-master-content -->
 </div> <!-- End model-master-frame -->
 
+<div class="modal fade version-info-modal" id="versionInfoModal" tabindex="-1" aria-labelledby="versionInfoModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered version-info-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="versionInfoModalTitle">Version Information</h5>
+          <small id="versionInfoModalContext" class="version-info-context-badge"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="versionInfoDynamicFields" class="version-info-modal-fields"></div>
+        <div id="versionInfoValidationMessage" class="version-info-validation"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn version-info-save-btn" id="saveVersionInfoBtn">Save Info</button>
+        <button type="button" class="btn version-info-close-btn" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- JavaScript for API Integration -->
 <script nonce="{{ csp_nonce }}">
 // Get CSRF token
@@ -1391,8 +1656,19 @@ const ModelImageAPI = {
                 },
                 body: formData
             });
-            
-            const result = await response.json();
+
+            const contentType = response.headers.get('content-type') || '';
+            let result;
+            if (contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                await response.text();
+                throw new Error(`Upload failed with HTTP ${response.status}. Server returned a non-JSON response.`);
+            }
+
+            if (!response.ok) {
+                throw new Error(result.error || result.message || 'Image upload failed.');
+            }
             
             if (result.success) {
                 showInlineMessage('images-message-area', result.message || 'Images uploaded successfully!', true);
@@ -1437,6 +1713,373 @@ const ModelImageAPI = {
             });
             renderModelImagePicker();
         }
+    }
+};
+
+let versionImageUploadInProgress = false;
+
+const allowedModelVersions = {
+    "2617": ["A", "B", "C", "D"],
+    "2648": ["A", "B", "D", "E"],
+    "1805": ["D", "K"]
+};
+
+const versionInfoFieldConfig = {
+    "2617": [
+        {
+            name: "o_ring_pocket",
+            label: "O Ring Pocket in Case",
+            type: "select",
+            options: ["Not specified", "Yes", "No", "Without O Ring Box in Case Centre"]
+        },
+        { name: "cph_depth", label: "CPH Depth", type: "number" },
+        { name: "cph_centre_to_dial_butting", label: "CPH Centre to Dial Butting", type: "number" }
+    ],
+    "2648": [
+        {
+            name: "o_ring_pocket",
+            label: "O Ring Pocket in Case",
+            type: "select",
+            options: ["Not specified", "Yes", "No"]
+        },
+        { name: "dial_slant_finish", label: "Dial Slant Finish", type: "text", fullWidth: true },
+        { name: "thickness", label: "Thickness", type: "number" },
+        { name: "bcb_to_lug_bottom", label: "BCB to Lug Bottom", type: "number" },
+        { name: "dial_slant_angle", label: "Dial Slant Angle", type: "number" },
+        { name: "dial_slant_height", label: "Dial Slant Height", type: "number" }
+    ],
+    "1805": [
+        { name: "outer_wall_thickness", label: "Outer Wall Thickness", type: "number" },
+        { name: "cph_centre_to_bc_butting", label: "CPH Centre to BC Butting", type: "number" },
+        { name: "crm_length", label: "CRM Length", type: "number" }
+    ]
+};
+
+const pendingVersionInfo = {};
+let activeVersionInfoContext = null;
+
+function getVersionInfoKey(modelNumber, version) {
+    return `${String(modelNumber || '').trim().toUpperCase()}:${String(version || '').trim().toUpperCase()}`;
+}
+
+function getCurrentVersionInfoSelection() {
+    const modelInput = document.getElementById('versionComparisonBaseModelNumber');
+    const versionInput = document.getElementById('versionComparisonVersion');
+    return {
+        modelNumber: modelInput ? modelInput.value.trim().toUpperCase() : '',
+        version: versionInput ? versionInput.value.trim().toUpperCase() : ''
+    };
+}
+
+function setVersionInfoStateMessage(text) {
+    const state = document.getElementById('versionInfoStateMessage');
+    if (state) state.textContent = text || '';
+}
+
+function getInfoForModelVersion(modelNumber, version, fallbackInfo) {
+    const key = getVersionInfoKey(modelNumber, version);
+    return pendingVersionInfo[key] || fallbackInfo || {};
+}
+
+function buildVersionInfoFields(modelNumber, values) {
+    const container = document.getElementById('versionInfoDynamicFields');
+    if (!container) return;
+
+    const fields = versionInfoFieldConfig[modelNumber] || [];
+    container.innerHTML = fields.map(field => {
+        const fieldId = `versionInfoModalField_${field.name}`;
+        const value = values?.[field.name] || '';
+        const fieldClass = field.fullWidth ? ' class="version-info-field-full"' : '';
+        if (field.type === 'select') {
+            return `
+                <div${fieldClass}>
+                    <label for="${escapeAttr(fieldId)}" class="form-label">${escapeHtml(field.label)}</label>
+                    <select class="form-select version-info-modal-input" id="${escapeAttr(fieldId)}" data-field-name="${escapeAttr(field.name)}">
+                        ${(field.options || []).map(option => {
+                            const optionValue = option === 'Not specified' ? '' : option;
+                            return `<option value="${escapeAttr(optionValue)}"${value === optionValue ? ' selected' : ''}>${escapeHtml(option)}</option>`;
+                        }).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
+        const inputType = field.type === 'number' ? 'number' : 'text';
+        const stepAttr = field.type === 'number' ? ' step="any"' : '';
+        return `
+            <div${fieldClass}>
+                <label for="${escapeAttr(fieldId)}" class="form-label">${escapeHtml(field.label)}</label>
+                <input type="${inputType}"${stepAttr} class="form-control version-info-modal-input" id="${escapeAttr(fieldId)}" data-field-name="${escapeAttr(field.name)}" value="${escapeAttr(value)}" autocomplete="off" />
+            </div>
+        `;
+    }).join('');
+}
+
+function updateVersionDropdown(selectedVersion) {
+    const modelInput = document.getElementById('versionComparisonBaseModelNumber');
+    const versionSelect = document.getElementById('versionComparisonVersion');
+    const message = document.getElementById('versionComparisonModelMessage');
+    if (!modelInput || !versionSelect) return;
+
+    const modelNumber = modelInput.value.trim().toUpperCase();
+    const versions = allowedModelVersions[modelNumber] || [];
+    versionSelect.innerHTML = '';
+
+    if (!modelNumber) {
+        versionSelect.disabled = true;
+        versionSelect.innerHTML = '<option value="">Select model first</option>';
+        if (message) message.textContent = 'Select a configured model to choose a version.';
+        setVersionInfoStateMessage('');
+        return;
+    }
+
+    if (!versions.length) {
+        versionSelect.disabled = true;
+        versionSelect.innerHTML = '<option value="">No configured versions</option>';
+        if (message) message.textContent = 'No configured versions for this model.';
+        setVersionInfoStateMessage('');
+        return;
+    }
+
+    versionSelect.disabled = false;
+    versionSelect.appendChild(new Option('Select version', ''));
+    versions.forEach(version => {
+        versionSelect.appendChild(new Option(version, version));
+    });
+    if (selectedVersion && versions.includes(selectedVersion)) {
+        versionSelect.value = selectedVersion;
+    }
+    if (message) message.textContent = `Allowed versions: ${versions.join(', ')}.`;
+    updateVersionInfoStateForSelection();
+}
+
+function collectVisibleVersionInfo() {
+    const container = document.getElementById('versionInfoDynamicFields');
+    const validation = document.getElementById('versionInfoValidationMessage');
+    const values = {};
+    if (validation) validation.textContent = '';
+
+    container?.querySelectorAll('.version-info-modal-input').forEach(field => {
+        const name = field.getAttribute('data-field-name');
+        const value = field.value.trim();
+        if (value) {
+            if (field.type === 'number' && Number.isNaN(Number(value))) {
+                if (validation) validation.textContent = `${field.closest('div')?.querySelector('label')?.textContent || name} must be a valid number.`;
+                throw new Error('Invalid version info number.');
+            }
+            values[name] = value;
+        }
+    });
+
+    return values;
+}
+
+function getVersionInfoModalInstance() {
+    const modalElement = document.getElementById('versionInfoModal');
+    if (!modalElement || !window.bootstrap || !window.bootstrap.Modal) return null;
+    return window.bootstrap.Modal.getOrCreateInstance(modalElement);
+}
+
+function openVersionInfoModal(context) {
+    const modelNumber = String(context.modelNumber || '').trim().toUpperCase();
+    const version = String(context.version || '').trim().toUpperCase();
+    const source = context.source || 'upload';
+    const validationTarget = source === 'upload' ? 'versionComparisonUploadStatus' : null;
+
+    if (!modelNumber) {
+        if (validationTarget) showInlineMessage(validationTarget, 'Base model number is required before adding version info.', false);
+        return;
+    }
+    if (!allowedModelVersions[modelNumber]) {
+        if (validationTarget) showInlineMessage(validationTarget, 'No configured versions for this model.', false);
+        return;
+    }
+    if (!version) {
+        if (validationTarget) showInlineMessage(validationTarget, 'Version is required before adding version info.', false);
+        return;
+    }
+    if (!allowedModelVersions[modelNumber].includes(version)) {
+        if (validationTarget) showInlineMessage(validationTarget, `Version ${version} is not configured for model ${modelNumber}.`, false);
+        return;
+    }
+
+    activeVersionInfoContext = {
+        modelNumber,
+        version,
+        source,
+        itemId: context.itemId || null
+    };
+
+    const modalContext = document.getElementById('versionInfoModalContext');
+    const validation = document.getElementById('versionInfoValidationMessage');
+    if (modalContext) modalContext.textContent = `Model ${modelNumber}, Version ${version}`;
+    if (validation) validation.textContent = '';
+    buildVersionInfoFields(modelNumber, getInfoForModelVersion(modelNumber, version, context.info));
+
+    const modal = getVersionInfoModalInstance();
+    if (modal) modal.show();
+}
+
+async function saveActiveVersionInfo() {
+    if (!activeVersionInfoContext) return;
+
+    let values;
+    try {
+        values = collectVisibleVersionInfo();
+    } catch (_error) {
+        return;
+    }
+
+    const { modelNumber, version, source } = activeVersionInfoContext;
+    const key = getVersionInfoKey(modelNumber, version);
+    pendingVersionInfo[key] = values;
+
+    if (source === 'album') {
+        const formData = new FormData();
+        formData.append('model_number', modelNumber);
+        formData.append('version', version);
+        formData.append('version_info', JSON.stringify(values));
+        const result = await VersionComparisonAPI.upload(formData);
+        if (!result || !result.success) {
+            const validation = document.getElementById('versionInfoValidationMessage');
+            if (validation) validation.textContent = result?.message || 'Unable to save version info.';
+            return;
+        }
+        refreshVersionComparisonGallery();
+    } else {
+        setVersionInfoStateMessage(Object.keys(values).length ? 'Info added' : '');
+    }
+
+    const modal = getVersionInfoModalInstance();
+    if (modal) modal.hide();
+}
+
+function updateVersionInfoStateForSelection() {
+    const { modelNumber, version } = getCurrentVersionInfoSelection();
+    const info = pendingVersionInfo[getVersionInfoKey(modelNumber, version)];
+    setVersionInfoStateMessage(info && Object.keys(info).length ? 'Info added' : '');
+}
+
+function initModelMasterScrollShell() {
+    const frame = document.querySelector('.model-master-frame');
+    if (!frame) return;
+    document.body.classList.add('dp-modelmaster-page-active');
+
+    const updateHeaderHeight = () => {
+        const candidates = [
+            document.querySelector('.navbar'),
+            document.querySelector('.topbar'),
+            document.querySelector('header')
+        ].filter(Boolean);
+        const headerHeight = candidates.reduce((height, element) => {
+            const rect = element.getBoundingClientRect();
+            return Math.max(height, rect.bottom);
+        }, 0);
+        document.documentElement.style.setProperty('--top-header-height', `${Math.max(headerHeight, 72)}px`);
+    };
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+}
+
+function initVersionInfoControls() {
+    const modelInput = document.getElementById('versionComparisonBaseModelNumber');
+    const versionSelect = document.getElementById('versionComparisonVersion');
+    const toggleButton = document.getElementById('toggleVersionInfoBtn');
+    const saveButton = document.getElementById('saveVersionInfoBtn');
+
+    if (modelInput && modelInput.dataset.versionDropdownBound !== 'true') {
+        modelInput.dataset.versionDropdownBound = 'true';
+        modelInput.addEventListener('input', function() {
+            updateVersionDropdown();
+            updateVersionInfoStateForSelection();
+        });
+        updateVersionDropdown();
+    }
+
+    if (versionSelect && versionSelect.dataset.versionInfoBound !== 'true') {
+        versionSelect.dataset.versionInfoBound = 'true';
+        versionSelect.addEventListener('change', updateVersionInfoStateForSelection);
+    }
+
+    if (toggleButton && toggleButton.dataset.bound !== 'true') {
+        toggleButton.dataset.bound = 'true';
+        toggleButton.addEventListener('click', function() {
+            const { modelNumber, version } = getCurrentVersionInfoSelection();
+            openVersionInfoModal({ modelNumber, version, source: 'upload' });
+        });
+    }
+
+    if (saveButton && saveButton.dataset.bound !== 'true') {
+        saveButton.dataset.bound = 'true';
+        saveButton.addEventListener('click', saveActiveVersionInfo);
+    }
+
+    initModelMasterScrollShell();
+}
+
+const VersionComparisonAPI = {
+    upload: async function(formData) {
+        const button = document.getElementById('versionComparisonUploadBtn');
+        const fileInput = document.getElementById('versionComparisonImageInput');
+
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Uploading...';
+        }
+
+        try {
+            const response = await fetch('/adminportal/api/model-version-comparison/upload/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showInlineMessage('versionComparisonUploadStatus', result.message || 'Version image uploaded successfully.', true);
+                if (fileInput) fileInput.value = '';
+                setActiveImageAlbumPanel('version');
+            } else {
+                showInlineMessage('versionComparisonUploadStatus', result.message || 'Error uploading version image.', false);
+            }
+
+            return result;
+        } catch (error) {
+            showInlineMessage('versionComparisonUploadStatus', 'Error uploading version image: ' + error.message, false);
+            return { success: false, message: error.message };
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Upload Version Images';
+            }
+        }
+    },
+
+    getAll: async function() {
+        try {
+            const response = await fetch('/adminportal/api/model-version-comparison/list/');
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching version images:', error);
+            return { success: false, items: [] };
+        }
+    },
+
+    delete: async function(id) {
+        const formData = new FormData();
+        formData.append('id', id);
+
+        const response = await fetch('/adminportal/api/model-version-comparison/delete/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: formData
+        });
+        return await response.json();
     }
 };
 
@@ -1819,6 +2462,66 @@ function populateSelect(selectId, data, valueField, textField) {
     }
 }
 
+async function handleVersionImageUpload(event) {
+    event.preventDefault();
+
+    if (versionImageUploadInProgress) {
+        return;
+    }
+
+    const modelInput = document.getElementById('versionComparisonBaseModelNumber');
+    const versionInput = document.getElementById('versionComparisonVersion');
+    const fileInput = document.getElementById('versionComparisonImageInput');
+    const modelNumber = modelInput ? modelInput.value.trim().toUpperCase() : '';
+    const version = versionInput ? versionInput.value.trim().toUpperCase() : '';
+    const selectedFiles = fileInput ? Array.from(fileInput.files || []) : [];
+
+    if (!modelNumber) {
+        showInlineMessage('versionComparisonUploadStatus', 'Base model number is required.', false);
+        return;
+    }
+
+    if (!allowedModelVersions[modelNumber]) {
+        showInlineMessage('versionComparisonUploadStatus', 'No configured versions for this model.', false);
+        return;
+    }
+
+    if (!version) {
+        showInlineMessage('versionComparisonUploadStatus', 'Version is required.', false);
+        return;
+    }
+
+    if (!allowedModelVersions[modelNumber].includes(version)) {
+        showInlineMessage('versionComparisonUploadStatus', `Version ${version} is not configured for model ${modelNumber}.`, false);
+        return;
+    }
+
+    if (!selectedFiles.length) {
+        showInlineMessage('versionComparisonUploadStatus', 'Please select at least one version image to upload.', false);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('model_number', modelNumber);
+    formData.append('version', version);
+    const infoKey = getVersionInfoKey(modelNumber, version);
+    formData.append('version_info', JSON.stringify(pendingVersionInfo[infoKey] || {}));
+    selectedFiles.forEach(file => {
+        formData.append('comparison_images', file);
+    });
+
+    versionImageUploadInProgress = true;
+    try {
+        const result = await VersionComparisonAPI.upload(formData);
+        if (result && result.success) {
+            delete pendingVersionInfo[infoKey];
+            setVersionInfoStateMessage('');
+        }
+    } finally {
+        versionImageUploadInProgress = false;
+    }
+}
+
 function setupFormHandlers() {
     // Polish Finish Form
     document.getElementById('polish-form').addEventListener('submit', async function(e) {
@@ -1920,6 +2623,24 @@ function setupFormHandlers() {
             showInlineMessage('images-message-area', 'Please select at least one image to upload', false);
         }
     });
+
+    const versionUploadForm = document.getElementById('versionComparisonUploadForm');
+    if (versionUploadForm && versionUploadForm.dataset.bound !== 'true') {
+        versionUploadForm.dataset.bound = 'true';
+        versionUploadForm.addEventListener('submit', handleVersionImageUpload);
+    }
+    initVersionInfoControls();
+
+    document.getElementById('showModelImageAlbumsBtn')?.addEventListener('click', function() {
+        setActiveImageAlbumPanel('model');
+    });
+
+    document.getElementById('showVersionImageAlbumsBtn')?.addEventListener('click', function() {
+        setActiveImageAlbumPanel('version');
+    });
+
+    bindVersionImageInlineDelegation(document.getElementById('versionComparisonGallery'));
+    initVersionAlbumInlineControls();
     
     // Model Master Form
     document.getElementById('model-master-form').addEventListener('submit', async function(e) {
@@ -2571,6 +3292,241 @@ function renderUploadedImageAlbum() {
   }
 }
 
+function formatVersionComparisonDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function getVersionInfoRows(modelNumber, info) {
+  const details = info || {};
+  return (versionInfoFieldConfig[modelNumber] || [])
+    .filter(field => details[field.name])
+    .map(field => [field.label, details[field.name]]);
+}
+
+function renderVersionComparisonGallery(items) {
+  const container = document.getElementById('versionComparisonGallery');
+  const badge = document.getElementById('versionComparisonCountBadge');
+  if (!container) return;
+
+  if (badge) badge.textContent = (items || []).length;
+
+  if (!items || !items.length) {
+    container.innerHTML = '<span class="mm-list-empty">No version images uploaded yet.</span>';
+    return;
+  }
+
+  container.innerHTML = items.map((item, index) => `
+    <div class="version-image-album-card">
+      <div class="version-image-meta">
+        <div class="version-image-title-row">
+          <span class="version-image-model">Model: ${escapeHtml(item.model_number || '-')}</span>
+          <span class="version-image-status">${item.is_active ? 'Active' : 'Inactive'}</span>
+        </div>
+        <div class="version-image-name" title="${escapeAttr(item.version || '')}">Version: ${escapeHtml(item.version || '-')}</div>
+        <div class="version-image-updated">Image count: ${escapeHtml(String(item.image_count || (item.images || []).length || 0))}</div>
+        <div class="version-image-updated">Updated: ${escapeHtml(formatVersionComparisonDate(item.updated_at))}</div>
+        <div class="version-image-thumbs">
+          ${(item.images || []).map(image => `
+            <button type="button" class="version-image-inline-view-trigger" data-image-url="${escapeAttr(image.url || '')}" data-image-name="${escapeAttr(image.filename || '')}" title="${escapeAttr(image.filename || '')}">
+              ${image.url ? `<img src="${escapeAttr(image.url)}" alt="${escapeAttr(image.filename || item.model_number || 'Version image')}" loading="lazy">` : '<span class="mm-list-empty">No image</span>'}
+            </button>
+          `).join('') || '<span class="mm-list-empty">No images</span>'}
+        </div>
+        <div class="version-image-actions">
+          <button type="button" class="btn btn-outline-secondary btn-sm versionComparisonInfoBtn" data-index="${escapeAttr(String(index))}">Info</button>
+          <button type="button" class="btn btn-outline-primary btn-sm versionComparisonReplaceBtn" data-model-number="${escapeAttr(item.model_number || '')}" data-version="${escapeAttr(item.version || '')}">Replace</button>
+          <button type="button" class="btn btn-outline-danger btn-sm versionComparisonDeleteBtn" data-id="${escapeAttr(item.id)}">Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.versionComparisonInfoBtn').forEach(btn => {
+    btn.addEventListener('click', function(event) {
+      event.stopPropagation();
+      const item = items[parseInt(this.getAttribute('data-index'), 10)];
+      if (!item) return;
+      openVersionInfoModal({
+        modelNumber: item.model_number || '',
+        version: item.version || '',
+        source: 'album',
+        itemId: item.id,
+        info: item.info || {}
+      });
+    });
+  });
+
+  container.querySelectorAll('.versionComparisonReplaceBtn').forEach(btn => {
+    btn.addEventListener('click', function(event) {
+      event.stopPropagation();
+      const modelNumber = this.getAttribute('data-model-number') || '';
+      const version = this.getAttribute('data-version') || '';
+      const card = this.closest('.version-image-album-card');
+      const cardIndex = card ? Array.from(container.children).indexOf(card) : -1;
+      const modelInput = document.getElementById('versionComparisonBaseModelNumber');
+      const versionInput = document.getElementById('versionComparisonVersion');
+      const fileInput = document.getElementById('versionComparisonImageInput');
+      if (modelInput) modelInput.value = modelNumber;
+      updateVersionDropdown(version);
+      if (versionInput && !versionInput.value) versionInput.value = version;
+      const info = items[cardIndex]?.info || {};
+      if (Object.keys(info).length) {
+        pendingVersionInfo[getVersionInfoKey(modelNumber, version)] = info;
+      }
+      updateVersionInfoStateForSelection();
+      if (fileInput) fileInput.focus();
+    });
+  });
+
+  container.querySelectorAll('.versionComparisonDeleteBtn').forEach(btn => {
+    btn.addEventListener('click', async function(event) {
+      event.stopPropagation();
+      const id = this.getAttribute('data-id');
+      if (!id || !confirm('Delete this version comparison image?')) return;
+      this.disabled = true;
+      const result = await VersionComparisonAPI.delete(id);
+      if (result && result.success) {
+        showInlineMessage('versionComparisonUploadStatus', result.message || 'Version image deleted successfully.', true);
+        refreshVersionComparisonGallery();
+      } else {
+        this.disabled = false;
+        showInlineMessage('versionComparisonUploadStatus', result?.message || 'Delete failed.', false);
+      }
+    });
+  });
+}
+
+async function refreshVersionComparisonGallery() {
+  resetVersionAlbumInlineViewer();
+  const data = await VersionComparisonAPI.getAll();
+  if (data && data.success) {
+    renderVersionComparisonGallery(data.items || []);
+  } else {
+    renderVersionComparisonGallery([]);
+  }
+}
+
+let activeImageAlbumPanel = 'model';
+
+function setActiveImageAlbumPanel(type) {
+  activeImageAlbumPanel = type === 'version' ? 'version' : 'model';
+  resetVersionAlbumInlineViewer();
+
+  const modelPanel = document.getElementById('modelImageAlbumPanel');
+  const versionPanel = document.getElementById('versionImageAlbumPanel');
+  const modelBtn = document.getElementById('showModelImageAlbumsBtn');
+  const versionBtn = document.getElementById('showVersionImageAlbumsBtn');
+
+  if (modelPanel) modelPanel.hidden = activeImageAlbumPanel !== 'model';
+  if (versionPanel) versionPanel.hidden = activeImageAlbumPanel !== 'version';
+  if (modelBtn) modelBtn.classList.toggle('active', activeImageAlbumPanel === 'model');
+  if (versionBtn) versionBtn.classList.toggle('active', activeImageAlbumPanel === 'version');
+
+  if (activeImageAlbumPanel === 'version') {
+    refreshVersionComparisonGallery();
+  }
+}
+
+function refreshActiveImageAlbumPanel() {
+  if (activeImageAlbumPanel === 'version') {
+    return refreshVersionComparisonGallery();
+  }
+  return refreshImageGallery();
+}
+
+let versionAlbumInlineScale = 1;
+const VERSION_ALBUM_INLINE_MIN_SCALE = 0.5;
+const VERSION_ALBUM_INLINE_MAX_SCALE = 4;
+const VERSION_ALBUM_INLINE_SCALE_STEP = 0.25;
+
+function applyVersionAlbumInlineScale() {
+  const inlineImage = document.getElementById('versionAlbumInlineImage');
+  const zoomLabel = document.getElementById('versionAlbumInlineZoomLabel');
+  if (inlineImage) {
+    inlineImage.style.transform = `scale(${versionAlbumInlineScale})`;
+  }
+  if (zoomLabel) {
+    zoomLabel.textContent = `${Math.round(versionAlbumInlineScale * 100)}%`;
+  }
+}
+
+function resetVersionAlbumInlineViewer() {
+  const galleryView = document.getElementById('versionAlbumGalleryView');
+  const inlineView = document.getElementById('versionAlbumInlineImageView');
+  const inlineImage = document.getElementById('versionAlbumInlineImage');
+
+  versionAlbumInlineScale = 1;
+  if (inlineImage) {
+    inlineImage.removeAttribute('src');
+    inlineImage.style.transform = 'scale(1)';
+  }
+  if (inlineView) inlineView.hidden = true;
+  if (galleryView) galleryView.hidden = false;
+  applyVersionAlbumInlineScale();
+}
+
+function showVersionAlbumInlineImage(imageUrl) {
+  if (!imageUrl) return;
+  const galleryView = document.getElementById('versionAlbumGalleryView');
+  const inlineView = document.getElementById('versionAlbumInlineImageView');
+  const inlineImage = document.getElementById('versionAlbumInlineImage');
+  if (!galleryView || !inlineView || !inlineImage) return;
+
+  versionAlbumInlineScale = 1;
+  inlineImage.src = imageUrl;
+  galleryView.hidden = true;
+  inlineView.hidden = false;
+  applyVersionAlbumInlineScale();
+}
+
+function bindVersionImageInlineDelegation(container) {
+  if (!container || container.dataset.inlineViewBound === 'true') return;
+  container.dataset.inlineViewBound = 'true';
+  container.addEventListener('click', function(event) {
+    const trigger = event.target.closest('.version-image-inline-view-trigger');
+    if (!trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    showVersionAlbumInlineImage(trigger.dataset.imageUrl);
+  });
+}
+
+function initVersionAlbumInlineControls() {
+  const back = document.getElementById('versionAlbumInlineBackBtn');
+  const zoomOut = document.getElementById('versionAlbumInlineZoomOutBtn');
+  const zoomIn = document.getElementById('versionAlbumInlineZoomInBtn');
+  const reset = document.getElementById('versionAlbumInlineResetBtn');
+
+  if (back && back.dataset.bound !== 'true') {
+    back.dataset.bound = 'true';
+    back.addEventListener('click', resetVersionAlbumInlineViewer);
+  }
+  if (zoomOut && zoomOut.dataset.bound !== 'true') {
+    zoomOut.dataset.bound = 'true';
+    zoomOut.addEventListener('click', function() {
+      versionAlbumInlineScale = Math.max(VERSION_ALBUM_INLINE_MIN_SCALE, versionAlbumInlineScale - VERSION_ALBUM_INLINE_SCALE_STEP);
+      applyVersionAlbumInlineScale();
+    });
+  }
+  if (zoomIn && zoomIn.dataset.bound !== 'true') {
+    zoomIn.dataset.bound = 'true';
+    zoomIn.addEventListener('click', function() {
+      versionAlbumInlineScale = Math.min(VERSION_ALBUM_INLINE_MAX_SCALE, versionAlbumInlineScale + VERSION_ALBUM_INLINE_SCALE_STEP);
+      applyVersionAlbumInlineScale();
+    });
+  }
+  if (reset && reset.dataset.bound !== 'true') {
+    reset.dataset.bound = 'true';
+    reset.addEventListener('click', function() {
+      versionAlbumInlineScale = 1;
+      applyVersionAlbumInlineScale();
+    });
+  }
+}
+
 // ── Master List Helpers ───────────────────────────────────────────────
 
 async function apiDelete(url) {
@@ -2769,7 +3725,7 @@ function initListRefreshButtons() {
         'polish-refresh-btn': refreshPolishList,
         'plating-refresh-btn': refreshPlatingList,
         'tray-refresh-btn': refreshTrayTypeList,
-        'images-refresh-btn': refreshImageGallery,
+        'images-refresh-btn': refreshActiveImageAlbumPanel,
         'category-refresh-btn': refreshCategoryList,
         'location-refresh-btn': refreshLocationList,
         'iprejection-refresh-btn': refreshIPRejectionList,

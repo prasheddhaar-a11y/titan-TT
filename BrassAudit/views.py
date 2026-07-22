@@ -166,6 +166,10 @@ class BrassAuditPickTableView(APIView):
                 'brass_audit_holding_reason': stock_obj.brass_audit_holding_reason,
                 'brass_audit_release_lot': stock_obj.brass_audit_release_lot,
                 'brass_audit_release_reason': stock_obj.brass_audit_release_reason,
+                'brass_audit_hold_by': getattr(getattr(stock_obj, 'brass_audit_hold_by', None), 'username', ''),
+                'brass_audit_hold_at': timezone.localtime(getattr(stock_obj, 'brass_audit_hold_at')).strftime("%d-%b-%Y %I:%M %p") if getattr(stock_obj, 'brass_audit_hold_at', None) else '',
+                'brass_audit_release_by': getattr(getattr(stock_obj, 'brass_audit_release_by', None), 'username', ''),
+                'brass_audit_release_at': timezone.localtime(getattr(stock_obj, 'brass_audit_release_at')).strftime("%d-%b-%Y %I:%M %p") if getattr(stock_obj, 'brass_audit_release_at', None) else '',
                 'has_draft': stock_obj.has_draft,
                 'draft_type': stock_obj.draft_type,
                 'brass_rejection_total_qty': stock_obj.brass_rejection_total_qty,
@@ -1130,22 +1134,42 @@ def brass_audit_hold_unhold(request):
     if not ts:
         return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
 
+    now = timezone.now()
     if action == 'hold':
         ts.brass_audit_hold_lot = True
         ts.brass_audit_holding_reason = remark
+        if hasattr(ts, 'brass_audit_hold_by'):
+            ts.brass_audit_hold_by = request.user
+        if hasattr(ts, 'brass_audit_hold_at'):
+            ts.brass_audit_hold_at = now
         ts.brass_audit_release_lot = False
         ts.brass_audit_release_reason = ''
     else:
         ts.brass_audit_hold_lot = False
         ts.brass_audit_release_reason = remark
+        if hasattr(ts, 'brass_audit_release_by'):
+            ts.brass_audit_release_by = request.user
+        if hasattr(ts, 'brass_audit_release_at'):
+            ts.brass_audit_release_at = now
         ts.brass_audit_release_lot = True
 
-    ts.save(update_fields=[
-        'brass_audit_hold_lot', 'brass_audit_holding_reason',
-        'brass_audit_release_lot', 'brass_audit_release_reason',
-    ])
+    update_fields = [
+        'brass_audit_hold_lot',
+        'brass_audit_holding_reason',
+        'brass_audit_release_lot',
+        'brass_audit_release_reason',
+    ]
+    if hasattr(ts, 'brass_audit_hold_by'):
+        update_fields.append('brass_audit_hold_by')
+    if hasattr(ts, 'brass_audit_hold_at'):
+        update_fields.append('brass_audit_hold_at')
+    if hasattr(ts, 'brass_audit_release_by'):
+        update_fields.append('brass_audit_release_by')
+    if hasattr(ts, 'brass_audit_release_at'):
+        update_fields.append('brass_audit_release_at')
+    ts.save(update_fields=update_fields)
 
-    logger.info(f"[BrassAudit] Hold/Unhold: lot_id={lot_id}, action={action}, remark={remark}")
+    logger.info(f"[BrassAudit] Hold/Unhold: lot_id={lot_id}, action={action}, remark={remark}, user={request.user}")
 
     return JsonResponse({
         "success": True,
@@ -1155,6 +1179,10 @@ def brass_audit_hold_unhold(request):
         "release_reason": ts.brass_audit_release_reason or '',
         "hold_lot": ts.brass_audit_hold_lot,
         "release_lot": ts.brass_audit_release_lot,
+        "hold_by": getattr(getattr(ts, 'brass_audit_hold_by', None), 'username', ''),
+        "hold_at": timezone.localtime(getattr(ts, 'brass_audit_hold_at')).strftime("%d-%b-%Y %I:%M %p") if getattr(ts, 'brass_audit_hold_at', None) else '',
+        "release_by": getattr(getattr(ts, 'brass_audit_release_by', None), 'username', ''),
+        "release_at": timezone.localtime(getattr(ts, 'brass_audit_release_at')).strftime("%d-%b-%Y %I:%M %p") if getattr(ts, 'brass_audit_release_at', None) else '',
         "message": f"Lot {'held' if action == 'hold' else 'released'} successfully.",
     })
 
@@ -1434,6 +1462,8 @@ def brass_audit_action(request):
             stock = TotalStockModel.objects.select_related('batch_id').get(lot_id=lot_id)
         except TotalStockModel.DoesNotExist:
             return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
+        if stock.brass_audit_hold_lot:
+            return JsonResponse({"success": False, "error": "This lot is on hold and cannot be processed until released."}, status=400)
         if Brass_Audit_Submission.objects.filter(lot_id=lot_id, is_completed=True).exists():
             return JsonResponse({"success": False, "error": "Lot already submitted — cannot save draft"}, status=409)
         draft, created = Brass_Audit_Draft_Store.objects.update_or_create(
@@ -1504,6 +1534,8 @@ def _handle_audit_submission(request, action):
             stock = TotalStockModel.objects.select_related('batch_id').get(lot_id=lot_id)
         except TotalStockModel.DoesNotExist:
             return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
+        if stock.brass_audit_hold_lot:
+            return JsonResponse({"success": False, "error": "This lot is on hold and cannot be processed until released."}, status=400)
         remark_text = remarks
         if not remark_text:
             return JsonResponse({"success": False, "error": "Remark text is required"}, status=400)
@@ -1517,6 +1549,9 @@ def _handle_audit_submission(request, action):
         stock = TotalStockModel.objects.select_related('batch_id').get(lot_id=lot_id)
     except TotalStockModel.DoesNotExist:
         return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
+
+    if stock.brass_audit_hold_lot:
+        return JsonResponse({"success": False, "error": "This lot is on hold and cannot be processed until released."}, status=400)
 
     existing = Brass_Audit_Submission.objects.filter(
         lot_id=lot_id,

@@ -1667,18 +1667,18 @@ body.add-model-mode #selectAllCheckbox {
                           <span class="hold-slider"></span>
                         {% endif %}
                       </label>
-                      <span class="hold-remark-icon" 
-                            style="display:{% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or data.unload_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
-                            title="{% if jig_detail.unload_holding_reason %}Holding Reason: {{ jig_detail.unload_holding_reason }}{% endif %}{% if jig_detail.unload_holding_reason and jig_detail.unload_release_reason %}&#10;{% endif %}{% if jig_detail.unload_release_reason %}Release Reason: {{ jig_detail.unload_release_reason }}{% endif %}">
+                      <span class="hold-remark-icon"
+                            style="display:{% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or jig_detail.unload_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;"
+                            title="{% if jig_detail.unload_holding_reason %}Holding Reason: {{ jig_detail.unload_holding_reason }} (by {{ jig_detail.unload_hold_by }} on {{ jig_detail.unload_hold_at|date:"d-M-Y h:i A" }}){% endif %}{% if jig_detail.unload_holding_reason and jig_detail.unload_release_reason %}&#10;{% endif %}{% if jig_detail.unload_release_reason %}Release Reason: {{ jig_detail.unload_release_reason }} (by {{ jig_detail.unload_release_by }} on {{ jig_detail.unload_release_at|date:"d-M-Y h:i A" }}){% endif %}">
                         {% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or jig_detail.unload_release_reason %}
                           <img src="{% static 'assets/icons/view.png' %}" alt="Remark" style="width:12px; height:12px;" />
                         {% endif %}
                       </span>
                     {% else %}
                       {% if jig_detail.unload_hold_lot or jig_detail.unload_release_lot or jig_detail.unload_holding_reason or jig_detail.unload_release_reason %}
-                        <span class="hold-remark-icon" 
-                              style="display:inline-block; cursor:pointer;" 
-                              title="{% if jig_detail.unload_holding_reason %}Holding Reason: {{ jig_detail.unload_holding_reason }}{% endif %}{% if jig_detail.unload_holding_reason and jig_detail.unload_release_reason %}&#10;{% endif %}{% if jig_detail.unload_release_reason %}Release Reason: {{ jig_detail.unload_release_reason }}{% endif %}">
+                        <span class="hold-remark-icon"
+                              style="display:inline-block; cursor:pointer;"
+                              title="{% if jig_detail.unload_holding_reason %}Holding Reason: {{ jig_detail.unload_holding_reason }} (by {{ jig_detail.unload_hold_by }} on {{ jig_detail.unload_hold_at|date:"d-M-Y h:i A" }}){% endif %}{% if jig_detail.unload_holding_reason and jig_detail.unload_release_reason %}&#10;{% endif %}{% if jig_detail.unload_release_reason %}Release Reason: {{ jig_detail.unload_release_reason }} (by {{ jig_detail.unload_release_by }} on {{ jig_detail.unload_release_at|date:"d-M-Y h:i A" }}){% endif %}">
                           <img src="{% static 'assets/icons/view.png' %}" alt="View Reason" style="width:18px; height:18px;" />
                         </span>
                       {% endif %}
@@ -3608,6 +3608,128 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('[Gallery] Enlarged image:', imgUrl, 'Model:', modelNo);
       // You can add additional zoom/lightbox functionality here if needed
     };
+  })();
+
+  // ── Hold/Unhold view icon click handler ──
+  document.querySelectorAll('.hold-remark-icon').forEach(function(icon) {
+    icon.addEventListener('click', function() {
+      const title = this.getAttribute('title') || '';
+      if (title && window.Swal && typeof Swal.fire === 'function') {
+        Swal.fire({ icon: 'info', title: 'Hold / Release Remark', html: '<div style="text-align:left;">' + title.replace(/&#10;/g, '<br>') + '</div>', confirmButtonColor: '#028084' });
+      }
+    });
+  });
+
+  // ── Hold / Unhold Toggle with Remark ──
+  (function initHoldToggle() {
+    const holdModal = document.getElementById('holdRemarkModal');
+    const holdInput = document.getElementById('holdRemarkInput');
+    const holdError = document.getElementById('holdRemarkError');
+    const holdTitle = holdModal ? holdModal.querySelector('h5') : null;
+    const saveBtn = document.getElementById('saveHoldRemarkBtn');
+    const closeBtn = document.getElementById('closeHoldRemarkModal');
+
+    if (!holdModal || !holdInput || !saveBtn) return;
+
+    window.holdToggleState = null;
+
+    function attachHoldToggleListeners() {
+      document.querySelectorAll('.hold-toggle-btn').forEach(function(toggle) {
+        toggle.addEventListener('change', function(e) {
+          e.preventDefault();
+          const row = this.closest('tr');
+          const lotId = row ? row.getAttribute('data-lot-id') : null;
+          if (!lotId) return;
+
+          const intendedHold = !this.checked;
+          const action = intendedHold ? 'hold' : 'unhold';
+
+          window.holdToggleState = {
+            toggle: this,
+            row: row,
+            lotId: lotId,
+            action: action,
+            originalChecked: !intendedHold
+          };
+          this.checked = !intendedHold;
+
+          if (holdTitle) holdTitle.textContent = action === 'hold' ? 'Hold Reason' : 'Release Reason';
+          holdInput.value = '';
+          if (holdError) holdError.textContent = '';
+          holdModal.style.display = 'flex';
+          holdInput.focus();
+        });
+      });
+    }
+
+    saveBtn.addEventListener('click', function() {
+      const state = window.holdToggleState;
+      if (!state) return;
+
+      const remark = holdInput.value.trim();
+      if (!remark) {
+        if (holdError) holdError.textContent = 'Remark is required.';
+        return;
+      }
+      if (remark.length > 50) {
+        if (holdError) holdError.textContent = 'Max 50 characters allowed.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      fetch(API_BASE + '/hold_unhold_z1/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({
+          lot_id: state.lotId,
+          action: state.action,
+          remark: remark
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        saveBtn.disabled = false;
+        if (data.success) {
+          holdModal.style.display = 'none';
+          if (window.Swal && typeof Swal.fire === 'function') {
+            Swal.fire({
+              icon: 'success',
+              title: state.action === 'hold' ? 'Lot Held' : 'Lot Released',
+              text: data.message,
+              timer: 1500,
+              showConfirmButton: false
+            });
+          }
+          setTimeout(function() { location.reload(); }, 1500);
+        } else {
+          if (holdError) holdError.textContent = data.error || 'Failed to save.';
+        }
+      })
+      .catch(function(err) {
+        saveBtn.disabled = false;
+        if (holdError) holdError.textContent = 'Network error.';
+        console.error('[Jig Unloading Z1] Hold/Unhold error:', err);
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function() {
+        holdModal.style.display = 'none';
+        window.holdToggleState = null;
+      });
+    }
+
+    holdModal.addEventListener('click', function(e) {
+      if (e.target === holdModal) {
+        holdModal.style.display = 'none';
+        window.holdToggleState = null;
+      }
+    });
+
+    attachHoldToggleListeners();
   })();
 });
 </script>

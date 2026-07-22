@@ -894,7 +894,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             lot_id=OuterRef('lot_id')
         ).values('polish_finish__polish_finish')[:1]
         
-        jig_unload = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jig_unload = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -903,10 +903,10 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             Q(last_process_module='Inprocess Inspection') |
             Q(last_process_module='Jig Unloading')
         ).order_by('-IP_loaded_date_time')
-        
-        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data 
+
+        # ENHANCED FILTER: Also get jigs where plating_color is not in draft_data
         # but can be determined from TotalStockModel or RecoveryStockModel
-        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers').annotate(
+        jigs_without_plating_in_draft = JigCompleted.objects.select_related('bath_numbers', 'unload_hold_by', 'unload_release_by').annotate(
             plating_color_cast=KeyTextTransform('plating_color', 'draft_data'),
             polish_finish_name=Subquery(polish_finish_subquery)
         ).filter(
@@ -2259,33 +2259,57 @@ class JU_Zone_SaveHoldUnholdReasonAPIView(APIView):
         "lot_id": "LOT123"
     }
     """
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
+        from django.utils import timezone
         try:
             data = request.data if hasattr(request, 'data') else json.loads(request.body.decode('utf-8'))
-            jig_lot_id = data.get('jig_lot_id')
-            remark = data.get('remark', '').strip()
-            action = data.get('action', '').strip().lower()
+            lot_id = data.get('lot_id')
+            remark = (data.get('remark') or '').strip()
+            action = (data.get('action') or '').strip().lower()
 
-            if not jig_lot_id or not remark or action not in ['hold', 'unhold']:
+            if not lot_id or not remark or action not in ['hold', 'unhold']:
                 return JsonResponse({'success': False, 'error': 'Missing or invalid parameters.'}, status=400)
 
             # Only use JigCompleted table
-            obj = JigCompleted.objects.filter(jig_lot_id=jig_lot_id).first()
+            obj = JigCompleted.objects.filter(lot_id=lot_id).first()
             if not obj:
                 return JsonResponse({'success': False, 'error': 'JigCompleted record not found.'}, status=404)
 
+            now = timezone.now()
             if action == 'hold':
                 obj.unload_holding_reason = remark
                 obj.unload_hold_lot = True
+                obj.unload_hold_by = request.user
+                obj.unload_hold_at = now
                 obj.unload_release_reason = ''
                 obj.unload_release_lot = False
             elif action == 'unhold':
                 obj.unload_release_reason = remark
                 obj.unload_hold_lot = False
                 obj.unload_release_lot = True
+                obj.unload_release_by = request.user
+                obj.unload_release_at = now
 
-            obj.save(update_fields=['unload_holding_reason', 'unload_release_reason', 'unload_hold_lot', 'unload_release_lot'])
-            return JsonResponse({'success': True, 'message': 'Reason saved.'})
+            obj.save(update_fields=[
+                'unload_holding_reason', 'unload_release_reason', 'unload_hold_lot', 'unload_release_lot',
+                'unload_hold_by', 'unload_hold_at', 'unload_release_by', 'unload_release_at',
+            ])
+            return JsonResponse({
+                'success': True,
+                'lot_id': lot_id,
+                'action': action,
+                'holding_reason': obj.unload_holding_reason or '',
+                'release_reason': obj.unload_release_reason or '',
+                'hold_lot': obj.unload_hold_lot,
+                'release_lot': obj.unload_release_lot,
+                'hold_by': obj.unload_hold_by.username if obj.unload_hold_by else '',
+                'hold_at': timezone.localtime(obj.unload_hold_at).strftime("%d-%b-%Y %I:%M %p") if obj.unload_hold_at else '',
+                'release_by': obj.unload_release_by.username if obj.unload_release_by else '',
+                'release_at': timezone.localtime(obj.unload_release_at).strftime("%d-%b-%Y %I:%M %p") if obj.unload_release_at else '',
+                'message': 'Reason saved.',
+            })
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
@@ -2522,6 +2546,12 @@ def JU_Zone_save_jig_unload_tray_ids(request):
         print(f"[SMART SAVE] main_lot_id: '{main_lot_id}'")
         print(f"[SMART SAVE] jig_aware_sources: {jig_aware_sources}")
         print(f"[SMART SAVE] trays count: {len(trays)}")
+
+        _hold_check_lot_id = jig_lot_id or main_lot_id
+        if _hold_check_lot_id:
+            _hold_check_jc = JigCompleted.objects.filter(lot_id=_hold_check_lot_id).only('unload_hold_lot').first()
+            if _hold_check_jc and _hold_check_jc.unload_hold_lot:
+                return JsonResponse({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
 
         if not trays:
             return JsonResponse({'success': False, 'error': 'Trays data is missing.'})

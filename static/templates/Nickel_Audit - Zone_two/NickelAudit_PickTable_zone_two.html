@@ -788,19 +788,21 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {% endif %}
                         </label>
                         <!-- Hold remark icon -->
-                        <span class="hold-remark-icon" 
-                              style="display:{% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
-                              title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }}{% endif %}">
-                          {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}
+                        <span class="hold-remark-icon"
+                              style="display:{% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.na_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;"
+                              data-bs-toggle="tooltip" data-placement="right"
+                              data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }} (by {{ data.na_hold_by }} on {{ data.na_hold_at }}){% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }} (by {{ data.na_release_by }} on {{ data.na_release_at }}){% endif %}">
+                          {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.na_release_reason %}
                             <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:12px; height:12px;" />
                           {% endif %}
                         </span>
                       {% else %}
                         <!-- Non-admin: Only show view icon if there's a holding/release reason -->
-                        {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}
-                          <span class="hold-remark-icon" 
-                                style="display:inline-block; cursor:pointer;" 
-                                title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }}{% endif %}">
+                        {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.na_release_reason %}
+                          <span class="hold-remark-icon"
+                                style="display:inline-block; cursor:pointer;"
+                                data-bs-toggle="tooltip" data-placement="right"
+                                data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }} (by {{ data.na_hold_by }} on {{ data.na_hold_at }}){% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }} (by {{ data.na_release_by }} on {{ data.na_release_at }}){% endif %}">
                             <img src="{% static 'assets/icons/view2.png' %}" alt="View Reason" style="width:18px; height:18px;" />
                           </span>
                         {% endif %}
@@ -2486,6 +2488,134 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script src="{% static 'js/model_image_tooltip.js' %}"></script>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+
+  // Hold/Unhold view icon click handler
+  document.querySelectorAll('.hold-remark-icon').forEach(function(icon) {
+    icon.addEventListener('click', function() {
+      var title = this.getAttribute('data-bs-original-title') || '';
+      if (title) {
+        Swal.fire({ icon: 'info', title: 'Hold / Release Remark', html: '<div style="text-align:left;">' + title.replace(/&#10;/g, '<br>') + '</div>', confirmButtonColor: '#028084' });
+      }
+    });
+  });
+
+  // Hold / Unhold Toggle with Remark
+  (function initHoldToggle() {
+    const holdModal = document.getElementById('holdRemarkModal');
+    const holdInput = document.getElementById('holdRemarkInput');
+    const holdError = document.getElementById('holdRemarkError');
+    const holdTitle = holdModal ? holdModal.querySelector('h5') : null;
+    const saveBtn = document.getElementById('saveHoldRemarkBtn');
+    const closeBtn = document.getElementById('closeHoldRemarkModal');
+
+    if (!holdModal || !holdInput || !saveBtn) return;
+
+    window.naHoldToggleState = null;
+
+    function attachHoldToggleListeners() {
+      document.querySelectorAll('.hold-toggle-btn').forEach(function(toggle) {
+        toggle.addEventListener('change', function(e) {
+          e.preventDefault();
+          const row = this.closest('tr');
+          const lotId = row ? row.getAttribute('data-stock-lot-id') : null;
+          if (!lotId) return;
+
+          // checked = active (not held), unchecked = held
+          const intendedHold = !this.checked;
+          const action = intendedHold ? 'hold' : 'unhold';
+
+          window.naHoldToggleState = {
+            toggle: this,
+            row: row,
+            lotId: lotId,
+            action: action,
+            originalChecked: !intendedHold
+          };
+          // Revert toggle visually until modal confirms
+          this.checked = !intendedHold;
+
+          if (holdTitle) holdTitle.textContent = action === 'hold' ? 'Hold Reason' : 'Release Reason';
+          holdInput.value = '';
+          if (holdError) holdError.textContent = '';
+          holdModal.style.display = 'flex';
+          holdInput.focus();
+        });
+      });
+    }
+
+    saveBtn.addEventListener('click', function() {
+      const state = window.naHoldToggleState;
+      if (!state) return;
+
+      const remark = holdInput.value.trim();
+      if (!remark) {
+        if (holdError) holdError.textContent = 'Remark is required.';
+        return;
+      }
+      if (remark.length > 50) {
+        if (holdError) holdError.textContent = 'Max 50 characters allowed.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      fetch('/nickel_audit_zone_two/api/hold-unhold/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+          lot_id: state.lotId,
+          action: state.action,
+          remark: remark
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        saveBtn.disabled = false;
+        if (data.success) {
+          holdModal.style.display = 'none';
+          Swal.fire({
+            icon: 'success',
+            title: state.action === 'hold' ? 'Lot Held' : 'Lot Released',
+            text: data.message,
+            timer: 1500,
+            showConfirmButton: false
+          });
+          setTimeout(function() { location.reload(); }, 1500);
+        } else {
+          if (holdError) holdError.textContent = data.error || 'Failed to save.';
+        }
+      })
+      .catch(function(err) {
+        saveBtn.disabled = false;
+        if (holdError) holdError.textContent = 'Network error.';
+        console.error('[NickelAudit Zone2] Hold/Unhold error:', err);
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function() {
+        holdModal.style.display = 'none';
+        window.naHoldToggleState = null;
+      });
+    }
+
+    holdModal.addEventListener('click', function(e) {
+      if (e.target === holdModal) {
+        holdModal.style.display = 'none';
+        window.naHoldToggleState = null;
+      }
+    });
+
+    attachHoldToggleListeners();
+  })();
+});
+</script>
 
 {% endblock %}
 {% endblock content %}
