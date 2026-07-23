@@ -122,6 +122,10 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 MIDDLEWARE = [
+
+    
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     # First in the chain so it wraps everything below it (security, session,
     # auth, view, template) and can attribute the full request time to a
     # per-request breakdown. See watchcase_tracker/perf_logger.py.
@@ -130,7 +134,7 @@ MIDDLEWARE = [
     # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
     'adminportal.middleware.SecurityHeadersMiddleware',
     # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
-    'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
+    #'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # SafeSessionMiddleware = Django's SessionMiddleware + graceful handling of
@@ -213,7 +217,7 @@ REST_FRAMEWORK = {
 
 
 # Dev Database
-DATABASES = {
+""" DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'watchcase2026',
@@ -222,20 +226,20 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     }
-}
+} """
 
 # UAT Database
-""" DATABASES = {
+DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'watchcasetrack',
+        'NAME': 'watchcase2026',
         'USER':'postgres',
         'PASSWORD':'postgres',
         'HOST':'127.0.0.1',
         'PORT':'5432',
         'CONN_MAX_AGE':60,
     }
-} """
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -351,6 +355,9 @@ SOP_FILE_MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Maximum allowed model-image upload size: 10 MB
+MODEL_IMAGE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -428,18 +435,14 @@ LOGGING = {
 # Microsoft (Entra ID) / MSAL settings
 MSAL_CLIENT_ID = os.getenv("MSAL_CLIENT_ID", "54a2fd19-0009-4e29-9d7b-b33e9ae8fbfa")
 MSAL_CLIENT_SECRET = os.getenv("MSAL_CLIENT_SECRET")
-# MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID", "common")
+MSAL_TENANT_ID = os.getenv(
+    "MSAL_TENANT_ID",
+    "04132f71-f746-4a5b-a30e-66ea6d16714c",
+).strip()
 # Use the callback path without a trailing slash so it is compatible with the
 # common Azure App Registration redirect URI format.
 
-# MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
-
-
-
-MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID","04132f71-f746-4a5b-a30e-66ea6d16714c",).strip()
- 
-MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE","https://trackandtrace.titan.in").strip().rstrip("/")
-
+MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
 
 # Optional fixed origin (scheme+host[:port]) for the OAuth redirect URI, e.g.
 # "http://localhost:8000" or "https://titan.example.com". When unset, the
@@ -447,5 +450,5 @@ MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE","https://trackandtra
 # if that exact origin+MSAL_REDIRECT_PATH is registered in the Azure App
 # Registration's "Redirect URIs". Set this to pin the app to one Azure-registered
 # URI regardless of how a browser reaches it (127.0.0.1 vs localhost, etc).
-MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE", "http://localhost:8000")
+MSAL_REDIRECT_URI_BASE = os.getenv("MSAL_REDIRECT_URI_BASE", "https://trackandtrace.titan.in").strip().rstrip("/")
 MSAL_SCOPES = ["User.Read"]

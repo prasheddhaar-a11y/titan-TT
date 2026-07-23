@@ -134,36 +134,57 @@ def _is_no_image_name(filename):
     return normalized_name == 'no_image' or compact_name == 'noimage'
 
 
+def is_no_image_model_image(image_obj):
+    """Return True when a ModelImage is the configured no_image placeholder."""
+    lookup_name = get_model_image_lookup_name(image_obj)
+    storage_name = getattr(getattr(image_obj, 'master_image', None), 'name', '')
+    return _is_no_image_name(lookup_name) or _is_no_image_name(storage_name)
+
+
 def get_global_no_image():
-    """Return the global no_image ModelImage, independent of any model links."""
+    """
+    Return the global NO_IMAGE ModelImage deterministically.
+
+    The lookup prioritizes the database original_filename because stored media
+    filenames are UUID-based and cannot be used to identify the placeholder.
+    """
+    from django.db.models import Q
     from modelmasterapp.models import ModelImage
 
-    for img in ModelImage.objects.all().only('id', 'master_image', 'original_filename'):
-        lookup_name = get_model_image_lookup_name(img)
-        storage_name = getattr(getattr(img, 'master_image', None), 'name', '')
-        if (_is_no_image_name(lookup_name) or _is_no_image_name(storage_name)) and get_image_url(img):
+    candidates = ModelImage.objects.filter(
+        Q(original_filename__iexact='NO_IMAGE.jpg')
+        | Q(original_filename__iexact='NO_IMAGE.jpeg')
+        | Q(original_filename__iexact='NO_IMAGE.png')
+        | Q(original_filename__iexact='NO_IMAGE.webp')
+        | Q(original_filename__iexact='NOIMAGE.jpg')
+        | Q(original_filename__iexact='NOIMAGE.jpeg')
+        | Q(original_filename__iexact='NOIMAGE.png')
+        | Q(original_filename__iexact='NOIMAGE.webp')
+    ).order_by('id')
+
+    for img in candidates:
+        if get_image_url(img):
             return img
+
+    # Compatibility fallback for older records whose original filename uses
+    # spaces, hyphens, or another extension/case.
+    for img in ModelImage.objects.exclude(
+        original_filename__isnull=True
+    ).exclude(
+        original_filename=''
+    ).order_by('id'):
+        if is_no_image_model_image(img) and get_image_url(img):
+            return img
+
     return None
 
 
 def get_no_image(images):
     """Return the uploaded no_image ModelImage from an iterable, if present."""
     for img in _valid_model_images(images):
-        lookup_name = get_model_image_lookup_name(img)
-        storage_name = getattr(getattr(img, 'master_image', None), 'name', '')
-        if _is_no_image_name(lookup_name) or _is_no_image_name(storage_name):
+        if is_no_image_model_image(img):
             return img
     return None
-
-
-def is_no_image_model_image(image_obj):
-    """Return True when a ModelImage represents the shared no-image placeholder."""
-    if not image_obj:
-        return False
-
-    lookup_name = get_model_image_lookup_name(image_obj)
-    storage_name = getattr(getattr(image_obj, 'master_image', None), 'name', '')
-    return _is_no_image_name(lookup_name) or _is_no_image_name(storage_name)
 
 
 def get_image_by_view(images, view_code):
@@ -214,17 +235,13 @@ def get_model_view_image_urls(images, view_sequence=MODEL_VIEW_SEQUENCE):
 
 
 def get_uploaded_model_image_urls(images):
-    """Return URLs for the actual uploaded images, excluding no-image placeholders."""
-    urls = []
-    for img in _valid_model_images(images):
-        if is_no_image_model_image(img):
-            continue
-
-        image_url = get_image_url(img)
-        if image_url:
-            urls.append(image_url)
-
-    return urls
+    """Return browser URLs for real uploaded model images, excluding no_image."""
+    return [
+        image_url
+        for img in sort_images_front_first(_valid_model_images(images))
+        for image_url in [get_image_url(img)]
+        if image_url
+    ]
 
 
 def sort_images_front_first(images):
@@ -237,7 +254,7 @@ def sort_images_front_first(images):
     images = [
         img
         for img in images
-        if detect_image_type(get_model_image_lookup_name(img)) != NO_IMAGE_VIEW_CODE
+        if not is_no_image_model_image(img)
     ]
 
     for view_code in _FRONT_VIEW_PREFERENCE:
@@ -246,4 +263,4 @@ def sort_images_front_first(images):
             if detect_image_view(lookup_name) == view_code:
                 return [img] + [other for other in images if other is not img]
 
-    return images
+    return images  

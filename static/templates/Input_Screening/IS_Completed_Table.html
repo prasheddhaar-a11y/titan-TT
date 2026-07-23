@@ -129,8 +129,8 @@
   }
 
   /* Other columns (fit remaining space) */
-  #order-listing th:nth-child(4)  { min-width: 95px !important; max-width: 95px !important; }   /* Action */
-  #order-listing th:nth-child(5)  { min-width: 90px !important; max-width: 90px !important; }    /* Lot Qty */
+  #order-listing th:nth-child(4)  { min-width: 135px !important; max-width: 135px !important; }
+  #order-listing th:nth-child(5)  { min-width: 115px !important; max-width: 115px !important; }
   #order-listing th:nth-child(6)  { min-width: 135px !important; max-width: 135px !important; }
   #order-listing th:nth-child(7)  { min-width: 105px !important; max-width: 105px !important; }
   #order-listing th:nth-child(8)  { min-width: 140px !important; max-width: 140px !important; }
@@ -196,6 +196,67 @@ thead th {
 }
 
   
+
+#order-listing th:nth-child(4) {
+  min-width: 110px;
+  max-width: 120px;
+} /* Polishing Stk No */
+#order-listing th:nth-child(5) {
+  min-width: 90px;
+  max-width: 100px;
+} /* Plating Color */
+#order-listing th:nth-child(6) {
+  min-width: 100px;
+  max-width: 110px;
+} /* Category */
+#order-listing th:nth-child(7) {
+  min-width: 85px;
+  max-width: 95px;
+} /* Polish Finish */
+#order-listing th:nth-child(8) {
+    min-width: 105px;
+    max-width: 110px;
+} /* Version */
+#order-listing th:nth-child(9) {
+  min-width: 90px;
+  max-width: 95px;
+} /* Tray Cate-Capacity */
+#order-listing th:nth-child(10) {
+  min-width: 90px;
+  max-width: 100px;
+} /* Source */
+#order-listing th:nth-child(11) {
+  min-width: 80px;
+  max-width: 80px;
+} /* No of Trays */
+#order-listing th:nth-child(12) {
+  min-width: 100px;
+  max-width: 105px;
+} /* Input Qty */
+#order-listing th:nth-child(13) {
+  min-width: 95px;
+  max-width: 100px;
+} /* Process Status */
+#order-listing th:nth-child(14) {
+  min-width: 95px;
+  max-width: 100px;
+} /*  Action */
+#order-listing th:nth-child(15) {
+  min-width: 90px;
+  max-width: 100px;
+} /* Lot Status */
+#order-listing th:nth-child(16) {
+  min-width: 140px;
+  max-width: 150px;
+} /* Current Stage */
+#order-listing th:nth-child(17) {
+  min-width: 110px;
+  max-width: 100px;
+} /* Remarks */
+#order-listing th:nth-child(20) {
+  min-width: 100px;
+  max-width: 110px;
+} /* Remarks for IS Pick Table */
 
 @media (min-width: 600px) and (max-width: 900px) {
   #order-listing {
@@ -568,62 +629,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   justify-content: center !important;
   z-index: 4 !important;
 }
-
-/* IS Completed - Last Updated */
-  .is-completed-table-page #order-listing th:nth-child(2),
-  .is-completed-table-page #order-listing td:nth-child(2) {
-    min-width: 85px !important;
-    width: 85px !important;
-    max-width: 85px !important;
-    white-space: nowrap !important;
-    text-align: center !important;
-  }
-
-  /* Move Plating Stk No after Last Updated */
-  .is-completed-table-page #order-listing th:nth-child(3),
-  .is-completed-table-page #order-listing td:nth-child(3) {
-    left: 165px !important;
-  }
-
-  #order-listing th:nth-child(n+4) {
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: none !important;
-  white-space: nowrap !important;
-  word-break: normal !important;
-  text-align: center !important;
-}
-#order-listing td:nth-child(n+4) {
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: none !important;
-  white-space: normal !important;
-  word-break: break-word !important;
-}
-#order-listing th:nth-child(4),
-#order-listing td:nth-child(4) {
-  min-width: 190px !important;
-  max-width: 190px !important;
-  width: 190px !important;
-  white-space: nowrap !important;
-  text-align: center !important;
-}
-#order-listing th:nth-child(11),
-#order-listing td:nth-child(11) {
-  min-width: 135px !important;
-  max-width: 140px !important;
-}
-#order-listing th,
-#order-listing td {
-  text-align: center !important;
-}
-#order-listing td > div {
-  margin-left: auto !important;
-  margin-right: auto !important;
-}
-#order-listing td > div.d-flex {
-  justify-content: center !important;
-}
 </style>
  
 <div class="content-wrapper is-completed-table-page">
@@ -686,8 +691,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Plating <br> Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                    <th style="min-width:190px !important; width:190px !important; max-width:190px !important;">
-                      Action
+                    <th>
+                      Action <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
                       Lot Qty
@@ -730,6 +735,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </th>
                      <th>
                       Category
+                      <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
+                      Type of Input
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -851,6 +860,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>{{data.polishing_stk_no}}</td>
                     <td>{{ data.plating_color }}</td>
                     <td>{{ data.category }}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
                     <td>{{data.polish_finish}}</td>
                     <td>{{data.location__location_name}}</td>
                     <td>

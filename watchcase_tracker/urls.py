@@ -21,7 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
 from django.contrib.auth import views as auth_views
-from adminportal.views import IndexView, TimedLoginView
+from adminportal.views import IndexView, TimedLoginView, SharedVisualAidAPIView
 from django.conf.urls import handler404, handler500, handler403, handler400
 from importlib.util import find_spec
 import logging
@@ -66,6 +66,7 @@ urlpatterns = [
     path('accounts/login/', TimedLoginView.as_view(template_name='login.html'), name='login-api'),
      
     path('home/', IndexView.as_view(), name="home"),  # Dashboard with permission-filtered stats
+    path('api/visual-aid/<path:plating_stock_no>/', SharedVisualAidAPIView.as_view(), name='shared-visual-aid-api-root'),
     path('admin/', admin.site.urls),
     path('',include('modelmasterapp.urls')),
     path('adminportal/',include('adminportal.urls')),

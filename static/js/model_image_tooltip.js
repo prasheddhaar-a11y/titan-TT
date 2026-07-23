@@ -1,179 +1,192 @@
-// Shared wiring for the existing ".model-hover-trigger" / ".model-image-tooltip"
-// popup. Used by Nickel Wiping Pick to keep the larger Info/Close tooltip while
-// sourcing the preview from the backend SSOT.
-document.addEventListener("DOMContentLoaded", function () {
-  const previewCache = window.NickelModelPreviewCache || new Map();
-  window.NickelModelPreviewCache = previewCache;
+(function () {
+  var openTooltip = null;
+  var visualAidCache = Object.create(null);
 
-  let openTooltip = null;
-  let activeTrigger = null;
-  let activeStockNo = "";
-
-  function stockFromTrigger(trigger) {
-    return ((trigger && trigger.dataset.platingStkNo) || "").trim();
+  function closestTrigger(node) {
+    return node && node.closest ? node.closest(".model-hover-trigger") : null;
   }
 
-  function fetchPreview(stockNo) {
-    if (previewCache.has(stockNo)) {
-      return Promise.resolve(previewCache.get(stockNo));
+  function getTooltip(trigger) {
+    return trigger ? trigger.querySelector(".model-image-tooltip") : null;
+  }
+
+  function containsEither(trigger, tooltip, node) {
+    return !!(
+      node &&
+      ((trigger && trigger.contains(node)) || (tooltip && tooltip.contains(node)))
+    );
+  }
+
+  function setButtonsVisible(tooltip, visible) {
+    if (!tooltip) return;
+    tooltip.querySelectorAll(".info-btn, .close-btn").forEach(function (btn) {
+      btn.style.display = visible ? "block" : "none";
+    });
+  }
+
+  function getStockNo(trigger) {
+    if (!trigger) return "";
+    return (
+      trigger.getAttribute("data-plating-stk-no") ||
+      trigger.getAttribute("data-model-no") ||
+      (trigger.textContent || "").trim()
+    );
+  }
+
+  function getVisualAidUrl(stockNo) {
+    return "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo || "");
+  }
+
+  function getApiUrl(stockNo) {
+    return "/api/visual-aid/" + encodeURIComponent(stockNo || "") + "/";
+  }
+
+  function updateTooltipImage(tooltip, url) {
+    if (!tooltip || !url) return;
+    var gallery = tooltip.querySelector(".img-gallery");
+    if (!gallery) return;
+    if (tooltip.getAttribute("data-hover-preview") === "iv-only") {
+      gallery.innerHTML = "";
     }
-    return fetch(
-      "/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo),
-      { headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" } }
-    )
+    var img = gallery.querySelector("img");
+    if (!img) {
+      img = document.createElement("img");
+      img.style.width = "55px";
+      img.style.height = "55px";
+      img.style.objectFit = "cover";
+      img.style.borderRadius = "6px";
+      gallery.innerHTML = "";
+      gallery.appendChild(img);
+    }
+    img.src = url;
+  }
+
+  function loadVisualAid(trigger, tooltip) {
+    var stockNo = getStockNo(trigger);
+    if (!stockNo) return;
+
+    var infoBtn = tooltip ? tooltip.querySelector(".info-btn") : null;
+    if (infoBtn && !infoBtn.dataset.infoUrl) infoBtn.dataset.infoUrl = getVisualAidUrl(stockNo);
+
+    if (visualAidCache[stockNo]) {
+      updateTooltipImage(tooltip, visualAidCache[stockNo].iv_image || visualAidCache[stockNo].hover_image);
+      return;
+    }
+
+    fetch(getApiUrl(stockNo), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
       .then(function (response) {
-        return response.ok ? response.json() : null;
+        if (!response.ok) throw new Error("Visual Aid API failed");
+        return response.json();
       })
-      .then(function (payload) {
-        previewCache.set(stockNo, payload);
-        return payload;
+      .then(function (data) {
+        visualAidCache[stockNo] = data;
+        updateTooltipImage(tooltip, data.iv_image || data.hover_image);
       })
       .catch(function () {
-        previewCache.set(stockNo, null);
-        return null;
+        // Keep the server-rendered fallback image if the API is unavailable.
       });
   }
 
-  function prepareTooltip(tooltip) {
-    if (!tooltip || tooltip.dataset.previewReady === "1") return;
-    tooltip.dataset.previewReady = "1";
-    tooltip.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;">' +
-        '<button type="button" class="info-btn" style="background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Info</button>' +
-        '<button type="button" class="close-btn" style="background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Close</button>' +
-      '</div>' +
-      '<div style="display:flex;align-items:center;justify-content:center;width:180px;height:150px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;">' +
-        '<img class="nickel-preview-img" src="" alt="Model preview" style="width:100%;height:100%;object-fit:contain;object-position:center;border-radius:6px;" loading="lazy" />' +
-      '</div>';
+  function showTooltip(trigger) {
+    var tooltip = getTooltip(trigger);
+    if (!tooltip) return;
+
+    if (openTooltip && openTooltip !== tooltip) {
+      closeTooltip(openTooltip);
+    }
+
+    tooltip.style.display = "flex";
+    tooltip.style.visibility = "visible";
+    tooltip.style.opacity = "1";
+    tooltip.style.pointerEvents = "auto";
+    tooltip.style.zIndex = "500000";
+    setButtonsVisible(tooltip, true);
+    openTooltip = tooltip;
+    loadVisualAid(trigger, tooltip);
   }
 
-  function closeTooltip(tooltip, trigger) {
+  function closeTooltip(tooltip) {
     if (!tooltip) return;
     tooltip.classList.remove("pinned");
     tooltip.style.opacity = "0";
     tooltip.style.pointerEvents = "none";
     tooltip.style.visibility = "hidden";
     tooltip.style.display = "none";
-    if (trigger) {
-      trigger.style.backgroundColor = "";
-      trigger.style.borderRadius = "";
-    }
-    if (openTooltip === tooltip) {
-      openTooltip = null;
-      activeTrigger = null;
-      activeStockNo = "";
-    }
+    setButtonsVisible(tooltip, false);
+    if (openTooltip === tooltip) openTooltip = null;
   }
 
-  function renderPreview(trigger, stockNo, payload) {
-    if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
-    const tooltip = trigger.querySelector(".model-image-tooltip");
-    const img = tooltip ? tooltip.querySelector(".nickel-preview-img") : null;
-    if (img && payload && payload.preview_image) {
-      img.src = payload.preview_image;
-    }
-  }
+  document.addEventListener("mouseover", function (event) {
+    var trigger = closestTrigger(event.target);
+    if (!trigger) return;
 
-  function showTooltip(trigger, pinned) {
-    const tooltip = trigger.querySelector(".model-image-tooltip");
-    const stockNo = stockFromTrigger(trigger);
-    if (!tooltip || !stockNo) return;
+    var tooltip = getTooltip(trigger);
+    if (containsEither(trigger, tooltip, event.relatedTarget)) return;
+    showTooltip(trigger);
+  });
 
-    if (openTooltip && openTooltip !== tooltip) {
-      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
-    }
+  document.addEventListener("mouseout", function (event) {
+    var trigger = closestTrigger(event.target);
+    if (!trigger) return;
 
-    activeTrigger = trigger;
-    activeStockNo = stockNo;
-    openTooltip = tooltip;
-    prepareTooltip(tooltip);
-    tooltip.style.display = "flex";
-    tooltip.style.visibility = "visible";
-    tooltip.style.opacity = "1";
-    tooltip.style.pointerEvents = "auto";
-    if (pinned) {
-      tooltip.classList.add("pinned");
-      trigger.style.backgroundColor = "#e3f2fd";
-      trigger.style.borderRadius = "4px";
-    }
+    var tooltip = getTooltip(trigger);
+    if (containsEither(trigger, tooltip, event.relatedTarget)) return;
+    if (tooltip && tooltip.classList.contains("pinned")) return;
+    closeTooltip(tooltip);
+  });
 
-    fetchPreview(stockNo).then(function (payload) {
-      renderPreview(trigger, stockNo, payload);
-    });
-  }
-
-  document.querySelectorAll(".model-hover-trigger").forEach(function (trigger) {
-    const tooltip = trigger.querySelector(".model-image-tooltip");
-    if (!tooltip) return;
-    prepareTooltip(tooltip);
-
-    trigger.addEventListener("mouseenter", function () {
-      if (!tooltip.classList.contains("pinned")) {
-        showTooltip(trigger, false);
-      }
-    });
-
-    trigger.addEventListener("mouseleave", function () {
-      if (!tooltip.classList.contains("pinned")) {
-        closeTooltip(tooltip, trigger);
-      }
-    });
-
-    tooltip.addEventListener("mouseenter", function () {
-      if (openTooltip === tooltip) {
-        tooltip.style.display = "flex";
-        tooltip.style.visibility = "visible";
-        tooltip.style.opacity = "1";
-        tooltip.style.pointerEvents = "auto";
-      }
-    });
-
-    tooltip.addEventListener("mouseleave", function () {
-      if (!tooltip.classList.contains("pinned")) {
-        closeTooltip(tooltip, trigger);
-      }
-    });
-
-    trigger.addEventListener("click", function (e) {
-      e.stopPropagation();
-      showTooltip(trigger, true);
-    });
-
-    const infoBtn = tooltip.querySelector(".info-btn");
+  document.addEventListener("click", function (event) {
+    var infoBtn = event.target.closest(".model-image-tooltip .info-btn");
     if (infoBtn) {
-      infoBtn.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const stockNo = activeTrigger ? stockFromTrigger(activeTrigger) : stockFromTrigger(trigger);
-        if (!stockNo) return;
-        window.location.href =
-          "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
-      });
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      var trigger = closestTrigger(infoBtn);
+      var stockNo = getStockNo(trigger);
+      window.location.href = infoBtn.dataset.infoUrl || getVisualAidUrl(stockNo);
+      return;
     }
 
-    const closeBtn = tooltip.querySelector(".close-btn");
+    var closeBtn = event.target.closest(".model-image-tooltip .close-btn");
     if (closeBtn) {
-      closeBtn.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeTooltip(tooltip, trigger);
-      });
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      closeTooltip(closeBtn.closest(".model-image-tooltip"));
+      return;
     }
-  });
 
-  document.addEventListener("click", function (e) {
-    if (
-      openTooltip &&
-      !e.target.closest(".model-image-tooltip") &&
-      !e.target.closest(".model-hover-trigger")
-    ) {
-      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    var trigger = closestTrigger(event.target);
+    if (trigger) {
+      event.stopPropagation();
+      var tooltip = getTooltip(trigger);
+      if (!tooltip) return;
+      tooltip.classList.add("pinned");
+      showTooltip(trigger);
+      return;
     }
-  });
 
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && openTooltip) {
-      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    if (openTooltip && !event.target.closest(".model-image-tooltip")) {
+      closeTooltip(openTooltip);
     }
+  }, true);
+
+  document.addEventListener("mousedown", function (event) {
+    var infoBtn = event.target.closest(".model-image-tooltip .info-btn");
+    if (!infoBtn) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    var trigger = closestTrigger(infoBtn);
+    var stockNo = getStockNo(trigger);
+    window.location.href = infoBtn.dataset.infoUrl || getVisualAidUrl(stockNo);
+  }, true);
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && openTooltip) closeTooltip(openTooltip);
   });
-});
+})();

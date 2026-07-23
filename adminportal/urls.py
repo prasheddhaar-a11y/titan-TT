@@ -97,6 +97,7 @@ urlpatterns = [
     path('global_tray_search/', GlobalTraySearchView.as_view(), name='global_tray_search'),
 
     # Model hover preview API (used by stock-number preview popups)
+    path('api/visual-aid/<path:plating_stock_no>/', SharedVisualAidAPIView.as_view(), name='shared-visual-aid-api'),
     path('api/model-hover-preview/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview'),
     path('api/model-hover-preview/<path:stock_no>/', ModelHoverPreviewAPIView.as_view(), name='model-hover-preview-detail'),
     path('api/model-version-comparison/', ModelVersionComparisonAPIView.as_view(), name='model-version-comparison'),
@@ -107,6 +108,4 @@ urlpatterns = [
     # Lot remark history API — returns all pick-stage remarks for a lot
     path('api/lot_remark_history/', LotRemarkHistoryAPIView.as_view(), name='lot-remark-history'),
 ]
-
-
 

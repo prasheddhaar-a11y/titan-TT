@@ -104,10 +104,9 @@
 
   function renderData(data, stockNo) {
     var popup  = getPopup();
-    var images = (data && data.images) || [];
     var found  = data && data.found;
-    var previewUrl = data && (data.preview_image || (images[0] && images[0].url));
-    var previewView = data && (data.preview_view || (images[0] && images[0].view) || 'Preview');
+    var previewUrl = data && data.preview_image;
+    var previewView = data && (data.preview_view || 'Preview');
 
     var header =
       '<div style="display:flex;align-items:center;justify-content:space-between;' +
@@ -121,11 +120,7 @@
       '</div>';
 
     var body;
-    if (!found) {
-      body = '<div style="color:#888;font-size:12px;">No model data found.</div>';
-    } else if (!previewUrl) {
-      body = '<div style="color:#888;font-size:12px;">No images uploaded for this model.</div>';
-    } else {
+    if (previewUrl) {
       body =
         '<div style="text-align:center;">' +
           '<img src="' + escAttr(previewUrl) + '" alt="' + escAttr(previewView) + '" ' +
@@ -133,6 +128,10 @@
                    'border:1px solid #e0e0e0;background:#fff;" loading="lazy" />' +
           '<div style="font-size:10px;color:#666;margin-top:4px;">' + escHtml(previewView) + '</div>' +
         '</div>';
+    } else if (!found) {
+      body = '<div style="color:#888;font-size:12px;">No model data found.</div>';
+    } else {
+      body = '<div style="color:#888;font-size:12px;">No images uploaded for this model.</div>';
     }
 
     var footer = '';
