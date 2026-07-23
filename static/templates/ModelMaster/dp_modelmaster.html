@@ -83,6 +83,25 @@ body.dp-modelmaster-page-active .content-wrapper {
   background: rgba(255,255,255,.28) !important;
   box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
+.back-to-dashboard-btn {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.3) !important;
+  border-radius: 20px !important;
+  padding: 6px 14px !important;
+  font-size: .82rem !important;
+  font-weight: 600;
+  transition: background .2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.back-to-dashboard-btn:hover {
+  background: rgba(255,255,255,.28) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  color: #fff !important;
+}
 
 /* ── Content area ── */
 .model-master-content {
@@ -646,7 +665,10 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 
 <div class="model-master-frame dp-modelmaster-main">
   <div class="model-master-header dp-modelmaster-titlebar d-flex justify-content-between align-items-center">
-    <h3>Model Master Management System</h3>
+    <div class="d-flex align-items-center" style="gap:14px;">
+      <a href="{% url 'index' %}" class="btn back-to-dashboard-btn" title="Back to Dashboard"><i class="fa fa-arrow-left"></i> Back</a>
+      <h3>Model Master Management System</h3>
+    </div>
     <a href="{% url 'view_master' %}" class="btn view-data-btn">View Masters</a>
   </div>
 

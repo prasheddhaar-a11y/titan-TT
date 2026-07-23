@@ -151,7 +151,7 @@
     <span class="hold-remark-icon" 
       data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.ip_holding_reason %}Holding Reason: {{ data.ip_holding_reason }}{% endif %}{% if data.ip_holding_reason and data.ip_release_reason %}&#10;{% endif %}{% if data.ip_release_reason %}Release Reason: {{ data.ip_release_reason }}{% endif %}">
       {% if data.ip_hold_lot or data.ip_release_lot or data.ip_holding_reason or data.ip_release_reason %}
-      <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:18px; height:18px;" />
+      <img src="{% static 'assets/icons/view.png' %}" alt="Remark" style="width:18px; height:18px;" />
       {% endif %}
     </span>
     {% else %}
@@ -159,7 +159,7 @@
     {% if data.ip_hold_lot or data.ip_release_lot or data.ip_holding_reason or data.ip_release_reason %}
     <span class="hold-remark-icon" 
       data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.ip_holding_reason %}Holding Reason: {{ data.ip_holding_reason }}{% endif %}{% if data.ip_holding_reason and data.ip_release_reason %}&#10;{% endif %}{% if data.ip_release_reason %}Release Reason: {{ data.ip_release_reason }}{% endif %}">
-      <img src="{% static 'assets/icons/view2.png' %}" alt="View Reason" style="width:18px; height:18px;" />
+      <img src="{% static 'assets/icons/view.png' %}" alt="View Reason" style="width:18px; height:18px;" />
     </span>
     {% endif %}
     {% endif %}
@@ -174,7 +174,9 @@
                         </td>
                         <!-- Plating Stk No Column -->
                         <td {% if data.ip_hold_lot %} class="row-inactive-blur" {% endif %}>
-                        <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                        <span class="model-hover-trigger"
+                              data-plating-stk-no="{{ data.plating_stk_no }}"
+                              style="cursor: pointer; word-break: break-all; position: relative;">
                            {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                            <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                               <!-- Header with Info and Close buttons - Initially hidden -->
@@ -188,13 +190,9 @@
                               </div>
                               <!-- Image gallery section -->
                               <div style="display: flex; align-items: center; gap: 8px;">
-                                 <button class="img-scroll-left" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
-                                 <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                                    {% for img_url in data.model_images %}
-                                    <img src="{{ img_url }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                                    {% endfor %}
+                                 <div class="img-gallery" style="display: flex; justify-content:center; align-items:center; gap: 6px; overflow: hidden; width: 180px; height: 130px;">
+                                    <span style="font-size:12px;color:#777;text-align:center;">Loading...</span>
                                  </div>
-                                 <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
                               </div>
                            </div>
                         </span>
@@ -1190,7 +1188,7 @@
 <!-- SCRIPT 1: Save IP Checkbox -->
 <script nonce="{{ csp_nonce }}">
   window.IS_STATIC = window.IS_STATIC || {};
-  window.IS_STATIC.viewIcon = "{% static 'assets/icons/view2.png' %}";
+  window.IS_STATIC.viewIcon = "{% static 'assets/icons/view.png' %}";
 </script>
 
 <script nonce="{{ csp_nonce }}" src="{% static 'js/inputscreening_picktable.js' %}" defer></script>

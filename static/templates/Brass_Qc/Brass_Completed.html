@@ -908,6 +908,43 @@
       grid-template-columns: 30px 1fr 70px 90px !important;
       }
       }
+
+
+   /* Brass QC completed model preview: no inner shadow, ring or filter. */
+   #trayScanModal_DayPlanning .user-profile,
+   #trayScanModal_DayPlanning .user-profile img,
+   #trayScanModal_DayPlanning .modal-top-header,
+   .model-image-tooltip,
+   .model-image-tooltip .img-gallery,
+   .model-image-tooltip .img-gallery > *,
+   .model-image-tooltip img {
+      box-shadow: none !important;
+      text-shadow: none !important;
+      filter: none !important;
+   }
+
+   #trayScanModal_DayPlanning .user-profile img,
+   .model-image-tooltip img {
+      object-fit: contain !important;
+      object-position: center !important;
+      background: transparent !important;
+   }
+
+   /* Dynamic model hover: keep the popup and image completely shadow-free. */
+   .model-image-tooltip,
+   .model-image-tooltip *,
+   .model-image-tooltip img,
+   .model-image-tooltip .img-gallery {
+      box-shadow: none !important;
+      text-shadow: none !important;
+   }
+
+   .model-image-tooltip img {
+      object-fit: contain !important;
+      object-position: center !important;
+      background: #fff !important;
+   }
+
 </style>
 <div class="content-wrapper">
    <div class="row">
@@ -1084,12 +1121,12 @@
                               <span style="display:inline-block; margin-top:4px;word-break: break-all;">{{ data.bq_last_process_date_time|date:"h:i A" }}</span>
                            </td>
                            <td >
-                              <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                              <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all; position: relative;">
                                  {{ data.plating_stk_no|highlight_plating_color|safe_html }}
-                                 <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
+                                  <div class="model-image-tooltip" data-hover-preview="iv-only" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                                     <!-- Header with Info and Close buttons - Initially hidden -->
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                       <button class="info-btn" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
+                                       <button type="button" class="info-btn" data-info-url="/adminportal/dp_visualaid/?plating_stk_no={{ data.plating_stk_no|urlencode }}&preview=iv" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
                                        Info
                                        </button>
                                        <button class="close-btn" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: none;">
@@ -1098,13 +1135,9 @@
                                     </div>
                                     <!-- Image gallery section -->
                                     <div style="display: flex; align-items: center; gap: 8px;">
-                                       <button class="img-scroll-left" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8592;</button>
-                                       <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                                          {% for img_url in data.model_images %}
-                                          <img src="{{ img_url }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                                          {% endfor %}
-                                       </div>
-                                       <button class="img-scroll-right" style="background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
+                                        <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
+                                           <img src="{% static 'assets/images/imagePlaceholder.jpg' %}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                                        </div>
                                     </div>
                                  </div>
                               </span>
@@ -1533,7 +1566,7 @@
 </div>
 {% block script %}
 <!-- 🔥 NEW: Enhanced Date Filter JavaScript for Brass QC Completed Table with Future Date Validation -->
-<script nonce="{{ csp_nonce }}">
+<script type="text/plain" data-disabled="legacy-brass-completed-tooltip" nonce="{{ csp_nonce }}">
    document.addEventListener("DOMContentLoaded", function() {
      console.log('🔄 Initializing enhanced date filtering with future date validation for Brass QC Completed Table...');
      
@@ -2295,6 +2328,53 @@
 </script>
 <!--Update the tray list fetching endpoint in the modal script -->
 <script nonce="{{ csp_nonce }}">
+   async function loadBrassCompletedIvImage(modal, stockNo) {
+     const image = modal ? modal.querySelector('.user-profile img') : null;
+     if (!image || !stockNo) return;
+
+     image.removeAttribute('src');
+     image.alt = 'Loading model image';
+     image.style.objectFit = 'contain';
+     image.style.objectPosition = 'center';
+     image.style.boxShadow = 'none';
+     image.style.filter = 'none';
+     image.style.background = 'transparent';
+
+     try {
+       const response = await fetch(
+         '/adminportal/api/model-hover-preview/?stock_no=' +
+         encodeURIComponent(stockNo),
+         {
+           headers: {
+             'Accept': 'application/json',
+             'X-Requested-With': 'XMLHttpRequest'
+           }
+         }
+       );
+
+       if (!response.ok) {
+         throw new Error('HTTP ' + response.status);
+       }
+
+       const payload = await response.json();
+       const previewUrl = String(
+         payload && payload.preview_image ? payload.preview_image : ''
+       ).trim();
+
+       if (!previewUrl) {
+         throw new Error('No preview image returned');
+       }
+
+       // The shared backend chooses IV first, then TV, FV, RSV and NO_IMAGE.
+       image.src = previewUrl;
+       image.alt = 'Model IV preview';
+     } catch (error) {
+       console.error('Unable to load IV model preview:', error);
+       image.removeAttribute('src');
+       image.alt = 'Model image unavailable';
+     }
+   }
+
    document.addEventListener("DOMContentLoaded", function () {
      document.querySelectorAll('.tray-scan-btn-Jig').forEach(function(link) {
        link.addEventListener('click', async function (e) {
@@ -2343,12 +2423,9 @@
            console.log("✅ Set Physical Qty to:", physicalQty);
          }
    
-         // Set model image
-         const modalUserImg = modal.querySelector('.user-profile img');
-         const modelImage = link.getAttribute('data-model-image');
-         if (modalUserImg) {
-           modalUserImg.src = modelImage || "/static/assets/images/imagePlaceholder.png";
-         }
+         // Always resolve the modal model image through the shared API.
+         // This prevents the row's first/side image from replacing the IV preview.
+         await loadBrassCompletedIvImage(modal, modelNo);
    
          // ✅ FIXED: Use unified action API (GET_SUBMISSION_TRAYS) — reads from Brass_QC_Submission
          let traysData = [];
@@ -3092,6 +3169,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 </script>
+<script nonce="{{ csp_nonce }}" src="{% static 'js/model_image_tooltip.js' %}?v=20260722-7"></script>
 <!-- Script for restricting pointer events when modals are open -->
 <script nonce="{{ csp_nonce }}">
    document.addEventListener("DOMContentLoaded", function () {
@@ -3679,7 +3757,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle view icon clicks
     document.querySelectorAll('.tray-scan-btn-BQ-view').forEach(function(viewBtn) {
-        viewBtn.addEventListener('click', function(e) {
+        viewBtn.addEventListener('click', async function(e) {
             e.preventDefault();
 
             // Extract data from the clicked element
@@ -3715,6 +3793,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalLotQty_DayPlanning').textContent = totalBatchQuantity || '0';
             document.getElementById('modalMissingQty_DayPlanning').textContent = missingQty || '0';
             document.getElementById('modalPhysicalQty_DayPlanning').textContent = physicalQty || '0';
+
+            // Use the same shared IV resolver for the eye-click modal.
+            await loadBrassCompletedIvImage(modal, modelNo);
 
             // Hide validation controls for completed records
             const trayValidateBtn = document.getElementById('trayValidateBtn');

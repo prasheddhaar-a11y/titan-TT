@@ -710,6 +710,10 @@ class TotalStockModel(models.Model):
     jig_release_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Jig Reason for releasing the batch")
     jig_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold n Jig")
     jig_release_lot =models.BooleanField(default=False)
+    jig_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='jig_hold_events', help_text="User who held this lot in Jig Loading")
+    jig_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Jig Loading")
+    jig_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='jig_release_events', help_text="User who released this lot in Jig Loading")
+    jig_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Jig Loading")
     jig_pick_remarks = models.CharField(max_length=255, null=True, blank=True, help_text="Jig Pick Remarks")
     
     inprocess_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Inprocess Reason for holding the batch")
@@ -726,11 +730,19 @@ class TotalStockModel(models.Model):
     brass_release_reason= models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for releasing the batch")
     brass_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold n Brass")
     brass_release_lot =models.BooleanField(default=False)
-    
-    brass_audit_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")  
+    brass_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='brass_hold_events', help_text="User who held this lot in Brass QC")
+    brass_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Brass QC")
+    brass_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='brass_release_events', help_text="User who released this lot in Brass QC")
+    brass_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Brass QC")
+
+    brass_audit_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for holding the batch")
     brass_audit_release_reason= models.CharField(max_length=255, null=True, blank=True, help_text="Brass Reason for releasing the batch")
     brass_audit_hold_lot = models.BooleanField(default=False, help_text="Indicates if the lot is on hold n Brass")
     brass_audit_release_lot =models.BooleanField(default=False)
+    brass_audit_hold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='brass_audit_hold_events', help_text="User who held this lot in Brass Audit")
+    brass_audit_hold_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was held in Brass Audit")
+    brass_audit_release_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='brass_audit_release_events', help_text="User who released this lot in Brass Audit")
+    brass_audit_release_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when this lot was released in Brass Audit")
 
     iqf_holding_reason = models.CharField(max_length=255, null=True, blank=True, help_text="IQF Reason for holding the batch")  
     iqf_release_reason= models.CharField(max_length=255, null=True, blank=True, help_text="IQF Reason for releasing the batch")

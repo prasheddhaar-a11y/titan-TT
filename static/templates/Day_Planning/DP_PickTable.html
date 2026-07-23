@@ -6219,6 +6219,7 @@ console.log('✅ Enhanced tray scan modal with dynamic row management loaded');
     const remark = document.getElementById('holdRemarkInput').value.trim();
     if (!remark) {
       document.getElementById('holdRemarkError').textContent = 'Remark required!';
+      restoreFailedHoldAction();
       return;
     }
     if (!currentHoldCell || !currentBatchId) return;
@@ -6419,21 +6420,69 @@ console.log('✅ Enhanced tray scan modal with dynamic row management loaded');
      const stockPreviewCache = {};
      const stockPreviewPlaceholder = "{% static 'assets/images/imagePlaceholder.jpg' %}";
 
+
+     function normalizeStockImageUrl(rawUrl) {
+       const value = String(rawUrl || "").trim();
+       if (!value) return "";
+
+       try {
+         const parsed = new URL(value, window.location.origin);
+
+         // Same-origin media is safer as a relative URL behind IIS/reverse proxy.
+         if (parsed.origin === window.location.origin) {
+           return parsed.pathname + parsed.search + parsed.hash;
+         }
+
+         return parsed.href;
+       } catch (error) {
+         return value;
+       }
+     }
+
      function setTooltipPreview(trigger, imageUrl, viewText) {
        const tooltip = trigger.querySelector(".model-image-tooltip");
        const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
        if (!gallery) return;
 
-       imageUrl = imageUrl || stockPreviewPlaceholder;
-       viewText = viewText || "No Image";
+       const normalizedImageUrl = normalizeStockImageUrl(
+         imageUrl || stockPreviewPlaceholder
+       );
+       const normalizedPlaceholder = normalizeStockImageUrl(
+         stockPreviewPlaceholder
+       );
+       const altText = String(viewText || "No Image");
 
-       if (imageUrl) {
-         gallery.innerHTML = '<img src="' + imageUrl + '" alt="' + viewText + '" onerror="this.onerror=null;this.src=\'' + stockPreviewPlaceholder + '\';" style="width:120px;height:120px;object-fit:contain;object-position:center;border-radius:6px;background:#fff;" />';
-       } else if (viewText === 'Loading') {
-         gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;display:block;width:100%;">Loading...</span>';
-       } else {
-         gallery.innerHTML = '<img src="' + stockPreviewPlaceholder + '" alt="No Image" style="width:120px;height:120px;object-fit:contain;object-position:center;border-radius:6px;background:#fff;" />';
+       gallery.replaceChildren();
+
+       if (altText === "Loading" && !normalizedImageUrl) {
+         const loadingText = document.createElement("span");
+         loadingText.textContent = "Loading...";
+         loadingText.style.cssText =
+           "font-size:12px;color:#777;text-align:center;display:block;width:100%;";
+         gallery.appendChild(loadingText);
+         return;
        }
+
+       const image = document.createElement("img");
+       image.src = normalizedImageUrl || normalizedPlaceholder;
+       image.alt = altText;
+       image.decoding = "async";
+       image.style.cssText =
+         "width:120px;height:120px;object-fit:contain;object-position:center;" +
+         "border-radius:6px;background:#fff;display:block;";
+
+       image.addEventListener("error", function handlePreviewError() {
+         image.removeEventListener("error", handlePreviewError);
+
+         if (
+           normalizedPlaceholder &&
+           image.getAttribute("src") !== normalizedPlaceholder
+         ) {
+           image.src = normalizedPlaceholder;
+         }
+       });
+
+       gallery.appendChild(image);
      }
 
   function getRowFallbackImage(trigger) {
@@ -6487,9 +6536,15 @@ function loadStockPreview(trigger) {
 
     try {
       const data = JSON.parse(xhr.responseText || "{}");
-      data.preview_image = data.preview_image || fallbackImage || stockPreviewPlaceholder;
+      data.preview_image = normalizeStockImageUrl(
+        data.preview_image || fallbackImage || stockPreviewPlaceholder
+      );
       stockPreviewCache[stockNo] = data;
-      setTooltipPreview(trigger, data.preview_image, data.preview_view || "Model image");
+      setTooltipPreview(
+        trigger,
+        data.preview_image,
+        data.preview_view || "Model image"
+      );
     } catch (err) {
       setTooltipPreview(trigger, fallbackImage || stockPreviewPlaceholder, fallbackImage ? "Model image" : "No Image");
     }

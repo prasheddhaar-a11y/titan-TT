@@ -791,6 +791,53 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 /* ====================================================
    END BRASS QC MODAL UI REFRESH
    ==================================================== */
+
+
+/* ===== Brass Audit dynamic model hover fix ===== */
+.model-hover-trigger {
+  position: relative;
+  display: inline-block;
+}
+
+.model-hover-trigger .model-image-tooltip {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.model-hover-trigger .model-image-tooltip.is-open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.model-hover-trigger .img-gallery {
+  width: 180px !important;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+}
+
+.model-hover-trigger .model-preview-image {
+  width: 180px;
+  height: 180px;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 6px;
+}
+
+.model-hover-trigger .model-preview-loading,
+.model-hover-trigger .model-preview-error {
+  width: 180px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 12px;
+  text-align: center;
+}
 </style>
 
 <div class="content-wrapper">
@@ -964,25 +1011,38 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       {% endif %}
                     </td>
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span
+                        class="model-hover-trigger"
+                        data-plating-stk-no="{{ data.plating_stk_no }}"
+                        style="cursor: pointer; word-break: break-all;"
+                      >
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
-                        <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
-                          
-                          <!-- Header with Info and Close buttons -->
+                        <div
+                          class="model-image-tooltip"
+                          role="dialog"
+                          aria-hidden="true"
+                          style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s; min-width: 220px;"
+                        >
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <button class="info-btn" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">
-                               Info
+                            <button
+                              type="button"
+                              class="info-btn"
+                              style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            >
+                              Info
                             </button>
-                            <button class="close-btn" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">
-                               Close
+                            <button
+                              type="button"
+                              class="close-btn"
+                              style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            >
+                              Close
                             </button>
                           </div>
 
-                          <!-- Image gallery section -->
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                          <div style="display: flex; align-items: center; justify-content: center;">
+                            <div class="img-gallery" style="display: flex; overflow: hidden;">
+                              <span class="model-preview-loading">Hover to load image</span>
                             </div>
                           </div>
                         </div>
@@ -3730,6 +3790,202 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script src="{% static 'js/model_image_tooltip.js' %}"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  const triggers = Array.from(document.querySelectorAll('.model-hover-trigger[data-plating-stk-no]'));
+  const previewCache = new Map();
+  let activeTrigger = null;
+  let hideTimer = null;
+  let requestSerial = 0;
+
+  function getTooltip(trigger) {
+    return trigger ? trigger.querySelector('.model-image-tooltip') : null;
+  }
+
+  function closeTooltip(trigger) {
+    const tooltip = getTooltip(trigger);
+    if (!tooltip) return;
+    tooltip.classList.remove('is-open');
+    tooltip.setAttribute('aria-hidden', 'true');
+    if (activeTrigger === trigger) activeTrigger = null;
+  }
+
+  function closeAllExcept(exceptTrigger) {
+    triggers.forEach(function (trigger) {
+      if (trigger !== exceptTrigger) closeTooltip(trigger);
+    });
+  }
+
+  function renderLoading(trigger) {
+    const gallery = trigger.querySelector('.img-gallery');
+    if (!gallery) return;
+    gallery.replaceChildren();
+    const loading = document.createElement('span');
+    loading.className = 'model-preview-loading';
+    loading.textContent = 'Loading...';
+    gallery.appendChild(loading);
+  }
+
+  function renderError(trigger, message) {
+    const gallery = trigger.querySelector('.img-gallery');
+    if (!gallery) return;
+    gallery.replaceChildren();
+    const error = document.createElement('span');
+    error.className = 'model-preview-error';
+    error.textContent = message || 'Unable to load image';
+    gallery.appendChild(error);
+  }
+
+  function renderPreview(trigger, payload) {
+    const gallery = trigger.querySelector('.img-gallery');
+    if (!gallery) return;
+
+    const previewUrl = payload && payload.preview_image ? payload.preview_image : '';
+    if (!previewUrl) {
+      renderError(trigger, 'Unable to load image');
+      return;
+    }
+
+    gallery.replaceChildren();
+    const image = document.createElement('img');
+    image.className = 'model-preview-image';
+    image.src = previewUrl;
+    image.alt = 'Model preview';
+    image.loading = 'eager';
+    image.addEventListener('error', function () {
+      renderError(trigger, 'Unable to load image');
+    }, { once: true });
+    gallery.appendChild(image);
+  }
+
+  async function loadPreview(trigger) {
+    const stockNo = (trigger.dataset.platingStkNo || '').trim();
+    if (!stockNo) {
+      renderError(trigger, 'Stock number unavailable');
+      return;
+    }
+
+    if (previewCache.has(stockNo)) {
+      renderPreview(trigger, previewCache.get(stockNo));
+      return;
+    }
+
+    renderLoading(trigger);
+    const currentRequest = ++requestSerial;
+
+    try {
+      const response = await fetch(
+        `/adminportal/api/model-hover-preview/?stock_no=${encodeURIComponent(stockNo)}`,
+        {
+          method: 'GET',
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Preview request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+      previewCache.set(stockNo, payload);
+
+      // Do not let an older response replace the latest hovered row.
+      if (currentRequest !== requestSerial || activeTrigger !== trigger) return;
+      renderPreview(trigger, payload);
+    } catch (error) {
+      console.error('[BrassAudit] Model preview error:', error);
+      if (currentRequest === requestSerial && activeTrigger === trigger) {
+        renderError(trigger, 'Unable to load image');
+      }
+    }
+  }
+
+  function openTooltip(trigger) {
+    window.clearTimeout(hideTimer);
+    closeAllExcept(trigger);
+    activeTrigger = trigger;
+
+    const tooltip = getTooltip(trigger);
+    if (!tooltip) return;
+
+    tooltip.classList.add('is-open');
+    tooltip.setAttribute('aria-hidden', 'false');
+    loadPreview(trigger);
+  }
+
+  function scheduleClose(trigger) {
+    window.clearTimeout(hideTimer);
+    hideTimer = window.setTimeout(function () {
+      const tooltip = getTooltip(trigger);
+      const hoveringTrigger = trigger.matches(':hover');
+      const hoveringTooltip = tooltip && tooltip.matches(':hover');
+      if (!hoveringTrigger && !hoveringTooltip) closeTooltip(trigger);
+    }, 180);
+  }
+
+  triggers.forEach(function (trigger) {
+    const tooltip = getTooltip(trigger);
+    const infoButton = trigger.querySelector('.info-btn');
+    const closeButton = trigger.querySelector('.close-btn');
+
+    trigger.addEventListener('mouseenter', function () {
+      openTooltip(trigger);
+    });
+
+    trigger.addEventListener('mouseleave', function () {
+      scheduleClose(trigger);
+    });
+
+    if (tooltip) {
+      tooltip.addEventListener('mouseenter', function () {
+        window.clearTimeout(hideTimer);
+      });
+      tooltip.addEventListener('mouseleave', function () {
+        scheduleClose(trigger);
+      });
+      tooltip.addEventListener('click', function (event) {
+        event.stopPropagation();
+      });
+    }
+
+    if (infoButton) {
+      infoButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const stockNo = (trigger.dataset.platingStkNo || '').trim();
+        if (!stockNo) {
+          console.error('[BrassAudit] Missing plating stock number for Visual Aid');
+          return;
+        }
+
+        const visualAidUrl = `/adminportal/dp_visualaid/?plating_stk_no=${encodeURIComponent(stockNo)}`;
+        window.open(visualAidUrl, '_blank', 'noopener');
+      });
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeTooltip(trigger);
+      });
+    }
+  });
+
+  document.addEventListener('click', function (event) {
+    if (!event.target.closest('.model-hover-trigger')) {
+      triggers.forEach(closeTooltip);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      triggers.forEach(closeTooltip);
+    }
+  });
+});
+</script>
 
 {% endblock %} {% endblock content %}

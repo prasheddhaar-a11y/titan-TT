@@ -1306,6 +1306,18 @@
                   </a>
                </li>
                
+               <!-- ✅ SOP (STANDARD OPERATING PROCEDURE) VIEWER BUTTON -->
+               <li class="nav-item">
+                  <button id="sopViewerBtn" class="nav-link btn nb-btn nb-btn-teal" type="button" title="SOP Documents">
+                     <svg class="nb-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M6 2h9l5 5v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M14 2v5a1 1 0 0 0 1 1h5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M8 12h8M8 15.5h8M8 19h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                     </svg>
+                     <small>SOP</small>
+                  </button>
+               </li>
+
                <!-- ✅ SETTINGS DROPDOWN (Admin Only) -->
                {% if is_admin %}
                <li class="nav-item dropdown">
@@ -1330,6 +1342,10 @@
                      <a class="dropdown-item" href="{% url 'reports_module:reports' %}">
                      <img src="{% static 'assets/icons/38.png' %}" style="height: 16px !important; width: 16px !important; object-fit: contain; margin-right: 12px; vertical-align: middle;" alt="Reports" />
                      Reports
+                     </a>
+                     <a class="dropdown-item" href="{% url 'sop_management:sop_management_page' %}">
+                     <img src="{% static 'assets/icons/38.png' %}" style="height: 16px !important; width: 16px !important; object-fit: contain; margin-right: 12px; vertical-align: middle;" alt="SOP Management" />
+                     Manage SOPs
                      </a>
                   </div>
                </li>
@@ -1693,6 +1709,12 @@
 
             function openModal(e){
                if(e) e.preventDefault();
+               // flagGalleryBtn is a same-origin anchor. The document-level capture-phase click
+               // listener (global spinner script) fires showGlobalSpinner() for that click BEFORE
+               // this bubble-phase handler's e.preventDefault() can stop it. Since no real
+               // navigation happens, the spinner is never auto-hidden and stays stuck behind this
+               // modal — surfacing as "stuck loading" once the modal is closed.
+               if (typeof hideGlobalSpinner === 'function') hideGlobalSpinner();
                buildGrid();
                backdrop.style.display = 'flex';
                backdrop.setAttribute('aria-hidden','false');
@@ -4845,6 +4867,98 @@
 })();
 </script>
 {% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SOP (Standard Operating Procedure) Viewer — Module picker + PDF modal
+     ═══════════════════════════════════════════════════════════════════ -->
+<style nonce="{{ csp_nonce }}">
+  .sop-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
+    z-index: 20000; align-items: center; justify-content: center;
+  }
+  .sop-modal-overlay.sop-modal-open { display: flex; }
+  .sop-modal-box {
+    background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sop-modal-small { width: 92vw; max-width: 420px; max-height: 80vh; }
+  .sop-modal-large { width: 94vw; max-width: 1100px; height: 88vh; }
+  .sop-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid #e5e7eb; background: #f8fafc;
+  }
+  .sop-modal-header h5 { margin: 0; font-size: 15px; font-weight: 700; color: #025254; }
+  .sop-modal-close {
+    background: transparent; border: none; font-size: 22px; line-height: 1;
+    color: #64748b; cursor: pointer; padding: 0 4px;
+  }
+  .sop-modal-close:hover { color: #dc2626; }
+  .sop-modal-body { padding: 14px 18px; overflow: auto; flex: 1 1 auto; }
+  #sopModuleSearchInput {
+    width: 100%; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px;
+    font-size: 13px; margin-bottom: 10px;
+  }
+  .sop-module-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+  .sop-module-list li { margin-bottom: 6px; }
+  .sop-module-list button {
+    width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px;
+    border: 1px solid #e2e8f0; background: #fff; font-size: 13px; color: #1e293b;
+    cursor: pointer; transition: background .15s ease;
+  }
+  .sop-module-list button:hover { background: #ecfeff; border-color: #028084; }
+  .sop-module-empty { font-size: 13px; color: #64748b; text-align: center; padding: 20px 0; }
+  .sop-viewer-toolbar { display: flex; align-items: center; gap: 6px; }
+  .sop-tool-btn {
+    background: rgba(2,128,132,.08); border: 1px solid rgba(2,128,132,.25); color: #025254;
+    border-radius: 6px; width: 30px; height: 30px; display: inline-flex; align-items: center;
+    justify-content: center; cursor: pointer; font-size: 15px; text-decoration: none;
+  }
+  .sop-tool-btn:hover { background: rgba(2,128,132,.16); }
+  .sop-zoom-level { font-size: 12px; color: #025254; min-width: 42px; text-align: center; }
+  .sop-viewer-body { padding: 0; display: flex; position: relative; background: #525659; }
+  .sop-viewer-frame { width: 100%; height: 100%; border: none; display: none; }
+  .sop-viewer-loading, .sop-viewer-message {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 600; text-align: center; padding: 0 20px;
+  }
+</style>
+
+<div id="sopModuleModal" class="sop-modal-overlay">
+  <div class="sop-modal-box sop-modal-small">
+    <div class="sop-modal-header">
+      <h5>SOP Documents — Select Module</h5>
+      <button type="button" class="sop-modal-close" id="sopModuleModalClose">&times;</button>
+    </div>
+    <div class="sop-modal-body">
+      <input type="text" id="sopModuleSearchInput" placeholder="Search module..." autocomplete="off">
+      <ul id="sopModuleList" class="sop-module-list"></ul>
+      <div id="sopModuleListEmpty" class="sop-module-empty" style="display:none;">No modules found.</div>
+    </div>
+  </div>
+</div>
+
+<div id="sopViewerModal" class="sop-modal-overlay">
+  <div class="sop-modal-box sop-modal-large" id="sopViewerBox">
+    <div class="sop-modal-header">
+      <h5 id="sopViewerTitle">SOP Document</h5>
+      <div class="sop-viewer-toolbar">
+        <button type="button" id="sopZoomOutBtn" class="sop-tool-btn" title="Zoom Out">&minus;</button>
+        <span id="sopZoomLevel" class="sop-zoom-level">100%</span>
+        <button type="button" id="sopZoomInBtn" class="sop-tool-btn" title="Zoom In">+</button>
+        <a id="sopDownloadBtn" class="sop-tool-btn" href="#" title="Download" style="display:none;">&#8681;</a>
+        <button type="button" id="sopFullscreenBtn" class="sop-tool-btn" title="Full Screen">&#9974;</button>
+        <button type="button" class="sop-modal-close" id="sopViewerModalClose">&times;</button>
+      </div>
+    </div>
+    <div class="sop-modal-body sop-viewer-body">
+      <div id="sopViewerLoading" class="sop-viewer-loading">Loading SOP...</div>
+      <div id="sopViewerMessage" class="sop-viewer-message" style="display:none;"></div>
+      <iframe id="sopViewerFrame" class="sop-viewer-frame" title="SOP PDF Viewer"></iframe>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'js/sop_viewer.js' %}" nonce="{{ csp_nonce }}"></script>
 
    </body>
 </html>

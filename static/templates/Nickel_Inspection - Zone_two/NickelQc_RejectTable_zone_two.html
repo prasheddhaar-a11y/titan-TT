@@ -628,6 +628,27 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   cursor: not-allowed !important;
   pointer-events: none !important;
 }
+
+
+.model-image-tooltip img,
+.model-image-tooltip .nickel-preview-img,
+.model-image-tooltip .model-preview-image{
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:transparent !important;
+    outline:none !important;
+    filter:none !important;
+}
+.model-image-tooltip .image-container,
+.model-image-tooltip .preview-container,
+.model-image-tooltip .model-image-container{
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:transparent !important;
+}
+
 </style>
  
 
@@ -806,7 +827,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     <!-- Column 3: Plating Stk No -->
         <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span class="model-hover-trigger" data-plating-stk-no="{{ data.plating_stk_no }}" style="cursor: pointer; word-break: break-all;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -823,9 +844,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
                             <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.png' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
-                            </div>
+                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;"></div>
                           </div>
                         </div>
                       </span>
@@ -852,7 +871,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         data-no-of-trays="{{ data.no_of_trays }}"
                         data-tray-capacity="{{ data.tray_capacity|default:'0' }}"
                         data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
-                        data-model-image="{{ data.model_images.0|default:'' }}"
+                          data-plating-stk-no="{{ data.plating_stk_no }}"
                         data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
                         data-total-batch-quantity="{{ data.nq_lot_qty|default:0 }}"
                         data-brass-missing-qty="{{ data.nq_missing_qty|default:0 }}">
@@ -1083,7 +1102,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     
     <div class="modal-top-header" style="display: flex; align-items: center; gap: 20px; padding-bottom: 10px;">
       <div class="user-profile" style="display: flex; align-items: center; gap: 8px">
-        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: cover;" />
+        <img src="/static/assets/images/imagePlaceholder.png" alt="User Profile" style="border-radius: 50%; width: 50px; height: 50px; object-fit: contain; object-position: center;" />
         <!-- Model No -->
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: center; gap: 15px;">
@@ -1347,11 +1366,38 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       
+      function setModalPreviewImage(link, modal) {
+        const modalUserImg = modal.querySelector('.user-profile img');
+        const stockNo = (link.dataset.platingStkNo || '').trim();
+        if (!modalUserImg || !stockNo) return;
+        const previewCache = window.NickelModelPreviewCache || new Map();
+        window.NickelModelPreviewCache = previewCache;
+        const renderPayload = function (payload) {
+          if (payload && payload.preview_image && modal.dataset.activePlatingStkNo === stockNo) {
+            modalUserImg.src = payload.preview_image;
+          }
+        };
+        modalUserImg.src = "";
+        if (previewCache.has(stockNo)) {
+          renderPayload(previewCache.get(stockNo));
+          return;
+        }
+        fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+          headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+        })
+          .then(function (response) { return response.ok ? response.json() : null; })
+          .then(function (payload) {
+            previewCache.set(stockNo, payload);
+            renderPayload(payload);
+          })
+          .catch(function () {});
+      }
+
+      modal.dataset.activePlatingStkNo = (link.dataset.platingStkNo || '').trim();
             // Set model image
       const modalUserImg = modal.querySelector('.user-profile img');
-      const modelImage = link.getAttribute('data-model-image');
       if (modalUserImg) {
-        modalUserImg.src = modelImage || "/static/assets/images/imagePlaceholder.png";
+        setModalPreviewImage(link, modal);
       }
 
       // Single source of truth for the tray listing (serves Z1 and Z2, all lot states)
@@ -1812,7 +1858,6 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- Active table row highlight -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function() {
-  // Add highlight style if not present
   if (!document.getElementById('dp-row-action-highlight-style')) {
     var style = document.createElement('style');
     style.id = 'dp-row-action-highlight-style';
@@ -1826,283 +1871,271 @@ document.addEventListener("DOMContentLoaded", function() {
     document.head.appendChild(style);
   }
 
-  let originalRowIndex = null;
   let movedRow = null;
   let placeholderRow = null;
 
-  document.querySelectorAll('.tray-scan-btn-Jig').forEach(function(link) {
-    link.addEventListener('click', function(event) {
-      // Remove highlight from all rows
-      document.querySelectorAll('tbody tr').forEach(function(row) {
-        row.classList.remove('dp-row-action-highlight');
-      });
-      // Move the clicked row to the top and highlight
-      var row = event.target.closest('tr');
-      if (row && row.parentNode) {
-        const tbody = row.parentNode;
-        // Only move if not already at top
-        if (tbody.firstElementChild !== row) {
-          // If a previous move exists, restore it first
-          if (movedRow && placeholderRow && placeholderRow.parentNode) {
-            placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-            placeholderRow.parentNode.removeChild(placeholderRow);
-            movedRow.classList.remove('dp-row-action-highlight');
-            movedRow = null;
-            placeholderRow = null;
-            originalRowIndex = null;
-          }
-          // Store original index and row
-          originalRowIndex = Array.from(tbody.children).indexOf(row);
-          movedRow = row;
-          // Insert a placeholder at the original position
-          placeholderRow = document.createElement('tr');
-          placeholderRow.style.display = 'none';
-          tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-          // Move row to top
-          tbody.insertBefore(row, tbody.firstElementChild);
-        }
-        row.classList.add('dp-row-action-highlight');
-      }
+  function restoreRowPosition() {
+    if (movedRow && placeholderRow && placeholderRow.parentNode) {
+      placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
+      placeholderRow.parentNode.removeChild(placeholderRow);
+    }
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+      row.classList.remove('dp-row-action-highlight');
+      row.classList.remove('highlighted-tray-scan');
     });
+    movedRow = null;
+    placeholderRow = null;
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+      window.GlobalShortcutManager.clear();
+    }
+    try {
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+    } catch (e) {}
+  }
+
+  function highlightRow(row) {
+    if (!row || !row.parentNode) return;
+    restoreRowPosition();
+    var tbody = row.parentNode;
+    movedRow = row;
+    if (tbody.firstElementChild !== row) {
+      placeholderRow = document.createElement('tr');
+      placeholderRow.style.display = 'none';
+      for (var i = 0; i < row.children.length; i += 1) {
+        placeholderRow.appendChild(document.createElement('td'));
+      }
+      tbody.insertBefore(placeholderRow, row);
+      tbody.insertBefore(row, tbody.firstElementChild);
+    }
+    row.classList.add('dp-row-action-highlight');
+  }
+
+  function actionTarget(target) {
+    return target.closest(
+      '.hold-toggle-btn, .hold-remark-icon, .tray-scan-btn, .tray-scan-btn-Jig, .tray-scan-btn-BQ-view, .btn-accept-is:not(:disabled), .btn-reject-is:not(:disabled), .delete-batch-btn, .remark-send-btn, .rejection-popup-trigger, #delink-selected-btn'
+    );
+  }
+
+  document.addEventListener('click', function(event) {
+    if (event.target.closest('.model-hover-trigger') || event.target.closest('.model-image-tooltip')) return;
+    var action = actionTarget(event.target);
+    if (!action) return;
+    highlightRow(action.closest('tr'));
+  }, true);
+
+  document.addEventListener('change', function(event) {
+    if (event.target.matches('.hold-toggle-btn')) {
+      highlightRow(event.target.closest('tr'));
+    }
+  }, true);
+
+  [
+    'closeTrayScanModal',
+    'closeTrayScanModal_DayPlanning',
+    'closeNewPopupModal',
+    'closetrayScanModal_Jig',
+    'closeHoldRemarkModal',
+    'closeRejectionPopup'
+  ].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', restoreRowPosition);
   });
 
-  // On modal close, restore row to original position and remove highlight
-  var closeBtn = document.getElementById('closeTrayScanModal_DayPlanning');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', function() {
-      if (movedRow && placeholderRow && placeholderRow.parentNode) {
-        placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-        placeholderRow.parentNode.removeChild(placeholderRow);
-        movedRow.classList.remove('dp-row-action-highlight');
-        movedRow = null;
-        placeholderRow = null;
-        originalRowIndex = null;
-      }
-      // Also remove highlight from any row just in case
-      document.querySelectorAll('tbody tr').forEach(function(row) {
-        row.classList.remove('dp-row-action-highlight');
-        row.classList.remove('highlighted-tray-scan');
+  [
+    'trayScanModal',
+    'trayScanModal_DayPlanning',
+    'newPopupModal',
+    'holdRemarkModal',
+    'rejectionPopupModal'
+  ].forEach(function(id) {
+    var modal = document.getElementById(id);
+    if (modal) {
+      modal.addEventListener('click', function(event) {
+        if (event.target === modal) restoreRowPosition();
       });
-    });
-  }
+    }
+  });
+
+  document.addEventListener('click', function(event) {
+    if (
+      event.target &&
+      (event.target.classList.contains('swal2-cancel') ||
+       event.target.classList.contains('swal2-close') ||
+       event.target.id === 'cancelButton')
+    ) {
+      restoreRowPosition();
+    }
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') restoreRowPosition();
+  });
+
+  window.nqRestoreRowPosition = restoreRowPosition;
 });
 </script>
 
 <!-- Plating Stk - Image hover - fixed position while hitting the Plating Stk No -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
+  const previewCache = window.NickelModelPreviewCache || new Map();
+  window.NickelModelPreviewCache = previewCache;
   let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
 
-  // Helper function to completely close a tooltip
+  function stockFromTrigger(trigger) {
+    return ((trigger && trigger.dataset.platingStkNo) || "").trim();
+  }
+
+  function fetchPreview(stockNo) {
+    if (previewCache.has(stockNo)) {
+      return Promise.resolve(previewCache.get(stockNo));
+    }
+    return fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (payload) {
+        previewCache.set(stockNo, payload);
+        return payload;
+      })
+      .catch(function () {
+        previewCache.set(stockNo, null);
+        return null;
+      });
+  }
+
+  function prepareTooltip(tooltip) {
+    if (!tooltip || tooltip.dataset.previewReady === "1") return;
+    tooltip.dataset.previewReady = "1";
+    tooltip.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;">' +
+        '<button type="button" class="info-btn" style="background:#007bff;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Info</button>' +
+        '<button type="button" class="close-btn" style="background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">Close</button>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:center;width:180px;height:150px;border:none;border-radius:0;background:transparent;box-shadow:none;">' +
+        '<img class="nickel-preview-img" src="" alt="Model preview" style="width:100%;height:100%;object-fit:contain;object-position:center;border:none;border-radius:0;box-shadow:none;background:transparent;outline:none;" loading="lazy" />' +
+      '</div>';
+  }
+
   function closeTooltip(tooltip, trigger) {
-    if (tooltip) {
-      console.log('Ã°Å¸â€Â´ Closing tooltip completely');
-      
-      // Remove pinned class
-      tooltip.classList.remove("pinned");
-      
-      // Hide the entire tooltip completely
-      tooltip.style.opacity = "0";
-      tooltip.style.pointerEvents = "none";
-      tooltip.style.visibility = "hidden";
-      tooltip.style.display = "none"; // Ã¢Å“â€¦ ADDED: Force display none
-      
-      // Hide buttons
-      const infoBtn = tooltip.querySelector('.info-btn');
-      const closeBtn = tooltip.querySelector('.close-btn');
-      if (infoBtn) infoBtn.style.display = 'none';
-      if (closeBtn) closeBtn.style.display = 'none';
-      
-      // Remove visual indicator from trigger
-      if (trigger) {
-        trigger.style.backgroundColor = '';
-        trigger.style.borderRadius = '';
-      }
-      
-      // Clear global reference
+    if (!tooltip) return;
+    tooltip.classList.remove("pinned");
+    tooltip.style.opacity = "0";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.display = "none";
+    if (trigger) {
+      trigger.style.backgroundColor = "";
+      trigger.style.borderRadius = "";
+    }
+    if (openTooltip === tooltip) {
       openTooltip = null;
-      
-      console.log('Ã¢Å“â€¦ Tooltip completely closed');
+      activeTrigger = null;
+      activeStockNo = "";
     }
   }
 
-  // Tooltip show/hide logic
+  function renderPreview(trigger, stockNo, payload) {
+    if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const img = tooltip ? tooltip.querySelector(".nickel-preview-img") : null;
+    if (img && payload && payload.preview_image) {
+      img.src = payload.preview_image;
+    } else if (img) {
+      img.removeAttribute("src");
+    }
+  }
+
+  function showTooltip(trigger, pinned) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    const stockNo = stockFromTrigger(trigger);
+    if (!tooltip || !stockNo) return;
+    if (openTooltip && openTooltip !== tooltip) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
+    }
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+    openTooltip = tooltip;
+    prepareTooltip(tooltip);
+    tooltip.style.display = "flex";
+    tooltip.style.visibility = "visible";
+    tooltip.style.opacity = "1";
+    tooltip.style.pointerEvents = "auto";
+    if (pinned) {
+      tooltip.classList.add("pinned");
+      trigger.style.backgroundColor = "#e3f2fd";
+      trigger.style.borderRadius = "4px";
+    }
+    fetchPreview(stockNo).then(function (payload) {
+      renderPreview(trigger, stockNo, payload);
+    });
+  }
+
   document.querySelectorAll(".model-hover-trigger").forEach(function (trigger) {
     const tooltip = trigger.querySelector(".model-image-tooltip");
+    if (!tooltip) return;
+    prepareTooltip(tooltip);
 
     trigger.addEventListener("mouseenter", function () {
-      if (tooltip && !tooltip.classList.contains("pinned")) {
-        tooltip.style.display = "flex"; // Ã¢Å“â€¦ ADDED: Reset display
-        tooltip.style.visibility = "visible"; // Ã¢Å“â€¦ ADDED: Reset visibility
-        tooltip.style.opacity = "1";
-        tooltip.style.pointerEvents = "auto";
-        
-        // Show Info and Close buttons on hover
-        const infoBtn = tooltip.querySelector('.info-btn');
-        const closeBtn = tooltip.querySelector('.close-btn');
-        if (infoBtn) infoBtn.style.display = 'block';
-        if (closeBtn) closeBtn.style.display = 'block';
-      }
+      if (!tooltip.classList.contains("pinned")) showTooltip(trigger, false);
     });
-
     trigger.addEventListener("mouseleave", function () {
-      if (tooltip && !tooltip.classList.contains("pinned")) {
-        tooltip.style.opacity = "0";
-        tooltip.style.pointerEvents = "none";
-        
-        // Hide Info and Close buttons when not hovering and not pinned
-        const infoBtn = tooltip.querySelector('.info-btn');
-        const closeBtn = tooltip.querySelector('.close-btn');
-        if (infoBtn) infoBtn.style.display = 'none';
-        if (closeBtn) closeBtn.style.display = 'none';
-      }
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
     });
-
-    // Keep tooltip visible when hovering over it
-    if (tooltip) {
-      tooltip.addEventListener("mouseenter", function () {
-        if (!tooltip.classList.contains("pinned")) {
-          tooltip.style.display = "flex"; // Ã¢Å“â€¦ ADDED: Reset display
-          tooltip.style.visibility = "visible"; // Ã¢Å“â€¦ ADDED: Reset visibility
-        }
+    tooltip.addEventListener("mouseenter", function () {
+      if (openTooltip === tooltip) {
+        tooltip.style.display = "flex";
+        tooltip.style.visibility = "visible";
         tooltip.style.opacity = "1";
         tooltip.style.pointerEvents = "auto";
-        
-        // Keep buttons visible when hovering over tooltip
-        const infoBtn = tooltip.querySelector('.info-btn');
-        const closeBtn = tooltip.querySelector('.close-btn');
-        if (infoBtn) infoBtn.style.display = 'block';
-        if (closeBtn) closeBtn.style.display = 'block';
-      });
-
-      tooltip.addEventListener("mouseleave", function () {
-        if (!tooltip.classList.contains("pinned")) {
-          tooltip.style.opacity = "0";
-          tooltip.style.pointerEvents = "none";
-          
-          // Hide buttons when leaving tooltip and not pinned
-          const infoBtn = tooltip.querySelector('.info-btn');
-          const closeBtn = tooltip.querySelector('.close-btn');
-          if (infoBtn) infoBtn.style.display = 'none';
-          if (closeBtn) closeBtn.style.display = 'none';
-        }
-      });
-    }
-
+      }
+    });
+    tooltip.addEventListener("mouseleave", function () {
+      if (!tooltip.classList.contains("pinned")) closeTooltip(tooltip, trigger);
+    });
     trigger.addEventListener("click", function (e) {
       e.stopPropagation();
-
-      if (tooltip) {
-        // Close any previously opened tooltip
-        if (openTooltip && openTooltip !== tooltip) {
-          const prevTrigger = openTooltip.closest('.model-hover-trigger');
-          closeTooltip(openTooltip, prevTrigger);
-        }
-
-        tooltip.classList.add("pinned");
-        tooltip.style.display = "flex"; // Ã¢Å“â€¦ ADDED: Ensure display
-        tooltip.style.visibility = "visible"; // Ã¢Å“â€¦ ADDED: Ensure visibility
-        tooltip.style.opacity = "1";
-        tooltip.style.pointerEvents = "auto";
-        openTooltip = tooltip;
-        
-        // Keep buttons visible when pinned
-        const infoBtn = tooltip.querySelector('.info-btn');
-        const closeBtn = tooltip.querySelector('.close-btn');
-        if (infoBtn) infoBtn.style.display = 'block';
-        if (closeBtn) closeBtn.style.display = 'block';
-
-        // Add visual indicator that tooltip is pinned
-        trigger.style.backgroundColor = '#e3f2fd';
-        trigger.style.borderRadius = '4px';
-      }
+      showTooltip(trigger, true);
     });
 
-    // Ã¢Å“â€¦ Handle Info button click
-    const infoBtn = tooltip?.querySelector('.info-btn');
+    const infoBtn = tooltip.querySelector(".info-btn");
     if (infoBtn) {
-      // Initially hide the button
-      infoBtn.style.display = 'none';
-      
-      infoBtn.addEventListener('click', function(e) {
+      infoBtn.addEventListener("click", function (e) {
+        e.preventDefault();
         e.stopPropagation();
-        const modelNo = trigger.textContent.trim();
-        
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            title: 'Model Information',
-            html: `<strong>Plating Stk No:</strong> ${modelNo}`,
-            icon: 'info',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#007bff'
-          });
-        } else {
-          alert('Model Information:\nPlating Stk No: ' + modelNo);
-        }
+        const stockNo = activeTrigger ? stockFromTrigger(activeTrigger) : stockFromTrigger(trigger);
+        if (!stockNo) return;
+        window.location.href = "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
       });
     }
 
-    // Ã¢Å“â€¦ FIXED: Handle Close button click - Complete tooltip closure
-    const closeBtn = tooltip?.querySelector('.close-btn');
+    const closeBtn = tooltip.querySelector(".close-btn");
     if (closeBtn) {
-      // Initially hide the button
-      closeBtn.style.display = 'none';
-      
-      closeBtn.addEventListener('click', function(e) {
+      closeBtn.addEventListener("click", function (e) {
+        e.preventDefault();
         e.stopPropagation();
-        console.log('Ã°Å¸â€Â´ Close button clicked');
-        
-        // Use the helper function to completely close tooltip
         closeTooltip(tooltip, trigger);
-        
-        // Feedback animation for close button
-        closeBtn.style.transform = 'scale(0.9)';
-        setTimeout(() => {
-          if (closeBtn.style) {
-            closeBtn.style.transform = 'scale(1)';
-          }
-        }, 150);
-      });
-      
-      // Ã¢Å“â€¦ Add hover effect for close button
-      closeBtn.addEventListener('mouseenter', function() {
-        closeBtn.style.backgroundColor = '#c82333';
-        closeBtn.style.transform = 'scale(1.05)';
-      });
-      
-      closeBtn.addEventListener('mouseleave', function() {
-        closeBtn.style.backgroundColor = '#dc3545';
-        closeBtn.style.transform = 'scale(1)';
       });
     }
   });
 
-  // Ã¢Å“â€¦ ENHANCED: Close tooltip when clicking outside
   document.addEventListener("click", function (e) {
-    if (openTooltip && !e.target.closest('.model-image-tooltip') && !e.target.closest('.model-hover-trigger')) {
-      const openTrigger = openTooltip.closest('.model-hover-trigger');
-      closeTooltip(openTooltip, openTrigger);
+    if (openTooltip && !e.target.closest(".model-image-tooltip") && !e.target.closest(".model-hover-trigger")) {
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
     }
   });
 
-  // Ã¢Å“â€¦ Close tooltip with ESC key
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && openTooltip) {
-      const openTrigger = openTooltip.closest('.model-hover-trigger');
-      closeTooltip(openTooltip, openTrigger);
-      console.log('Ã¢Å“â€¦ Tooltip closed with ESC key');
+      closeTooltip(openTooltip, openTooltip.closest(".model-hover-trigger"));
     }
-  });
-
-  // Prevent tooltip from closing when clicking inside it
-  document.querySelectorAll(".model-image-tooltip").forEach(function (tooltip) {
-    tooltip.addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
   });
 });
 </script>
-
 
 
 {% endblock %} {% endblock content %}

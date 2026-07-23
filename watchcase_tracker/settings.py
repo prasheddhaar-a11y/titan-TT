@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'ReportsModule',
     'SpiderSpindle_Z1',
     'SpiderSpindle_Z2',
+    'SOPManagement',
     'social_django',
 ]
 
@@ -341,6 +342,11 @@ USE_TZ = True
 # Static files
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+MODEL_IMAGE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+# Maximum size (bytes) accepted for an uploaded SOP PDF document.
+SOP_FILE_MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

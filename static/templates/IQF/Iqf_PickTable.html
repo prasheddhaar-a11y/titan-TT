@@ -1763,7 +1763,9 @@
                         </td>
 
                             <td class="{{ data.ui.row_blur }}">
-                      <span class="model-hover-trigger" style="cursor: pointer; word-break: break-all;">
+                      <span class="model-hover-trigger"
+                            data-plating-stk-no="{{ data.plating_stk_no }}"
+                            style="cursor: pointer; word-break: break-all; position: relative;">
                         {{ data.plating_stk_no|highlight_plating_color|safe_html }}
                         <div class="model-image-tooltip" style="position: absolute; left: 80%; top: 110%; transform: translateX(-50%); background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; min-width: 220px;">
                           
@@ -1779,9 +1781,8 @@
 
                           <!-- Image gallery section -->
                           <div style="display: flex; align-items: center; gap: 8px;">
-                            <!-- Hide scroll buttons since only one image is shown -->
-                            <div class="img-gallery" style="display: flex; gap: 6px; overflow: hidden; width: 180px;">
-                              <img src="{{ data.model_images.0|default:'/static/assets/images/imagePlaceholder.jpg' }}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px;" />
+                            <div class="img-gallery" style="display: flex; justify-content:center; align-items:center; gap: 6px; overflow: hidden; width: 180px; height: 130px;">
+                              <span style="font-size:12px;color:#777;text-align:center;">Loading...</span>
                             </div>
                           </div>
                         </div>
@@ -5422,6 +5423,191 @@ document.addEventListener('click', function(evt){
 })();
 </script>
 
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  let openTooltip = null;
+  let activeTrigger = null;
+  let activeStockNo = "";
+  const previewCache = new Map();
+
+  function getStockNo(trigger) {
+    return (trigger && trigger.dataset ? trigger.dataset.platingStkNo : "").trim();
+  }
+
+  function normalizeImageUrl(rawUrl) {
+    const value = String(rawUrl || "").trim();
+    if (!value) return "";
+    try {
+      const parsed = new URL(value, window.location.origin);
+      if (parsed.origin === window.location.origin) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+      return parsed.href;
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function setTooltipLoading(tooltip) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.innerHTML = '<span style="font-size:12px;color:#777;text-align:center;">Loading...</span>';
+  }
+
+  function setTooltipMessage(tooltip, message) {
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    gallery.textContent = "";
+    const messageEl = document.createElement("span");
+    messageEl.textContent = message;
+    messageEl.style.cssText = "font-size:12px;color:#777;text-align:center;";
+    gallery.appendChild(messageEl);
+  }
+
+  function renderPreviewImage(trigger, payload) {
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    const gallery = tooltip ? tooltip.querySelector(".img-gallery") : null;
+    if (!gallery) return;
+    const imageUrl = normalizeImageUrl(payload && payload.preview_image);
+    if (!imageUrl) {
+      setTooltipMessage(tooltip, "Image unavailable");
+      return;
+    }
+    gallery.textContent = "";
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Model image";
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.style.cssText =
+      "width:100%;height:100%;object-fit:contain;object-position:center;" +
+      "border-radius:6px;background:#fff;display:block;";
+    gallery.appendChild(image);
+  }
+
+  function loadStockPreview(trigger) {
+    const stockNo = getStockNo(trigger);
+    const tooltip = trigger ? trigger.querySelector(".model-image-tooltip") : null;
+    if (!stockNo || !tooltip) return;
+    activeTrigger = trigger;
+    activeStockNo = stockNo;
+    if (previewCache.has(stockNo)) {
+      renderPreviewImage(trigger, previewCache.get(stockNo));
+      return;
+    }
+    setTooltipLoading(tooltip);
+    fetch("/adminportal/api/model-hover-preview/?stock_no=" + encodeURIComponent(stockNo), {
+      headers: {"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"},
+    })
+      .then(function(response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function(payload) {
+        previewCache.set(stockNo, payload);
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+        renderPreviewImage(trigger, payload);
+      })
+      .catch(function() {
+        if (activeTrigger !== trigger || activeStockNo !== stockNo) return;
+        setTooltipMessage(tooltip, "Image unavailable");
+      });
+  }
+
+  function closeTooltip(tooltip, trigger) {
+    if (!tooltip) return;
+    tooltip.classList.remove("pinned");
+    tooltip.style.opacity = "0";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.display = "none";
+    const infoBtn = tooltip.querySelector(".info-btn");
+    const closeBtn = tooltip.querySelector(".close-btn");
+    if (infoBtn) infoBtn.style.display = "none";
+    if (closeBtn) closeBtn.style.display = "none";
+    if (trigger) {
+      trigger.style.backgroundColor = "";
+      trigger.style.borderRadius = "";
+    }
+    openTooltip = null;
+    if (activeTrigger === trigger) {
+      activeTrigger = null;
+      activeStockNo = "";
+    }
+  }
+
+  document.querySelectorAll(".model-hover-trigger").forEach(function(trigger) {
+    const tooltip = trigger.querySelector(".model-image-tooltip");
+    if (!tooltip) return;
+    const infoBtn = tooltip.querySelector(".info-btn");
+    const closeBtn = tooltip.querySelector(".close-btn");
+    if (infoBtn) {
+      infoBtn.style.display = "none";
+      infoBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        const stockNo = getStockNo(trigger);
+        if (stockNo) window.location.href = "/adminportal/dp_visualaid/?plating_stk_no=" + encodeURIComponent(stockNo);
+      });
+    }
+    if (closeBtn) {
+      closeBtn.style.display = "none";
+      closeBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        closeTooltip(tooltip, trigger);
+      });
+    }
+    trigger.addEventListener("mouseenter", function() {
+      if (tooltip.classList.contains("pinned")) return;
+      loadStockPreview(trigger);
+      tooltip.style.display = "flex";
+      tooltip.style.visibility = "visible";
+      tooltip.style.opacity = "1";
+      tooltip.style.pointerEvents = "auto";
+      if (infoBtn) infoBtn.style.display = "block";
+      if (closeBtn) closeBtn.style.display = "block";
+    });
+    trigger.addEventListener("mouseleave", function() {
+      if (tooltip.classList.contains("pinned")) return;
+      tooltip.style.opacity = "0";
+      tooltip.style.pointerEvents = "none";
+      if (infoBtn) infoBtn.style.display = "none";
+      if (closeBtn) closeBtn.style.display = "none";
+    });
+    trigger.addEventListener("click", function(e) {
+      e.stopPropagation();
+      if (openTooltip && openTooltip !== tooltip) {
+        const prevTrigger = openTooltip.closest(".model-hover-trigger");
+        closeTooltip(openTooltip, prevTrigger);
+      }
+      loadStockPreview(trigger);
+      tooltip.classList.add("pinned");
+      tooltip.style.display = "flex";
+      tooltip.style.visibility = "visible";
+      tooltip.style.opacity = "1";
+      tooltip.style.pointerEvents = "auto";
+      openTooltip = tooltip;
+      if (infoBtn) infoBtn.style.display = "block";
+      if (closeBtn) closeBtn.style.display = "block";
+      trigger.style.backgroundColor = "#e3f2fd";
+      trigger.style.borderRadius = "4px";
+    });
+    tooltip.addEventListener("click", function(e) { e.stopPropagation(); });
+  });
+  document.addEventListener("click", function(e) {
+    if (openTooltip && !e.target.closest(".model-image-tooltip") && !e.target.closest(".model-hover-trigger")) {
+      const openTrigger = openTooltip.closest(".model-hover-trigger");
+      closeTooltip(openTooltip, openTrigger);
+    }
+  });
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && openTooltip) {
+      const openTrigger = openTooltip.closest(".model-hover-trigger");
+      closeTooltip(openTooltip, openTrigger);
+    }
+  });
+});
+</script>
+
 <!-- ✅ ACTIVE ROW HIGHLIGHTING & TRAY TYPE VALIDATION for IQF PickTable -->
 <script nonce="{{ csp_nonce }}">
 // ═══ Row highlight & position swap for IQF PickTable (Ditto Brass QC Style) ═══
@@ -5431,11 +5617,11 @@ document.addEventListener("DOMContentLoaded", function() {
     var style = document.createElement('style');
     style.id = 'iqf-row-action-highlight-style';
     style.innerHTML = `
-      .iqf-row-action-highlight {
-        transition: box-shadow 1.3s;
+      tr.iqf-row-action-highlight > td,
+      tr.action-row-highlight > td {
+        transition: background-color 0.2s ease;
         background-color: #fff5bd !important;
-        animation: highlightAnimation 2s ease-in-out;
-      }
+              }
       
       @keyframes highlightAnimation {
         0% { box-shadow: 0 0 0 rgba(255,245,189,0.8); }
@@ -5446,63 +5632,53 @@ document.addEventListener("DOMContentLoaded", function() {
     document.head.appendChild(style);
   }
 
-  let originalRowIndex = null;
-  let movedRow = null;
-  let placeholderRow = null;
+  let activeRowState = null;
 
   // Restore row to original position and remove highlight
   function restoreRowPosition() {
-    if (movedRow && placeholderRow && placeholderRow.parentNode) {
-      placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-      placeholderRow.parentNode.removeChild(placeholderRow);
-      movedRow.classList.remove('iqf-row-action-highlight');
-      movedRow = null;
-      placeholderRow = null;
-      originalRowIndex = null;
+    if (activeRowState) {
+      const row = activeRowState.row;
+      const parent = activeRowState.parent;
+      const nextSibling = activeRowState.nextSibling;
+      row.classList.remove('iqf-row-action-highlight', 'action-row-highlight');
+      if (nextSibling && nextSibling.parentNode === parent) {
+        parent.insertBefore(row, nextSibling);
+      } else if (parent) {
+        parent.appendChild(row);
+      }
+      activeRowState = null;
     }
     document.querySelectorAll('tbody tr').forEach(function(row) {
-      row.classList.remove('iqf-row-action-highlight');
+      row.classList.remove('iqf-row-action-highlight', 'action-row-highlight');
     });
   }
 
-  // Attach highlight/move for IQF action buttons: Audit, Verify Tray, View
+  function highlightActionRow(button) {
+    var row = button ? button.closest('tr') : null;
+    if (row && row.parentNode) {
+      restoreRowPosition();
+      const parent = row.parentNode;
+      const nextSibling = row.nextSibling;
+      activeRowState = { row: row, parent: parent, nextSibling: nextSibling };
+      row.classList.add('iqf-row-action-highlight', 'action-row-highlight');
+      parent.insertBefore(row, parent.firstElementChild);
+    }
+  }
+
+  window.highlightIqfPickActionRow = highlightActionRow;
+  window.restoreIqfPickRowActionHighlight = restoreRowPosition;
+
+  // Attach highlight/move for IQF action buttons: Audit, Verify Tray, View, remarks, and delete
   function attachRowHighlight(selector) {
     document.querySelectorAll(selector).forEach(function(btn) {
       btn.addEventListener('click', function(event) {
-        var button = event.currentTarget;
-        var row = button.closest('tr');
-        document.querySelectorAll('tbody tr').forEach(function(row) {
-          row.classList.remove('iqf-row-action-highlight');
-        });
-        if (row && row.parentNode) {
-          const tbody = row.parentNode;
-          if (tbody.firstElementChild !== row) {
-            if (movedRow && placeholderRow && placeholderRow.parentNode) {
-              placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-              placeholderRow.parentNode.removeChild(placeholderRow);
-              movedRow.classList.remove('iqf-row-action-highlight');
-              movedRow = null;
-              placeholderRow = null;
-              originalRowIndex = null;
-            }
-            originalRowIndex = Array.from(tbody.children).indexOf(row);
-            movedRow = row;
-            placeholderRow = document.createElement('tr');
-            placeholderRow.style.display = 'none';
-            for (let i = 0; i < row.children.length; i++) {
-              placeholderRow.appendChild(document.createElement('td'));
-            }
-            tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-            tbody.insertBefore(row, tbody.firstElementChild);
-          }
-          row.classList.add('iqf-row-action-highlight');
-        }
+        highlightActionRow(event.currentTarget);
       });
     });
   }
 
-  // Attach highlight to Audit (.tray-scan-btn), Verify Tray (.iqf-verify-tray-btn), View (.text-primary.tray-scan-btn-Jig), and checkbox (.ip-checkbox)
-  attachRowHighlight('.ip-checkbox, .tray-scan-btn, .iqf-verify-tray-btn, .tray-scan-btn-Jig');
+  // Attach highlight to row actions only; model hover is intentionally excluded.
+  attachRowHighlight('.ip-checkbox, .tray-scan-btn, .iqf-verify-tray-btn, .tray-scan-btn-Jig, [data-iqf-save-remark], .delete-batch-btn');
 
   // Restore on all modal closes
   [
@@ -5733,6 +5909,9 @@ document.addEventListener('DOMContentLoaded', function() {
         msg.textContent = '✓ Saved';
         textarea.parentNode.appendChild(msg);
         setTimeout(function() { msg.remove(); }, 2000);
+        if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+          window.restoreIqfPickRowActionHighlight();
+        }
       } else {
         console.error('[IQF REMARKS] Error:', data.error);
         sendBtn.disabled = false;
@@ -5743,6 +5922,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           alert('Error: ' + (data.error || 'Failed to save remark'));
         }
+        if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+          window.restoreIqfPickRowActionHighlight();
+        }
       }
     })
     .catch(function(err) {
@@ -5751,6 +5933,9 @@ document.addEventListener('DOMContentLoaded', function() {
       sendBtn.innerHTML = origHTML;
       sendBtn.style.opacity = '1';
       alert('Network error. Please try again.');
+      if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+        window.restoreIqfPickRowActionHighlight();
+      }
     });
   }, true);
 
@@ -5791,12 +5976,18 @@ document.addEventListener('click', function(evt) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({ icon: 'success', title: 'Deleted', text: 'Lot ' + lotId + ' has been removed from the IQF queue.', timer: 2000, showConfirmButton: false });
         }
+        if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+          window.restoreIqfPickRowActionHighlight();
+        }
       } else {
         var msg = (result.body && result.body.error) ? result.body.error : 'Failed to delete lot';
         if (typeof Swal !== 'undefined') {
           Swal.fire('Error', msg, 'error');
         } else {
           alert('Error: ' + msg);
+        }
+        if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+          window.restoreIqfPickRowActionHighlight();
         }
       }
     })
@@ -5806,6 +5997,9 @@ document.addEventListener('click', function(evt) {
         Swal.fire('Network Error', 'Failed to connect to server. Please try again.', 'error');
       } else {
         alert('Network error. Please try again.');
+      }
+      if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+        window.restoreIqfPickRowActionHighlight();
       }
     });
   }
@@ -5821,10 +6015,15 @@ document.addEventListener('click', function(evt) {
       confirmButtonText: 'Yes, delete it'
     }).then(function(result) {
       if (result.isConfirmed) { _doDelete(); }
+      else if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+        window.restoreIqfPickRowActionHighlight();
+      }
     });
   } else {
     if (confirm('Remove lot ' + lotId + ' from the IQF queue?\nAll IQF draft and tray data for this lot will be cleared.\nThis action cannot be undone.')) {
       _doDelete();
+    } else if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+      window.restoreIqfPickRowActionHighlight();
     }
   }
 });
@@ -5901,6 +6100,9 @@ function attachHoldToggleListeners() {
 
       var holdCell = newBtn.closest('td');
       var row = holdCell.closest('tr');
+      if (typeof window.highlightIqfPickActionRow === 'function') {
+        window.highlightIqfPickActionRow(newBtn);
+      }
 
       window.holdToggleState = {
         currentHoldCell: holdCell,
@@ -5922,6 +6124,14 @@ function attachHoldToggleListeners() {
   });
 
   // Attach save button handler (only once globally)
+  function restoreHoldToggleState() {
+    if (!window.holdToggleState || !window.holdToggleState.currentHoldCell) return;
+    var toggle = window.holdToggleState.currentHoldCell.querySelector('.hold-toggle-btn');
+    if (toggle) {
+      toggle.checked = !window.holdToggleState.intendedState;
+    }
+  }
+
   var saveBtn = document.getElementById('saveHoldRemarkBtn');
   if (saveBtn && !window.holdSaveHandlerAttached) {
     window.holdSaveHandlerAttached = true;
@@ -5966,6 +6176,9 @@ function attachHoldToggleListeners() {
 
         if (data.success) {
           document.getElementById('holdRemarkModal').style.display = 'none';
+          if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+            window.restoreIqfPickRowActionHighlight();
+          }
 
           var currentRow = document.querySelector('tr[data-stock-lot-id="' + window.holdToggleState.currentLotId + '"]');
           if (currentRow) {
@@ -6009,11 +6222,19 @@ function attachHoldToggleListeners() {
 
         } else {
           document.getElementById('holdRemarkError').textContent = data.error || 'Failed to save reason!';
+          restoreHoldToggleState();
+          if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+            window.restoreIqfPickRowActionHighlight();
+          }
         }
       })
       .catch(function(error) {
         console.error('Request failed:', error);
         document.getElementById('holdRemarkError').textContent = 'Network error!';
+        restoreHoldToggleState();
+        if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+          window.restoreIqfPickRowActionHighlight();
+        }
       });
     };
   }
@@ -6024,6 +6245,10 @@ function attachHoldToggleListeners() {
     window.holdCloseHandlerAttached = true;
     closeBtn.onclick = function () {
       document.getElementById('holdRemarkModal').style.display = 'none';
+      restoreHoldToggleState();
+      if (typeof window.restoreIqfPickRowActionHighlight === 'function') {
+        window.restoreIqfPickRowActionHighlight();
+      }
       window.holdToggleState = {
         currentHoldCell: null,
         intendedState: null,
