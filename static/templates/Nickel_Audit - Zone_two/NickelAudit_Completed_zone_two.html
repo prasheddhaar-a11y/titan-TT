@@ -1,4 +1,6 @@
-{% extends "base.html" %} {% load static %} {% block content %}
+{% extends "base.html" %} {% load static %}
+{% block body_extra_class %} force-footer-bottom-page{% endblock %}
+{% block content %}
 {% load stock_filters %} 
 
 <style nonce="{{ csp_nonce }}">
@@ -716,7 +718,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
 </style>
 
-<div class="content-wrapper">
+<div class="content-wrapper force-footer-bottom-page">
 
   <div class="row">
     <div class="col-12 grid-margin stretch-card">
@@ -1248,6 +1250,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
       </div>
     </div>
   </div>
+  <!-- content-wrapper ends -->
+</div>
   <!-- Image Slider Modal (popup) -->
   <div id="imageSliderModal" class="image-slider-modal">
     <span id="closeImageSliderModal" class="modal-close-BQ">&times;</span>

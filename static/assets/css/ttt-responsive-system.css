@@ -249,6 +249,59 @@ html.ttt-viewport-tablet .dp-pick-table-page #order-listing td:nth-child(3) {
   max-width: 200px !important;
 }
 
+/* Day Planning Pick Table (tablet/mobile only): freeze ONLY the Action column
+   HEADER during vertical scroll, exactly like the existing desktop pattern
+   (see the generic "thead th:nth-child(n+4)" sticky-top rule further down in
+   this file, which already keeps every header cell - including Action -
+   pinned to the top on desktop). Nothing here is a horizontal/right-edge
+   freeze, and the Action body <td> cells are left completely alone - they
+   scroll normally with their row, same as on desktop.
+   IMPORTANT: Action is column 4 in this table's visual order (S.No, Last
+   Updated, Plating Stock Number, Action, Remarks) - Remarks is untouched.
+   A .sticky-action class is also matched in case one is added to the Action
+   <th> in the template later - harmless if absent.
+   Desktop (html:not(.ttt-viewport-tablet)) is completely untouched. */
+html.ttt-viewport-tablet .dp-pick-table-page #order-listing thead th:nth-child(4),
+html.ttt-viewport-tablet .dp-pick-table-page #order-listing thead th.sticky-action {
+  position: sticky !important;
+  top: 0 !important;
+  right: auto !important;
+  left: auto !important;
+  background: #028084 !important;
+  color: #e5fcff !important;
+  background-clip: padding-box !important;
+  z-index: 20 !important;
+}
+
+/* Media-query fallback for the same tablet breakpoints this file already uses
+   (see the tablet font-size query at the top of this file). Pure safety net
+   in case ttt-responsive-system.js hasn't added .ttt-viewport-tablet yet on
+   first paint - duplicates only the header rule above, never fires on
+   desktop widths/pointers. */
+@media (any-pointer: coarse) and (min-width: 800px) and (max-width: 1300px)
+  and (min-height: 600px) and (max-height: 900px)
+  and (orientation: landscape),
+  (hover: none) and (min-width: 800px) and (max-width: 1300px)
+  and (min-height: 600px) and (max-height: 900px)
+  and (orientation: landscape),
+  (any-pointer: coarse) and (min-width: 768px) and (max-width: 2000px) and (min-height: 1200px),
+  (hover: none) and (min-width: 768px) and (max-width: 2000px) and (min-height: 1200px),
+  (any-pointer: coarse) and (min-width: 1200px) and (max-width: 1920px) and (min-height: 700px) and (max-height: 1200px),
+  (hover: none) and (min-width: 1200px) and (max-width: 1920px) and (min-height: 700px) and (max-height: 1200px) {
+
+  .dp-pick-table-page #order-listing thead th:nth-child(4),
+  .dp-pick-table-page #order-listing thead th.sticky-action {
+    position: sticky !important;
+    top: 0 !important;
+    right: auto !important;
+    left: auto !important;
+    background: #028084 !important;
+    color: #e5fcff !important;
+    background-clip: padding-box !important;
+    z-index: 20 !important;
+  }
+}
+
 /* Input Screening shared font and tablet alignment fallback. */
 :is(.is-pick-table-page, .is-completed-table-page),
 :is(.is-pick-table-page, .is-completed-table-page) :where(.card-body, .table-responsive, #order-listing, #order-listing th, #order-listing td, h4, h5, button, .btn, input, select, textarea, label, span, div, a, p, small, kbd, .badge, .rounded-pill, .status-badge, .avatar, .remark-circle) {
