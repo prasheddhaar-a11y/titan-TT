@@ -731,7 +731,7 @@
    ============================================================ */
   .jig-modal-header-v2 {
     background: #fbfcfd !important;
-    padding: 14px 60px 14px 28px !important;
+    padding: 14px 60px 16px 28px !important;
     border-bottom: 1px solid #eef1f4;
     box-shadow: none !important;
     position: relative;
@@ -739,7 +739,8 @@
 
   .jig-header-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
@@ -748,6 +749,21 @@
     align-items: center;
     gap: 12px;
     min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  /* Field-strip form merged into the header row: let it fill the remaining
+     width next to the title so title + fields sit on one line. */
+  .jig-header-row #jigAddForm {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .jig-header-row .jig-field-strip-single {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
   .jig-header-icon {

@@ -6,7 +6,6 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.contrib.auth import logout as auth_logout
-from django.contrib import messages
 import time
 import logging
 
@@ -524,18 +523,15 @@ class SingleSessionMiddleware:
 
         if self._wants_json(request):
             return JsonResponse(
-                {'detail': 'Session expired because your account was logged in elsewhere.'},
+                {'detail': 'Session Interrupted - please relogin to proceed.'},
                 status=401,
             )
 
-        try:
-            messages.info(request, 'Your account was logged in from another location.')
-        except Exception:
-            # The messages framework may be unavailable/misconfigured;
-            # never let that break the actual security enforcement.
-            logger.debug('Could not attach single-session logout message.', exc_info=True)
-
-        return redirect(self._login_url())
+        # login.html renders `?session_error=interrupted` as the visible error
+        # message (it does not render django.contrib.messages), so pass it via
+        # the query string rather than messages.info(), which would silently
+        # never be displayed.
+        return redirect(f'{self._login_url()}?session_error=interrupted')
 
 
 class EmailOTPMFARequiredMiddleware:

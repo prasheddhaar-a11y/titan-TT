@@ -438,8 +438,36 @@ class ModelMasterCreation(models.Model):
         help_text="Source of upload: Day Planning or Recovery Upload",
     )
 
+    # ═══ Centralized Lot Status (lot_status app) ═══
+    # Single unified status field reused across every production module.
+    # Do NOT create parallel/per-module status columns — call
+    # lot_status.services.transition_lot_status() to change this.
+    UNIFIED_STATUS_CHOICES = [
+        ('YET_TO_START', 'Yet to Start'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('DRAFT', 'Draft'),
+        ('RELEASED', 'Released'),
+    ]
+    unified_status = models.CharField(
+        max_length=20,
+        choices=UNIFIED_STATUS_CHOICES,
+        default='YET_TO_START',
+        db_index=True,
+        help_text="Centralized lot status (Yet to Start -> In Progress -> Draft -> Released), managed only via lot_status.services.transition_lot_status()",
+    )
+    unified_status_module = models.CharField(
+        max_length=50, null=True, blank=True,
+        help_text="Which module last changed unified_status (e.g. DayPlanning, InputScreening)",
+    )
+    unified_status_updated_at = models.DateTimeField(null=True, blank=True)
+    unified_status_updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='unified_status_events',
+    )
+    unified_status_reason = models.CharField(max_length=255, null=True, blank=True)
+
     def save(self, *args, **kwargs):
-    
+
         if not self.pk:  # Only set the sequence number for new instances
             last_batch = ModelMasterCreation.objects.order_by('-sequence_number').first()
             self.sequence_number = 1 if not last_batch else last_batch.sequence_number + 1

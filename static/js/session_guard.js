@@ -20,6 +20,8 @@
 
   var LOGIN_URL = '/accounts/login/';
   var PING_URL = '/adminportal/api/shortcuts/'; // cheap, login_required, cached
+  var HEARTBEAT_URL = '/adminportal/api/session-heartbeat/';
+  var HEARTBEAT_INTERVAL_MS = 45000;            // must stay under services.ACTIVE_SESSION_STALE_SECONDS
   var IDLE_BUFFER_MS = 1000;                    // grace period past cookie age
   var RECHECK_INTERVAL_MS = 30000;              // fallback re-check cadence
   var alertShown = false;
@@ -109,6 +111,28 @@
     });
   }
 
+  // ── Presence layer: heartbeat so a closed tab is detected within seconds,
+  // not the full idle-session timeout (backend: services.get_active_session_
+  // conflict_message / ACTIVE_SESSION_STALE_SECONDS) ────────────────────────
+  function getCsrfToken() {
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function sendHeartbeat() {
+    if (alertShown || !nativeFetch) { return; }
+    nativeFetch(HEARTBEAT_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      credentials: 'same-origin'
+    }).catch(function () { /* best-effort; next tick retries */ });
+  }
+
+  function startHeartbeat() {
+    sendHeartbeat();
+    setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  }
+
   // ── Proactive layer: idle-expiry detection ────────────────────────────────
   function getExpirySeconds() {
     var meta = document.querySelector('meta[name="session-expiry-seconds"]');
@@ -164,6 +188,7 @@
     // the login page does not include this script.
     lastActivityAt = Date.now();
     scheduleIdleCheck(getExpirySeconds() * 1000 + IDLE_BUFFER_MS);
+    startHeartbeat();
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) { checkNowIfOverdue(); }
     });

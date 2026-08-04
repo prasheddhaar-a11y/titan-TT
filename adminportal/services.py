@@ -689,6 +689,80 @@ def get_account_lock_message(username):
     return None
 
 
+SESSION_ALREADY_ACTIVE_MESSAGE = 'Logout in another device to proceed.'
+
+# A closed tab/browser sends no logout request, so the Django session row
+# (and UserActiveSession) would otherwise stay "active" until the full
+# 15-minute SESSION_COOKIE_AGE idle timeout lapses. The frontend heartbeat
+# (session_guard.js) refreshes UserActiveSession.updated_at every 45s while
+# a tab is genuinely open; if no heartbeat lands within this window the
+# other device is treated as gone, so a fresh login is allowed in seconds
+# instead of minutes. Must stay comfortably above the 45s heartbeat interval
+# to tolerate one missed beat plus network latency.
+ACTIVE_SESSION_STALE_SECONDS = 100
+
+
+def get_active_session_conflict_message(user, current_session_key=None, request=None):
+    """
+    Return the "already logged in elsewhere" error message if this user has a
+    live session on another device/browser, else None.
+
+    Enforces single-session-per-account at login time (rather than silently
+    kicking the older session once the new one is created): a second login
+    attempt is rejected outright while the existing session is still valid,
+    so the user must log out of the other device before logging in here.
+
+    `current_session_key` (the browser's own pre-login session, if any) is
+    checked first, but on its own it under-catches: django.contrib.auth.login()
+    always cycles the session key (session-fixation protection), so the
+    pre-login anonymous key can never equal the just-created active session's
+    key - not even for the exact same tab. Without a second signal, a
+    double-click on "Sign In", or a slow request the browser retried, makes
+    the very first login for an account get rejected as "another device",
+    because by the time the second near-simultaneous request runs this
+    check, the first request has already logged in and created the
+    UserActiveSession row it now sees as a conflict.
+    `request` (when supplied) lets IP + User-Agent stand in for "this is the
+    same device asking again": a genuinely different device won't share
+    both, so cross-device enforcement is unaffected.
+    """
+    from django.contrib.sessions.models import Session
+    from django.utils import timezone
+    from datetime import timedelta
+    from .models import UserActiveSession
+    from .signals import _get_client_ip
+
+    active_session = UserActiveSession.objects.filter(user=user).first()
+    if not active_session or not active_session.session_key:
+        return None
+
+    if current_session_key and active_session.session_key == current_session_key:
+        return None
+
+    if request is not None:
+        req_ip = _get_client_ip(request)
+        req_ua = request.META.get('HTTP_USER_AGENT', '')
+        if req_ip and req_ip == active_session.ip_address and req_ua == active_session.user_agent:
+            return None
+
+    # No heartbeat recently -> other tab/browser was closed (or crashed)
+    # without hitting logout. Don't make the new login wait out the full
+    # idle timeout for a device that is already gone.
+    stale_cutoff = timezone.now() - timedelta(seconds=ACTIVE_SESSION_STALE_SECONDS)
+    if active_session.updated_at < stale_cutoff:
+        return None
+
+    # A session row lingering past its expiry (Django only purges these via
+    # the periodic `clearsessions` command) is not actually "active" — treat
+    # it the same as no session so a genuinely stale record never blocks login.
+    if Session.objects.filter(
+        pk=active_session.session_key, expire_date__gt=timezone.now()
+    ).exists():
+        return SESSION_ALREADY_ACTIVE_MESSAGE
+
+    return None
+
+
 def get_failed_login_attempts(username):
     """Return the current failed-login count for an existing username."""
     if not username:

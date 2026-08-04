@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/allocate-trays/', allocate_trays, name='brass_qc_allocate_trays'),
     path('api/submit/', submit_brass_qc, name='brass_qc_submit'),
     path('api/toggle-verified/', brass_qc_toggle_verified, name='brass_qc_toggle_verified'),
+    path('api/delete-batch/', brass_qc_delete_batch, name='brass_qc_delete_batch'),
     path('api/hold-unhold/', brass_qc_hold_unhold, name='brass_qc_hold_unhold'),
     path('api/rejection-reasons/', get_rejection_reasons, name='brass_qc_rejection_reasons'),
     path('api/validate-tray/', validate_tray_id, name='brass_qc_validate_tray'),

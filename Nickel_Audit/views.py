@@ -946,6 +946,40 @@ def na_hold_unhold(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def na_delete_lot(request):
+    """Delete a Nickel Audit pick-table lot (shared by Zone 1 and Zone 2).
+
+    Mirrors DayPlanning.DeleteBatchAPIView. Only permitted while the lot is
+    still un-decided at this stage (no accept/reject/scan yet) — the same
+    guard the pick-table template uses to show the bin icon — so a row that
+    has already moved forward here can never be silently removed.
+    """
+    lot_id = (request.data.get('lot_id') or '').strip()
+    if not lot_id:
+        return Response({'success': False, 'error': 'lot_id is required'}, status=400)
+
+    juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
+    if not juat:
+        return Response({'success': False, 'error': 'Lot not found'}, status=404)
+
+    if (
+        juat.na_qc_accptance
+        or juat.na_qc_rejection
+        or juat.na_qc_few_cases_accptance
+        or juat.na_accepted_tray_scan_status
+    ):
+        return Response(
+            {'success': False, 'error': 'This lot has already been processed and cannot be deleted.'},
+            status=400,
+        )
+
+    logger.info("[na_delete_lot] lot=%s user=%s", lot_id, request.user)
+    juat.delete()
+    return Response({'success': True, 'message': 'Lot deleted successfully.'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def na_action(request):
     """Unified NA action handler: GET_REASONS, GET_TRAYS, ALLOCATE, SUBMIT_REJECT, SUBMIT_ACCEPT, FULL_ACCEPT."""
     from django.db import transaction
@@ -1714,6 +1748,15 @@ class NACompletedView(APIView):
                 'display_accepted_qty': accepted_qty,
                 'available_qty': accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
                 'no_of_trays': 0,
+                # Lot is only "Released" once it has actually moved past this stage
+                # (current_stage SSOT differs from 'Nickel Audit'). na_ac_accepted_qty_verified
+                # only reflects the qty-check step done during picking, not a downstream move,
+                # so it must not drive this pill (mirrors Inprocess_Inspection.lot_status).
+                'lot_status': (
+                    'Released'
+                    if jig_unload_obj.current_stage and jig_unload_obj.current_stage != 'Nickel Audit'
+                    else 'Yet to Release'
+                ),
             }
 
             tray_capacity = data['tray_capacity']

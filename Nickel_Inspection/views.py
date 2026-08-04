@@ -1204,11 +1204,27 @@ def _nq_do_submit_reject(request, lot_id, juat):
         rej_cap = 16
     orig_trays = _nq_get_original_trays_for_allocation(lot_id, juat, create_missing=True)
     allocation = build_nq_rejection_allocation(orig_trays, rejected_qty, rej_cap)
+
+    # A freed original tray (one the allocation would otherwise require to be
+    # delinked) may instead be reused directly as its own reject container —
+    # scanned straight into a reject slot. Any such tray no longer needs a
+    # separate delink scan.
+    delink_slot_ids = {slot['tray_id'] for slot in allocation['delink_slots']}
+    reused_tray_ids = {
+        (rt.get('tray_id') or '').strip().upper()
+        for rt in reject_trays
+        if (rt.get('tray_id') or '').strip().upper() in delink_slot_ids
+    }
+    delink_slots_required = [
+        slot for slot in allocation['delink_slots']
+        if slot['tray_id'] not in reused_tray_ids
+    ]
+
     try:
         reject_trays = normalize_reject_trays(reject_trays, allocation['reject_slots'])
         delink_trays_snapshot = normalize_operator_delink_trays(
             submitted_delink_trays,
-            allocation['delink_slots'],
+            delink_slots_required,
             orig_trays,
         )
         accept_trays = normalize_accept_trays(
@@ -1217,7 +1233,9 @@ def _nq_do_submit_reject(request, lot_id, juat):
             original_trays=orig_trays,
             delink_trays=delink_trays_snapshot,
         )
-        validate_original_tray_coverage(accept_trays, delink_trays_snapshot, orig_trays)
+        validate_original_tray_coverage(
+            accept_trays, delink_trays_snapshot, orig_trays, reject_trays=reject_trays,
+        )
     except ValueError as exc:
         return Response({'success': False, 'error': str(exc)}, status=400)
 
@@ -1228,7 +1246,7 @@ def _nq_do_submit_reject(request, lot_id, juat):
 
     for rt in reject_trays:
         tid = (rt.get('tray_id') or '').upper()
-        if not tid.startswith(allowed_prefix):
+        if tid not in reused_tray_ids and not tid.startswith(allowed_prefix):
             return Response(
                 {'success': False, 'error': f'Reject tray {tid} must start with {allowed_prefix}'},
                 status=400,
@@ -1282,6 +1300,7 @@ def _nq_do_submit_reject(request, lot_id, juat):
         # Determine which accept tray IDs to assign
         accept_tray_ids = {at['tray_id']: at for at in accept_trays}
         delink_tray_ids = {tray['tray_id'] for tray in delink_trays_snapshot}
+        reject_tray_qty_by_id = {rt['tray_id']: int(rt.get('qty', 0)) for rt in reject_trays}
         # Delink original trays that are no longer needed
         for tray_obj in orig_trays_qs:
             if tray_obj.tray_id in accept_tray_ids:
@@ -1289,6 +1308,14 @@ def _nq_do_submit_reject(request, lot_id, juat):
                 tray_obj.tray_quantity = int(at.get('qty', 0))
                 tray_obj.top_tray = bool(at.get('is_top', False))
                 tray_obj.save(update_fields=['tray_quantity', 'top_tray'])
+            elif tray_obj.tray_id in reused_tray_ids:
+                # Freed original tray reused directly as its own reject container —
+                # it holds the rejected pieces now, so it stays owned by this lot
+                # as a rejected tray rather than being freed via delink.
+                tray_obj.rejected_tray = True
+                tray_obj.tray_quantity = reject_tray_qty_by_id.get(tray_obj.tray_id, tray_obj.tray_quantity)
+                tray_obj.top_tray = False
+                tray_obj.save(update_fields=['rejected_tray', 'tray_quantity', 'top_tray'])
             elif tray_obj.tray_id in delink_tray_ids:
                 tray_obj.delink_tray = True
                 tray_obj.delink_tray_qty = tray_obj.tray_quantity

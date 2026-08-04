@@ -4030,7 +4030,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
                       instead of scrolling inside it — that pushed .jig-modal-footer
                       (Submit/Draft/Clear/Cancel) below the window's own max-height,
                       making it look like the footer rendered "outside" the modal. */
-    padding: 24px 28px;
+    padding: 10px 28px !important;
     overflow-y: auto;
     box-sizing: border-box;
     max-height: calc(100vh - 160px);
@@ -4187,7 +4187,7 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
    ============================================================ */
   .jig-modal-header-v2 {
     background: #fbfcfd !important;
-    padding: 14px 60px 14px 28px !important;
+    padding: 10px 15px 10px 25px !important;
     border-bottom: 1px solid #eef1f4;
     box-shadow: none !important;
     position: relative;
@@ -4195,7 +4195,8 @@ background: linear-gradient(135deg, #e0f7fa, #e8f5e9) !important;
 
   .jig-header-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 12px;
   }
 

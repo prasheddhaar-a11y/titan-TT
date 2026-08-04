@@ -10,7 +10,20 @@ def user_permissions(request):
     # timeout window (used to proactively detect session expiry).
     session_cookie_age = getattr(settings, 'SESSION_COOKIE_AGE', 900)
 
-    if request.user.is_authenticated:
+    # This processor runs on every template render, including the custom
+    # 400/403/500 error pages. Those can be triggered by an exception raised
+    # in middleware that sits BEFORE AuthenticationMiddleware in the chain
+    # (CommonMiddleware, CsrfViewMiddleware, SafeSessionMiddleware, etc.),
+    # in which case request.user was never set yet. Unconditionally reading
+    # request.user.is_authenticated there raised AttributeError, and because
+    # that AttributeError happened while rendering the *error* page, Django
+    # tried to render the error page again to report it - a self-repeating
+    # failure that surfaced to the browser as a stuck/looping page load.
+    # django.contrib.auth.context_processors.auth (registered above this
+    # one) already guards the identical case the same way.
+    user = request.user if hasattr(request, 'user') else None
+
+    if user is not None and user.is_authenticated:
         allowed_modules = getattr(request, '_ttt_allowed_modules', None)
         if allowed_modules is None:
             allowed_modules = get_user_allowed_module_names(request.user)

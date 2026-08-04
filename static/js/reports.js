@@ -214,14 +214,43 @@ document.addEventListener("DOMContentLoaded", function () {
       data.results.forEach(function (row) {
         const tr = document.createElement("tr");
         const modules = row.modules || {};
-        const values = [row.s_no, row.plating_stk_no, row.lot_qty]
-          .concat(MODULE_COLUMNS.map(function (name) { return modules[name]; }))
-          .concat([row.remarks]);
-        values.forEach(function (value) {
+        const moduleStates = row.module_states || {};
+        const leading = [row.s_no, row.plating_stk_no, row.lot_qty];
+        leading.forEach(function (value) {
           const td = document.createElement("td");
           td.textContent = value === null || value === undefined ? "" : value;
           tr.appendChild(td);
         });
+        const moduleDetails = row.module_details || {};
+        MODULE_COLUMNS.forEach(function (name) {
+          const td = document.createElement("td");
+          const state = moduleStates[name];
+          if (state) td.classList.add("stage-" + state);
+
+          const lines = moduleDetails[name];
+          if (lines && lines.length) {
+            const grid = document.createElement("div");
+            grid.className = "cell-grid";
+            lines.forEach(function (line) {
+              const labelEl = document.createElement("span");
+              labelEl.className = "cell-label";
+              labelEl.textContent = line.label;
+              const valueEl = document.createElement("span");
+              valueEl.className = "cell-value cell-value-" + (line.type || "muted");
+              valueEl.textContent = line.value;
+              grid.appendChild(labelEl);
+              grid.appendChild(valueEl);
+            });
+            td.appendChild(grid);
+          } else {
+            const value = modules[name];
+            td.textContent = value === null || value === undefined ? "" : value;
+          }
+          tr.appendChild(td);
+        });
+        const remarksTd = document.createElement("td");
+        remarksTd.textContent = row.remarks === null || row.remarks === undefined ? "" : row.remarks;
+        tr.appendChild(remarksTd);
         previewBody.appendChild(tr);
       });
     }

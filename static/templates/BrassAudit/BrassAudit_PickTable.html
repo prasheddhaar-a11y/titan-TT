@@ -1259,11 +1259,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 13px; white-space: nowrap; padding: 5px;">
                           On Hold
                         </div>
-                      {% elif data.lot_status == 'In Progress' %}
-                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
-                            style="border: 1px solid #1976d2; background-color: #e3f2fd; color: #0d47a1; font-size: 13px; white-space: nowrap; padding: 5px;">
-                          In Progress
-                        </div>
                       {% elif data.lot_status == 'Yet to Release' %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
@@ -2123,11 +2118,12 @@ document.addEventListener('DOMContentLoaded', function() {
               if (lotStatusIndex >= 0) {
                 const lotStatusTd = stageTds[lotStatusIndex];
                 const lotStatusPill = lotStatusTd.querySelector('.d-inline-block.rounded-pill');
-                if (lotStatusPill && result.lot_status) {
-                  lotStatusPill.textContent = result.lot_status;
-                  if (result.lot_status === 'In Progress') {
-                    lotStatusPill.style.cssText = 'border:1px solid #1976d2; background-color:#e3f2fd; color:#0d47a1; font-size:13px; white-space:nowrap; padding:5px;';
-                    lotStatusPill.classList.remove('lot-status-pill');
+                if (lotStatusPill) {
+                  const text = lotStatusPill.textContent.trim();
+                  if (text === 'Yet to Start') {
+                    lotStatusPill.textContent = 'Yet to Release';
+                    lotStatusPill.style.cssText = 'border:1px solid #028084; background-color:#d1f8f0; color:#028084; font-size:13px; white-space:nowrap; padding:5px;';
+                    lotStatusPill.classList.add('lot-status-pill');
                   }
                 }
               }

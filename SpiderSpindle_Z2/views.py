@@ -340,38 +340,42 @@ class SSZ2AddSpiderAPIView(APIView):
         if not upstream_tray_ids:
             return Response({'error': 'No trays found for this lot.'}, status=status.HTTP_404_NOT_FOUND)
 
-        with transaction.atomic():
-            linked_tray_ids = []
-            for tid in upstream_tray_ids:
-                if not SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id, tray_id=tid).exists():
-                    SpiderSpindleZ2TrayId.objects.create(
-                        lot_id=lot_id,
-                        tray_id=tid,
-                        linked_by=request.user if request.user.is_authenticated else None,
-                    )
-                linked_tray_ids.append(tid)
+        try:
+            with transaction.atomic():
+                linked_tray_ids = []
+                for tid in upstream_tray_ids:
+                    if not SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id, tray_id=tid).exists():
+                        SpiderSpindleZ2TrayId.objects.create(
+                            lot_id=lot_id,
+                            tray_id=tid,
+                            linked_by=request.user if request.user.is_authenticated else None,
+                        )
+                    linked_tray_ids.append(tid)
 
-            released_count = _release_spider_trays_for_reuse(lot_id, linked_tray_ids)
+                released_count = _release_spider_trays_for_reuse(lot_id, linked_tray_ids)
 
-            jig_obj.ss_z2_completed = True
-            jig_obj.ss_z2_tray_id = ','.join(linked_tray_ids)
-            jig_obj.ss_z2_completed_at = timezone.now()
-            jig_obj.ss_z2_completed_by = request.user if request.user.is_authenticated else None
-            jig_obj.save(update_fields=[
-                'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
-            ])
+                jig_obj.ss_z2_completed = True
+                jig_obj.ss_z2_tray_id = ','.join(linked_tray_ids)
+                jig_obj.ss_z2_completed_at = timezone.now()
+                jig_obj.ss_z2_completed_by = request.user if request.user.is_authenticated else None
+                jig_obj.save(update_fields=[
+                    'ss_z2_completed', 'ss_z2_tray_id', 'ss_z2_completed_at', 'ss_z2_completed_by'
+                ])
 
-            # Real processing activity — advance the shared current_stage SSOT
-            # so the previous module (Jig Unloading) shows "Spider Spindle" as
-            # the Current Location instead of a stale value.
-            # jig_obj.lot_id is this JigUnloadAfterTable row's own ID, which never
-            # exists in TotalStockModel — the original lot IDs tracked by Day
-            # Planning/Brass QC/Brass Audit completed tables are in combine_lot_ids
-            # (a jig can combine multiple original lots).
-            from modelmasterapp.stage_service import update_juat_stage, update_stock_stage
-            update_juat_stage(lot_id, 'Spider Spindle')
-            for original_lot_id in (jig_obj.combine_lot_ids or []):
-                update_stock_stage(original_lot_id, 'Spider Spindle')
+                # Real processing activity — advance the shared current_stage SSOT
+                # so the previous module (Jig Unloading) shows "Spider Spindle" as
+                # the Current Location instead of a stale value.
+                # jig_obj.lot_id is this JigUnloadAfterTable row's own ID, which never
+                # exists in TotalStockModel — the original lot IDs tracked by Day
+                # Planning/Brass QC/Brass Audit completed tables are in combine_lot_ids
+                # (a jig can combine multiple original lots).
+                from modelmasterapp.stage_service import update_juat_stage, update_stock_stage
+                update_juat_stage(lot_id, 'Spider Spindle')
+                for original_lot_id in (jig_obj.combine_lot_ids or []):
+                    update_stock_stage(original_lot_id, 'Spider Spindle')
+        except Exception:
+            logger.exception("[SSZ2AddSpiderAPIView] failed lot_id=%s", lot_id)
+            return Response({'success': False, 'error': 'Unable to add spider for this lot.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
             'success': True,

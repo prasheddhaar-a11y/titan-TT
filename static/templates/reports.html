@@ -282,9 +282,39 @@
     border-bottom: 1px solid #f2f4f6;
     color: #2c3e50;
     vertical-align: top;
-    white-space: pre-line;
+    white-space: normal;
   }
   .preview-table tbody tr:hover { background: #fafcfc; }
+  .preview-table td.stage-not_reached { background: #fdecea; }
+  .preview-table td.stage-current { background: #e3f2fd; }
+  .preview-table td.stage-completed { background: #e6f7ec; }
+  .preview-table tbody tr:hover td.stage-not_reached { background: #fbe0dd; }
+  .preview-table tbody tr:hover td.stage-current { background: #d6ebfa; }
+  .preview-table tbody tr:hover td.stage-completed { background: #d9f2e3; }
+
+  /* Per-cell label/value grid — readable, scannable stage detail */
+  .cell-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 6px;
+    row-gap: 2px;
+    min-width: 150px;
+    font-size: 0.78rem;
+  }
+  .cell-label {
+    color: #8a97a6;
+    font-weight: 600;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    padding-top: 1px;
+  }
+  .cell-value { word-break: break-word; }
+  .cell-value-time { color: #2b363c; font-variant-numeric: tabular-nums; }
+  .cell-value-qty { color: #2e2d2a; font-weight: 500; }
+  .cell-value-status { color: #1c1c1c; font-weight: 700; }
+  .cell-value-muted { color: #5c6773; font-style: italic; }
   .preview-pagination {
     display: flex;
     justify-content: flex-end;

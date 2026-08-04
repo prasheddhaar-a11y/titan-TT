@@ -72,6 +72,35 @@ def _resolve_local_user_for_sso(email, preferred_name=''):
     return best
 
 
+def _provision_new_sso_user(email, name):
+    """
+    Create a minimal local account for a Microsoft identity that has no
+    matching local user yet.
+
+    No password is set (set_unusable_password via create_user's password=None),
+    so this account can only ever sign in through SSO, never the
+    username/password form. No modules are assigned, so
+    adminportal.views.IndexView's existing "no modules assigned" check
+    (show_sso_no_modules_alert) will show the "Access Restricted / Contact
+    admin to access the portal" alert on the dashboard itself, and it
+    auto-refreshes once an admin grants the account modules from User
+    Management - instead of turning the person away at the login page before
+    an admin has ever seen them.
+    get_or_create (not create_user directly) guards against two concurrent
+    first-time logins for the same brand-new email racing each other.
+    """
+    first_name, _, last_name = (name or '').strip().partition(' ')
+    user, created = User.objects.get_or_create(
+        username=email,
+        defaults={'email': email, 'first_name': first_name, 'last_name': last_name},
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=['password'])
+        logger.info("Auto-provisioned new local account for SSO identity %s (user_id=%s)", email, user.id)
+    return user
+
+
 def _get_authority():
     """Authority URL built from settings (env-driven), never hardcoded."""
     tenant = (getattr(settings, 'MSAL_TENANT_ID', '') or 'common').strip()
@@ -83,6 +112,25 @@ def microsoft_login(request):
     if not settings.MSAL_CLIENT_ID or not settings.MSAL_CLIENT_SECRET:
         logger.error("MSAL client id/secret not configured in settings.")
         return redirect(f"{settings.LOGIN_URL}?sso_error=not_configured")
+
+    # MSAL_REDIRECT_URI_BASE pins the origin Microsoft will send the browser
+    # back to (it must byte-for-byte match what's registered in Azure). If
+    # this page was reached on a different origin - e.g. http://127.0.0.1:8000
+    # instead of http://localhost:8000 - the session set below would be
+    # scoped to that other origin and never sent back once Microsoft
+    # redirects to the fixed one, so the callback would see an empty session
+    # and reject a completely legitimate login as "state mismatch". Bounce
+    # once onto the configured origin before starting the flow so the
+    # session that actually carries msal_states lives on the same origin
+    # the callback will land on.
+    configured_base = (settings.MSAL_REDIRECT_URI_BASE or '').strip()
+    if configured_base:
+        configured_netloc = urlparse(configured_base).netloc
+        if configured_netloc and configured_netloc.lower() != request.get_host().lower():
+            configured_scheme = urlparse(configured_base).scheme or request.scheme
+            target = f"{configured_scheme}://{configured_netloc}{request.get_full_path()}"
+            logger.debug("Redirecting SSO login onto configured origin: %s", target)
+            return redirect(target)
 
     # Create and persist state to protect against CSRF. A small list of recent
     # states is kept (not a single value) because browsers may prefetch or the
@@ -186,14 +234,16 @@ def microsoft_callback(request):
         logger.error("ID token did not contain an email/username claim: %s", id_token_claims)
         return HttpResponseBadRequest("Unable to determine user identity from ID token.")
 
-    # SSO signs in only users that already exist in User Management.
     # Match by email/UPN first, then by username/local part and by name tokens.
+    # A first-time Microsoft sign-in with no matching local user is no longer
+    # turned away at the login page - it's auto-provisioned with no modules,
+    # and the dashboard's existing "no modules assigned" alert
+    # (show_sso_no_modules_alert, see the sso_just_logged_in flag below)
+    # tells them to contact an admin, same wording as before, just after
+    # login instead of before it.
     user = _resolve_local_user_for_sso(email, name)
-
     if user is None:
-        logger.warning("SSO login denied: no active local user for %s", email)
-        request.session['sso_access_denied'] = True
-        return redirect(settings.LOGIN_URL)
+        user = _provision_new_sso_user(email, name)
 
     # Log the user in via Django session-based auth.
     # The backend MUST be one listed in settings.AUTHENTICATION_BACKENDS:

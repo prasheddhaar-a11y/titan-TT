@@ -39,10 +39,16 @@ from modelmasterapp.models import (
     Version, PolishFinishType, Plating_Color, TrayType, Vendor, Location,
 )
 from DayPlanning.models import DPTrayId_History
-from InputScreening.models import IPTrayId
-from Brass_QC.models import BrassTrayId
+from InputScreening.models import IPTrayId, InputScreening_Submitted, IS_PartialAcceptLot
+from Brass_QC.models import BrassTrayId, Brass_QC_Submission
+from BrassAudit.models import Brass_Audit_Submission
+from IQF.models import IQF_Submitted
 from Jig_Loading.models import Jig, JigCompleted, BathNumbers
 from Jig_Unloading.models import JigUnloadAfterTable
+from Nickel_Inspection.models import NickelQC_Submission
+from Nickel_Audit.models import NickelAudit_Submission
+from SpiderSpindle_Z1.models import SpiderSpindleZ1TrayId
+from SpiderSpindle_Z2.models import SpiderSpindleZ2TrayId
 
 # -------------------------------------------------------------------------
 # CONSTANTS
@@ -113,21 +119,39 @@ if not JIG_IDS:
 # Real bath number FK for JigCompleted
 bath_bright  = BathNumbers.objects.filter(is_active=True, bath_type='Bright').first()
 
-# Free tray pool (for DPTrayId_History rows)
+# Free tray pool (for DPTrayId_History rows) - real TrayId master rows only,
+# across ALL valid prefixes (NR-A/ND-A/NB-A/NL-A/JR-A/JD-A/JB-A/JL-A), never
+# a synthetic "ST-xxxxxxxx" id (those don't exist in TrayId master and break
+# any downstream code that parses/validates the real tray_id prefix format).
 FREE_TRAYS   = list(
-    TrayId.objects.filter(new_tray=True, scanned=False, batch_id__isnull=True,
-                          tray_id__startswith='NR-A')
+    TrayId.objects.filter(new_tray=True, scanned=False, batch_id__isnull=True)
     .order_by('tray_id')
-    .values_list('tray_id', flat=True)[:800]
+    .values_list('tray_id', flat=True)
 )
 _tray_iter = iter(FREE_TRAYS)
+_TRAY_PREFIXES = ['NR-A', 'ND-A', 'NB-A', 'NL-A', 'JR-A', 'JD-A', 'JB-A', 'JL-A']
+_extra_tray_ctr = [0]
 
 def next_tray():
+    """
+    Real TrayId master rows only. Once the free pool is exhausted, generate
+    the next sequential id for a real prefix the same way
+    InputScreening/services_reject._generate_new_tray_ids does (max existing
+    numeric suffix + 1), so overflow ids are still valid, correctly-formatted
+    tray ids - never a random synthetic "ST-..." id.
+    """
     try:
         return next(_tray_iter)
     except StopIteration:
-        import uuid
-        return f"ST-{uuid.uuid4().hex[:8].upper()}"
+        pass
+    prefix = _TRAY_PREFIXES[_extra_tray_ctr[0] % len(_TRAY_PREFIXES)]
+    _extra_tray_ctr[0] += 1
+    last = (
+        TrayId.objects.filter(tray_id__startswith=prefix)
+        .order_by('-tray_id').values_list('tray_id', flat=True).first()
+    )
+    next_n = int(last[len(prefix):]) + 1 if last else 1
+    return f"{prefix}{next_n:05d}"
 
 print(f"\n  Zone 1 color : {plating_z1.plating_color}")
 print(f"  Zone 2 color : {plating_z2.plating_color}")
@@ -173,12 +197,27 @@ with transaction.atomic():
     # Delete seeded tray records (batch_id is FK to ModelMasterCreation)
     iptr_del = IPTrayId.objects.filter(batch_id__batch_id__startswith=SEED_TAG).delete()
     bqtr_del = BrassTrayId.objects.filter(batch_id__batch_id__startswith=SEED_TAG).delete()
+    # Previous-stage "completed" transaction records (lot_id is a plain CharField, not FK)
+    iss_del  = InputScreening_Submitted.objects.filter(lot_id__startswith='LID').delete()
+    bqs_del  = Brass_QC_Submission.objects.filter(lot_id__startswith='LID').delete()
+    bas_del  = Brass_Audit_Submission.objects.filter(lot_id__startswith='LID').delete()
+    iqs_del  = IQF_Submitted.objects.filter(lot_id__startswith='LID').delete()
+    nqs_del  = NickelQC_Submission.objects.filter(lot_id__startswith=JUAT_TAG).delete()
+    nas_del  = NickelAudit_Submission.objects.filter(lot_id__startswith=JUAT_TAG).delete()
+    ssz1_del = SpiderSpindleZ1TrayId.objects.filter(lot_id__startswith=JUAT_TAG).delete()
+    ssz2_del = SpiderSpindleZ2TrayId.objects.filter(lot_id__startswith=JUAT_TAG).delete()
     # ModelMasterCreation cascades to TotalStockModel + DPTrayId_History
     mmc_del  = ModelMasterCreation.objects.filter(batch_id__startswith=SEED_TAG).delete()
     print(f"  JigCompleted deleted     : {jc_del[0]}")
     print(f"  JigUnloadAfterTable del  : {juat_del[0]}")
     print(f"  IPTrayId deleted         : {iptr_del[0]}")
     print(f"  BrassTrayId deleted      : {bqtr_del[0]}")
+    print(f"  InputScreening_Submitted del: {iss_del[0]}")
+    print(f"  Brass_QC_Submission del  : {bqs_del[0]}")
+    print(f"  Brass_Audit_Submission del: {bas_del[0]}")
+    print(f"  IQF_Submitted del        : {iqs_del[0]}")
+    print(f"  NickelQC_Submission del  : {nqs_del[0]}")
+    print(f"  NickelAudit_Submission del: {nas_del[0]}")
     print(f"  ModelMasterCreation del  : {mmc_del[0]}  (cascades to TotalStockModel + DPTrayId_History)")
 
 print("  All old seed data removed.\n")
@@ -264,6 +303,79 @@ def make_ip_trays(lot_id_str, batch, tray_list):
         )
 
 
+def _snapshot_top(tray_list):
+    """[{tray_id, qty, top_tray}] - shape used by IS_PartialAcceptLot."""
+    return [{'tray_id': t, 'qty': q, 'top_tray': top, 'source': 'seed'} for t, q, top in tray_list]
+
+
+def _snapshot_is_top(tray_list):
+    """[{tray_id, qty, is_top}] - shape used by BQ/BA/IQF/Nickel snapshot fields."""
+    return [{'tray_id': t, 'qty': q, 'is_top': top} for t, q, top in tray_list]
+
+
+def make_prev_stage_record(module, lot_id_str, batch_tag, batch, mm, lot_qty, tray_list, when):
+    """
+    Create the real "previous stage completed" transaction record that the
+    detail popup for `module`'s pick-table row actually reads, so the popup
+    shows genuine accept data instead of falling back to N/A.
+
+    `module` is the CURRENT stage's tag (BQ/BA/IQ/JL) - the record created
+    here belongs to the stage immediately BEFORE it.
+    """
+    top_tray = next((t for t, q, top in tray_list if top), tray_list[0][0])
+    top_qty  = next((q for t, q, top in tray_list if top), tray_list[0][1])
+    snap_top    = _snapshot_top(tray_list)
+    snap_is_top = _snapshot_is_top(tray_list)
+
+    if module == 'BQ':
+        # Previous stage = Input Screening
+        iss = InputScreening_Submitted.objects.create(
+            lot_id=lot_id_str, batch_id=batch_tag, module_name='Input Screening',
+            plating_stock_no=mm.plating_stk_no or '', model_no=mm.model_no or '',
+            tray_type=batch.tray_type, tray_capacity=batch.tray_capacity,
+            original_lot_qty=lot_qty, active_trays_count=len(tray_list),
+            top_tray_id=top_tray, top_tray_qty=top_qty, has_top_tray=True,
+            remarks='Full Accept - visual inspection OK', is_full_accept=True,
+            is_active=True, is_submitted=True, created_by=ADMIN,
+            created_at=when, submitted_at=when,
+        )
+        IS_PartialAcceptLot.objects.create(
+            new_lot_id=f"{lot_id_str}-ACC", parent_lot_id=lot_id_str,
+            parent_batch_id=batch_tag, parent_submission=iss,
+            accepted_qty=lot_qty, accept_trays_count=len(tray_list),
+            trays_snapshot=snap_top, created_by=ADMIN,
+        )
+    elif module == 'BA':
+        # Previous stage = Brass QC
+        Brass_QC_Submission.objects.create(
+            lot_id=lot_id_str, batch_id=batch_tag, submission_type='FULL_ACCEPT',
+            total_lot_qty=lot_qty, accepted_qty=lot_qty, rejected_qty=0,
+            full_accept_data=snap_is_top, remarks='Accepted - visual inspection OK',
+            is_completed=True, created_by=ADMIN, created_at=when,
+            transition_lot_id=lot_id_str, transition_label=f"Full Accept - {lot_qty} pcs",
+        )
+    elif module == 'IQ':
+        # Previous stage = Brass Audit
+        Brass_Audit_Submission.objects.create(
+            lot_id=lot_id_str, batch_id=batch_tag, submission_type='FULL_ACCEPT',
+            total_lot_qty=lot_qty, accepted_qty=lot_qty, rejected_qty=0,
+            full_accept_data=snap_is_top, is_completed=True, created_by=ADMIN,
+            created_at=when, transition_lot_id=lot_id_str,
+            transition_label=f"Full Accept - {lot_qty} pcs",
+        )
+    elif module == 'JL':
+        # Previous stage = IQF (processes the incoming qty; full-accept here means
+        # nothing was rejected upstream so IQF passes the whole qty through)
+        IQF_Submitted.objects.create(
+            lot_id=lot_id_str, batch_id=batch, original_lot_qty=lot_qty,
+            iqf_incoming_qty=lot_qty, total_lot_qty=lot_qty,
+            accepted_qty=lot_qty, rejected_qty=0, submission_type='FULL_ACCEPT',
+            full_accept_data=snap_is_top, original_data=snap_is_top, iqf_data=snap_is_top,
+            remarks='Full Accept - no rejection carried from Brass QC',
+            is_completed=True, is_draft=False, created_by=ADMIN, created_at=when,
+        )
+
+
 def make_bq_trays(lot_id_str, batch, tray_list):
     """Create BrassTrayId rows — mirrors BQ acceptance (needed by BA tray resolver)."""
     for tray_id, qty, is_top in tray_list:
@@ -306,7 +418,7 @@ def make_tsm(tag, idx, mm, batch, lot_qty, pc, module):
             total_IP_accpeted_quantity = lot_qty,
             accepted_tray_scan_status  = True,
             tray_scan_status           = True,
-            last_process_module        = 'Input screening',
+            last_process_module        = 'Input Screening',
             next_process_module        = 'Brass QC',
             last_process_date_time     = now,
             brass_physical_qty         = lot_qty,
@@ -326,6 +438,8 @@ def make_tsm(tag, idx, mm, batch, lot_qty, pc, module):
             bq_last_process_date_time        = now,
             brass_physical_qty               = lot_qty,
             brass_audit_physical_qty         = lot_qty,
+            brass_qc_transition_lot_id       = lot_id_str,
+            brass_qc_transition_label        = f"Full Accept - {lot_qty} pcs",
         )
     elif module in ('IQ', 'JL'):
         base.update(
@@ -346,7 +460,13 @@ def make_tsm(tag, idx, mm, batch, lot_qty, pc, module):
             brass_physical_qty                       = lot_qty,
             brass_audit_physical_qty                 = lot_qty,
             iqf_physical_qty                         = lot_qty,
+            brass_audit_transition_lot_id            = lot_id_str,
+            brass_audit_transition_label             = f"Full Accept - {lot_qty} pcs",
         )
+
+    # Mirror real service behaviour: current_stage always tracks the stage the
+    # lot just completed (same value as last_process_module for that branch).
+    base['current_stage'] = base['last_process_module']
 
     tsm = TotalStockModel(**base)
     tsm.save()
@@ -386,6 +506,12 @@ with transaction.atomic():
                 make_ip_trays(lot_id_str, batch, tray_list)
             if downstream == 'bq':
                 make_bq_trays(lot_id_str, batch, tray_list)
+
+            # Create the real previous-stage "completed" transaction record so
+            # this lot's pick-table detail popup shows genuine accept data
+            # instead of N/A (see make_prev_stage_record docstring).
+            make_prev_stage_record(tag, lot_id_str, batch.batch_id, batch, mm, lot_qty,
+                                    tray_list, timezone.now())
 
             count += 1
             time.sleep(0.003)
@@ -465,22 +591,69 @@ JUAT_DEFS = [
     ('SS2', 'Spider Spindle Z2',    plating_z2, True,  True),
 ]
 
+# Real Jig Unloading -> Nickel Inspection/Audit/Spider Spindle rows always
+# carry combine_lot_ids pointing back at the TotalStockModel lot that was
+# actually Brass-Audit-accepted and jig-loaded. JigUnloadAfterTable.save()
+# auto-populates version/plating/polish/tray fields from that source lot, so
+# without a real combine_lot_ids entry the popups fall back to "N/A".
+# NI1/NA1/SS1 (zone 1) and NI2/NA2/SS2 (zone 2) represent the *same* physical
+# lot moving through the zone, so each zone shares one source lot per idx.
+_src_lot_cache = {}
+
+def _src_lot_for_zone(pc_obj, idx, zone_tag):
+    """
+    Build the full upstream chain (DP->IS->BQ->BA->IQF->Jig Loading) for the
+    lot that Jig Unloading unloaded, including real tray records and the
+    Brass Audit / IQF "completed" transaction records, so NI/NA/SS detail
+    popups (which trace back through combine_lot_ids) show genuine data.
+    Returns (lot_id_str, tray_list).
+    """
+    key = (pc_obj.pk, idx)
+    if key in _src_lot_cache:
+        return _src_lot_cache[key]
+    mm      = _mm(idx)
+    lot_qty = _qty(idx)
+    batch, cap = make_batch(f"SRC{zone_tag}", idx, mm, lot_qty, True, pc_obj)
+    lot_id_str = make_tsm(f"SRC{zone_tag}", idx, mm, batch, lot_qty, pc_obj, 'JL')
+
+    n_trays   = math.ceil(lot_qty / cap) if cap else 1
+    tray_list = make_trays(lot_id_str, batch, lot_qty, cap, n_trays)
+    make_ip_trays(lot_id_str, batch, tray_list)
+    make_bq_trays(lot_id_str, batch, tray_list)
+    make_prev_stage_record('JL', lot_id_str, batch.batch_id, batch, mm, lot_qty,
+                            tray_list, timezone.now())
+
+    _src_lot_cache[key] = (lot_id_str, tray_list)
+    return _src_lot_cache[key]
+
+
 with transaction.atomic():
     for tag, label, pc_obj, nq_acc, na_acc in JUAT_DEFS:
         count = 0
+        zone_tag = 'Z1' if pc_obj is plating_z1 else 'Z2'
         for idx in range(1, LOTS + 1):
             mm      = _mm(idx)
             lot_qty = _qty(idx)
             jig_id  = _jig(idx)
             now     = timezone.now()
 
+            src_lot_id, src_tray_list = _src_lot_for_zone(pc_obj, idx, zone_tag)
+
             # Deterministic lot_id / unload_lot_id - set BEFORE save() to bypass auto-gen
             lot_id_str    = f"{JUAT_TAG}{tag}{idx:03d}"
             unload_lot_id = f"{JUAT_TAG}JUL{tag}{idx:03d}"
 
+            # Spider Spindle "completed" pick rows: this stage's own
+            # completion flags/tray must be real, not left False, otherwise
+            # the SS Completed table has zero rows and the detail popup has
+            # nothing to look up ("no data found").
+            is_ss1 = tag == 'SS1'
+            is_ss2 = tag == 'SS2'
+            ss_tray = next_tray() if (is_ss1 or is_ss2) else None
+
             juat = JigUnloadAfterTable(
                 jig_qr_id           = jig_id,
-                combine_lot_ids     = [],           # empty -> skip auto-populate
+                combine_lot_ids     = [src_lot_id],  # real upstream lot -> auto-populate
                 total_case_qty      = lot_qty,
                 plating_color       = pc_obj,
                 plating_stk_no      = mm.plating_stk_no or '',
@@ -490,7 +663,9 @@ with transaction.atomic():
                 tray_capacity       = normal_tray.tray_capacity,
                 last_process_module = 'Jig Unloading',
                 next_process_module = 'Nickel Inspection',
+                current_stage       = 'Jig Unloading',
                 created_at          = now,
+                Un_loaded_date_time = now,
                 selected_user       = ADMIN,
                 accepted_qty        = lot_qty,
                 unload_accepted     = True,
@@ -504,9 +679,15 @@ with transaction.atomic():
                 na_qc_accepted_qty        = lot_qty if na_acc else 0,
                 na_last_process_date_time = now if na_acc else None,
                 na_physical_qty           = lot_qty,
-                # SS flags: not completed yet
-                ss_z1_completed           = False,
-                ss_z2_completed           = False,
+                # SS flags: completed only for the SS1/SS2 tag itself
+                ss_z1_completed           = is_ss1,
+                ss_z1_tray_id             = ss_tray if is_ss1 else None,
+                ss_z1_completed_at        = now if is_ss1 else None,
+                ss_z1_completed_by        = ADMIN if is_ss1 else None,
+                ss_z2_completed           = is_ss2,
+                ss_z2_tray_id             = ss_tray if is_ss2 else None,
+                ss_z2_completed_at        = now if is_ss2 else None,
+                ss_z2_completed_by        = ADMIN if is_ss2 else None,
             )
 
             # Pre-set both ID fields to bypass auto-generation in save()
@@ -515,11 +696,36 @@ with transaction.atomic():
 
             juat.save()
 
+            if is_ss1:
+                SpiderSpindleZ1TrayId.objects.create(lot_id=lot_id_str, tray_id=ss_tray, linked_by=ADMIN)
+            if is_ss2:
+                SpiderSpindleZ2TrayId.objects.create(lot_id=lot_id_str, tray_id=ss_tray, linked_by=ADMIN)
+
             if location_obj:
                 try:
                     juat.location.set([location_obj])
                 except Exception:
                     pass
+
+            # Previous-stage "completed" transaction record so this pick
+            # table's detail popup shows genuine accept data, not N/A.
+            snap = [{'tray_id': t, 'qty': q, 'is_top': top} for t, q, top in src_tray_list]
+            if nq_acc:
+                # NA/SS pick tables: previous stage = Nickel Inspection
+                NickelQC_Submission.objects.create(
+                    lot_id=lot_id_str, submission_type='FULL_ACCEPT',
+                    total_lot_qty=lot_qty, accepted_qty=lot_qty, rejected_qty=0,
+                    accept_trays_data=snap, reject_trays_data=[],
+                    created_by=ADMIN, created_at=now,
+                )
+            if na_acc:
+                # SS pick tables: previous stage = Nickel Audit
+                NickelAudit_Submission.objects.create(
+                    lot_id=lot_id_str, submission_type='FULL_ACCEPT',
+                    total_lot_qty=lot_qty, accepted_qty=lot_qty, rejected_qty=0,
+                    accept_trays_data=snap, reject_trays_data=[],
+                    created_by=ADMIN, created_at=now,
+                )
 
             count += 1
             time.sleep(0.003)
@@ -550,8 +756,8 @@ ni1_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}NI1'
 ni2_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}NI2', nq_qc_accptance=False).count()
 na1_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}NA1', nq_qc_accptance=True, na_qc_accptance=False).count()
 na2_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}NA2', nq_qc_accptance=True, na_qc_accptance=False).count()
-ss1_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}SS1', na_qc_accptance=True, ss_z1_completed=False).count()
-ss2_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}SS2', na_qc_accptance=True, ss_z2_completed=False).count()
+ss1_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}SS1', na_qc_accptance=True, ss_z1_completed=True).count()
+ss2_cnt = JigUnloadAfterTable.objects.filter(lot_id__startswith=f'{JUAT_TAG}SS2', na_qc_accptance=True, ss_z2_completed=True).count()
 tray_cnt= DPTrayId_History.objects.filter(batch_id__batch_id__startswith=SEED_TAG).count()
 ip_cnt  = IPTrayId.objects.filter(batch_id__batch_id__startswith=SEED_TAG).count()
 bq_tr_cnt = BrassTrayId.objects.filter(batch_id__batch_id__startswith=SEED_TAG).count()

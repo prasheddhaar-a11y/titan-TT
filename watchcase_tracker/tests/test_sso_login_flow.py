@@ -32,7 +32,11 @@ def _fake_msal_app(email, name='Kauvery Sree'):
 
 class MicrosoftSSOLoginFlowTests(TestCase):
     def setUp(self):
-        self.client = Client(HTTP_HOST='localhost')
+        # Must match settings.MSAL_REDIRECT_URI_BASE ("http://localhost:8000")
+        # exactly: microsoft_login() now bounces onto that configured origin
+        # before starting the flow, so a client on a different host:port
+        # would just be redirected there instead of reaching MSAL.
+        self.client = Client(HTTP_HOST='localhost:8000')
 
     def _do_sso_login(self, email):
         with mock.patch(
@@ -84,15 +88,28 @@ class MicrosoftSSOLoginFlowTests(TestCase):
         self.assertEqual(home.status_code, 200)
         self.assertGreater(len(home.data['allowed_modules']), 0)
 
-    def test_sso_unknown_email_redirects_to_login_with_contact_admin_modal(self):
+    def test_sso_unknown_email_auto_provisions_and_shows_dashboard_contact_admin_alert(self):
+        """
+        A Microsoft account with no matching local user is no longer turned
+        away at the login page: it's auto-provisioned with zero modules and
+        signed in, then the dashboard's existing "no modules assigned" alert
+        (show_sso_no_modules_alert) shows the contact-admin message there.
+        """
         cb = self._do_sso_login('stranger@nowhere.com')
         self.assertEqual(cb.status_code, 302)
-        self.assertTrue(cb['Location'].startswith('/accounts/login'))
-        login_page = self.client.get('/accounts/login/')
-        self.assertContains(login_page, 'Contact Admin to access the portal')
-        # Flag is one-shot: modal must not reappear on refresh.
-        again = self.client.get('/accounts/login/')
-        self.assertNotContains(again, 'Contact Admin to access the portal')
+        self.assertEqual(cb['Location'], '/home/')
+
+        new_user = User.objects.get(email='stranger@nowhere.com')
+        self.assertFalse(new_user.has_usable_password())
+
+        home = self.client.get('/home/')
+        self.assertEqual(home.status_code, 200)
+        self.assertEqual(home.data['allowed_modules'], [])
+        self.assertTrue(home.data['show_sso_no_modules_alert'])
+
+        # One-shot: the alert flag must not reappear on a later visit.
+        again = self.client.get('/home/')
+        self.assertFalse(again.data['show_sso_no_modules_alert'])
 
     def test_double_click_login_first_state_still_accepted(self):
         """Two login requests before the callback must not raise CSRF mismatch."""

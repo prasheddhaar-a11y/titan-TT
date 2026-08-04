@@ -563,6 +563,15 @@ class NA_Zone_CompletedView(APIView):
                 "display_accepted_qty": accepted_qty,
                 "available_qty": accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
                 "no_of_trays": 0,
+                # Lot is only "Released" once it has actually moved past this stage
+                # (current_stage SSOT differs from 'Nickel Audit'). na_ac_accepted_qty_verified
+                # only reflects the qty-check step done during picking, not a downstream move,
+                # so it must not drive this pill (mirrors Inprocess_Inspection.lot_status).
+                "lot_status": (
+                    "Released"
+                    if jig_unload_obj.current_stage and jig_unload_obj.current_stage != "Nickel Audit"
+                    else "Yet to Release"
+                ),
             }
 
             tray_capacity = data["tray_capacity"]

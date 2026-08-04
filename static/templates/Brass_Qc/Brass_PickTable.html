@@ -1044,7 +1044,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             <span class="hold-remark-icon"
                                   style="display:inline-block; cursor:pointer;"
                                     data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.brass_holding_reason %}Holding Reason: {{ data.brass_holding_reason }} (by {{ data.brass_hold_by }} on {{ data.brass_hold_at }}){% endif %}{% if data.brass_holding_reason and data.brass_release_reason %}&#10;{% endif %}{% if data.brass_release_reason %}Release Reason: {{ data.brass_release_reason }} (by {{ data.brass_release_by }} on {{ data.brass_release_at }}){% endif %}">
-                              <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:14px; height:14px;" />
+                              <img src="{% static 'assets/icons/view.png' %}" alt="Remark" style="width:14px; height:14px;" />
                             </span>
                           {% endif %}
                         </span>
@@ -1443,7 +1443,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           </a>
                           <!-- Previous module (Input Screening) remark -->
                           {% if data.IP_pick_remarks %}
-                            <a href="#" title="IS Remark: {{ data.IP_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;" data-bs-toggle="tooltip" data-placement="top" data-bs-original-title="IS Remark: {{ data.IP_pick_remarks }}">
+                            <a href="#" title="IS Remark: {{ data.IP_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
                               <i class="fa fa-info-circle" style="color: #007bff; font-size: 16px;"></i>
                             </a>
                           {% endif %}
@@ -2223,7 +2223,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pill) {
                   const text = pill.textContent.trim();
                   if (text === 'Yet to Start') {
-                    pill.textContent = 'Released';
+                    pill.textContent = 'Yet to Release';
                     pill.style.cssText = 'border:1px solid #028084; background-color:#d1f8f0; color:#028084; font-size:13px; white-space:nowrap; padding:5px;';
                     pill.classList.add('lot-status-pill');
                   } else if (text === 'Input Screening' || text === 'N/A') {
@@ -2271,6 +2271,57 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('[BrassQC] Toggle verified error:', err);
         alert('Network error saving checkbox.');
       }
+    });
+  });
+
+  // ── Bin (delete) icon: permanently remove lot from pick table ──
+  // Delegated so it also works for icons activated dynamically by the checkbox handler above.
+  document.addEventListener('click', function(e) {
+    const deleteBtn = e.target.closest('.delete-batch-btn');
+    if (!deleteBtn) return;
+    e.preventDefault();
+
+    const row = deleteBtn.closest('tr');
+    const batchId = deleteBtn.getAttribute('data-batch-id');
+    const stockLotId = deleteBtn.getAttribute('data-stock-lot-id');
+    if (!stockLotId) {
+      Swal.fire('Error', 'Stock Lot ID not found!', 'error');
+      return;
+    }
+
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you really want to permanently delete this lot?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+
+      fetch('/brass_qc/api/delete-batch/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ batch_id: batchId, stock_lot_id: stockLotId }),
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            if (row) row.remove();
+            Swal.fire({ icon: 'success', title: 'Deleted!', text: data.message || 'Lot deleted successfully.', timer: 2000, showConfirmButton: false });
+          } else {
+            Swal.fire('Error', data.error || 'Failed to delete lot', 'error');
+          }
+        })
+        .catch(function(err) {
+          console.error('[BrassQC] Delete error:', err);
+          Swal.fire('Error', 'An error occurred while deleting the lot', 'error');
+        });
     });
   });
 

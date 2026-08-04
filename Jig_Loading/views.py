@@ -1854,7 +1854,7 @@ def build_unified_tray_table(computed, lot_qty, jig_capacity, model_code='', tra
 	return rows
 
 
-def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_capacity=12):
+def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_capacity=12, scanned_tray_ids=None):
 	"""Build split panel data for the 2-column delink + excess UI.
 
 	Uses computed['all_trays'] so ALL trays are shown in the delink panel
@@ -1862,11 +1862,18 @@ def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_
 
 	LEFT column = delink_panel (ALL trays with qty split)
 	RIGHT column = excess_panel (trays with excess_qty > 0)
+
+	scanned_tray_ids: set of UPPERCASED tray_ids the frontend currently holds as
+	validated/scanned (across any panel), used ONLY to auto-verify the single
+	"partial delink" row (the tray physically split between delink + excess) once
+	its paired Excess Top Tray has been scanned. This is a narrow, explicit
+	exception — no other delink row is ever auto-completed this way.
 	"""
 	all_trays = computed.get('all_trays', [])
 	excess_info = computed.get('excess_info', {})
 	excess_qty = int(excess_info.get('excess_qty', 0) or 0)
 	effective_capacity = int(computed.get('effective_capacity', 0) or 0)
+	scanned_tray_ids = scanned_tray_ids or set()
 
 	# ===== LEFT: DELINK PANEL (ALL TRAYS) =====
 	delink_rows = []
@@ -1905,6 +1912,21 @@ def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_
 				'excess_qty': excess_qty_row,
 				'original_qty': original_qty,
 			}
+			# The partial delink row is the SAME physical tray as the Excess Top Tray
+			# row — never a separate scan target. It is auto-verified the instant that
+			# top tray is scanned/verified, and stays read-only otherwise.
+			verified = str(tray_id or '').strip().upper() in scanned_tray_ids
+			row['is_scannable'] = False
+			row['is_checkbox_enabled'] = False
+			row['auto_verify'] = True
+			row['verified'] = verified
+			row['state'] = 'scanned' if verified else 'default'
+			row['status'] = 'Verified' if verified else 'Awaiting Excess Top Tray Scan'
+			row['verify_message'] = (
+				f'Delink ({delink_qty}) + Excess Top ({excess_qty_row}) = Verified'
+				if verified else
+				f'Awaiting Top Tray (Qty {excess_qty_row})'
+			)
 
 		delink_rows.append(row)
 		sno += 1
@@ -1940,6 +1962,7 @@ def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_
 				'scan_tray_id': split_tray['tray_id'],
 				'model_code': model_code,
 				'original_tray_id': split_tray['tray_id'],
+				'verified': str(split_tray['tray_id'] or '').strip().upper() in scanned_tray_ids,
 			}
 
 		# 2. FULL EXCESS TRAYS (trays with delink_qty == 0)
@@ -1999,7 +2022,7 @@ def build_split_panel_data(computed, lot_qty, jig_capacity, model_code='', tray_
 	}
 
 
-def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty, jig_capacity, tray_capacity=12):
+def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty, jig_capacity, tray_capacity=12, scanned_tray_ids=None):
 	"""Build split panel data for multi-model jig loading.
 	Uses computed['all_trays'] so ALL trays (from all models) are shown.
 	Each tray has original_qty, delink_qty, excess_qty."""
@@ -2007,6 +2030,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 	effective_capacity = int(computed.get('effective_capacity', 0) or 0)
 	excess_qty = int(computed.get('excess_qty', 0) or 0)
 	all_trays = computed.get('all_trays', [])
+	scanned_tray_ids = scanned_tray_ids or set()
 
 	# Build tray→model maps for resolving model_code
 	tray_model_map = {}
@@ -2044,7 +2068,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 
 		is_partial = delink_qty > 0 and excess_qty_row > 0
 
-		delink_rows.append({
+		delink_row = {
 			'sno': sno,
 			'model_code': m_code,
 			'tray_id': tray_id,
@@ -2062,7 +2086,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 			'batch_id': meta.get('batch_id', ''),
 			'model_index': meta.get('model_index', 0),
 			'color_class': meta.get('color_class', ''),
-		})
+		}
 
 		if is_partial:
 			split_tray = {
@@ -2074,6 +2098,22 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 				'batch_id': meta.get('batch_id', ''),
 				'model_code': m_code,
 			}
+			# Same physical tray as the Excess Top Tray row — auto-verify once that
+			# top tray is scanned, never a separate scan target of its own.
+			verified = str(tray_id or '').strip().upper() in scanned_tray_ids
+			delink_row['is_scannable'] = False
+			delink_row['is_checkbox_enabled'] = False
+			delink_row['auto_verify'] = True
+			delink_row['verified'] = verified
+			delink_row['state'] = 'scanned' if verified else 'default'
+			delink_row['status'] = 'Verified' if verified else 'Awaiting Excess Top Tray Scan'
+			delink_row['verify_message'] = (
+				f'Delink ({delink_qty}) + Excess Top ({excess_qty_row}) = Verified'
+				if verified else
+				f'Awaiting Top Tray (Qty {excess_qty_row})'
+			)
+
+		delink_rows.append(delink_row)
 		sno += 1
 
 	total_delink = sum(r['delink_qty'] for r in delink_rows)
@@ -2127,6 +2167,7 @@ def build_split_panel_data_multi_model(multi_model_allocation, computed, lot_qty
 				'original_tray_id': split_tray['tray_id'],
 				'lot_id': st_lot_id,
 				'batch_id': st_batch_id,
+				'verified': str(split_tray['tray_id'] or '').strip().upper() in scanned_tray_ids,
 			}
 
 		# Full excess trays (delink_qty == 0)
@@ -2917,12 +2958,19 @@ class JigLoadInitAPI(APIView):
 			logging.info(f'[INIT_BH_RECALC] scanned={len(scanned_ids)}, loaded={loaded_cases_qty}, delink_completed={delink_completed_flag}')
 
 		# 7a. Build unified tray table (single source of truth for delink + excess UI)
+		# scanned_tray_ids: everything the frontend currently holds as scanned, used only
+		# to auto-verify the single partial-delink row once its paired Excess Top Tray
+		# (same physical tray_id) has been scanned — see build_split_panel_data.
+		_scanned_tray_ids_upper = set(
+			str(s.get('tray_id', '')).strip().upper() for s in scanned_trays if s.get('tray_id')
+		)
 		if multi_model_flag and multi_model_allocation:
 			unified_tray_table = build_unified_tray_table_multi_model(
 				multi_model_allocation, computed, lot_qty, jig_capacity, tray_capacity
 			)
 			split_panel = build_split_panel_data_multi_model(
-				multi_model_allocation, computed, lot_qty, jig_capacity, tray_capacity
+				multi_model_allocation, computed, lot_qty, jig_capacity, tray_capacity,
+				scanned_tray_ids=_scanned_tray_ids_upper
 			)
 		else:
 			model_label = lot_data.get('model_image_label', '') if isinstance(lot_data, dict) else ''
@@ -2930,7 +2978,8 @@ class JigLoadInitAPI(APIView):
 				computed, lot_qty, jig_capacity, model_label, tray_capacity
 			)
 			split_panel = build_split_panel_data(
-				computed, lot_qty, jig_capacity, model_label, tray_capacity
+				computed, lot_qty, jig_capacity, model_label, tray_capacity,
+				scanned_tray_ids=_scanned_tray_ids_upper
 			)
 
 		# 7. Build unified response
@@ -3218,6 +3267,27 @@ class JigLoadUpdateAPI(APIView):
 			allow_reuse_delink = bool(payload.get('allow_reuse_delink', False))
 			allow_new_half_filled = bool(payload.get('allow_new_half_filled', False))
 			already_scanned = set(s.get('tray_id', '') for s in scanned_trays if s.get('tray_id'))
+
+			# ===== EXCESS-SECTION DUPLICATE GUARD =====
+			# allow_reuse_delink intentionally lets a tray already scanned into the
+			# DELINK panel be reused for its EXCESS portion (the same physical tray
+			# split across delink + excess for the partial/split-tray case). It must
+			# NOT also let the SAME tray be scanned into two different EXCESS rows —
+			# each excess row is a physically distinct tray, so within the Excess
+			# section duplicates are always rejected. Excludes delink-scanned ids from
+			# the check (crossing FROM delink INTO excess remains the allowed case).
+			if scan_panel in ('excess', 'excess_top'):
+				_delink_scanned_payload = payload.get('delink_scanned_trays', None)
+				if _delink_scanned_payload is not None:
+					_delink_ids = set(s.get('tray_id', '') for s in _delink_scanned_payload if s.get('tray_id'))
+					duplicate_check_ids = already_scanned - _delink_ids
+				else:
+					duplicate_check_ids = already_scanned
+				effective_allow_reuse = False
+			else:
+				duplicate_check_ids = already_scanned
+				effective_allow_reuse = allow_reuse_delink
+
 			candidate_lot_ids = []
 			if scan_panel in ('excess', 'excess_top'):
 				# Excess/top panel rows carry the exact source lot. Do not search other
@@ -3238,8 +3308,8 @@ class JigLoadUpdateAPI(APIView):
 				is_valid, tray_qty, validation_status, message = validate_tray_for_scan(
 					tray_id,
 					candidate_lot_id,
-					already_scanned,
-					allow_reuse_delink=allow_reuse_delink,
+					duplicate_check_ids,
+					allow_reuse_delink=effective_allow_reuse,
 					allow_new_half_filled=allow_new_half_filled,
 					strict_excess_lot=scan_panel in ('excess', 'excess_top'),
 				)
@@ -3326,7 +3396,11 @@ class JigLoadUpdateAPI(APIView):
 			if sid in counted_ids:
 				continue  # Already counted from delink panel
 			at = all_trays_map.get(sid)
-			if at and int(at.get('delink_qty', 0) or 0) > 0:
+			# Scoped to the true partial/split tray only (delink_qty>0 AND
+			# excess_qty>0), matching the comment above — a plain full delink
+			# tray (delink_qty>0, excess_qty==0) must never get credited just
+			# because its id happens to appear in an excess-panel scan.
+			if at and int(at.get('delink_qty', 0) or 0) > 0 and int(at.get('excess_qty', 0) or 0) > 0:
 				loaded_cases_qty += int(at['delink_qty'])
 
 		empty_hooks = max(0, computed['effective_capacity'] - loaded_cases_qty)
@@ -3334,7 +3408,21 @@ class JigLoadUpdateAPI(APIView):
 		# ===== DELINK COMPLETION: all delink trays scanned? =====
 		delink_count = len(computed['delink_tray_info'])
 		# Use delink_only_ids if available (more accurate), else fall back to all scanned_ids
-		delink_check_ids = (delink_only_ids if delink_scanned_trays_payload is not None else scanned_ids)
+		delink_check_ids = set(delink_only_ids if delink_scanned_trays_payload is not None else scanned_ids)
+		# The partial-delink tray is never scanned into the Delink panel on its own —
+		# it is auto-verified once its paired Excess Top Tray (same tray_id) is
+		# scanned. Credit it toward delink completion the same way its qty is already
+		# credited toward loaded_cases_qty above (see BUG FIX block). Identified from
+		# computed['all_trays'] — the SAME source build_split_panel_data uses for its
+		# 'is_partial' row — not computed['delink_tray_info']['is_capacity_split'],
+		# which is derived pre-broken-hooks and can name a different tray once BH > 0.
+		_split_tray_id = next(
+			(at['tray_id'] for at in all_trays_data
+			 if int(at.get('delink_qty', 0) or 0) > 0 and int(at.get('excess_qty', 0) or 0) > 0),
+			None
+		)
+		if _split_tray_id and _split_tray_id in scanned_ids:
+			delink_check_ids.add(_split_tray_id)
 		delink_completed = len(delink_check_ids) >= delink_count and delink_count > 0
 
 		# ===== HALF-FILLED TRAY IDs: only assigned when delink is COMPLETE =====
@@ -3346,48 +3434,10 @@ class JigLoadUpdateAPI(APIView):
 				excess_trays, lot_data['tray_capacity']
 			)
 
-		# Persist working state to JigCompleted (single source of truth)
-		# Use 'active' for auto-drafts during scanning. Preserve 'draft' if user explicitly drafted.
-		if action in ('scan_tray', 'unscan_tray', 'save_draft', 'update_broken_hooks'):
-			try:
-				# Build scanned_trays in {tray_id, panel, qty} format for _restoreScannedTraysFromDraft
-				# This allows checkAndRestoreDraft to restore scan state after Add Model navigation.
-				_delink_prev_list = payload.get('delink_scanned_trays') or []
-				_delink_prev_ids = set(s.get('tray_id', '') for s in _delink_prev_list if s.get('tray_id'))
-				_all_scans_list = payload.get('scanned_trays') or []
-				_scanned_trays_for_draft = []
-				for _s in _delink_prev_list:
-					_tid = _s.get('tray_id', '')
-					if _tid:
-						_scanned_trays_for_draft.append({'tray_id': _tid, 'panel': 'delink', 'qty': int(_s.get('qty', 0) or 0)})
-				for _s in _all_scans_list:
-					_tid = _s.get('tray_id', '')
-					if _tid and _tid not in _delink_prev_ids:
-						_scanned_trays_for_draft.append({'tray_id': _tid, 'panel': 'excess', 'qty': int(_s.get('qty', 0) or 0)})
-				if action == 'scan_tray' and tray_id and scan_result and scan_result.get('validation_status') == 'success':
-					_scanned_trays_for_draft.append({'tray_id': tray_id, 'panel': scan_panel, 'qty': int(scan_result.get('tray_qty', 0) or 0)})
-
-				defaults = {
-					'broken_hooks': broken_hooks,
-					'loaded_cases_qty': loaded_cases_qty,
-					'jig_capacity': lot_data['jig_capacity'],
-					'original_lot_qty': lot_data['lot_qty'],
-					'delink_tray_info': computed['delink_tray_info'],
-					'delink_tray_qty': computed['delink_tray_qty'],
-					'scanned_trays': _scanned_trays_for_draft,
-				}
-				# Only set draft_status to 'active' if record doesn't already have explicit 'draft'
-				existing = JigCompleted.objects.filter(
-					batch_id=state_batch_id, lot_id=state_lot_id, user=request.user
-				).values_list('draft_status', flat=True).first()
-				if existing != 'draft':
-					defaults['draft_status'] = 'active'
-				JigCompleted.objects.update_or_create(
-					batch_id=state_batch_id, lot_id=state_lot_id, user=request.user,
-					defaults=defaults
-				)
-			except Exception:
-				logging.exception('JigLoadUpdateAPI: draft save failed')
+		# NOTE: JigLoadUpdateAPI is READ/COMPUTE ONLY — it must never write to JigCompleted.
+		# A record is persisted ONLY when the user explicitly clicks Draft or Submit
+		# (see JigSaveAPI below). Scanning trays, updating broken hooks, or opening the
+		# Add Model flow must never silently create/update a JigCompleted row.
 
 		# Compute total_multi_model_qty for multi-model
 		if multi_model_flag and secondary_lots:
@@ -3426,6 +3476,10 @@ class JigLoadUpdateAPI(APIView):
 				logging.exception('JigLoadUpdateAPI: multi-model allocation build failed')
 				multi_model_allocation = []
 
+		# scanned_tray_ids: every tray_id confirmed scanned in THIS request (across any
+		# panel) — used only to auto-verify the partial-delink row once its paired
+		# Excess Top Tray (same physical tray_id) is scanned. See build_split_panel_data.
+		_scanned_tray_ids_upper = set(str(sid or '').strip().upper() for sid in scanned_ids)
 		if multi_model_flag and multi_model_allocation:
 			unified_tray_table = build_unified_tray_table_multi_model(
 				multi_model_allocation,
@@ -3439,7 +3493,8 @@ class JigLoadUpdateAPI(APIView):
 				computed,
 				lot_data['lot_qty'],
 				lot_data['jig_capacity'],
-				lot_data['tray_capacity']
+				lot_data['tray_capacity'],
+				scanned_tray_ids=_scanned_tray_ids_upper
 			)
 		else:
 			unified_tray_table = build_unified_tray_table(
@@ -3454,7 +3509,8 @@ class JigLoadUpdateAPI(APIView):
 				lot_data['lot_qty'],
 				lot_data['jig_capacity'],
 				lot_data.get('model_image_label', ''),
-				lot_data['tray_capacity']
+				lot_data['tray_capacity'],
+				scanned_tray_ids=_scanned_tray_ids_upper
 			)
 
 		logging.info(json.dumps({

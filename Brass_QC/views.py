@@ -1,4 +1,4 @@
-from rest_framework.views import APIView
+﻿from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import TemplateHTMLRenderer
 from django.shortcuts import render
@@ -118,6 +118,17 @@ class BrassPickTableView(APIView):
         master_data = []
         for stock_obj in page_obj.object_list:
             batch = stock_obj.batch_id
+            
+            current_stage_display = (
+                stock_obj.current_stage
+                or _compute_brass_qc_display_stage(stock_obj)
+            )
+
+            lot_status = (
+                'Released'
+                if current_stage_display != 'Brass QC'
+                else 'Yet to Release'
+            )
             data = {
                 'batch_id': batch.batch_id,
                 'lot_id': stock_obj.lot_id,
@@ -171,7 +182,6 @@ class BrassPickTableView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'last_process_module': stock_obj.last_process_module,
-                'current_stage': stock_obj.current_stage,
                 'type_of_input': get_type_of_input_for_batch(batch),
             }
             master_data.append(data)
@@ -302,22 +312,12 @@ class BrassPickTableView(APIView):
                 data['lot_status'] = 'Draft'
             elif data.get('brass_hold_lot'):
                 data['lot_status'] = 'On Hold'
+            elif data.get('brass_qc_rejection') or data.get('brass_qc_few_cases_accptance') or data.get('brass_qc_accptance'):
+                data['lot_status'] = 'Yet to Release'
+            elif data.get('brass_qc_accepted_qty_verified'):
+                data['lot_status'] = 'Yet to Release'
             else:
-                qc_completed = any((
-                    data.get('brass_qc_rejection'),
-                    data.get('brass_qc_few_cases_accptance'),
-                    data.get('brass_qc_accptance'),
-                ))
-                if qc_completed and data.get('current_stage') not in (None, '', 'Brass QC'):
-                    data['lot_status'] = 'Released'
-                elif qc_completed:
-                    data['lot_status'] = 'Yet to Release'
-                elif data.get('brass_qc_accepted_qty_verified'):
-                    # Persisted checkbox state: the lot has been picked and
-                    # remains in Brass QC until a submission is completed.
-                    data['lot_status'] = 'In Progress'
-                else:
-                    data['lot_status'] = 'Yet to Start'
+                data['lot_status'] = 'Yet to Start'
 
         context = {
             'master_data': master_data,
@@ -511,7 +511,6 @@ class BrassCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
-                'current_stage': stock_obj.current_stage,
                 # Same stale-vs-child-progress resolution as current_stage_display above —
                 # this is the field the template actually renders as "Current Stage".
                 'next_process_module': current_stage_display,
@@ -659,10 +658,53 @@ def brass_qc_toggle_verified(request):
         "success": True,
         "lot_id": lot_id,
         "brass_qc_accepted_qty_verified": ts.brass_qc_accepted_qty_verified,
-        "lot_status": "In Progress" if ts.brass_qc_accepted_qty_verified else "Yet to Start",
         "last_process_module": ts.last_process_module,
         "can_delete": can_delete,
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def brass_qc_delete_batch(request):
+    """
+    Permanently deletes a lot's TotalStockModel row (and its tray
+    assignments) from the Brass QC pick table.
+
+    Only allowed when:
+      - the requesting user is in the Admin group, AND
+      - the lot satisfies the same can_delete rule shown on the pick table
+        (not accepted / not rejected / not tray-scanned / qty verified)
+    Both checks are enforced here — the frontend Bin icon is a display
+    affordance only, never the source of truth.
+    """
+    from adminportal.views import is_admin_user
+    if not is_admin_user(request.user):
+        return JsonResponse({"success": False, "error": "Admin access required."}, status=403)
+
+    lot_id = (request.data.get('stock_lot_id') or request.data.get('lot_id') or '').strip()
+    if not lot_id:
+        return JsonResponse({"success": False, "error": "stock_lot_id is required"}, status=400)
+
+    ts = TotalStockModel.objects.filter(lot_id=lot_id).first()
+    if not ts:
+        return JsonResponse({"success": False, "error": "Lot not found"}, status=404)
+
+    can_delete = (
+        not ts.brass_qc_accptance and
+        not ts.brass_qc_rejection and
+        not ts.brass_accepted_tray_scan_status and
+        not ts.brass_qc_few_cases_accptance and
+        ts.brass_qc_accepted_qty_verified
+    )
+    if not can_delete:
+        return JsonResponse({"success": False, "error": "This lot can no longer be deleted."}, status=409)
+
+    with transaction.atomic():
+        BrassTrayId.objects.filter(lot_id=lot_id).delete()
+        ts.delete()
+
+    logger.info("Brass QC Delete Batch: lot_id=%s deleted by user=%s", lot_id, request.user)
+    return JsonResponse({"success": True, "message": "Lot deleted successfully.", "lot_id": lot_id})
 
 
 # Hold / Unhold Toggle with Remark

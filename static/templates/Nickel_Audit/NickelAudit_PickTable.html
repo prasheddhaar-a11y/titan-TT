@@ -874,7 +874,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                               data-bs-toggle="tooltip" data-placement="right"
                               data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }} (by {{ data.na_hold_by }} on {{ data.na_hold_at }}){% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }} (by {{ data.na_release_by }} on {{ data.na_release_at }}){% endif %}">
                           {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.na_release_reason %}
-                            <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:12px; height:12px;" />
+                            <img src="{% static 'assets/icons/viewRemarks.png' %}" alt="Remark" style="width:12px; height:12px;" />
                           {% endif %}
                         </span>
                       {% else %}
@@ -884,7 +884,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                 style="display:inline-block; cursor:pointer;"
                                 data-bs-toggle="tooltip" data-placement="right"
                                 data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }} (by {{ data.na_hold_by }} on {{ data.na_hold_at }}){% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }} (by {{ data.na_release_by }} on {{ data.na_release_at }}){% endif %}">
-                            <img src="{% static 'assets/icons/view2.png' %}" alt="View Reason" style="width:18px; height:18px;" />
+                            <img src="{% static 'assets/icons/viewRemarks.png' %}" alt="View Reason" style="width:18px; height:18px;" />
                           </span>
                         {% endif %}
                       {% endif %}
@@ -1005,7 +1005,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 13px; white-space: nowrap; padding: 5px;">
                           On Hold
                         </div>
-                      {% elif data.na_qc_rejection or data.na_qc_few_cases_accptance or data.na_qc_acceptance %}
+                      {% elif data.na_qc_rejection or data.na_qc_few_cases_accptance or data.na_qc_acceptance or data.na_ac_accepted_qty_verified %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
                           Yet to Release
@@ -1098,6 +1098,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:13px;">
                       <span>Plating Stk No: <strong id="naRejectModalPlatingStk" style="color:#028084;"></strong></span>
                       <span>Total Lot Qty: <strong id="naRejectModalTotalQty" style="color:#e67e22;"></strong></span>
+                      <span style="color:#666;">AQL Limit: <strong id="naRejectModalAQLLimit" style="color:#e67e22;">0</strong></span>
                       <label style="margin-left:auto; display:flex; align-items:center; gap:6px; cursor:pointer;">
                         <input type="checkbox" id="naFullLotRejectionCb" />
                         <span style="font-weight:600; color:#c62828;">Full Lot Rejection</span>
@@ -1891,6 +1892,7 @@ document.addEventListener("DOMContentLoaded", function() {
       reasons: [], origTrays: [], rejectSlots: [], acceptSlots: [],
       reuseTrays: [], allocDone: false, acceptAutoTrays: [], autoDelinkIds: [], delinkSlots: [],
       pendingRestore: null,
+      aqlLimit: 0, sampleQty: 0,
     };
     var lastFocusedTrayInput = null;
 
@@ -1952,6 +1954,8 @@ document.addEventListener("DOMContentLoaded", function() {
         state.lotId = btn.dataset.stockLotId || btn.dataset.lotId || '';
         state.platingStk = btn.dataset.platingStk || '';
         state.totalQty = parseInt(btn.dataset.totalQty || 0, 10) || 0;
+        state.aqlLimit = parseFloat(row.getAttribute('data-aql-limit') || '0') || 0;
+        state.sampleQty = parseInt(row.getAttribute('data-sample-qty') || '0', 10) || 0;
         if (!state.lotId) {
           var cb2 = row.querySelector('.brass-checkbox');
           if (cb2) state.lotId = cb2.dataset.lotId || '';
@@ -1970,7 +1974,14 @@ document.addEventListener("DOMContentLoaded", function() {
       overlay.style.display = 'flex';
       var initialRemarksInput = document.getElementById('naRejectRemarksInput');
       if (initialRemarksInput) initialRemarksInput.value = '';
+      if (initialRemarksInput) initialRemarksInput.style.border = '';
       if (fullRejCb) fullRejCb.checked = false;
+      var aqlLimitSpan = document.getElementById('trayScanModalAqlLimit');
+      if (aqlLimitSpan) aqlLimitSpan.textContent = state.aqlLimit;
+      var sampleQtySpan = document.getElementById('trayScanModalSampleQty');
+      if (sampleQtySpan) sampleQtySpan.textContent = state.sampleQty;
+      var modalAqlLimitEl = document.getElementById('naRejectModalAQLLimit');
+      if (modalAqlLimitEl) modalAqlLimitEl.textContent = state.aqlLimit;
       Promise.all([
         post(API_BASE + 'action/', { action: 'GET_REASONS' }),
         post(API_BASE + 'action/', { action: 'GET_TRAYS', lot_id: state.lotId }),
@@ -2049,6 +2060,9 @@ document.addEventListener("DOMContentLoaded", function() {
             remainingDisp.textContent = state.totalQty;
             allocSection.style.display = 'none';
             state.allocDone = false;
+            var remarksInputEl3 = document.getElementById('naRejectRemarksInput');
+            if (remarksInputEl3) remarksInputEl3.style.border = '';
+            if (errDiv.textContent.indexOf('AQL limit') !== -1) errDiv.textContent = '';
           }
         };
       }
@@ -2065,8 +2079,33 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function onReasonQtyChange() {
       var total = getTotalRejectQty();
+
+      // AQL auto-trigger: if rejection qty exceeds AQL limit, force Full Lot Rejection
+      if (state.aqlLimit > 0 && total > state.aqlLimit && fullRejCb && !fullRejCb.checked) {
+        fullRejCb.checked = true;
+        reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) { inp.value = ''; });
+        var remarksInputEl = document.getElementById('naRejectRemarksInput');
+        errDiv.style.color = '#c62828';
+        errDiv.textContent =
+          '⚠ Rejection qty (' + total + ') exceeds AQL limit (' + state.aqlLimit +
+          '). Full Lot Rejection has been auto-selected. Please enter a remark.';
+        if (remarksInputEl) {
+          remarksInputEl.style.border = '2px solid #c62828';
+        }
+        totalQtyDisp.textContent = state.totalQty;
+        remainingDisp.textContent = '0';
+        state.aqlFocusRemarksPending = true;
+        fetchAllocation(state.totalQty);
+        return;
+      }
+
       totalQtyDisp.textContent = total;
       remainingDisp.textContent = Math.max(0, state.totalQty - total);
+      if (total <= state.aqlLimit || (fullRejCb && !fullRejCb.checked)) {
+        var remarksInputEl2 = document.getElementById('naRejectRemarksInput');
+        if (remarksInputEl2) remarksInputEl2.style.border = '';
+        if (errDiv.textContent.indexOf('AQL limit') !== -1) errDiv.textContent = '';
+      }
       if (total > 0 && total <= state.totalQty) {
         fetchAllocation(total);
       } else {
@@ -2157,6 +2196,7 @@ document.addEventListener("DOMContentLoaded", function() {
       var nextInput = accInputs.slice(targetIndex + 1).find(function (inp) { return !inp.value.trim(); });
       if (nextInput) nextInput.focus();
       else targetInput.focus();
+      applyScanLockAndOrder();
       return true;
     }
 
@@ -2196,6 +2236,54 @@ document.addEventListener("DOMContentLoaded", function() {
           accInputs[k].value = '';
         }
       }
+      applyScanLockAndOrder();
+    }
+
+    // Strict one-by-one gate: Reject must be fully scanned before Delink unlocks;
+    // Delink (if any slots are required) must be fully scanned before Accept unlocks.
+    // Top-tray chips route to whichever of Delink/Accept is currently unlocked, and
+    // grey out only while both are locked. Slots within a section still fill in order.
+    function applyScanLockAndOrder() {
+      var rejInputs = Array.from(rejectSlotsCont.querySelectorAll('.na-rej-tray-input'));
+      var accInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
+      var delinkInputs = Array.from(delinkList.querySelectorAll('.na-delink-tray-input'));
+
+      function isSectionComplete(inputs) {
+        return inputs.every(function (inp) { return inp.value.trim(); });
+      }
+
+      var rejectComplete = isSectionComplete(rejInputs);
+      var delinkComplete = isSectionComplete(delinkInputs);
+      var lockDelink = !rejectComplete;
+      var lockAccept = !rejectComplete || !delinkComplete;
+      state.lockDelink = lockDelink;
+      state.lockAccept = lockAccept;
+
+      function styleInput(inp, locked) {
+        inp.disabled = locked;
+        inp.style.background = locked ? '#eeeeee' : '';
+        inp.style.opacity = locked ? '0.55' : '1';
+        inp.style.cursor = locked ? 'not-allowed' : '';
+      }
+
+      function applySection(inputs, sectionLocked) {
+        var blockedByOrder = false;
+        inputs.forEach(function (inp) {
+          styleInput(inp, sectionLocked || blockedByOrder);
+          if (!inp.value.trim()) blockedByOrder = true;
+        });
+      }
+
+      applySection(rejInputs, false);
+      applySection(delinkInputs, lockDelink);
+      applySection(accInputs, lockAccept);
+
+      var chipsLocked = lockDelink && lockAccept;
+      origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
+        chip.style.pointerEvents = chipsLocked ? 'none' : '';
+        chip.style.filter = chipsLocked ? 'grayscale(1)' : '';
+        chip.style.opacity = chipsLocked ? '0.45' : (chip.dataset.selected === '1' ? '0.7' : '1');
+      });
     }
 
     function renderAllocation(data) {
@@ -2216,19 +2304,24 @@ document.addEventListener("DOMContentLoaded", function() {
         chip.dataset.isTop = t.is_top ? '1' : '0';
         chip.dataset.selected = '0';
         chip.addEventListener('click', function () {
-          if (getFocusedTrayInput('.na-delink-tray-input', delinkList)) {
+          if (state.lockDelink && state.lockAccept) return;
+          if (!state.lockDelink && getFocusedTrayInput('.na-delink-tray-input', delinkList)) {
             fillDelinkSlotFromTap(t.tray_id);
             return;
           }
-          if (getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont)) {
+          if (!state.lockAccept && getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont)) {
             fillAcceptSlotFromTap(t.tray_id);
             return;
           }
-          if ((state.autoDelinkIds || []).indexOf(t.tray_id) !== -1) {
+          if (!state.lockDelink && (state.autoDelinkIds || []).indexOf(t.tray_id) !== -1) {
             fillDelinkSlotFromTap(t.tray_id);
             return;
           }
-          fillAcceptSlotFromTap(t.tray_id);
+          if (!state.lockAccept) {
+            fillAcceptSlotFromTap(t.tray_id);
+          } else if (!state.lockDelink) {
+            fillDelinkSlotFromTap(t.tray_id);
+          }
         });
         origContainer.appendChild(chip);
       });
@@ -2278,6 +2371,22 @@ document.addEventListener("DOMContentLoaded", function() {
           var val = inp.value;
           clearDuplicateDelinkValue(val, inp);
           updateDelinkSection();
+
+          // Auto-advance: move to next empty delink slot, or to Remarks once
+          // Reject + Delink scanning is fully complete.
+          if (val.length >= 9) {
+            var allDelinkInputs = Array.from(delinkList.querySelectorAll('.na-delink-tray-input'));
+            var nextDelinkInput = allDelinkInputs.find(function (d) { return !d.value.trim(); });
+            if (nextDelinkInput) {
+              nextDelinkInput.focus();
+            } else {
+              var rejDone = Array.from(rejectSlotsCont.querySelectorAll('.na-rej-tray-input')).every(function (r) { return r.value.trim(); });
+              if (rejDone) {
+                var remarksEl = document.getElementById('naRejectRemarksInput');
+                if (remarksEl) setTimeout(function () { remarksEl.focus(); }, 0);
+              }
+            }
+          }
         });
       });
 
@@ -2393,6 +2502,23 @@ document.addEventListener("DOMContentLoaded", function() {
         });
         inp.addEventListener('blur', validateTrayInput);
       });
+
+      rejectSlotsCont.querySelectorAll('.na-rej-tray-input').forEach(function (inp) {
+        inp.addEventListener('input', applyScanLockAndOrder);
+      });
+      acceptSlotsCont.querySelectorAll('.na-acc-tray-input').forEach(function (inp) {
+        inp.addEventListener('input', applyScanLockAndOrder);
+      });
+      applyScanLockAndOrder();
+
+      // AQL auto full-lot-reject: cursor goes to the first Reject tray input to continue scanning
+      if (state.aqlFocusRemarksPending) {
+        state.aqlFocusRemarksPending = false;
+        var firstRejInput = rejectSlotsCont.querySelector('.na-rej-tray-input');
+        if (firstRejInput) {
+          setTimeout(function () { firstRejInput.focus(); }, 0);
+        }
+      }
     }
 
     if (clearAllBtn) {
@@ -2417,6 +2543,7 @@ document.addEventListener("DOMContentLoaded", function() {
             chip.style.opacity = '1';
           });
           updateDelinkSection();
+          applyScanLockAndOrder();
         }
       });
     }
@@ -3260,11 +3387,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       saveBtn.disabled = true;
+      var holdCsrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
       fetch('/nickel_audit/api/hold-unhold/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}'
+          'X-CSRFToken': holdCsrf
         },
         body: JSON.stringify({
           lot_id: state.lotId,
@@ -3318,6 +3446,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
     attachHoldToggleListeners();
   })();
+
+  // DELETE BUTTON HANDLER
+  document.querySelectorAll('.delete-batch-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const row = btn.closest('tr');
+      const lotId = btn.getAttribute('data-stock-lot-id');
+      if (!lotId) {
+        Swal.fire('Error', 'Lot ID not found!', 'error');
+        return;
+      }
+      if (row) row.classList.add('dp-row-action-highlight');
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you really want to delete this lot?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+      }).then(function(result) {
+        if (!result.isConfirmed) return;
+        var deleteCsrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+        fetch('/nickel_audit/api/delete-lot/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': deleteCsrf
+          },
+          body: JSON.stringify({ lot_id: lotId })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            if (row) row.remove();
+            Swal.fire({
+              icon: 'success',
+              title: 'Deleted!',
+              text: 'Lot has been deleted.',
+              timer: 1200,
+              showConfirmButton: false
+            });
+          } else {
+            Swal.fire('Error', data.error || 'Delete failed', 'error');
+          }
+        })
+        .catch(function() {
+          Swal.fire('Error', 'Network error. Please try again.', 'error');
+        });
+      });
+    });
+  });
 });
 </script>
 

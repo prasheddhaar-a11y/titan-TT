@@ -1817,38 +1817,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-      // Continue with existing endpoint selection logic...
-      let trayListEndpoint;
-      let apiParams;
-      let dataSource;
-
-      if (isVerified) {
-        // AFTER CHECK: Use BrassTrayId data with Brass QC parameters
-        trayListEndpoint = '/nickel_audit_zone_two/nickel_complete_tray_validate/';
-        dataSource = 'BrassTrayId';
-        
-        // Get Brass QC status from row data attributes
-        apiParams = {
-          lot_id: stockLotId,
-
-        };
-        
-        console.log(`Ã¢Å“â€¦ [AFTER CHECK MODE] Using: ${trayListEndpoint}`);
-        console.log(`   Data Source: ${dataSource} (Physical Qty: ${brassPhysicalQty})`);
-        console.log(`   Parameters:`, apiParams);
-      } else {
-        // PICK MODE: Use TrayId data with IP stock parameters  
-        trayListEndpoint = '/nickel_audit_zone_two/nickel_CompleteTable_tray_id_list/';
-        dataSource = 'TrayId (IPTrayId)';
-
-        apiParams = {
-          lot_id: stockLotId,
-        };
-        
-        console.log(`Ã¢Å“â€¦ [PICK MODE] Using: ${trayListEndpoint}`);
-        console.log(`   Data Source: ${dataSource} (Lot Qty: ${displayAcceptedQty})`);
-        console.log(`   Parameters:`, apiParams);  
-      }
+      // Single source of truth for the tray listing (mirrors NI_Completed.html —
+      // this lot belongs to Nickel Inspection, not Nickel Audit Zone 2, so both
+      // branches must call this module's own endpoint or the lot_id never matches
+      // and the modal shows an empty table).
+      const trayListEndpoint = '/nickle_inspection/nickel_CompleteTable_tray_id_list/';
+      const apiParams = { lot_id: stockLotId };
+      const dataSource = isVerified ? 'BrassTrayId' : 'TrayId (IPTrayId)';
 
       // Continue with existing API call and table building logic...
       let traysData = [];

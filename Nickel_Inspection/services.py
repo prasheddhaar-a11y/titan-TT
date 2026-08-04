@@ -284,10 +284,18 @@ def normalize_accept_trays(accept_trays, expected_accept_trays, original_trays=N
     return _mark_top_by_smallest_qty(rows)
 
 
-def validate_original_tray_coverage(accept_trays, delink_trays, original_trays):
+def validate_original_tray_coverage(accept_trays, delink_trays, original_trays, reject_trays=None):
     original_ids = {
         row['tray_id']
         for row in _clean_tray_rows(original_trays)
+    }
+    # A freed original tray reused directly as its own reject container (instead
+    # of being delinked separately) also counts as covering that original tray —
+    # only reused original IDs count here, not brand-new NB/JB reject trays.
+    reused_original_ids = {
+        row['tray_id']
+        for row in _clean_tray_rows(reject_trays)
+        if row['tray_id'] in original_ids
     }
     submitted_ids = {
         row['tray_id']
@@ -295,7 +303,7 @@ def validate_original_tray_coverage(accept_trays, delink_trays, original_trays):
     } | {
         row['tray_id']
         for row in _clean_tray_rows(delink_trays)
-    }
+    } | reused_original_ids
 
     missing_ids = sorted(original_ids - submitted_ids)
     extra_ids = sorted(submitted_ids - original_ids)

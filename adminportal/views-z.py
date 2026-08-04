@@ -43,7 +43,6 @@ from django.db.models.functions import Cast
 from django.db.models import IntegerField
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.throttling import UserRateThrottle
 from adminportal.models import *
 from .models import *
 from django.core.paginator import Paginator
@@ -276,29 +275,6 @@ class ShortcutConfigurationAPIView(APIView):
         })
 
 
-@method_decorator(login_required(login_url='login-api'), name='dispatch')
-class SessionHeartbeatAPIView(APIView):
-    """
-    Called periodically by session_guard.js while a tab is genuinely open.
-    Refreshes UserActiveSession.updated_at so the single-session-per-account
-    check in services.get_active_session_conflict_message can tell a closed
-    tab/browser apart from one that is still open, instead of waiting out
-    the full idle session timeout.
-    """
-    renderer_classes = [JSONRenderer]
-
-    def post(self, request, format=None):
-        from django.utils import timezone
-        from .models import UserActiveSession
-
-        session_key = getattr(request.session, 'session_key', None)
-        if session_key:
-            UserActiveSession.objects.filter(
-                user=request.user, session_key=session_key,
-            ).update(updated_at=timezone.now())
-
-        return Response({'success': True})
-
 
 # -----------------------------------------------------------------------------
 # TimedLoginView
@@ -331,8 +307,6 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         context['sso_access_denied'] = self.request.session.pop('sso_access_denied', False)
         if self.request.GET.get('otp_error') == 'expired':
             context['error'] = 'Verification code expired.'
-        if self.request.GET.get('session_error') == 'interrupted':
-            context['error'] = 'Session Interrupted - please relogin to proceed.'
         # Surfaced by the SSO routes when Microsoft sign-in cannot start/finish,
         # so the failure is visible instead of silently returning to this page.
         sso_error = self.request.GET.get('sso_error')
@@ -447,34 +421,7 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         is_valid = form.is_valid()  # runs authenticate() + password verify
         timers['form_is_valid'] = (_time.time() - t0) * 1000
 
-        session_conflict_message = None
         if is_valid:
-            from .services import get_active_session_conflict_message
-            current_session_key = getattr(request.session, 'session_key', None)
-            session_conflict_message = get_active_session_conflict_message(
-                form.get_user(), current_session_key, request=request,
-            )
-
-        if is_valid and session_conflict_message:
-            response = self.form_invalid(form)
-            if hasattr(response, 'context_data'):
-                response.context_data['error'] = session_conflict_message
-            self._refresh_captcha_context_after_failed_login(response, username)
-            security_logger = logging.getLogger('security.auth')
-            security_logger.warning(
-                'LOGIN_BLOCKED_ACTIVE_SESSION_ELSEWHERE: user=%s', username,
-            )
-            _emit_auth_event(
-                request,
-                'AUTH.LOGIN.BLOCKED',
-                'WARNING',
-                'Login attempt blocked: account already active on another device',
-                {
-                    'username_hash': _perf_username(username),
-                    'duration_ms': round((perf_time.perf_counter() - login_start) * 1000, 3),
-                },
-            )
-        elif is_valid:
             t0 = _time.time()
             response = self.form_valid(form)
             timers['form_valid_otp'] = (_time.time() - t0) * 1000
@@ -712,7 +659,6 @@ class IndexView(APIView):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class DashboardStatsAPIView(APIView):
     renderer_classes = [JSONRenderer]
-    throttle_classes = [UserRateThrottle]
 
     def get(self, request, format=None):
         from django.conf import settings
@@ -3350,7 +3296,6 @@ class ModelMasterAPIView(APIView):
 @method_decorator(require_admin, name='dispatch')
 class LocationAPIView(APIView):
     renderer_classes = [JSONRenderer]
-    throttle_classes = [UserRateThrottle]
 
     def get(self, request):
         """Get all Locations"""
@@ -4212,10 +4157,8 @@ class RoleListAPIView(APIView):
 
 
 _HTML_CHARS_RE = re.compile(r'[<>&"\']')
-_USERNAME_RE = re.compile(r'^[A-Za-z0-9@.+_-]+$')
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
 _PASSWORD_RE = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$')
-USERNAME_VALIDATION_ERROR = 'Username may contain only letters, numbers, and the characters @ . + - _.'
 
 
 def _validate_user_text_field(value, field_name):
@@ -4223,15 +4166,6 @@ def _validate_user_text_field(value, field_name):
     if value and _HTML_CHARS_RE.search(value):
         return f'{field_name} must not contain HTML characters (< > & \' ").'
     return None
-
-
-def validate_safe_username(value):
-    username = str(value or '').strip()
-    if not username:
-        raise ValueError('Username is required.')
-    if len(username) > 150 or not _USERNAME_RE.fullmatch(username):
-        raise ValueError(USERNAME_VALIDATION_ERROR)
-    return username
 
 
 def _validate_email(email):
@@ -4404,10 +4338,7 @@ class UserCreateAPIView(APIView):
         department_id = data.get('department')
         role_id = data.get('role')
         group_ids = _normalize_group_ids_from_payload(data)
-        try:
-            username = validate_safe_username(data.get('username') or email or f"{first_name}.{last_name}")
-        except ValueError as exc:
-            return Response({'success': False, 'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        username = (data.get('username') or email or f"{first_name}.{last_name}").strip()
 
         try:
             with transaction.atomic():
@@ -4841,8 +4772,6 @@ class UserUpdateAPIView(APIView):
         password = data.get('password')
 
         try:
-            if new_username is not None:
-                new_username = validate_safe_username(new_username)
             if new_first_name is not None:
                 new_first_name = validate_person_name(new_first_name)
             if new_last_name is not None:
@@ -4853,7 +4782,7 @@ class UserUpdateAPIView(APIView):
         try:
             user = User.objects.get(id=user_id)
             if new_username is not None:
-                user.username = new_username
+                user.username = str(new_username).strip()
             if new_first_name is not None:
                 user.first_name = new_first_name
             if new_last_name is not None:

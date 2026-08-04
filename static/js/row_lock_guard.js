@@ -216,8 +216,15 @@
         if (res.s === 200 && res.d.acquired) {
           startHeartbeat(key);
           clearLockedState(tr);
-          // Re-fire the original action now that we hold the lock.
-          trigger.click();
+          // Re-fire the original action now that we hold the lock. Tagged so any
+          // duplicate-click guard on the page (e.g. Jig Loading's isJigInitCalled)
+          // can tell this replay apart from a genuine second click and let it
+          // through — otherwise the very first click never reaches the module's
+          // own handler (this dispatch swallowed it via stopImmediatePropagation
+          // above) while the replay gets blocked as a "duplicate".
+          var replay = new MouseEvent('click', { bubbles: true, cancelable: true });
+          replay.__ttRowLockReplay = true;
+          trigger.dispatchEvent(replay);
         } else {
           applyLockedState(tr);
           toast((res.d && res.d.by)

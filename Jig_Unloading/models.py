@@ -377,13 +377,13 @@ class JigUnloadAfterTable(models.Model):
 
     # Spider Spindle Z1 fields
     ss_z1_completed = models.BooleanField(default=False, help_text="Spider Spindle Z1 completed")
-    ss_z1_tray_id = models.CharField(max_length=100, null=True, blank=True, help_text="Spider Spindle Z1 Tray ID")
+    ss_z1_tray_id = models.TextField(null=True, blank=True, help_text="Spider Spindle Z1 Tray ID (comma-separated, unbounded — combined lots can exceed 100 chars)")
     ss_z1_completed_at = models.DateTimeField(null=True, blank=True, help_text="Spider Spindle Z1 completion time")
     ss_z1_completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ss_z1_completed_lots')
 
     # Spider Spindle Z2 fields
     ss_z2_completed = models.BooleanField(default=False, help_text="Spider Spindle Z2 completed")
-    ss_z2_tray_id = models.CharField(max_length=100, null=True, blank=True, help_text="Spider Spindle Z2 Tray ID")
+    ss_z2_tray_id = models.TextField(null=True, blank=True, help_text="Spider Spindle Z2 Tray ID (comma-separated, unbounded — combined lots can exceed 100 chars)")
     ss_z2_completed_at = models.DateTimeField(null=True, blank=True, help_text="Spider Spindle Z2 completion time")
     ss_z2_completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ss_z2_completed_lots')
 

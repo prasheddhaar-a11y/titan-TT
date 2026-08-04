@@ -107,6 +107,25 @@ _EARLY_MODULE_SPECS = [
 
 DT_FORMAT = '%d-%b-%Y %I:%M %p'
 
+# Per-cell stage state for the Preview UI's background indicator.
+# not_reached -> lot has not entered this module yet (light red)
+# current     -> lot is actively being processed at this module right now (light blue)
+# completed   -> this module's processing for the lot has finished (light green)
+STATE_NOT_REACHED = 'not_reached'
+STATE_CURRENT = 'current'
+STATE_COMPLETED = 'completed'
+
+_CURRENT_STAGE_STATUSES = {'In Progress', 'Pending'}
+
+
+def _stage_state(status):
+    """Classify a module's raw status string into a Preview UI bg state."""
+    if not status:
+        return STATE_NOT_REACHED
+    if status in _CURRENT_STAGE_STATUSES:
+        return STATE_CURRENT
+    return STATE_COMPLETED
+
 
 def _fmt(dt):
     if not dt:
@@ -151,6 +170,39 @@ def _module_cell(status, in_time=None, out_time=None, lot_qty=None, accepted_qty
     if remarks:
         lines.append(f"Remarks : {remarks}")
     return '\n'.join(lines)
+
+
+_TIME_LABELS = {'IN', 'OUT'}
+_QTY_LABELS = {'Lot Qty', 'Accepted', 'Rejected'}
+_STATUS_LABELS = {'Status'}
+
+
+def _cell_line_type(label):
+    """Classify a parsed cell line's label for Preview UI styling."""
+    if label in _TIME_LABELS:
+        return 'time'
+    if label in _QTY_LABELS:
+        return 'qty'
+    if label in _STATUS_LABELS:
+        return 'status'
+    return 'muted'
+
+
+def _parse_cell_lines(text):
+    """Turn one `_module_cell()` text block into structured
+    {label, value, type} rows so the Preview UI can render a readable
+    label/value grid instead of a single text blob. Generic split on the
+    deterministic 'Label : value' format `_module_cell` always produces —
+    no per-stage logic needed here."""
+    rows = []
+    for line in (text or '').split('\n'):
+        if ':' not in line:
+            continue
+        label, _, value = line.partition(':')
+        label = label.strip()
+        value = value.strip()
+        rows.append({'label': label, 'value': value, 'type': _cell_line_type(label)})
+    return rows
 
 
 def _early_module_status(stock, spec):
@@ -221,9 +273,12 @@ def _early_module_cells(stocks_for_batch, prev_out_time):
 
 
 def _jig_loading_cells(jig_record, prev_out_time):
-    """Returns (jig_loading_cell, ip_inspection_cell, last_out_time)."""
+    """Returns (jig_loading_cell, ip_inspection_cell, jig_status, ip_status, last_out_time)."""
     if not jig_record:
-        return _module_cell('Not Reached'), _module_cell('Not Reached'), prev_out_time
+        return (
+            _module_cell('Not Reached'), _module_cell('Not Reached'),
+            None, None, prev_out_time,
+        )
 
     jig_out = jig_record.IP_loaded_date_time or jig_record.updated_at
     jig_cell = _module_cell(
@@ -242,8 +297,8 @@ def _jig_loading_cells(jig_record, prev_out_time):
             out_time=jig_record.updated_at,
             remarks=jig_record.remarks,
         )
-        return jig_cell, ip_cell, jig_record.updated_at
-    return jig_cell, _module_cell('Not Reached'), jig_out
+        return jig_cell, ip_cell, 'Completed', 'Completed', jig_record.updated_at
+    return jig_cell, _module_cell('Not Reached'), 'Completed', None, jig_out
 
 
 def _late_module_cells(unload_record, zone_map, prev_out_time):
@@ -489,7 +544,9 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
         early_cells, early_statuses, running_out = _early_module_cells(
             stocks_for_batch, dp_out if dp_reached else stock.created_at
         )
-        jig_cell, ip_cell, running_out = _jig_loading_cells(jig_record, running_out)
+        jig_cell, ip_cell, jig_status, ip_status, running_out = _jig_loading_cells(
+            jig_record, running_out
+        )
         late_cells, late_statuses, running_out = _late_module_cells(
             unload_record, zone_map, running_out
         )
@@ -499,6 +556,14 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
         modules[STAGE_JIG_LOADING] = jig_cell
         modules[STAGE_IP_INSPECTION] = ip_cell
         modules.update(late_cells)
+
+        statuses = {STAGE_DAY_PLANNING: 'Completed' if dp_reached else None}
+        statuses.update(early_statuses)
+        statuses[STAGE_JIG_LOADING] = jig_status
+        statuses[STAGE_IP_INSPECTION] = ip_status
+        statuses.update(late_statuses)
+        module_states = {name: _stage_state(status) for name, status in statuses.items()}
+        module_details = {name: _parse_cell_lines(text) for name, text in modules.items()}
 
         activity = running_out or stock.created_at
 
@@ -524,6 +589,8 @@ def get_consolidated_report_rows(date_from=None, date_to=None, plating_stock_no=
             'plating_stk_no': stk_no,
             'lot_qty': int(stock.total_stock or batch.total_batch_quantity or 0),
             'modules': modules,
+            'module_states': module_states,
+            'module_details': module_details,
             'remarks': remarks,
             '_activity': activity,
         }
