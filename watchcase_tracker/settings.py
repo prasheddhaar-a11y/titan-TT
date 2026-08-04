@@ -39,7 +39,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true',
 
 ALLOWED_HOSTS = [
     "trackandtrace.titan.in",
-    "192.168.1.2",
+    "192.168.1.5",
     "localhost",
     "127.0.0.1",
     ".devtunnels.ms",
@@ -219,7 +219,7 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'watchcase2026',
+        'NAME': 'trackandtrace2026',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',

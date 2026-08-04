@@ -1571,16 +1571,6 @@ document.addEventListener("DOMContentLoaded", function() {
       });
     }
 
-    holdModal.addEventListener('click', function(e) {
-      if (e.target === holdModal) {
-        holdModal.style.display = 'none';
-        window.naHoldToggleState = null;
-        if (typeof window.naRestoreRowPosition === 'function') {
-          window.naRestoreRowPosition();
-        }
-      }
-    });
-
     attachHoldToggleListeners();
   })();
 
@@ -1603,7 +1593,9 @@ document.addEventListener("DOMContentLoaded", function() {
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
         confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
+        cancelButtonText: 'Cancel',
+        allowOutsideClick: false,
+        allowEscapeKey: false
       }).then(function(result) {
         if (!result.isConfirmed) return;
         var deleteCsrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
@@ -2111,9 +2103,6 @@ document.addEventListener("DOMContentLoaded", function() {
       if (viewModal) viewModal.classList.remove('open');
     }
     if (closeViewBtn) closeViewBtn.addEventListener('click', closeViewModal);
-    if (viewModal) viewModal.addEventListener('click', function (e) {
-      if (e.target === viewModal) closeViewModal();
-    });
 
     bindNaZone2ModelImageTooltips();
 
@@ -2232,6 +2221,8 @@ document.addEventListener("DOMContentLoaded", function() {
           focusCancel: true,
           confirmButtonColor: '#0c8249',
           cancelButtonColor: '#6c757d',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
         }).then(function (result) {
           if (!result.isConfirmed) return;
           btn.disabled = true;
@@ -2341,7 +2332,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     if (modalClose) modalClose.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
     document.querySelectorAll('.tray-scan-btn.btn-reject-is').forEach(function (btn) {
       btn.addEventListener('click', function () {

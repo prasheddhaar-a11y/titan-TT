@@ -2504,4 +2504,35 @@ document.addEventListener("DOMContentLoaded", function () {
   
 });
 </script>
+
+<!-- ===== PAGE-SCOPED FIX: Pin footer/copyright to the bottom of the screen (Brass Audit Reject Table only) =====
+     base.html's own rules (flex column + margin-top:auto on footer.footer) are written to
+     already push the footer under the page content, but ttt-responsive-system.css (loaded
+     after base.html's inline styles) is overriding that layout on this page and pulling the
+     footer up above the pagination when the table is short/empty.
+     Rather than edit base.html or that shared stylesheet (which would affect every other
+     page), this style block ONLY exists inside this template, so it only ever applies when
+     this page is rendered. It pins the footer to the true bottom of the browser window with
+     position:fixed, which guarantees it always renders below the pagination here, regardless
+     of whatever the external stylesheet is doing. -->
+<style nonce="{{ csp_nonce }}">
+  /* Reserve space at the bottom of this page's content so the fixed footer never overlaps
+     the pagination controls. */
+  .content-wrapper {
+    padding-bottom: 48px !important;
+  }
+
+  footer.footer {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    z-index: 500 !important;
+  }
+</style>
+<!-- ===== END PAGE-SCOPED FOOTER FIX ===== -->
+
 {% endblock %} {% endblock content %}
