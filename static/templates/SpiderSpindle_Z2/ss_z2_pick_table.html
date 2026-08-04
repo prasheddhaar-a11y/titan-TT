@@ -1064,13 +1064,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addSpiderModal').classList.remove('open');
     restoreRowPosition();
   });
-  document.getElementById('addSpiderModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-      this.classList.remove('open');
-      restoreRowPosition();
-    }
-  });
-
   // --- Confirm Add Spider ---
   document.getElementById('confirmSpiderBtn').addEventListener('click', function() {
     const lotId = document.getElementById('modalLotId').value;

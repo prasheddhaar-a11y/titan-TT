@@ -1705,7 +1705,7 @@
 </div>
 </div>
 <!-- Modal for Remarks - Professional Clean Design -->
-<div class="modal fade" id="remarksModal" tabindex="-1" role="dialog" aria-labelledby="remarksModalLabel" aria-hidden="true">
+<div class="modal fade" id="remarksModal" tabindex="-1" role="dialog" aria-labelledby="remarksModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <!-- Professional Header without Banner -->
@@ -1879,14 +1879,6 @@
              backdrop.className = 'modal-backdrop fade show';
              backdrop.style.zIndex = '1040';
              document.body.appendChild(backdrop);
-             
-             // Close modal on backdrop click
-             backdrop.addEventListener('click', function() {
-               modal.style.display = 'none';
-               modal.classList.remove('show');
-               document.body.classList.remove('modal-open');
-               backdrop.remove();
-             });
            }
          }
        });
@@ -2213,7 +2205,9 @@
            confirmButtonColor: '#d33',
            cancelButtonColor: '#3085d6',
            confirmButtonText: 'Delete',
-           cancelButtonText: 'Cancel'
+           cancelButtonText: 'Cancel',
+           allowOutsideClick: false,
+           allowEscapeKey: false
          }).then((result) => {
            if (result.isConfirmed) {
              fetch('/inprocess_inspection/delete_jig_details/', {
@@ -2720,13 +2714,6 @@
      closeBtn.addEventListener('click', function() {
        modal.style.display = 'none';
        if (window.restoreRowAndClearHighlight) window.restoreRowAndClearHighlight();
-     });
-
-     window.addEventListener('click', function(e) {
-       if (modal.style.display === 'block' && !modal.contains(e.target) && !e.target.closest('.mm-gallery-trigger')) {
-         modal.style.display = 'none';
-         if (window.restoreRowAndClearHighlight) window.restoreRowAndClearHighlight();
-       }
      });
    });
 
@@ -3468,13 +3455,6 @@ document.addEventListener("DOMContentLoaded", function () {
      closeBtn.addEventListener('click', function() {
        modal.style.display = 'none';
        if (window.restoreRowAndClearHighlight) window.restoreRowAndClearHighlight();
-     });
-     
-     window.addEventListener('click', function(e) {
-       if (modal.style.display === 'block' && !modal.contains(e.target) && !e.target.classList.contains('expand-model-remark')) {
-         modal.style.display = 'none';
-         if (window.restoreRowAndClearHighlight) window.restoreRowAndClearHighlight();
-       }
      });
    });
    

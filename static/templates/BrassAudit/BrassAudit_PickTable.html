@@ -1259,6 +1259,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           style="border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; font-size: 13px; white-space: nowrap; padding: 5px;">
                           On Hold
                         </div>
+                      {% elif data.lot_status == 'In Progress' %}
+                        <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
+                            style="border: 1px solid #1976d2; background-color: #e3f2fd; color: #0d47a1; font-size: 13px; white-space: nowrap; padding: 5px;">
+                          In Progress
+                        </div>
                       {% elif data.lot_status == 'Yet to Release' %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
@@ -1992,6 +1997,8 @@ document.addEventListener('DOMContentLoaded', function() {
           cancelButtonColor: '#6c757d',
           confirmButtonText: 'Yes, Accept',
           cancelButtonText: 'Cancel',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
         }).then(async function(result) {
           if (!result.isConfirmed) return;
 
@@ -2215,6 +2222,8 @@ document.addEventListener('DOMContentLoaded', function() {
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Yes, delete it!',
       cancelButtonText: 'Cancel',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
     }).then(function(result) {
       if (!result.isConfirmed) return;
 

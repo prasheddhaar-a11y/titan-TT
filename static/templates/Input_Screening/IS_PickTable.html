@@ -26,6 +26,20 @@
   background: #fff;
   border-radius: 6px;
 }
+
+/* --- Fix: Freeze "Action" column header while vertical scrolling ---
+   (Mirrors the sticky-header approach used in DP_PickTable.html)
+   The Action <th> was not inheriting the sticky-header rule applied to
+   the other columns in inputscreening_picktable.css, so it scrolled away
+   and left the row underneath it bleeding into the header on scroll.
+   Force it sticky here so it behaves like every other header cell. */
+#order-listing thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background: #028084 !important;
+  color: #e5fcff !important;
+}
 </style>
  
 <div class="content-wrapper is-pick-table-page">
@@ -1282,6 +1296,70 @@ document.addEventListener("DOMContentLoaded", function () {
       if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
     }
   }, true);
+
+  // ─── Guard: prevent backdrop/outside-click from closing the popup ─────────
+  // The popup must close ONLY via explicit actions (Close (X), Save Draft,
+  // Undo All, or the Escape/C keyboard shortcut above) — never by clicking
+  // outside the dialog box. This listener runs in the CAPTURE phase (the
+  // `true` argument) so it fires before any other click listener bound to
+  // this same element, and stopImmediatePropagation() stops those other
+  // listeners from running at all — this guards against a stale/cached copy
+  // of inputscreening_picktable.js still containing the old outside-click
+  // close behavior, without requiring that file to be redeployed.
+  var tvmBackdrop = document.getElementById("trayVerificationModal");
+  if (tvmBackdrop) {
+    tvmBackdrop.addEventListener("click", function (e) {
+      if (e.target === tvmBackdrop) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    }, true);
+  }
+
+  // ─── Accept-lot confirmation: allow closing via outside click ─────────────
+  // The "Accept this lot?" confirmation (rendered as a SweetAlert2 popup by
+  // inputscreening_picktable.js) should close when the user clicks outside
+  // the dialog box, the same as pressing "Cancel". SweetAlert2's own
+  // `allowOutsideClick` option lives in that external JS file, so instead of
+  // relying on it, we watch for this specific popup being added to the page
+  // and bind the outside-click behavior directly here.
+  function isAcceptLotPopup(container) {
+    var titleEl = container.querySelector(".swal2-title");
+    return !!(titleEl && /accept this lot/i.test(titleEl.textContent || ""));
+  }
+
+  function wireAcceptLotOutsideClick(container) {
+    if (!container || container.dataset.acceptOutsideClickWired) return;
+    container.dataset.acceptOutsideClickWired = "true";
+    container.addEventListener("click", function (e) {
+      // A click lands on the container itself only when it hits the
+      // backdrop (padding area) — clicks inside the popup box hit the
+      // popup element or its children instead.
+      if (e.target === container) {
+        var cancelBtn = container.querySelector(".swal2-cancel");
+        if (cancelBtn) {
+          cancelBtn.click();
+        } else if (window.Swal && typeof window.Swal.close === "function") {
+          window.Swal.close();
+        }
+      }
+    });
+  }
+
+  var acceptLotObserver = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      mutation.addedNodes && mutation.addedNodes.forEach(function (node) {
+        if (node.nodeType !== 1) return;
+        var container = node.classList && node.classList.contains("swal2-container")
+          ? node
+          : node.querySelector && node.querySelector(".swal2-container");
+        if (container && isAcceptLotPopup(container)) {
+          wireAcceptLotOutsideClick(container);
+        }
+      });
+    });
+  });
+  acceptLotObserver.observe(document.body, { childList: true, subtree: true });
 });
 </script>
 
@@ -1809,5 +1887,3 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
 
 {% endblock %} {% endblock content %}
-
-

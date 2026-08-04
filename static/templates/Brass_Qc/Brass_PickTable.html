@@ -2104,6 +2104,8 @@ document.addEventListener('DOMContentLoaded', function() {
           cancelButtonColor: '#6c757d',
           confirmButtonText: 'Yes, Accept',
           cancelButtonText: 'Cancel',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
         }).then(async function(result) {
           if (!result.isConfirmed) return;
 
@@ -2298,6 +2300,8 @@ document.addEventListener('DOMContentLoaded', function() {
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Yes, delete it!',
       cancelButtonText: 'Cancel',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
     }).then(function(result) {
       if (!result.isConfirmed) return;
 
@@ -2554,21 +2558,6 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.style.display = 'none';
         modal.classList.remove('open');
         // ✅ Restore row position when closing view modal
-        if (typeof window.bqRestoreRowPosition === 'function') {
-          window.bqRestoreRowPosition();
-        }
-      }
-    });
-  }
-
-  // Close on backdrop click
-  const modal = document.getElementById('trayScanModal_DayPlanning');
-  if (modal) {
-    modal.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        modal.style.display = 'none';
-        modal.classList.remove('open');
-        // ✅ Restore row position when closing via backdrop
         if (typeof window.bqRestoreRowPosition === 'function') {
           window.bqRestoreRowPosition();
         }
@@ -4105,14 +4094,6 @@ document.addEventListener('DOMContentLoaded', function() {
         window.holdToggleState = null;
       });
     }
-
-    // Close on backdrop click
-    holdModal.addEventListener('click', function(e) {
-      if (e.target === holdModal) {
-        holdModal.style.display = 'none';
-        window.holdToggleState = null;
-      }
-    });
 
     attachHoldToggleListeners();
   })();

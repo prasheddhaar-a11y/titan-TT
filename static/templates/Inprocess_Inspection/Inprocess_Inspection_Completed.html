@@ -1167,7 +1167,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 <!-- Modal for Remarks - FIXED POSITION -->
 <!-- 1. REPLACE the Remarks Modal section (starting from "Modal for Remarks") -->
 <!-- Modal for Remarks - UPDATED WITH AJAX FUNCTIONALITY -->
-<div class="modal fade" id="remarksModal" tabindex="-1" role="dialog" aria-labelledby="remarksModalLabel" aria-hidden="true">
+<div class="modal fade" id="remarksModal" tabindex="-1" role="dialog" aria-labelledby="remarksModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header p-0" style="border-bottom:none;">
@@ -1318,13 +1318,6 @@ document.addEventListener("DOMContentLoaded", function () {
           backdrop.style.zIndex = '1040';
           document.body.appendChild(backdrop);
           
-          // Close modal on backdrop click
-          backdrop.addEventListener('click', function() {
-            modal.style.display = 'none';
-            modal.classList.remove('show');
-            document.body.classList.remove('modal-open');
-            backdrop.remove();
-          });
         }
       }
     });
@@ -1959,12 +1952,6 @@ document.addEventListener("DOMContentLoaded", function () {
   closeBtn.addEventListener('click', function() {
     modal.style.display = 'none';
   });
-  
-  window.addEventListener('click', function(e) {
-    if (modal.style.display === 'block' && !modal.contains(e.target) && !e.target.classList.contains('expand-model-remark')) {
-      modal.style.display = 'none';
-    }
-  });
 });
 
 // Function to show model images in a larger view
@@ -2156,13 +2143,6 @@ document.addEventListener("DOMContentLoaded", function () {
           backdrop.style.zIndex = '1040';
           document.body.appendChild(backdrop);
           
-          // Close modal on backdrop click
-          backdrop.addEventListener('click', function() {
-            modal.style.display = 'none';
-            modal.classList.remove('show');
-            document.body.classList.remove('modal-open');
-            backdrop.remove();
-          });
         }
       }
     });

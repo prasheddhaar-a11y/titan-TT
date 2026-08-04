@@ -10717,3 +10717,49 @@ html.ttt-viewport-tablet .is-pick-table-page #order-listing thead th * {
 .is-panel-chip-reject-partial {
   background: #c62828;
 }
+/* ============================================================
+   FIX: clipped Day Planning Pick Table header text
+   ("Process Status", "Polishing Stk No", "No of Trays")
+
+   Root cause: this file has many column-width rules keyed to
+   nth-child(N) position (added over time for different
+   breakpoints). Since the actual column order can be reordered
+   per user/admin settings, those position-based rules no longer
+   line up with these headers, so the headers fall back to a
+   width too narrow for their text and get clipped.
+
+   Fix: target the header by its real name via the data-heading
+   attribute (added in DP_PickTable.html) instead of position.
+   The #order-listing#order-listing id repetition is a deliberate
+   specificity bump so this always wins over the older nth-child
+   rules above, in every breakpoint (mobile/tablet/desktop). This
+   does not change any sticky/freeze/position behavior, only the
+   width and text wrapping of these specific header cells.
+   ============================================================ */
+#order-listing#order-listing th[data-heading="Process Status"],
+#order-listing#order-listing th[data-heading="Polishing Stk No"],
+#order-listing#order-listing th[data-heading="No of Trays"],
+#order-listing#order-listing th[data-heading="Current Stage"],
+#order-listing#order-listing th[data-heading="Rejection Remarks"] {
+  width: auto !important;
+  min-width: 150px !important;
+  max-width: 175px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  padding-right: 22px !important; /* keep clear of the filter icon */
+}
+
+#order-listing#order-listing th[data-heading="Process Status"] .fa-filter,
+#order-listing#order-listing th[data-heading="Polishing Stk No"] .fa-filter,
+#order-listing#order-listing th[data-heading="No of Trays"] .fa-filter,
+#order-listing#order-listing th[data-heading="Current Stage"] .fa-filter,
+#order-listing#order-listing th[data-heading="Rejection Remarks"] .fa-filter {
+  right: 6px !important;
+}

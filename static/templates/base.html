@@ -1216,7 +1216,7 @@
       </style>
       <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=tabdebug-20260604-3">
    </head>
-   <body class="sidebar-icon-only">
+   <body class="sidebar-icon-only{% block body_extra_class %}{% endblock %}">
       {% csrf_token %}
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
