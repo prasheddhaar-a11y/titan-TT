@@ -812,108 +812,152 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   padding: 8px 4px; /* Reduced horizontal padding for S.no */
 }
 
-/* Tablet only: constrain and center the Tray Scan dialog within the viewport. */
-@media (min-width: 768px) and (max-width: 1024px) {
-  #trayScanModal.tray-scan-modal.open {
-    top: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: 50% !important;
-    width: min(88vw, 900px) !important;
-    max-width: calc(100vw - 32px) !important;
-    height: auto !important;
-    max-height: calc(100vh - 32px) !important;
-    max-height: calc(100dvh - 32px) !important;
-    padding: 18px !important;
-    transform: translate(-50%, -50%) !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-    border-radius: 12px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18) !important;
-  }
+html.ttt-viewport-tablet .tray-scan-modal.open {
+  width: min(560px, calc(100vw - 28px)) !important;
+}
 
-  #trayScanModal > .tray-scan-modal-content {
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    max-height: calc(100vh - 32px) !important;
-    max-height: calc(100dvh - 32px) !important;
-    padding: 18px !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
+html.ttt-viewport-tablet .tray-scan-modal-content {
+  padding: 18px 18px 14px !important;
+  max-width: calc(100vw - 28px) !important;
+  box-sizing: border-box !important;
+}
 
-  #trayScanModal .modal-top-header {
-    flex: 0 0 auto !important;
-    flex-wrap: wrap !important;
-    gap: 10px !important;
-    min-width: 0 !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails.table-grid {
+  grid-template-columns: minmax(72px, 0.7fr) minmax(180px, 1.55fr) minmax(156px, 1.2fr) !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  padding-right: 6px !important;
+  box-sizing: border-box !important;
+}
 
-  #trayScanModal .modal-top-header > div {
-    min-width: 0 !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails.table-grid.four-column {
+  grid-template-columns: minmax(70px, 0.7fr) minmax(176px, 1.45fr) minmax(142px, 1.05fr) minmax(126px, 1fr) !important;
+}
 
-  #trayScanModal #modalPlatingStk {
-    display: inline-block !important;
-    max-width: 30vw !important;
-    overflow-wrap: anywhere !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails.table-grid > div {
+  padding: 9px 10px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
+}
 
-  #trayScanModal .tray-scan-title-row {
-    flex: 0 0 auto !important;
-    flex-wrap: wrap !important;
-    gap: 8px 12px !important;
-    min-width: 0 !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails.table-grid > div:nth-child(3n+1):not(:nth-child(-n+4)) {
+  padding: 9px 8px !important;
+}
 
-  #trayScanModal .tray-scan-title-row h5 {
-    min-width: 0 !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails .tray-id-input,
+html.ttt-viewport-tablet #trayScanDetails .tray-qty-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 7px 9px !important;
+  box-sizing: border-box !important;
+  text-overflow: clip !important;
+}
 
-  #trayScanModal #trayScanDetails.table-grid {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    min-height: 180px !important;
-    max-height: min(430px, calc(100vh - 270px)) !important;
-    max-height: min(430px, calc(100dvh - 270px)) !important;
-    grid-template-columns: 68px minmax(150px, 1fr) minmax(120px, 0.9fr) !important;
-    overflow: auto !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-    box-sizing: border-box !important;
-  }
+html.ttt-viewport-tablet #trayScanDetails .tray-edit-btn,
+html.ttt-viewport-tablet #trayScanDetails .tray-verify-checkbox {
+  flex: 0 0 auto !important;
+}
 
-  #trayScanModal #trayScanDetails.table-grid.four-column {
-    grid-template-columns: 54px minmax(140px, 1fr) minmax(110px, 0.8fr) minmax(110px, 0.9fr) !important;
-  }
+html.ttt-viewport-tablet #trayScanModal.tray-scan-modal.open {
+  top: 50% !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(860px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
 
-  #trayScanModal #trayScanDetails.table-grid > div,
-  #trayScanModal #trayScanDetails .tray-id-input,
-  #trayScanModal #trayScanDetails .tray-qty-input {
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: calc(100vh - 48px) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
 
-  #trayScanModal #trayScanDetails .tray-id-input,
-  #trayScanModal #trayScanDetails .tray-qty-input {
-    width: 100% !important;
-  }
+html.ttt-viewport-tablet #trayScanModal .modal-top-header,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-buttons,
+html.ttt-viewport-tablet #trayScanModal #trayQtyErrorFooter,
+html.ttt-viewport-tablet #trayScanModal #traySlotExceededInfo {
+  flex: 0 0 auto !important;
+}
 
-  #trayScanModal .tray-scan-modal-buttons,
-  #trayScanModal #trayQtyErrorFooter,
-  #trayScanModal #traySlotExceededInfo {
-    flex: 0 0 auto !important;
-  }
+html.ttt-viewport-tablet #trayScanModal .modal-top-header {
+  flex-wrap: nowrap !important;
+  gap: 14px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
 
-  #trayScanModal .tray-scan-modal-buttons {
-    flex-wrap: wrap !important;
-    margin-top: 10px !important;
-  }
+html.ttt-viewport-tablet #trayScanModal .modal-top-header img {
+  flex: 0 0 44px !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header > div {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal .modal-top-header > div:first-of-type {
+  flex: 1 1 auto !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #modalPlatingStk {
+  display: inline-block !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  line-height: 1.15 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #modalTrayQty {
+  white-space: nowrap !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid {
+  flex: 1 1 auto !important;
+  max-height: min(430px, calc(100vh - 285px)) !important;
+  min-height: 180px !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid > div {
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails.table-grid > div:nth-child(3n+1) {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails .tray-id-input,
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails .tray-qty-input,
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input[type="text"],
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input[type="number"] {
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+html.ttt-viewport-tablet #trayScanModal #trayScanDetails input::placeholder {
+  font-size: 22px !important;
+  opacity: 1 !important;
 }
 
 .model-image-tooltip .img-gallery img,
@@ -938,6 +982,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   border-radius: 6px;
 }
 
+html.ttt-viewport-tablet #trayScanModal,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content,
+html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3, h4, h5, h6, p, span, div, label, button, input, textarea, select, .btn, .form-control) {
+  font-size: 22px !important;
+}
+ 
 /* For mobile responsiveness */
 
  
@@ -1459,7 +1509,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
               
                                 <!-- Redo icon for clearing "tray ID" -->
- <div class="tray-scan-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+ <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
       <h5 style="margin: 0; font-weight: 600; color: #595959;">Day Planning - Tray Scan</h5>
       <div style="display: flex; align-items: center; gap: 16px;">
 <div id="trayScanSummary" style="font-weight: 600; font-size: 15px; color: #028084; margin-bottom: 0; white-space: nowrap;">
