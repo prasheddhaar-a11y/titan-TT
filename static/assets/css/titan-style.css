@@ -10763,3 +10763,37 @@ html.ttt-viewport-tablet .is-pick-table-page #order-listing thead th * {
 #order-listing#order-listing th[data-heading="Rejection Remarks"] .fa-filter {
   right: 6px !important;
 }
+
+/* ============================================================
+   FIX: Jig Loading — "Invalid format. Expected J###-####..." message
+   (#jigIdError) uses margin-top: -5px and no margin-bottom in the
+   template's own inline <style>, which pulls it up into the Jig ID
+   chip row above and leaves no breathing room below, so its letters
+   get visually clipped/overlapped by neighbouring elements.
+   Overriding here (instead of editing Jig_Picktable.html) with
+   !important so it wins regardless of the template's own rule order.
+   ============================================================ */
+.jig-header-meta-row #jigIdError {
+  margin-top: 14px !important;
+  /* Note: margin-bottom does nothing here — #jigIdError is position:absolute,
+     so it's out of normal flow and can't push the Primary row below it.
+     The real "space below" comes from .jig-modal-header-v2 padding-bottom
+     and #modelCardStrip margin-top further down — tuned together with this
+     margin-top so the message reads as centered between the two rows. */
+}
+
+/* ============================================================
+   FIX: Jig Loading — the Broken Hooks / Jig Composition row (bottom of
+   .jig-modal-header-v2) sits right on top of the Primary model card /
+   "+ Add Model" row below it (only ~10px header padding-bottom + ~10px
+   content padding-top, and #jigIdError is position:absolute so it takes
+   up no real space of its own), so the two rows read as congested.
+   Adding real breathing room between the header block and the content
+   below it.
+   ============================================================ */
+.jig-modal-header-v2 {
+  padding-bottom: 34px !important;
+}
+#modelCardStrip.model-card-strip {
+  margin-top: 14px !important;
+}

@@ -616,6 +616,38 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   padding-top: 5px !important;
   padding-bottom: 5px !important;
 }
+
+/* --- Fix: clipped header text for Process Status / Polishing Stk No ---
+   Target by data-heading (actual column name) instead of nth-child so the
+   fix keeps working even if columns get reordered per user/admin settings. */
+#order-listing th[data-heading="Process Status"],
+#order-listing th[data-heading="Polishing Stk No"] {
+  min-width: 130px !important;
+  max-width: 150px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  padding-right: 22px !important; /* keep clear of the filter icon */
+}
+#order-listing th[data-heading="Process Status"] .fa-filter,
+#order-listing th[data-heading="Polishing Stk No"] .fa-filter {
+  right: 6px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th[data-heading="Action"],
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4) {
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4) {
+  white-space: nowrap !important;
+}
 /* Freeze style for 1st - 3 columns */
 /* --- Freeze first 3 columns and table header for #order-listing --- */
 #order-listing {
@@ -685,7 +717,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 }
 
 /* Ensure sticky columns and header work together */
-#order-listing th,
+#order-listing th {
+  box-sizing: border-box;
+  white-space: normal !important;
+}
 #order-listing td {
   box-sizing: border-box;
   /* Prevent content shake */
@@ -1168,7 +1203,7 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
 <thead>
   <tr> 
     {% for heading in visible_headings %}
-      <th class="{% if not is_admin and not visible_headings|get_item:heading %}blurred-heading{% endif %}">
+      <th data-heading="{{ heading }}" class="{% if not is_admin and not visible_headings|get_item:heading %}blurred-heading{% endif %}">
         {% if heading == 'Plating Stk No' %}
           Plating Stock Number
         {% elif heading == 'Tray Cate-Capacity' %}

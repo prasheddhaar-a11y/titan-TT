@@ -531,6 +531,30 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   z-index: 11;
 }
 
+/* Apply across tablet-sized coarse-pointer displays, including 1600/1920px
+   device viewports.  The Action header stays in normal horizontal table flow. */
+@media (pointer: coarse) and (min-width: 680px) {
+  .is-pick-table-page .table-responsive {
+    /* Reuse the existing Pick Table scroll height so this element owns both
+       scroll axes; without it, overflow: scroll captures sticky positioning
+       while the outer page performs the vertical scroll. */
+    max-height: 330px;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    position: relative;
+  }
+
+  .is-pick-table-page #order-listing th.is-vertical-sticky-action {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 40 !important;
+    background: #028084 !important;
+    background-clip: padding-box;
+  }
+}
+
 /* Ensure sticky columns and header work together */
 #order-listing th,
 #order-listing td {

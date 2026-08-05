@@ -456,6 +456,19 @@ html.ttt-viewport-tablet .is-pick-table-page #order-listing td:nth-child(4) {
   z-index: auto !important;
 }
 
+/* Input Screening Pick Table: the Action header is vertically sticky only.
+   This follows the fourth-column reset above so it wins without freezing the
+   header on the horizontal axis. */
+html.ttt-viewport-tablet .is-pick-table-page #order-listing thead th.is-vertical-sticky-action {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: 40 !important;
+  background: #028084 !important;
+  background-clip: padding-box;
+}
+
 html.ttt-viewport-tablet .is-pick-table-page .btn-accept-is,
 html.ttt-viewport-tablet .is-pick-table-page .btn-reject-is {
   min-width: 118px !important;
@@ -752,6 +765,21 @@ html body .dp-completed-table-page #order-listing td:nth-child(3) {
   left: 245px !important;
 }
 
+/* Tablet-only balance for the Day Planning Completed Table. */
+html.ttt-viewport-tablet .dp-completed-table-page #order-listing th:nth-child(3),
+html.ttt-viewport-tablet .dp-completed-table-page #order-listing td:nth-child(3) {
+  width: 230px !important;
+  min-width: 230px !important;
+  max-width: 230px !important;
+}
+
+html.ttt-viewport-tablet .dp-completed-table-page #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .dp-completed-table-page #order-listing td:nth-child(4) {
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+}
+
 html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
 html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing td:nth-child(2) {
   left: 92px !important;
@@ -1004,9 +1032,9 @@ html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(9
   white-space: nowrap !important;
 }
 
-/* Tablet fix: widen Input Screening Completed Table Action column. */
-html.ttt-viewport-tablet .is-completed-table-page #order-listing th:nth-child(4),
-html.ttt-viewport-tablet .is-completed-table-page #order-listing td:nth-child(4) {
+/* Tablet fix: widen the Input Screening Completed Table Action column. */
+html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) #order-listing th:nth-child(4),
+html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) #order-listing td:nth-child(4) {
   width: 300px !important;
   min-width: 300px !important;
   max-width: 300px !important;
@@ -1014,7 +1042,7 @@ html.ttt-viewport-tablet .is-completed-table-page #order-listing td:nth-child(4)
   overflow: visible !important;
 }
 
-html.ttt-viewport-tablet .is-completed-table-page #order-listing td:nth-child(4) :is(button, .btn, a, .badge, .rounded-pill, .status-badge, span, div) {
+html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) #order-listing td:nth-child(4) :is(button, .btn, a, .badge, .rounded-pill, .status-badge, span, div) {
   white-space: nowrap !important;
 }
 /* DP Pick Table remark popup: keep the typed remark textbox wide enough on server/desktop. */

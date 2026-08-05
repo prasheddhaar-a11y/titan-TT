@@ -895,6 +895,25 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
    END UNIFIED BRASS QC ACTION BUTTON THEME
    ==================================================== */
 
+/* Tablet-only vertical sticky Action column. The table wrapper owns both
+   scroll axes so sticky positioning follows its vertical scroll. */
+html.ttt-viewport-tablet .is-pick-table-page .table-responsive {
+  max-height: 330px;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  position: relative;
+}
+
+html.ttt-viewport-tablet .is-pick-table-page #order-listing th.is-vertical-sticky-action {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: 40 !important;
+  background: #028084 !important;
+  background-clip: padding-box;
+}
+
 </style>
 
 <div class="content-wrapper is-pick-table-page">
@@ -939,7 +958,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Plating Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                    <th>
+                    <th class="is-vertical-sticky-action">
                       Action <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
@@ -4573,7 +4592,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 </script>
-
 
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
 

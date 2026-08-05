@@ -3,7 +3,7 @@
 {% load stock_filters %} 
 {% block content %}
 <script nonce="{{ csp_nonce }}">console.log("CRITICAL DEBUG: IS_PickTable.html LOADED");</script>
-<link rel="stylesheet" href="{% static 'css/inputscreening_picktable.css' %}">
+<link rel="stylesheet" href="{% static 'css/inputscreening_picktable.css' %}?v=action-header-sticky-2">
 <style nonce="{{ csp_nonce }}">
 .model-image-tooltip .img-gallery img,
 .model-preview-image {
@@ -81,7 +81,7 @@
                            Plating <br> Stk No
                            <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
-                        <th>
+                        <th class="is-vertical-sticky-action">
                            Action <i class="fa fa-filter" aria-hidden="true"></i>
                         </th>
                         <th>
