@@ -123,9 +123,9 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
         Get dynamic tray capacity using InprocessInspectionTrayCapacity for overrides
-        Rules:
+        Rules (sourced from TrayType master DB):
         - Normal (or NR/NB/ND/NL): 20
-        - Jumbo  (or JR/JB/JD):    16
+        - Jumbo  (or JR/JB/JD):    12 (matches TrayType master data)
         - Others: Use InprocessInspectionTrayCapacity or ModelMaster capacity
         """
         try:
@@ -134,7 +134,7 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             if _tn in ('NORMAL', 'NR', 'NB', 'ND', 'NL', 'NW'):
                 return 20
             elif _tn in ('JUMBO', 'JR', 'JB', 'JD'):
-                return 16
+                return 12
             else:
                 # First try to get custom capacity for this tray type
                 custom_capacity = InprocessInspectionTrayCapacity.objects.filter(
@@ -3849,9 +3849,9 @@ def JU_Zone_validate_tray_id_dynamic(request):
                     if determined_capacity == 20:
                         valid_prefixes = ['NR-']
                         print(f"[DEBUG] JU_Zone IPS capacity Normal (20) detected - only 'NR-' allowed")
-                    elif determined_capacity == 16:
+                    elif determined_capacity == 12:
                         valid_prefixes = ['JR-']
-                        print(f"[DEBUG] JU_Zone IPS capacity Jumbo (16) detected - only 'JR-' allowed")
+                        print(f"[DEBUG] JU_Zone IPS capacity Jumbo (12) detected - only 'JR-' allowed")
                     else:
                         valid_prefixes = ['NR-', 'JR-']
                         print(f"[DEBUG] JU_Zone IPS detected - capacity unknown and tray_type unavailable, allowing both 'NR-' and 'JR-'")
@@ -4228,9 +4228,9 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
         Get dynamic tray capacity using InprocessInspectionTrayCapacity for overrides
-        Rules:
+        Rules (sourced from TrayType master DB):
         - Normal (or NR/NB/ND/NL): 20
-        - Jumbo  (or JR/JB/JD):    16
+        - Jumbo  (or JR/JB/JD):    12 (matches TrayType master data)
         - Others: Use InprocessInspectionTrayCapacity or ModelMaster capacity
         """
         try:
@@ -4239,7 +4239,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
             if _tn in ('NORMAL', 'NR', 'NB', 'ND', 'NL', 'NW'):
                 return 20
             elif _tn in ('JUMBO', 'JR', 'JB', 'JD'):
-                return 16
+                return 12
 
             # First try to get custom capacity for this tray type
             custom_capacity = InprocessInspectionTrayCapacity.objects.filter(

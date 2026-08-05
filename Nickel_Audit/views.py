@@ -1259,6 +1259,86 @@ def _na_do_full_accept(request, lot_id, juat):
     return Response({'success': True})
 
 
+def _na_do_submit_full_reject(request, lot_id, juat, reason_ids, rejected_qty, total_qty, remarks):
+    """
+    Persist a Full Lot Rejection (100% of the lot rejected) for a NA lot.
+
+    Business rule: when the whole lot is rejected there is no tray split, so
+    the operator is never asked to scan rejected trays and no new reject-tray
+    records are generated. The lot's existing tray set moves back to Nickel
+    Wiping (Zone 1: Nickel_Inspection app, Zone 2: nickel_inspection_zone_two
+    app — both share this same JigUnloadAfterTable row and are routed purely
+    by the lot's plating_color zone) by resetting the nq_qc_* flags that gate
+    the Nickel Wiping pick-table queryset, mirroring how Nickel Wiping itself
+    sets current_stage='Nickel Wiping' on its own accept/reject actions.
+    """
+    from django.db import transaction
+    import django.utils.timezone as tz
+
+    orig_trays = _na_get_original_trays_for_allocation(lot_id, juat, create_missing=True)
+
+    with transaction.atomic():
+        reasons_qs = Nickel_Audit_Rejection_Table.objects.filter(id__in=reason_ids)
+        if not reasons_qs.exists():
+            return Response({'success': False, 'error': 'Invalid rejection reason'}, status=400)
+        reason_store, _ = Nickel_Audit_Rejection_ReasonStore.objects.update_or_create(
+            lot_id=lot_id,
+            defaults={
+                'total_rejection_quantity': rejected_qty,
+                'batch_rejection': True,
+                'lot_rejected_comment': remarks,
+                'user': request.user,
+            },
+        )
+        reason_store.rejection_reason.set(reasons_qs)
+
+        juat.na_qc_rejection = True
+        juat.na_qc_few_cases_accptance = False
+        juat.na_draft = False
+        juat.na_onhold_picking = False
+        juat.na_last_process_date_time = tz.now()
+        juat.last_process_module = 'Nickel Audit'
+        # Route the lot back to Nickel Wiping: clear the Nickel Wiping
+        # accept/reject flags so it reappears in that module's pick table,
+        # and flag it as an audit-rejection return for the popup/report trail.
+        juat.nq_qc_accptance = False
+        juat.nq_qc_rejection = False
+        juat.rejected_nickle_ip_stock = True
+        juat.current_stage = 'Nickel Wiping'
+        # Lot Qty verification is a per-pass check — the lot is back in Nickel
+        # Wiping for rework, so the operator must re-verify qty on this pass
+        # rather than inheriting the verified checkmark from its first pass.
+        juat.nq_qc_accepted_qty_verified = False
+        juat.save(update_fields=[
+            'na_qc_rejection', 'na_qc_few_cases_accptance',
+            'na_draft', 'na_onhold_picking',
+            'na_last_process_date_time', 'last_process_module',
+            'nq_qc_accptance', 'nq_qc_rejection', 'rejected_nickle_ip_stock',
+            'current_stage', 'nq_qc_accepted_qty_verified',
+        ])
+        _na_clear_draft_state(lot_id)
+
+        NickelAudit_Submission.objects.create(
+            lot_id=lot_id,
+            submission_type='FULL_REJECT',
+            total_lot_qty=total_qty,
+            accepted_qty=0,
+            rejected_qty=rejected_qty,
+            accept_trays_data=[],
+            reject_trays_data=orig_trays,
+            created_by=request.user,
+        )
+        logger.info(
+            "[AUDIT_SUBMISSION] lot=%s submission=FULL_REJECT total=%d accepted=0 rejected=%d",
+            lot_id, total_qty, rejected_qty,
+        )
+    logger.info(
+        "[AUDIT_REJECT_FLOW] action=SUBMIT_FULL_REJECT lot=%s rej_qty=%d user=%s -> routed to Nickel Wiping (no tray scan)",
+        lot_id, rejected_qty, request.user,
+    )
+    return Response({'success': True, 'is_partial': False})
+
+
 def _na_do_submit_reject(request, lot_id, juat):
     """Persist rejection for a NA lot."""
     from django.db import transaction
@@ -1279,6 +1359,14 @@ def _na_do_submit_reject(request, lot_id, juat):
         return Response({'success': False, 'error': 'Rejected qty cannot exceed total qty'}, status=400)
     accepted_qty = total_qty - rejected_qty
     is_partial = accepted_qty > 0
+
+    # Full Lot Rejection (100% of the lot): the entire lot moves back to
+    # Nickel Wiping as-is — no tray split occurs, so no operator tray scan
+    # is required. Handled by a dedicated path that bypasses the tray
+    # allocation/scan validation below entirely. Partial rejection (accepted_qty > 0)
+    # falls through unchanged to the existing tray-scan flow.
+    if not is_partial:
+        return _na_do_submit_full_reject(request, lot_id, juat, reason_ids, rejected_qty, total_qty, remarks)
 
     # AQL enforcement: a partial reject whose rejected qty exceeds the AQL
     # limit for this lot-qty band must be submitted as a Full Reject instead.

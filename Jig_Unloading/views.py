@@ -270,9 +270,9 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
         Get tray capacity based on tray type name.
-        Rules (per workflow spec):
+        Rules (per workflow spec, sourced from TrayType master DB):
         - Normal (or NR/NB/ND/NL): 20
-        - Jumbo  (or JR/JB/JD):    16
+        - Jumbo  (or JR/JB/JD):    12 (matches TrayType master data)
         - Others: DB lookup fallback
         """
         try:
@@ -281,7 +281,7 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
             if _tn in ('NORMAL', 'NR', 'NB', 'ND', 'NL', 'NW'):
                 return 20
             elif _tn in ('JUMBO', 'JR', 'JB', 'JD'):
-                return 16
+                return 12
 
             # Fallback: try custom capacity override table
             custom_capacity = InprocessInspectionTrayCapacity.objects.filter(
@@ -1981,9 +1981,9 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
     def get_dynamic_tray_capacity(self, tray_type_name):
         """
         Get tray capacity based on tray type name.
-        Rules (per workflow spec):
+        Rules (per workflow spec, sourced from TrayType master DB):
         - Normal (or NR/NB/ND/NL): 20
-        - Jumbo  (or JR/JB/JD):    16
+        - Jumbo  (or JR/JB/JD):    12 (matches TrayType master data)
         - Others: DB lookup fallback
         """
         try:
@@ -1992,7 +1992,7 @@ class JigUnloading_Completedtable(LoginRequiredMixin, TemplateView):
             if _tn in ('NORMAL', 'NR', 'NB', 'ND', 'NL', 'NW'):
                 return 20
             elif _tn in ('JUMBO', 'JR', 'JB', 'JD'):
-                return 16
+                return 12
 
             # Fallback: try custom capacity override table
             custom_capacity = InprocessInspectionTrayCapacity.objects.filter(
@@ -2974,8 +2974,8 @@ class GetUnloadModelsZ1View(APIView):
 
     def _get_tray_info_z1(self, model_master):
         """Get tray_type, tray_capacity, tray_code, tray_color from ModelMaster.
-        Capacity is determined by Jig Unloading spec (Normal=20, Jumbo=16),
-        overriding the DB value which may be stale.
+        Capacity is determined by Jig Unloading spec (Normal=20, Jumbo=12),
+        matching the TrayType master DB values.
         ModelMaster.tray_code is the tray-code SSOT.
         TrayType remains the tray category (Normal/Jumbo).
         """
@@ -2988,12 +2988,12 @@ class GetUnloadModelsZ1View(APIView):
             if not tray_code:
                 tray_code = tray_type
             tray_color = tray_type_obj.tray_color or ''     # e.g. Red, Blue, D.Green, L.Green
-            # Jig Unloading spec: Normal tray codes = 20, Jumbo = 16 (override DB)
+            # Jig Unloading spec: Normal tray codes = 20, Jumbo = 12 (matches TrayType master DB)
             _tc = tray_code.upper()
             if _tc in ('NORMAL', 'NR', 'NB', 'ND', 'NL', 'NW'):
                 tray_capacity = 20
             elif _tc in ('JUMBO', 'JR', 'JB', 'JD', 'JL'):
-                tray_capacity = 16
+                tray_capacity = 12
             else:
                 tray_capacity = tray_type_obj.tray_capacity or 20
             return tray_type, tray_capacity, tray_code, tray_color
@@ -4630,7 +4630,7 @@ def validate_tray_occupancy_z1(request):
         # Determine tray type from prefix
         is_jumbo = scanned_prefix.startswith('J')
         tray_type_str = 'Jumbo' if is_jumbo else 'Normal'
-        tray_capacity = 16 if is_jumbo else 20
+        tray_capacity = 12 if is_jumbo else 20
 
         print(f"✅ [Z1] Tray validation passed for {tray_id}")
         return JsonResponse({

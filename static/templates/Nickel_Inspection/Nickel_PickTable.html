@@ -825,8 +825,10 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </span>
                     {% if data.send_to_nickel_brass %}
                       <i class="fa fa-times-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Audit"></i>
+                      {% elif data.rejected_ip_stock %}
+                      <i class="fa fa-info-circle" style="color: #f39c12; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="NA"></i>
                       {% endif %}
-                  </td>                     
+                  </td>
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %} style="white-space:normal;word-break:break-all;">
                       {% if data.send_to_nickel_brass %}
                         {{ data.na_last_process_date_time|date:"d-M-y" }}<br>

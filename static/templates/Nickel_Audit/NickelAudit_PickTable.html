@@ -2023,7 +2023,13 @@ document.addEventListener("DOMContentLoaded", function() {
           if (totalRej > 0 && totalRej <= state.totalQty) {
             totalQtyDisp.textContent = totalRej;
             remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
-            fetchAllocation(totalRej);
+            // Restoring a Full Lot Rejection draft: no tray scan needed.
+            if (fullRejCb && fullRejCb.checked) {
+              allocSection.style.display = 'none';
+              state.allocDone = false;
+            } else {
+              fetchAllocation(totalRej);
+            }
           }
         }
       }).catch(function () {
@@ -2052,7 +2058,10 @@ document.addEventListener("DOMContentLoaded", function() {
             reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) { inp.value = ''; });
             totalQtyDisp.textContent = state.totalQty;
             remainingDisp.textContent = '0';
-            fetchAllocation(state.totalQty);
+            // Full Lot Rejection: the entire lot moves to Nickel Wiping as-is —
+            // no tray split, so no tray-scan step is requested.
+            allocSection.style.display = 'none';
+            state.allocDone = false;
           } else {
             totalQtyDisp.textContent = '0';
             remainingDisp.textContent = state.totalQty;
@@ -2092,8 +2101,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         totalQtyDisp.textContent = state.totalQty;
         remainingDisp.textContent = '0';
-        state.aqlFocusRemarksPending = true;
-        fetchAllocation(state.totalQty);
+        // Full Lot Rejection (AQL-forced): entire lot moves to Nickel Wiping
+        // as-is — no tray split, so no tray-scan step is requested.
+        allocSection.style.display = 'none';
+        state.allocDone = false;
         return;
       }
 
