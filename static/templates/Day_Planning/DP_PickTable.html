@@ -648,6 +648,7 @@ html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4
 html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4) {
   white-space: nowrap !important;
 }
+
 /* Freeze style for 1st - 3 columns */
 /* --- Freeze first 3 columns and table header for #order-listing --- */
 #order-listing {
@@ -1028,23 +1029,58 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
  
 /* For very small screens */
 
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th[data-heading="No of Trays"],
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(5) {
+  width: 95px !important;
+  min-width: 95px !important;
+  max-width: 95px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th[data-heading="No of Trays"] {
+  white-space: normal !important;
+  line-height: 1.15 !important;
+  padding-right: 18px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th[data-heading="No of Trays"] .fa-filter {
+  right: 5px !important;
+}
+
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing col.dp-no-trays-col {
+  width: 95px !important;
+}
 
 /* Shared Day Planning table layout lives in static/assets/css/titan-style.css. */
 </style>
  
 <script nonce="{{ csp_nonce }}">
 (function () {
+  function lockNoOfTraysDesktopWidth() {
+    if (document.documentElement.classList.contains("ttt-viewport-tablet")) return;
+    var table = document.getElementById("order-listing");
+    if (!table || !table.closest(".dp-pick-table-page")) return;
+
+    table.style.setProperty("table-layout", "fixed", "important");
+    table.querySelectorAll('col.dp-no-trays-col, th[data-heading="No of Trays"], td:nth-child(5)').forEach(function (cell) {
+      cell.style.setProperty("width", "95px", "important");
+      cell.style.setProperty("min-width", "95px", "important");
+      cell.style.setProperty("max-width", "95px", "important");
+    });
+  }
+
   function revealPickTable() {
     var page = document.querySelector(".dp-pick-table-page");
     if (!page) return;
     window.requestAnimationFrame(function () {
       window.requestAnimationFrame(function () {
+        lockNoOfTraysDesktopWidth();
         page.classList.add("dp-pick-table-ready");
       });
     });
   }
 
   window.addEventListener("load", revealPickTable, { once: true, passive: true });
+  window.addEventListener("resize", lockNoOfTraysDesktopWidth);
   window.setTimeout(revealPickTable, 1400);
 })();
 </script>
@@ -1200,6 +1236,11 @@ html.ttt-viewport-tablet #trayScanModal .tray-scan-modal-content :is(h1, h2, h3,
             <!-- Table Section -->
             <div class="table-responsive">
 <table id="order-listing" class="table" data-lock-module="DAY_PLANNING">
+<colgroup>
+  {% for heading in visible_headings %}
+    <col{% if heading == 'No of Trays' %} class="dp-no-trays-col"{% endif %}>
+  {% endfor %}
+</colgroup>
 <thead>
   <tr> 
     {% for heading in visible_headings %}
