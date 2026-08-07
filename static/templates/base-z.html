@@ -156,7 +156,17 @@
          font-size: 13px !important;
          line-height: 1.15 !important;
          }
+
          }
+
+         /* On tablet, main module labels must use the same responsive
+            type scale as their submenu links. */
+         @media (min-width: 768px) and (max-width: 1024px) {
+         .sidebar .nav:not(.sub-menu) > .nav-item > .nav-link .menu-title {
+         font-size: var(--titan-ui-font-size, 16px) !important;
+         }
+         }
+
          /* Force sidebar menu icons/titles to display in a single vertical column, never wrap */
          .sidebar .nav {
          flex-direction: column !important;
@@ -3121,7 +3131,7 @@
           }
           var dataAttr = "data-prev-remark";
           var fallback = "No previous remark available.";
-          var remarkText = el.getAttribute(dataAttr) || el.getAttribute("title") || el.getAttribute("data-bs-original-title") || fallback;
+          var remarkText = el.getAttribute(dataAttr) || el.getAttribute("title") || fallback;
           el.removeAttribute("title");
           el.setAttribute(dataAttr, remarkText);
           el.setAttribute("data-prev-ready", "true");

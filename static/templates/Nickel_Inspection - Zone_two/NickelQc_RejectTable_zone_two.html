@@ -1489,7 +1489,7 @@ document.addEventListener("DOMContentLoaded", function () {
             modalUserImg.alt = resolvedImage.alt;
           } else {
             modalUserImg.removeAttribute('src');
-            modalUserImg.alt = "Coming Soon";
+            modalUserImg.alt = "Coming Soon !";
           }
         };
         modalUserImg.removeAttribute('src');
@@ -1513,7 +1513,7 @@ document.addEventListener("DOMContentLoaded", function () {
           })
           .catch(function () {
             modalUserImg.removeAttribute('src');
-            modalUserImg.alt = "Coming Soon";
+            modalUserImg.alt = "Coming Soon !";
           });
       }
 
@@ -2255,7 +2255,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const imageUrl = normalizeImageUrl(rawUrl);
 
     if (!imageUrl) {
-      renderMessage(trigger, "Coming Soon");
+      renderMessage(trigger, "Coming Soon !");
       return;
     }
 
@@ -2378,7 +2378,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (error && error.name === "AbortError") {
           renderMessage(trigger, "Image request timed out");
         } else {
-          renderMessage(trigger,"Coming Soon");
+          renderMessage(trigger, "Coming Soon !");
         }
       });
   }

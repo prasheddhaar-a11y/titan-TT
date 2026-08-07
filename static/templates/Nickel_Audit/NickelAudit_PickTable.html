@@ -1186,11 +1186,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
             </div>
 
           </div>
-                      <p style="margin: 0 0 0 2px;">
-              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-              Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
-            </p>
+
         </div>
       </div>
     </div>
@@ -1220,11 +1216,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                   <h3>
                     Nickel Audit / <span id="trayScanModalHeaderModelNo" style="font-weight:bold; color:#028084;"></span> / Rejection Window
                   </h3>
-                  <p style="margin: 0 0 0 2px;">
-                    Lot Qty: <span id="trayScanModalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-                    Missing Qty: <span id="trayScanModalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-                    Physical Qty: <span id="trayScanModalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
-                  </p>
+
                   <!-- ADD HERE -->
                   <div class="aql-info" style="margin-bottom: 10px;">
                     <span style="font-weight:600; color:#028084; font-size:13px;">AQL Limit:</span>
@@ -2159,22 +2151,44 @@ document.addEventListener("DOMContentLoaded", function() {
       chip.style.opacity = selected ? '0.7' : '1';
     }
 
-    function clearDuplicateDelinkValue(trayId, currentInput) {
-      if (!trayId) return;
-      delinkList.querySelectorAll('.na-delink-tray-input').forEach(function (inp) {
-        if (inp !== currentInput && inp.value.trim().toUpperCase() === trayId) {
-          inp.value = '';
-        }
-      });
+    // A tray ID may occupy only one slot across the whole reject/accept/delink
+    // form. Collect everything currently filled in (excluding the slot being
+    // checked) so duplicates are caught before they ever reach the backend.
+    function collectUsedTrayIds(excludeInput) {
+      var ids = [];
+      Array.from(rejectSlotsCont.querySelectorAll('.na-rej-tray-input'))
+        .concat(Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input')))
+        .concat(Array.from(delinkList.querySelectorAll('.na-delink-tray-input')))
+        .forEach(function (inp) {
+          if (inp === excludeInput) return;
+          var v = inp.value.trim().toUpperCase();
+          if (v) ids.push(v);
+        });
+      return ids;
+    }
+
+    function isDuplicateTrayId(trayId, excludeInput) {
+      var val = (trayId || '').trim().toUpperCase();
+      return !!val && collectUsedTrayIds(excludeInput).indexOf(val) !== -1;
+    }
+
+    function clearDuplicateTrayValue(trayId, currentInput) {
+      if (!isDuplicateTrayId(trayId, currentInput)) return false;
+      currentInput.value = '';
+      errDiv.textContent = 'Tray ' + (trayId || '').trim().toUpperCase() + ' is already used in another slot.';
+      return true;
     }
 
     function fillDelinkSlotFromTap(trayId) {
       var delinkInputs = Array.from(delinkList.querySelectorAll('.na-delink-tray-input'));
       if (!delinkInputs.length) return false;
-      var targetInput = getFocusedTrayInput('.na-delink-tray-input', delinkList) || delinkInputs.find(function (inp) { return !inp.value.trim(); }) || delinkInputs[0];
+      var targetInput = delinkInputs.find(function (inp) { return !inp.value.trim(); }) || getFocusedTrayInput('.na-delink-tray-input', delinkList) || delinkInputs[0];
+      if (isDuplicateTrayId(trayId, targetInput)) {
+        errDiv.textContent = 'Tray ' + trayId + ' is already used in another slot.';
+        return false;
+      }
       targetInput.value = trayId;
       lastFocusedTrayInput = targetInput;
-      clearDuplicateDelinkValue(trayId, targetInput);
       updateDelinkSection();
       var nextInput = delinkInputs.find(function (inp) { return !inp.value.trim(); });
       if (nextInput) {
@@ -2195,7 +2209,14 @@ document.addEventListener("DOMContentLoaded", function() {
     function fillAcceptSlotFromTap(trayId) {
       var accInputs = Array.from(acceptSlotsCont.querySelectorAll('.na-acc-tray-input'));
       if (!accInputs.length) return false;
-      var targetInput = getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont) || accInputs.find(function (inp) { return !inp.value.trim(); }) || accInputs[0];
+      // Prefer the next open slot over a stale focused/last-focused input so a
+      // tap always advances into empty slots instead of overwriting one that's
+      // already filled.
+      var targetInput = accInputs.find(function (inp) { return !inp.value.trim(); }) || getFocusedTrayInput('.na-acc-tray-input', acceptSlotsCont) || accInputs[0];
+      if (isDuplicateTrayId(trayId, targetInput)) {
+        errDiv.textContent = 'Tray ' + trayId + ' is already used in another slot.';
+        return false;
+      }
       targetInput.value = trayId;
       lastFocusedTrayInput = targetInput;
       var targetIndex = accInputs.indexOf(targetInput);
@@ -2378,7 +2399,7 @@ document.addEventListener("DOMContentLoaded", function() {
         inp.addEventListener('input', function () {
           normalizeTrayInputValue(inp);
           var val = inp.value;
-          clearDuplicateDelinkValue(val, inp);
+          clearDuplicateTrayValue(val, inp);
           updateDelinkSection();
 
           // Auto-advance: move to next empty delink slot, or to Remarks once
@@ -2406,6 +2427,11 @@ document.addEventListener("DOMContentLoaded", function() {
       if (allAccSlotInputs.length >= 1) {
         allAccSlotInputs[0].addEventListener('input', function () {
           var topVal = normalizeTrayInputValue(allAccSlotInputs[0]);
+          if (topVal && clearDuplicateTrayValue(topVal, allAccSlotInputs[0])) {
+            for (var k2 = 1; k2 < allAccSlotInputs.length; k2++) { allAccSlotInputs[k2].value = ''; }
+            updateDelinkSection();
+            return;
+          }
           if (topVal) {
             var otherTrays = (state.acceptAutoTrays || []).filter(function (t) { return t.tray_id !== topVal; });
             var availSlots = allAccSlotInputs.length - 1;
@@ -2468,6 +2494,13 @@ document.addEventListener("DOMContentLoaded", function() {
         function validateTrayInput() {
           var val = normalizeTrayInputValue(inp);
           if (!val) { inp.style.borderColor = '#ef9a9a'; if (statusEl) statusEl.textContent = ''; errDiv.textContent = ''; return; }
+          if (isDuplicateTrayId(val, inp)) {
+            inp.style.borderColor = '#f44336';
+            if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#f44336'; }
+            errDiv.textContent = 'Tray ' + val + ' is already used in another slot.';
+            selectTrayInputForOverwrite(inp);
+            return;
+          }
           if (!val.startsWith(state.rejPrefix)) {
             inp.style.borderColor = '#f44336';
             if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#f44336'; }
@@ -3040,7 +3073,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (error && error.name === "AbortError") {
           renderMessage(trigger, "Image request timed out");
         } else {
-          renderMessage(trigger, "Image unavailable");
+          renderMessage(trigger, "Coming Soon !");
         }
       });
   }

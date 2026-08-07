@@ -661,7 +661,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageUrl = normalizeModelImageUrl(rawUrl);
 
     if (!imageUrl) {
-      setModelPreviewMessage(trigger, 'Image unavailable');
+      setModelPreviewMessage(trigger, 'Coming Soon !');
       return;
     }
 
@@ -757,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (error && error.name === 'AbortError') {
           setModelPreviewMessage(trigger, 'Image request timed out');
         } else {
-          setModelPreviewMessage(trigger, 'Image unavailable');
+          setModelPreviewMessage(trigger, 'Coming Soon !');
         }
       });
   }

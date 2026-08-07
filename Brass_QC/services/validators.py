@@ -354,11 +354,12 @@ def validate_tray_not_rejected_in_brass_qc(tray_id):
 
 def validate_tray_cross_module_occupancy(tray_id, lot_id):
     """
-    Checks tray occupancy across IS, Brass QC, and IQF modules.
+    Checks tray occupancy across IS, Brass QC, Brass Audit, and IQF modules.
     Returns (module_name, error_str) if occupied, or (None, None) if free.
     """
     from ..models import BrassTrayId
     from IQF.models import IQFTrayId
+    from BrassAudit.models import BrassAuditTrayId
 
     checks = [
         (
@@ -374,6 +375,13 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
                 delink_tray=False, lot_id__isnull=False,
             ).exclude(lot_id=lot_id),
             "Brass QC",
+        ),
+        (
+            BrassAuditTrayId.objects.filter(
+                tray_id=tray_id, rejected_tray=False,
+                delink_tray=False, lot_id__isnull=False,
+            ).exclude(lot_id=lot_id),
+            "Brass Audit",
         ),
         (
             IQFTrayId.objects.filter(

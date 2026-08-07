@@ -55,7 +55,10 @@ from Jig_Unloading.tray_utils import (
 from Jig_Loading.models import JigCompleted
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
 from django.contrib.auth.decorators import login_required
-from Nickel_Inspection.views import nq_toggle_verified, nq_action, _resolve_nq_previous_unloading_remark
+from Nickel_Inspection.views import (
+    nq_toggle_verified, nq_action, _resolve_nq_previous_unloading_remark,
+    _nq_completed_event_rows,
+)
 from modelmasterapp.type_of_input import get_type_of_input_map
 
 def _nq_tray_capacity(tray_type_name):
@@ -672,35 +675,21 @@ class NQ_Zone_CompletedView(APIView):
         allowed_color_ids = Plating_Color.objects.filter(jig_unload_zone_2=True).values_list(
             "id", flat=True
         )
-        nq_rejection_qty_subquery = Nickel_QC_Rejection_ReasonStore.objects.filter(
-            lot_id=OuterRef("lot_id")
-        ).values("total_rejection_quantity")[:1]
-        queryset = (
-            JigUnloadAfterTable.objects.select_related("version", "plating_color", "polish_finish")
-            .prefetch_related("location")
-            .filter(
-                total_case_qty__gt=0,
-                plating_color_id__in=allowed_color_ids,
-            )
-            .annotate(
-                nq_rejection_qty=nq_rejection_qty_subquery,
-            )
-            .filter(
-                Q(nq_qc_accptance=True)
-                | Q(nq_qc_rejection=True)
-                | Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
-            )
-            .filter(nq_last_process_date_time__range=(from_datetime, to_datetime))
-            .order_by("-nq_last_process_date_time", "-lot_id")
-        )
 
-        # ERR2 Fix: exclude child lots created by partial rejection — they continue to Nickel Audit.
-        # Only the parent lot (nq_qc_few_cases_accptance=True) should appear in NI completed table.
-        from Nickel_Inspection.models import NickelQC_PartialAcceptLot
-        child_lot_ids = NickelQC_PartialAcceptLot.objects.values_list('new_lot_id', flat=True)
-        queryset = queryset.exclude(lot_id__in=child_lot_ids)
+        # ERR4 Fix: list one row per completed submission event (append-only
+        # NickelWiping_*Record history), not one row per live
+        # JigUnloadAfterTable object — a lot's row is reused across rework
+        # passes (e.g. returned from Nickel Audit), so the latter silently
+        # collapsed multiple completed passes into a single row.
+        rows = _nq_completed_event_rows(allowed_color_ids)
+        rows = [
+            r for r in rows
+            if r.nq_last_process_date_time
+            and from_datetime <= r.nq_last_process_date_time <= to_datetime
+        ]
+
         page_number = request.GET.get("page", 1)
-        paginator = Paginator(queryset, 10)
+        paginator = Paginator(rows, 10)
         page_obj = paginator.get_page(page_number)
         master_data = []
         for jig_unload_obj in page_obj.object_list:
@@ -740,8 +729,8 @@ class NQ_Zone_CompletedView(APIView):
                 "next_process_module": "Nickel QC",
                 "nq_qc_accepted_qty_verified": jig_unload_obj.nq_qc_accepted_qty_verified,
                 "nq_qc_accepted_qty": jig_unload_obj.nq_qc_accepted_qty or 0,
-                "nq_rejection_qty": jig_unload_obj.nq_rejection_qty,
-                "brass_rejection_total_qty": jig_unload_obj.nq_rejection_qty or 0,
+                "nq_rejection_qty": getattr(jig_unload_obj, '_nw_rejected_qty', 0),
+                "brass_rejection_total_qty": getattr(jig_unload_obj, '_nw_rejected_qty', 0),
                 "nq_missing_qty": jig_unload_obj.nq_missing_qty or 0,
                 "nq_physical_qty": jig_unload_obj.nq_physical_qty,
                 "nq_physical_qty_edited": False,
@@ -803,12 +792,12 @@ class NQ_Zone_CompletedView(APIView):
             )
             lot_id = data.get("stock_lot_id")
             data["type_of_input"] = type_of_input_map.get(lot_id, "Fresh")
+            # nq_rejection_qty is already the exact per-event reject qty from
+            # _nq_completed_event_rows — a genuine 0 (e.g. a Full Accept event)
+            # must not be "corrected" by re-querying Nickel_QC_Rejection_ReasonStore
+            # by lot_id, since that store reflects the lot's current/latest state
+            # and could leak an unrelated later rejection onto an earlier event.
             rejection_qty = data.get("nq_rejection_qty") or 0
-            if not rejection_qty:
-                rejection_store = Nickel_QC_Rejection_ReasonStore.objects.filter(
-                    lot_id=lot_id
-                ).first()
-                rejection_qty = rejection_store.total_rejection_quantity if rejection_store else 0
             data["brass_rejection_total_qty"] = rejection_qty
             if total_ip_accepted_quantity and total_ip_accepted_quantity > 0:
                 data["display_accepted_qty"] = total_ip_accepted_quantity

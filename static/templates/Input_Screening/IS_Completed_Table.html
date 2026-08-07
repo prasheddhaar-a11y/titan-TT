@@ -1650,13 +1650,13 @@ document.addEventListener("DOMContentLoaded", function () {
               modalUserImg.alt = resolvedImage.alt;
             } else {
               modalUserImg.removeAttribute('src');
-              modalUserImg.alt = 'Image unavailable';
+              modalUserImg.alt = 'Coming Soon !';
             }
           }
         } catch (previewError) {
           console.error('Error fetching model preview:', previewError);
           modalUserImg.removeAttribute('src');
-          modalUserImg.alt = 'Image unavailable';
+          modalUserImg.alt = 'Coming Soon !';
         }
       }
 
@@ -2178,7 +2178,7 @@ document.addEventListener("DOMContentLoaded", function () {
     gallery.replaceChildren();
     const unavailableText = document.createElement("div");
     unavailableText.className = "model-image-unavailable";
-    unavailableText.textContent = "Image unavailable";
+    unavailableText.textContent = "Coming Soon !";
     gallery.appendChild(unavailableText);
   }
 
@@ -2268,7 +2268,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function () {
         if (trigger.dataset.stockPreviewRequestId !== requestId) return;
-        setTooltipPreview(trigger, "", "Image unavailable");
+        setTooltipPreview(trigger, "", "Coming Soon !");
       });
   }
 

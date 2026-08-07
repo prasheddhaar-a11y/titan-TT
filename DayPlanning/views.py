@@ -1813,6 +1813,7 @@ class TrayIdScanAPIView(APIView):
             already_scanned_errors = []
             duplicate_tray_ids = []
             tray_not_in_system_errors = []  # ✅ NEW: Track trays not in system
+            occupied_tray_errors = []  # ✅ NEW: Track trays occupied in another module (e.g. Brass QC Accepted)
             
             for i, tray in enumerate(trays):
                 tray_id = tray.get('tray_id', '').strip()
@@ -1842,6 +1843,18 @@ class TrayIdScanAPIView(APIView):
                     })
                     continue
                 
+                # ✅ NEW: Check if tray is occupied (e.g. Accepted) in another module (Brass QC, IS, IQF)
+                from Brass_QC.services.validators import validate_tray_cross_module_occupancy
+                occupied_module, occupied_error = validate_tray_cross_module_occupancy(tray_id, lot_id)
+                if occupied_module:
+                    occupied_tray_errors.append({
+                        'tray_id': tray_id,
+                        'position': i + 1,
+                        'occupied_module': occupied_module,
+                        'error': f'Tray ID "{tray_id}" is occupied in {occupied_module} and cannot be assigned.'
+                    })
+                    continue
+
                 # ✅ Check if tray is already scanned (and not delinked)
                 if existing_tray.scanned and not existing_tray.delink_tray:
                     already_scanned_errors.append({
@@ -1886,6 +1899,21 @@ class TrayIdScanAPIView(APIView):
                     'success': False,
                     'error': 'Some trays are not in the system',
                     'tray_not_in_system_errors': tray_not_in_system_errors,
+                    'error_details': error_messages
+                }, status=400)
+
+            # ✅ NEW: Return occupied-in-other-module errors if any
+            if occupied_tray_errors:
+                error_messages = []
+                for error in occupied_tray_errors:
+                    error_messages.append(
+                        f"Position {error['position']}: {error['tray_id']} - Occupied in {error['occupied_module']}"
+                    )
+
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Some trays are occupied in another module',
+                    'occupied_tray_errors': occupied_tray_errors,
                     'error_details': error_messages
                 }, status=400)
 
@@ -2688,6 +2716,19 @@ class TrayIdUniqueCheckAPIView(APIView):
                 'tray_not_in_system': True,
                 'error': f'Tray ID "{tray_id}" not found in system. Only pre-configured trays are allowed.',
                 'message': 'This tray must be added by admin before scanning.'
+            })
+
+        # ✅ NEW: Disallow if tray is occupied (e.g. Accepted) in another module (Brass QC, IS, IQF)
+        from Brass_QC.services.validators import validate_tray_cross_module_occupancy
+        occupied_module, occupied_error = validate_tray_cross_module_occupancy(tray_id, lot_id)
+        if occupied_module:
+            return JsonResponse({
+                'exists': True,
+                'available': False,
+                'occupied_in_other_module': True,
+                'occupied_module': occupied_module,
+                'error': f'Tray ID "{tray_id}" is occupied in {occupied_module} and cannot be assigned.',
+                'message': occupied_error
             })
 
         # ── Cross-check helper: verify tray is genuinely still active in DP ──

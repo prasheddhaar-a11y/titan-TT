@@ -957,10 +957,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         </span>
                         {% if data.send_brass_audit_to_qc %}
                           <i class="fa fa-info-circle" style="color: #f39c12; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Audit"></i>
-                        {% elif data.iqf_acceptance %}
-                          <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
-                        {% elif data.send_brass_qc %}
-                          <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
                         {% endif %}
                     </td>                     
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %} style="white-space:normal;word-break:break-all;">

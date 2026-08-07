@@ -674,59 +674,131 @@ body.add-model-mode #selectAllCheckbox {
             font-weight: 600;
         }
 
-        /* Compact and responsive modal for model/stock no */
+        /* Model Image Gallery modal — centered overlay with a proper grid */
         #modelRemarkModal {
             display: none;
             position: fixed;
-            top: 6vh;
-            right: 2vw;
-            transform: none;
+            inset: 0;
             z-index: 20000;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        #modelRemarkModal .gallery-dialog {
+            position: relative;
             background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-            min-width: 320px;
-            max-width: 420px;
-            min-height: 400px;
-            max-height: 500px;
-            padding: 18px 32px 12px 32px;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            width: fit-content;
+            min-width: 220px;
+            max-width: min(720px, 96vw);
+            max-height: 88vh;
+            padding: 24px 28px 20px;
             overflow-y: auto;
             font-size: 12px;
         }
 
-        @media (max-width: 900px) {
-            #modelRemarkModal {
-                right: 0;
-                max-width: 98vw;
-                min-width: 0;
-                width: 98vw;
-                padding: 10px 4vw 10px 4vw;
-                font-size: 11px;
-            }
+        #modelRemarkModal .gallery-title {
+            font-weight: 700;
+            font-size: 18px;
+            color: #616161;
+            margin-bottom: 20px;
+            margin-top: 4px;
+            text-align: center;
         }
 
+        /* Horizontal gallery: up to 3 cards fit without scrolling; a 4th+
+           model scrolls within the row instead of wrapping to new rows. */
         #modelRemarkModalContent {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            flex-direction: row;
+            justify-content: flex-start;
+            gap: 18px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 10px;
+        }
+
+        #modelRemarkModalContent::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        #modelRemarkModalContent::-webkit-scrollbar-thumb {
+            background: #c7ccd1;
+            border-radius: 4px;
         }
 
         #modelRemarkModal .close-btn,
         #closeModelRemarkModal {
             position: absolute;
-            top: 6px;
-            right: 12px;
-            font-size: 18px;
+            top: 12px;
+            right: 16px;
+            font-size: 22px;
+            line-height: 1;
             color: #888;
             cursor: pointer;
         }
 
+        #modelRemarkModal .close-btn:hover,
+        #closeModelRemarkModal:hover {
+            color: #333;
+        }
+
+        #modelRemarkModal .gallery-card {
+            flex: 0 0 200px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #modelRemarkModal .gallery-card-header {
+            background: #f5f7f8;
+            padding: 8px 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            font-size: 13px;
+            color: #00695c;
+            word-break: break-all;
+        }
+
+        #modelRemarkModal .gallery-card-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+
+        #modelRemarkModal .gallery-card-body {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modelRemarkModal .gallery-empty {
+            padding: 15px;
+            text-align: center;
+            color: #999;
+        }
+
         #modelRemarkModal img {
-            max-width: 54px;
-            max-height: 54px;
+            width: 100%;
+            height: 130px;
+            object-fit: contain;
             border-radius: 6px;
             border: 1px solid #eee;
             background: #fafafa;
+            cursor: pointer;
         }
 
         #modelRemarkModal .model-row {
@@ -770,27 +842,36 @@ body.add-model-mode #selectAllCheckbox {
             margin-bottom: 0;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 700px) {
             #modelRemarkModal {
-                left: 0;
-                top: 0;
-                width: 98vw;
-                max-width: 98vw;
+                padding: 10px;
+            }
+
+            #modelRemarkModal .gallery-dialog {
+                width: fit-content;
                 min-width: 0;
-                padding: 8px 4px 8px 4px;
+                max-width: 96vw;
+                max-height: 92vh;
+                padding: 16px;
                 font-size: 11px;
-                max-height: 60vh;
             }
-            
+
+            #modelRemarkModalContent {
+                gap: 12px;
+            }
+
+            #modelRemarkModal .gallery-card {
+                flex: 0 0 150px;
+            }
+
             #modelRemarkModal img {
-                max-width: 38px;
-                max-height: 38px;
+                height: 100px;
             }
-            
+
             #modelRemarkModal .model-no {
                 font-size: 0.92rem;
             }
-            
+
             #modelRemarkModal .remark-label,
             #modelRemarkModal .remark-text {
                 font-size: 10px;
@@ -1275,129 +1356,6 @@ body.add-model-mode #selectAllCheckbox {
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
-        /* Compact and responsive modal for model/stock no */
-        #modelRemarkModal {
-            display: none;
-            position: fixed;
-            top: 6vh;
-            right: 2vw;
-            transform: none;
-            z-index: 20000;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-            min-width: 320px;
-            max-width: 420px;
-            min-height: 400px;
-            max-height: 500px;
-            padding: 18px 32px 12px 32px;
-            overflow-y: auto;
-            font-size: 12px;
-        }
-
-        @media (max-width: 900px) {
-            #modelRemarkModal {
-                right: 0;
-                max-width: 98vw;
-                min-width: 0;
-                width: 98vw;
-                padding: 10px 4vw 10px 4vw;
-                font-size: 11px;
-            }
-        }
-
-        #modelRemarkModalContent {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        #modelRemarkModal .close-btn,
-        #closeModelRemarkModal {
-            position: absolute;
-            top: 6px;
-            right: 12px;
-            font-size: 18px;
-            color: #888;
-            cursor: pointer;
-        }
-
-        #modelRemarkModal img {
-            max-width: 54px;
-            max-height: 54px;
-            border-radius: 6px;
-            border: 1px solid #eee;
-            background: #fafafa;
-        }
-
-        #modelRemarkModal .model-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 2px;
-        }
-
-        #modelRemarkModal .model-circle {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            margin-right: 2px;
-            vertical-align: middle;
-            flex-shrink: 0;
-        }
-
-        #modelRemarkModal .model-no {
-            font-weight: 600;
-            color: #023E4DCC;
-            font-size: 0.98rem;
-            margin-bottom: 2px;
-        }
-
-        #modelRemarkModal .remark-label {
-            font-size: 11px;
-            color: #222;
-            margin-bottom: 1px;
-        }
-
-        #modelRemarkModal .remark-text {
-            font-size: 11px;
-            color: #444;
-            background: #f7f7f7;
-            border-radius: 5px;
-            padding: 5px 8px;
-            min-width: 80px;
-            min-height: 18px;
-            margin-bottom: 0;
-        }
-
-        @media (max-width: 600px) {
-            #modelRemarkModal {
-                left: 0;
-                top: 0;
-                width: 98vw;
-                max-width: 98vw;
-                min-width: 0;
-                padding: 8px 4px 8px 4px;
-                font-size: 11px;
-                max-height: 60vh;
-            }
-
-            #modelRemarkModal img {
-                max-width: 38px;
-                max-height: 38px;
-            }
-
-            #modelRemarkModal .model-no {
-                font-size: 0.92rem;
-            }
-
-            #modelRemarkModal .remark-label,
-            #modelRemarkModal .remark-text {
-                font-size: 10px;
-            }
-        }
-
         /* Tooltip for model images */
         .model-image-tooltip {
             position: absolute;
@@ -1605,11 +1563,11 @@ body.add-model-mode #selectAllCheckbox {
 
 <!-- Model/Stock No Modal Popup -->
 <div id="modelRemarkModal">
-  <span id="closeModelRemarkModal">&times;</span>
-  <div style="font-weight:700; font-size:18px; color:#616161; margin-bottom:20px; margin-top:4px; text-align:center;">
-    Model Image Gallery
+  <div class="gallery-dialog">
+    <span id="closeModelRemarkModal" class="close-btn">&times;</span>
+    <div class="gallery-title">Model Image Gallery</div>
+    <div id="modelRemarkModalContent"></div>
   </div>
-  <div id="modelRemarkModalContent"></div>
 </div>
 
 <div class="content-wrapper">
@@ -1754,27 +1712,25 @@ body.add-model-mode #selectAllCheckbox {
                               {% for model_no in jig_detail.no_of_model_cases %}
                                   {% with color=jig_detail.model_colors|get_item:model_no %}
                                       {% if color and color != 'NOT_FOUND' and color != '#cccccc' %}
-                                          <span class="model-circle" 
-                                                style="background-color: {{ color }}; 
+                                          <span class="model-circle"
+                                                style="background-color: {{ color }};
                                                        border: 2px solid {{ color }};
                                                        color: white;
                                                        font-weight: bold;
                                                        text-align: center;
-                                                       line-height: 12px;" 
-                                                title="Model: {{ model_no }} (Color: {{ color }})"
+                                                       line-height: 12px;"
                                                 data-model="{{ model_no }}"
                                                 data-color="{{ color }}">
                                           </span>
                                       {% else %}
-                                          <span class="model-circle" 
-                                                style="background-color: #6c757d; 
+                                          <span class="model-circle"
+                                                style="background-color: #6c757d;
                                                        border: 2px solid #6c757d;
                                                        color: white;
                                                        font-size: 8px;
                                                        font-weight: bold;
                                                        text-align: center;
-                                                       line-height: 12px;" 
-                                                title="Model: {{ model_no }} (No color assigned)"
+                                                       line-height: 12px;"
                                                 data-model="{{ model_no }}"
                                                 data-color="default">
                                               {{ model_no|slice:":2" }}
@@ -3898,47 +3854,41 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const modelList = JSON.parse(tdElement.getAttribute('data-model-list') || '[]');
       const modelImages = JSON.parse(tdElement.getAttribute('data-images') || '{}');
+      const modelColors = JSON.parse(tdElement.getAttribute('data-model-colors') || '{}');
       const platingStockNo = tdElement.getAttribute('data-plating-stock-no') || 'Unknown';
-      
-      console.log('[Z2 Gallery] Models:', modelList, 'Images:', modelImages, 'Plating Stock:', platingStockNo);
-      
-      // Build gallery HTML
-      let galleryHTML = '<div style="padding:20px; max-height:500px; overflow-y:auto;">';
-      galleryHTML += '<div style="padding:6px 10px 12px;">';
-      galleryHTML += '<div style="display:flex; gap:15px; overflow-x:auto; padding-bottom:6px;">';
 
-      // Display each model's images inline (single row, horizontally scrollable)
+      console.log('[Z2 Gallery] Models:', modelList, 'Images:', modelImages, 'Colors:', modelColors, 'Plating Stock:', platingStockNo);
+
+      // Build gallery HTML — one card per model, laid out in a responsive grid
+      let galleryHTML = '';
+
       modelList.forEach(function(modelNo) {
         const images = modelImages[modelNo] || [];
-        
-        galleryHTML += '<div style="flex:0 0 260px; border:1px solid #ddd; border-radius:8px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.1);">';
-        galleryHTML += '<div style="background:#f5f5f5; padding:10px; text-align:center; border-bottom:1px solid #ddd;">';
-        galleryHTML += '<strong style="color:#00695c; font-size:14px;">Model: ' + escHtml(modelNo) + '</strong>';
-        galleryHTML += '</div>';
-        
+        const rawColor = modelColors[modelNo];
+        const color = (rawColor && /^#[0-9a-f]{3,8}$/i.test(rawColor)) ? rawColor : '#6c757d';
+
+        galleryHTML += '<div class="gallery-card">';
+        galleryHTML += '<div class="gallery-card-header"><span class="gallery-card-color" style="background:' + color + ';"></span>Model: ' + escHtml(modelNo) + '</div>';
+
         const fallbackImageUrl = normalizeJigGalleryImageUrl(images && images.length ? images[0] : '') || '/static/assets/images/imagePlaceholder.jpg';
         if (fallbackImageUrl) {
-          galleryHTML += '<div style="padding:10px; display:flex; flex-direction:column; gap:8px;">';
+          galleryHTML += '<div class="gallery-card-body">';
           galleryHTML += '<img src="' + escHtml(fallbackImageUrl) + '" ';
           galleryHTML += 'class="jig-gallery-preview-img" data-model-no="' + escHtml(modelNo) + '" ';
-          galleryHTML += 'style="width:100%; height:140px; object-fit:contain; border-radius:4px; cursor:pointer;" ';
           galleryHTML += 'alt="Model ' + escHtml(modelNo) + ' - IV image" ';
           galleryHTML += 'title="Click to enlarge" ';
           galleryHTML += 'onclick="displayEnlargedImage(\'' + escHtml(fallbackImageUrl) + '\', \'' + escHtml(modelNo) + '\')" />';
           galleryHTML += '</div>';
         } else {
-          galleryHTML += '<div style="padding:15px; text-align:center; color:#999;">';
+          galleryHTML += '<div class="gallery-empty">';
           galleryHTML += '<i class="fa fa-image" style="font-size:24px; margin-bottom:8px;"></i>';
           galleryHTML += '<p style="margin:0;">No images available</p>';
           galleryHTML += '</div>';
         }
-        
+
         galleryHTML += '</div>';
       });
 
-      galleryHTML += '</div>'; // end flex row
-      galleryHTML += '</div>'; // end padding wrapper
-      
       // Display in modal
       const modal = document.getElementById('modelRemarkModal');
       const content = document.getElementById('modelRemarkModalContent');

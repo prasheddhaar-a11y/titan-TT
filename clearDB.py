@@ -13,7 +13,9 @@ from InputScreening.models import *
 from IQF.models import *
 from Jig_Unloading.models import *   # ✅ ADDED
 from Nickel_Audit.models import *    # ✅ ADDED
-from Nickel_Inspection.models import * 
+from Nickel_Inspection.models import *
+from SpiderSpindle_Z1.models import *
+from SpiderSpindle_Z2.models import *
 
 from django.db import transaction
 from django.contrib.auth import get_user_model
@@ -121,20 +123,49 @@ def clear_database():
     # -------------------------------
     # ✅ NICKEL AUDIT
     # /nickel_audittrayid/
+    # /nickel_audit_accepted_trayid_store/
+    # /nickel_audit_rejection_reasonstore/
     # -------------------------------
     try:
         Nickel_AuditTrayId.objects.all().delete()
+        Nickel_Audit_Accepted_TrayID_Store.objects.all().delete()
+        Nickel_Audit_Rejection_ReasonStore.objects.all().delete()
     except NameError:
-        print("⚠️ NickelAuditTrayId not found")
+        print("⚠️ Some Nickel_Audit models not found")
 
     # -------------------------------
     # ✅ NICKEL INSPECTION
     # /nickelqctrayid/
+    # /nickel_qc_accepted_trayid_store/
+    # /nickel_qc_rejected_trayscan/
+    # /nickel_qc_rejection_reasonstore/
+    # /nickelwiping_fullacceptrecord/
+    # /nickelwiping_fullrejectrecord/
+    # /nickelwiping_partialacceptrecord/
+    # /nickelwiping_partialrejectrecord/
     # -------------------------------
     try:
         NickelQcTrayId.objects.all().delete()
+        Nickel_Qc_Accepted_TrayID_Store.objects.all().delete()
+        Nickel_QC_Rejected_TrayScan.objects.all().delete()
+        Nickel_QC_Rejection_ReasonStore.objects.all().delete()
+        NickelWiping_FullAcceptRecord.objects.all().delete()
+        NickelWiping_FullRejectRecord.objects.all().delete()
+        NickelWiping_PartialAcceptRecord.objects.all().delete()
+        NickelWiping_PartialRejectRecord.objects.all().delete()
     except NameError:
-        print("⚠️ NickelQCTrayId not found")
+        print("⚠️ Some Nickel_Inspection models not found")
+
+    # -------------------------------
+    # ✅ SPIDER SPINDLE
+    # /spiderspindlez1trayid/
+    # /spiderspindlez2trayid/
+    # -------------------------------
+    try:
+        SpiderSpindleZ1TrayId.objects.all().delete()
+        SpiderSpindleZ2TrayId.objects.all().delete()
+    except NameError:
+        print("⚠️ Some SpiderSpindle models not found")
 
     print("✅ All specified model data deleted successfully.")
 

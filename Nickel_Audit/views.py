@@ -208,6 +208,25 @@ def _na_latest_submission_qtys(lot_id, accepted_fallback=0, rejected_fallback=0)
     return _na_int(accepted_fallback), _na_int(rejected_fallback)
 
 
+def _na_completed_lot_totals(lot_id, accepted_fallback=0, rejected_fallback=0):
+    """Resolve accepted/rejected qty and tray count for a Completed-table row.
+
+    Some accept paths (e.g. _na_do_submit_accept) never write a
+    NickelAudit_Submission row, so `accepted_fallback`/`rejected_fallback`
+    can be 0 even though real tray data exists. Falls back to the live
+    Nickel_AuditTrayId snapshot (same source as the working
+    pick_CompleteTable_tray_id_list API) so qty/tray count are always
+    derived from actual completed-lot data instead of defaulting to 0.
+    """
+    accepted_qty, rejected_qty = _na_latest_submission_qtys(lot_id, accepted_fallback, rejected_fallback)
+    trays = _na_completed_tray_snapshot(lot_id)
+    no_of_trays = len(trays)
+    if accepted_qty <= 0 and rejected_qty <= 0 and trays:
+        accepted_qty = sum(_na_int(t.get('tray_quantity')) for t in trays if not t.get('rejected_tray'))
+        rejected_qty = sum(_na_int(t.get('tray_quantity')) for t in trays if t.get('rejected_tray'))
+    return accepted_qty, rejected_qty, no_of_trays
+
+
 def _na_completed_row_priority(jig_unload_obj):
     if jig_unload_obj.na_qc_rejection:
         return 0
@@ -242,6 +261,71 @@ def _na_unique_completed_rows(queryset, zone_label):
             len(rows),
         )
     return rows
+
+
+def _na_completed_event_rows(allowed_color_ids):
+    """
+    Build one row per Nickel Audit completion event (append-only
+    NickelAudit_Submission history), for the Completed table listing.
+    Serves Z1 (NACompletedView) and Z2 (NA_Zone_CompletedView).
+
+    A lot's JigUnloadAfterTable row is reused across rework passes — a Full
+    Reject routes the same row back to Nickel Wiping for rework (see
+    _na_do_submit_full_reject) rather than creating a new row — so listing
+    live JigUnloadAfterTable objects (one per lot) collapses multiple
+    completed audit passes into a single row. NickelAudit_Submission is
+    always inserted via .create() and never updated, so listing those
+    instead preserves every completed pass as its own row.
+    """
+    import copy
+
+    submissions = list(NickelAudit_Submission.objects.order_by('created_at'))
+    if not submissions:
+        return []
+
+    child_lot_by_submission_id = {
+        row['parent_submission_id']: row['new_lot_id']
+        for row in NickelAudit_PartialAcceptLot.objects.values('parent_submission_id', 'new_lot_id')
+        if row['parent_submission_id']
+    }
+
+    needed_lot_ids = set()
+    for s in submissions:
+        needed_lot_ids.add(s.lot_id)
+        child_lot_id = child_lot_by_submission_id.get(s.id)
+        if child_lot_id:
+            needed_lot_ids.add(child_lot_id)
+
+    juat_by_lot = {
+        j.lot_id: j for j in JigUnloadAfterTable.objects
+        .select_related('version', 'plating_color', 'polish_finish')
+        .prefetch_related('location')
+        .filter(lot_id__in=needed_lot_ids, plating_color_id__in=allowed_color_ids)
+    }
+
+    kind_map = {'FULL_ACCEPT': 'full_accept', 'FULL_REJECT': 'full_reject', 'PARTIAL': 'partial'}
+
+    events = []
+    for s in submissions:
+        display_lot_id = child_lot_by_submission_id.get(s.id) or s.lot_id
+        base = juat_by_lot.get(display_lot_id) or juat_by_lot.get(s.lot_id)
+        if not base:
+            continue
+        kind = kind_map.get(s.submission_type, 'full_accept')
+        row = copy.copy(base)
+        row.lot_id = display_lot_id
+        row.total_case_qty = s.total_lot_qty or 0
+        row.na_qc_accepted_qty = s.accepted_qty or 0
+        row.na_last_process_date_time = s.created_at
+        row.na_qc_accptance = kind == 'full_accept'
+        row.na_qc_rejection = kind == 'full_reject'
+        row.na_qc_few_cases_accptance = kind == 'partial'
+        row._na_rejected_qty = s.rejected_qty or 0
+        row._na_no_of_trays = len(s.accept_trays_data or []) + len(s.reject_trays_data or [])
+        events.append(row)
+
+    events.sort(key=lambda r: r.na_last_process_date_time or timezone.now(), reverse=True)
+    return events
 
 
 def _na_upsert_accepted_tray_store(lot_id, tray_id, qty, user):
@@ -351,7 +435,16 @@ def _na_completed_source_lot_ids(allowed_color_ids):
             plating_color_id__in=allowed_color_ids,
         )
         .filter(_na_completed_filter_q())
-        .only('lot_id', 'combine_lot_ids')
+        # A Full Reject from Audit routes the lot back to Nickel Wiping for
+        # rework (see _na_do_submit_full_reject: current_stage set to
+        # 'Nickel Wiping', nq_qc_* flags cleared) while leaving na_qc_rejection
+        # permanently True as a historical marker. Without this exclusion that
+        # stale flag keeps the lot's original source id blacklisted here
+        # forever, so any later Nickel Wiping resubmission for the same source
+        # (fresh partial-accept child) is wrongly hidden from the Audit pick
+        # table as a "duplicate" of an already-completed source.
+        .exclude(current_stage='Nickel Wiping')
+        .only('lot_id', 'combine_lot_ids', 'current_stage')
     )
     for completed_row in completed_rows:
         completed_sources.update(_na_source_lot_ids(completed_row))
@@ -368,16 +461,24 @@ def _na_partial_accept_child_maps(rows):
         Q(parent_lot_id__in=visible_lot_ids) | Q(new_lot_id__in=visible_lot_ids)
     ).values('parent_lot_id', 'new_lot_id', 'accepted_qty')
 
-    parents_with_visible_child = set()
+    closed_parent_lots = set()
     child_meta_by_lot = {}
     for partial_row in partial_rows:
         parent_lot_id = str(partial_row.get('parent_lot_id') or '').strip()
         child_lot_id = str(partial_row.get('new_lot_id') or '').strip()
+        if parent_lot_id and parent_lot_id in visible_lot_ids:
+            # This row already performed its partial split — the accepted
+            # continuation lives in the child (new_lot_id), so the parent is
+            # permanently closed. It must stay excluded even when the child
+            # (or a further descendant, in a multi-generation re-entry chain
+            # such as Wiping -> Audit full-reject -> back to Wiping -> Wiping
+            # partial-accept again) is not itself visible in this queryset —
+            # otherwise the closed parent wrongly reappears as a fresh
+            # candidate and "reserves" the source lot ahead of the real child.
+            closed_parent_lots.add(parent_lot_id)
         if child_lot_id and child_lot_id in visible_lot_ids:
-            if parent_lot_id:
-                parents_with_visible_child.add(parent_lot_id)
             child_meta_by_lot[child_lot_id] = partial_row
-    return parents_with_visible_child, child_meta_by_lot
+    return closed_parent_lots, child_meta_by_lot
 
 
 def _na_active_pick_rows(queryset, completed_source_lots, zone_label):
@@ -493,12 +594,28 @@ class NA_PickTableView(APIView):
             lot_id=OuterRef('lot_id')
         ).values('draft_type')[:1]
 
+        # Scoped to rejection-reason records created after this lot's most
+        # recent Nickel Wiping (re-)acceptance — a lot rejected in a prior
+        # audit cycle and routed back to Nickel Wiping under the same
+        # lot_id must show Reject Qty = 0 on its new cycle, not the stale
+        # rejection quantity from before it was re-accepted.
         brass_rejection_qty_subquery = Nickel_Audit_Rejection_ReasonStore.objects.filter(
-            lot_id=OuterRef('lot_id')
+            lot_id=OuterRef('lot_id'),
+            created_at__gt=OuterRef('nq_last_process_date_time'),
         ).values('total_rejection_quantity')[:1]
 
+        # Scoped to submissions created after this lot's most recent Nickel
+        # Wiping (re-)acceptance — nq_last_process_date_time is refreshed on
+        # every Nickel Wiping accept (see _nq_do_full_accept /
+        # _nq_do_submit_accept). An unscoped "has ANY NickelAudit_Submission
+        # ever" check would permanently block a lot from Nickel Audit's pick
+        # table after its first audit pass, even after it cycles back
+        # through Nickel Wiping and is re-accepted for a new audit cycle.
         has_submission_subquery = Exists(
-            NickelAudit_Submission.objects.filter(lot_id=OuterRef('lot_id'))
+            NickelAudit_Submission.objects.filter(
+                lot_id=OuterRef('lot_id'),
+                created_at__gt=OuterRef('nq_last_process_date_time'),
+            )
         )
 
         is_nq_partial_accept_child_subquery = Exists(
@@ -527,11 +644,18 @@ class NA_PickTableView(APIView):
                 ) &
                 (
                     Q(na_qc_rejection__isnull=True) | Q(na_qc_rejection=False)
+                    # A stale na_qc_rejection=True from a prior audit cycle must not
+                    # block the lot forever — _na_do_submit_full_reject routes the
+                    # lot back to Nickel Wiping under the same lot_id without
+                    # clearing this flag. Once Nickel Wiping has re-accepted the
+                    # lot for a new cycle (current_stage reset to 'Nickel Wiping',
+                    # nq_qc_accptance=True), the stale flag no longer applies.
+                    | Q(na_qc_rejection=True, current_stage='Nickel Wiping', nq_qc_accptance=True)
                 ) &
                 ~Q(na_qc_few_cases_accptance=True, na_onhold_picking=False)
                 &
                 (
-                    Q(nq_qc_accptance=True) | 
+                    Q(nq_qc_accptance=True) |
                     Q(is_nq_partial_accept_child=True) |
                     Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
                 )
@@ -684,15 +808,24 @@ class NA_PickTableView(APIView):
             lot_id = data.get('stock_lot_id')
             data['type_of_input'] = type_of_input_map.get(lot_id, 'Fresh')
 
-            # Calculate display_accepted_qty
-            total_rejection_qty = 0
-            rejection_store = rejection_store_by_lot.get(lot_id)
-            if rejection_store and rejection_store.total_rejection_quantity:
-                total_rejection_qty = rejection_store.total_rejection_quantity
-
             # Use total_case_qty from JigUnloadAfterTable instead of TotalStockModel
             # (already fetched above while building master_data — avoid re-querying)
             jig_unload_obj = jig_unload_by_lot.get(lot_id)
+
+            # Calculate display_accepted_qty
+            total_rejection_qty = 0
+            rejection_store = rejection_store_by_lot.get(lot_id)
+            # A rejection store row from a prior audit cycle (lot rejected,
+            # then routed back to Nickel Wiping and re-accepted under the
+            # same lot_id) must not be subtracted from this new cycle's
+            # accepted qty — only apply it if it postdates the lot's most
+            # recent Nickel Wiping (re-)acceptance.
+            if (
+                rejection_store and rejection_store.total_rejection_quantity
+                and jig_unload_obj and jig_unload_obj.nq_last_process_date_time
+                and rejection_store.created_at > jig_unload_obj.nq_last_process_date_time
+            ):
+                total_rejection_qty = rejection_store.total_rejection_quantity
 
             if jig_unload_obj and total_rejection_qty > 0:
                 data['display_accepted_qty'] = max(jig_unload_obj.nq_qc_accepted_qty - total_rejection_qty, 0)
@@ -1417,6 +1550,20 @@ def _na_do_submit_reject(request, lot_id, juat):
     except ValueError as exc:
         return Response({'success': False, 'error': str(exc)}, status=400)
 
+    # A tray ID may be used in only one of reject / accept / delink for this
+    # submission — catches a tray double-booked across sections that each
+    # individual normalize_* call (which only checks duplicates within its own
+    # list) would miss.
+    reject_ids = {(rt.get('tray_id') or '').upper() for rt in reject_trays}
+    delink_ids = {(dt.get('tray_id') or '').upper() for dt in delink_trays_snapshot}
+    accept_ids = {(at.get('tray_id') or '').upper() for at in accept_trays}
+    cross_dupes = (reject_ids & delink_ids) | (reject_ids & accept_ids) | (delink_ids & accept_ids)
+    if cross_dupes:
+        return Response(
+            {'success': False, 'error': f"Tray(s) {', '.join(sorted(cross_dupes))} used in more than one section"},
+            status=400,
+        )
+
     if tray_qty_total(reject_trays) != rejected_qty:
         return Response({'success': False, 'error': 'Reject tray total does not match rejected qty'}, status=400)
     if tray_qty_total(accept_trays) != accepted_qty:
@@ -1754,32 +1901,18 @@ class NACompletedView(APIView):
             jig_unload_zone_1=True
         ).values_list('id', flat=True)
 
-        na_rejection_qty_subquery = Nickel_Audit_Rejection_ReasonStore.objects.filter(
-            lot_id=OuterRef('lot_id')
-        ).values('total_rejection_quantity')[:1]
-
-        queryset = (
-            JigUnloadAfterTable.objects.select_related('version', 'plating_color', 'polish_finish')
-            .prefetch_related('location')
-            .filter(
-                total_case_qty__gt=0,
-                plating_color_id__in=allowed_color_ids,
-            )
-            .annotate(
-                na_rejection_qty=na_rejection_qty_subquery,
-            )
-            .filter(
-                Q(na_qc_accptance=True)
-                | Q(na_qc_rejection=True)
-                | Q(na_qc_few_cases_accptance=True, na_onhold_picking=False)
-            )
-            .filter(na_last_process_date_time__range=(from_datetime, to_datetime))
-            .order_by('-na_last_process_date_time', '-lot_id')
-        )
-
-        child_lot_ids = NickelAudit_PartialAcceptLot.objects.values_list('new_lot_id', flat=True)
-        queryset = queryset.exclude(lot_id__in=child_lot_ids)
-        completed_rows = _na_unique_completed_rows(queryset, 'Z1')
+        # ERR4 Fix: list one row per completed submission event (append-only
+        # NickelAudit_Submission history), not one row per live
+        # JigUnloadAfterTable object — a Full Reject routes the same row
+        # back to Nickel Wiping for rework instead of creating a new one, so
+        # the latter silently collapsed multiple completed audit passes for
+        # the same physical lot into a single row.
+        completed_rows = _na_completed_event_rows(allowed_color_ids)
+        completed_rows = [
+            r for r in completed_rows
+            if r.na_last_process_date_time
+            and from_datetime <= r.na_last_process_date_time <= to_datetime
+        ]
 
         page_number = request.GET.get('page', 1)
         paginator = Paginator(completed_rows, 10)
@@ -1787,11 +1920,14 @@ class NACompletedView(APIView):
 
         master_data = []
         for jig_unload_obj in page_obj.object_list:
-            accepted_qty, rejected_qty = _na_latest_submission_qtys(
-                jig_unload_obj.lot_id,
-                accepted_fallback=jig_unload_obj.na_qc_accepted_qty or 0,
-                rejected_fallback=getattr(jig_unload_obj, 'na_rejection_qty', 0) or 0,
-            )
+            # accepted_qty/rejected_qty/no_of_trays come straight from this
+            # row's own NickelAudit_Submission event (set by
+            # _na_completed_event_rows) — no need to re-derive them via
+            # _na_completed_lot_totals's "latest submission for this lot_id"
+            # lookup, which would pick up a later, unrelated event.
+            accepted_qty = jig_unload_obj.na_qc_accepted_qty or 0
+            rejected_qty = getattr(jig_unload_obj, '_na_rejected_qty', 0)
+            no_of_trays = getattr(jig_unload_obj, '_na_no_of_trays', 0)
             data = {
                 'batch_id': jig_unload_obj.unload_lot_id,
                 'lot_id': jig_unload_obj.lot_id,
@@ -1835,7 +1971,7 @@ class NACompletedView(APIView):
                 'audit_check': jig_unload_obj.audit_check,
                 'display_accepted_qty': accepted_qty,
                 'available_qty': accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
-                'no_of_trays': 0,
+                'no_of_trays': no_of_trays,
                 # Lot is only "Released" once it has actually moved past this stage
                 # (current_stage SSOT differs from 'Nickel Audit'). na_ac_accepted_qty_verified
                 # only reflects the qty-check step done during picking, not a downstream move,
@@ -1846,11 +1982,6 @@ class NACompletedView(APIView):
                     else 'Yet to Release'
                 ),
             }
-
-            tray_capacity = data['tray_capacity']
-            display_qty = data['display_accepted_qty']
-            if tray_capacity > 0 and display_qty > 0:
-                data['no_of_trays'] = math.ceil(display_qty / tray_capacity)
 
             images = []
             if jig_unload_obj.plating_stk_no:

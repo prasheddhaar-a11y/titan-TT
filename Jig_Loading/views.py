@@ -485,6 +485,16 @@ class JigView(TemplateView):
 								if mlot in all_excess_new_lot_ids:
 									submitted_excess_lot_ids.add(mlot)
 
+				# Bulk prefetch TotalStockModel rows for real EX-* lot ids (no N+1).
+				# Hold/unhold state (jig_hold_lot, reasons, audit fields) is SSOT on
+				# these rows — the excess loop below must render it, not hardcode False,
+				# otherwise a held excess lot loses its row blur after page refresh.
+				if all_excess_new_lot_ids:
+					for s in TotalStockModel.objects.filter(
+						lot_id__in=list(all_excess_new_lot_ids)
+					).select_related('batch_id', 'batch_id__model_stock_no', 'jig_hold_by', 'jig_release_by'):
+						excess_stock_map.setdefault(s.lot_id, s)
+
 				for jc in submitted_with_excess:
 					# For multi-model, find which source lot the excess trays belong to
 					# by cross-referencing half_filled_tray_info tray_ids with all tray data
@@ -540,6 +550,10 @@ class JigView(TemplateView):
 					# Exact selected lots are excluded by lot_id above. Same/ditto PSNs remain eligible
 					# so Add Model can show available excess partial-draft lots for the same model.
 
+					# Hold/unhold state comes from the EX-* lot's TotalStockModel row (SSOT).
+					# Falls back to unheld when no stock row exists (legacy excess lots).
+					hold_src = excess_stock_map.get(real_excess_lot_id)
+
 					excess_data = {
 						'batch_id': jc.batch_id,
 						'stock_lot_id': real_excess_lot_id,
@@ -553,10 +567,14 @@ class JigView(TemplateView):
 						'brass_audit_last_process_date_time': jc.updated_at,
 						'model_stock_no': getattr(batch, 'model_stock_no', None) if batch else None,
 						'model_images': [],
-						'jig_hold_lot': False,
-						'jig_holding_reason': '',
-						'jig_release_lot': False,
-						'jig_release_reason': '',
+						'jig_hold_lot': getattr(hold_src, 'jig_hold_lot', False) if hold_src else False,
+						'jig_holding_reason': (getattr(hold_src, 'jig_holding_reason', '') or '') if hold_src else '',
+						'jig_release_lot': getattr(hold_src, 'jig_release_lot', False) if hold_src else False,
+						'jig_release_reason': (getattr(hold_src, 'jig_release_reason', '') or '') if hold_src else '',
+						'jig_hold_by': hold_src.jig_hold_by.username if hold_src and getattr(hold_src, 'jig_hold_by', None) else '',
+						'jig_hold_at': timezone.localtime(hold_src.jig_hold_at).strftime("%d-%b-%Y %I:%M %p") if hold_src and getattr(hold_src, 'jig_hold_at', None) else '',
+						'jig_release_by': hold_src.jig_release_by.username if hold_src and getattr(hold_src, 'jig_release_by', None) else '',
+						'jig_release_at': timezone.localtime(hold_src.jig_release_at).strftime("%d-%b-%Y %I:%M %p") if hold_src and getattr(hold_src, 'jig_release_at', None) else '',
 						'previous_module': 'Brass Audit',
 						'previous_module_remark': getattr(stock, 'BA_pick_remarks', '') if stock else '',
 						'is_excess_lot': True,
@@ -2761,12 +2779,31 @@ class JigLoadInitAPI(APIView):
 		lot_id = payload.get('lot_id')
 		batch_id = payload.get('batch_id')
 		jig_capacity_override = payload.get('jig_capacity')
-		broken_hooks = int(payload.get('broken_hooks', 0) or 0)
 		multi_model_flag = payload.get('multi_model', False)
 		secondary_lots = payload.get('secondary_lots', [])
 
 		if not lot_id or not batch_id:
 			return Response({'error': 'lot_id and batch_id are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+		# 0. Check for existing draft up front (single source of truth) — needed below to
+		# resolve the default broken_hooks so a re-opened draft renders the SAME split-panel
+		# layout (delink/excess slot counts) it had when saved. Without this, effective_capacity
+		# is recomputed with broken_hooks=0 on every open, shifting the excess-panel slot count
+		# and breaking positional restore of previously-scanned excess trays (see JigSaveAPI GET).
+		draft = JigCompleted.objects.filter(
+			batch_id=batch_id, lot_id=lot_id, user=request.user, draft_status__in=['draft', 'active']
+		).first()
+
+		# Prefer an explicit broken_hooks from the frontend (live BH preview / recalculation).
+		# Otherwise fall back to the saved draft's broken_hooks — but ONLY for a plain reopen,
+		# never for a fresh multi-model merge (secondary_lots present), so stale BH from a prior
+		# single-model draft never bleeds into a brand-new "Add Model" combination.
+		if 'broken_hooks' in payload:
+			broken_hooks = int(payload.get('broken_hooks', 0) or 0)
+		elif draft and not secondary_lots:
+			broken_hooks = int(getattr(draft, 'broken_hooks', 0) or 0)
+		else:
+			broken_hooks = 0
 
 		logging.info(json.dumps({
 			'event': 'JIG_LOAD_INIT',
@@ -2863,13 +2900,6 @@ class JigLoadInitAPI(APIView):
 						logging.info(f'[INIT_EXCESS_LOT] Batch {batch_id} auto-detected — using half_filled tray info: {len(trays)} tray(s), qty={lot_qty}')
 			except Exception:
 				logging.exception('[INIT_EXCESS_LOT] Failed to check submitted JigCompleted — continuing with normal flow')
-
-		# 2. Check for existing draft in JigCompleted (single source of truth)
-		draft = JigCompleted.objects.filter(
-			batch_id=batch_id, lot_id=lot_id, user=request.user, draft_status__in=['draft', 'active']
-		).first()
-		# STRICT: NEVER load broken_hooks from draft — only from explicit frontend payload.
-		# This prevents stale BH from previous sessions bleeding into fresh init.
 
 		# 3. Core computation — single source of truth
 		computed = compute_jig_loading(trays, jig_capacity, broken_hooks, tray_capacity)
@@ -4145,6 +4175,30 @@ class JigSaveAPI(APIView):
 						scanned_tray_id=tray_id_val,
 					)
 					delink_created += 1
+
+					# Propagate delink status to the shared tray master and Day Planning's
+					# tray history so the tray becomes assignable again outside Jig Loading.
+					# (Mirrors the pattern used by InputScreening/IQF/Recovery_BrassAudit.)
+					try:
+						from DayPlanning.models import DPTrayId_History
+						source_lot_id = tray.get('source_lot_id', '') or lot_id
+
+						tray_obj = TrayId.objects.filter(tray_id=tray_id_val).first()
+						if tray_obj:
+							tray_obj.delink_tray = True
+							tray_obj.lot_id = None
+							tray_obj.batch_id = None
+							tray_obj.scanned = False
+							tray_obj.top_tray = False
+							tray_obj.save(update_fields=[
+								'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray'
+							])
+
+						DPTrayId_History.objects.filter(
+							tray_id=tray_id_val, lot_id=source_lot_id
+						).update(delink_tray=True)
+					except Exception:
+						logging.exception(f'JigSaveAPI: tray delink propagation failed for tray_id={tray_id_val}')
 				logging.info(json.dumps({'event': 'JIG_DELINK_RECORDS_CREATED', 'count': delink_created}))
 			except Exception as e:
 				logging.exception(f'JigSaveAPI: delink records failed: {e}')

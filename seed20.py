@@ -520,8 +520,20 @@ with transaction.atomic():
 
 
 # -------------------------------------------------------------------------
-# STEP 3 - JigCompleted  (Jig Unloading Z1 & Z2 pick tables)
+# STEP 3 - JigCompleted  (Jig Loading Completed + Jig Unloading Z1 & Z2 pick tables)
 # -------------------------------------------------------------------------
+# Jig_Loading.JigCompletedTable (Completed tab) shows every JigCompleted row
+# with draft_status='submitted' - no last_process_module filter - so the same
+# rows created below back all three screens: Jig Loading Completed, and (via
+# the JU1/JU2 tags + zone plating color) the Jig Unloading Z1/Z2 pick tables.
+#
+# A third of the lots in each zone are seeded as real MULTI-MODEL jigs -
+# mirroring exactly what Jig_Loading.JigSaveAPI writes on submit for an
+# "Add Model" jig (see views.py ~L3994-4058): is_multi_model=True,
+# no_of_model_cases as the pipe-delimited 'MODEL(lot_id):qty | MODEL2(lot_id2):qty2'
+# string, and multi_model_allocation as the per-model role/sequence/tray list -
+# so Model Presents renders one real circle/image per model, exactly like a
+# genuine multi-model jig, instead of a single-model placeholder.
 print("\n-- Creating Jig Unloading lots (JigCompleted) ------------------------")
 
 JU_DEFS = [
@@ -531,49 +543,139 @@ JU_DEFS = [
     ('JU2', 'Jig Unloading Z2', plating_z2.plating_color),
 ]
 
+MULTI_MODEL_EVERY = 3   # idx % 3 == 0 -> multi-model jig (2 models combined)
+
+
+def _multi_model_component(tag, idx, seq, mm, qty, role, color_idx):
+    """Build one entry of multi_model_allocation + its own lot_id/batch_id/tray_info,
+    matching the real shape Jig_Loading.JigSaveAPI writes for each model on a jig."""
+    lot_id_str = _lot_id(f"{tag}M{seq}", idx)
+    batch_tag  = f"{SEED_TAG}{tag}-{idx:03d}-M{seq}"
+    label      = mm.plating_stk_no or mm.model_no
+
+    tray_id = next_tray()
+    tray_info = [{'tray_id': tray_id, 'qty': qty}]
+
+    alloc = {
+        'model':             label,
+        'model_name':        label,
+        'model_role':        role,
+        'role':              role,
+        'lot_id':            lot_id_str,
+        'batch_id':          batch_tag,
+        'sequence':          seq,
+        'model_index':       seq + 1,
+        'color_class':       f'model-bg-{color_idx}',
+        'allocated_qty':     qty,
+        'tray_info':         tray_info,
+        'model_image_url':   '',
+        'model_image_label': label,
+        'status':            'submitted',
+    }
+    return lot_id_str, label, alloc
+
+
 with transaction.atomic():
     for tag, label, pc_name in JU_DEFS:
         count = 0
+        multi_count = 0
         for idx in range(1, LOTS + 1):
-            mm         = _mm(idx)
-            lot_qty    = _qty(idx)
-            jig_id     = _jig(idx)
-            lot_id_str = _lot_id(tag, idx)
-            batch_tag  = f"{SEED_TAG}{tag}-{idx:03d}"
+            jig_id = _jig(idx)
+            is_multi = (idx % MULTI_MODEL_EVERY == 0)
 
-            draft = {
-                'plating_color':      pc_name,
-                'plating_stock_num':  mm.plating_stk_no or '',
-                'nickel_bath_type':   'Bright',
-                'tray_type':          normal_tray.tray_type,
-                'tray_capacity':      normal_tray.tray_capacity,
-                'lot_id_quantities':  {lot_id_str: lot_qty},
-            }
+            if is_multi:
+                # Two distinct models on the same jig (primary + secondary),
+                # offset by half the model pool so they're never the same model.
+                mm1 = _mm(idx)
+                mm2 = _mm(idx + len(model_masters) // 2)
+                qty1 = _qty(idx)
+                qty2 = _qty(idx + 1)
+                lot_qty = qty1 + qty2
 
-            JigCompleted.objects.create(
-                batch_id            = batch_tag,
-                lot_id              = lot_id_str,
-                user                = ADMIN,
-                draft_data          = draft,
-                last_process_module = 'Inprocess Inspection',
-                draft_status        = 'submitted',
-                jig_id              = jig_id,
-                original_lot_qty    = lot_qty,
-                updated_lot_qty     = lot_qty,
-                loaded_cases_qty    = lot_qty,
-                plating_stock_num   = mm.plating_stk_no or '',
-                IP_loaded_date_time = timezone.now(),
-                nickel_bath_type    = 'Bright',
-                tray_type           = normal_tray.tray_type,
-                tray_capacity       = normal_tray.tray_capacity,
-                bath_numbers        = bath_bright,
-                no_of_model_cases   = mm.plating_stk_no or '',
-                is_multi_model      = False,
-            )
+                lot_id_1, label_1, alloc_1 = _multi_model_component(tag, idx, 0, mm1, qty1, 'primary', 1)
+                lot_id_2, label_2, alloc_2 = _multi_model_component(tag, idx, 1, mm2, qty2, 'secondary', 2)
+                multi_model_allocation = [alloc_1, alloc_2]
+
+                no_of_model_cases_str = ' | '.join(
+                    f"{a['model']}({a['lot_id']}):{a['allocated_qty']}" for a in multi_model_allocation
+                )
+                effective_plating_stock_num = ', '.join([label_1, label_2])
+                lot_id_str = lot_id_1          # JigCompleted's own lot_id = primary model's lot
+                batch_tag  = alloc_1['batch_id']
+
+                draft = {
+                    'plating_color':          pc_name,
+                    'plating_stock_num':      effective_plating_stock_num,
+                    'nickel_bath_type':       'Bright',
+                    'tray_type':              normal_tray.tray_type,
+                    'tray_capacity':          normal_tray.tray_capacity,
+                    'lot_id_quantities':      {lot_id_1: qty1, lot_id_2: qty2},
+                    'no_of_model_cases':      no_of_model_cases_str,
+                    'multi_model_allocation': multi_model_allocation,
+                }
+
+                JigCompleted.objects.create(
+                    batch_id              = batch_tag,
+                    lot_id                = lot_id_str,
+                    user                  = ADMIN,
+                    draft_data            = draft,
+                    last_process_module   = 'Inprocess Inspection',
+                    draft_status          = 'submitted',
+                    jig_id                = jig_id,
+                    original_lot_qty      = lot_qty,
+                    updated_lot_qty       = lot_qty,
+                    loaded_cases_qty      = lot_qty,
+                    plating_stock_num     = effective_plating_stock_num,
+                    IP_loaded_date_time   = timezone.now(),
+                    nickel_bath_type      = 'Bright',
+                    tray_type             = normal_tray.tray_type,
+                    tray_capacity         = normal_tray.tray_capacity,
+                    bath_numbers          = bath_bright,
+                    no_of_model_cases     = no_of_model_cases_str,
+                    multi_model_allocation= multi_model_allocation,
+                    is_multi_model        = True,
+                )
+                multi_count += 1
+            else:
+                mm         = _mm(idx)
+                lot_qty    = _qty(idx)
+                lot_id_str = _lot_id(tag, idx)
+                batch_tag  = f"{SEED_TAG}{tag}-{idx:03d}"
+
+                draft = {
+                    'plating_color':      pc_name,
+                    'plating_stock_num':  mm.plating_stk_no or '',
+                    'nickel_bath_type':   'Bright',
+                    'tray_type':          normal_tray.tray_type,
+                    'tray_capacity':      normal_tray.tray_capacity,
+                    'lot_id_quantities':  {lot_id_str: lot_qty},
+                }
+
+                JigCompleted.objects.create(
+                    batch_id            = batch_tag,
+                    lot_id              = lot_id_str,
+                    user                = ADMIN,
+                    draft_data          = draft,
+                    last_process_module = 'Inprocess Inspection',
+                    draft_status        = 'submitted',
+                    jig_id              = jig_id,
+                    original_lot_qty    = lot_qty,
+                    updated_lot_qty     = lot_qty,
+                    loaded_cases_qty    = lot_qty,
+                    plating_stock_num   = mm.plating_stk_no or '',
+                    IP_loaded_date_time = timezone.now(),
+                    nickel_bath_type    = 'Bright',
+                    tray_type           = normal_tray.tray_type,
+                    tray_capacity       = normal_tray.tray_capacity,
+                    bath_numbers        = bath_bright,
+                    no_of_model_cases   = mm.plating_stk_no or '',
+                    is_multi_model      = False,
+                )
+
             count += 1
             time.sleep(0.003)
 
-        print(f"  [{label}]  {count} lots created")
+        print(f"  [{label}]  {count} lots created  ({multi_count} multi-model)")
 
 
 # -------------------------------------------------------------------------

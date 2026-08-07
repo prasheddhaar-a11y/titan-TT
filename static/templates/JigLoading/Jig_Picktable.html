@@ -770,6 +770,12 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
 #delinkPanelTable tbody td { user-select: none; }
 #delinkPanelTable tbody td input { user-select: text; }
 
+/* Hold/unhold modal row highlight on the main pick table (parity with Day Planning) */
+tbody tr.jig-row-action-highlight:not(.delink-row-scanned):not(.delink-row-disabled) td {
+  background-color: #fff3cd !important;
+  box-shadow: inset 0 0 0 2px #ffc107;
+}
+
 /* ============================================================
    SEQUENTIAL TRAY-SLOT ROWS (UI only) — reskins the same table/rows as a
    compact one-line-per-slot list (S.No | Tray ID | Qty | Status), matching
@@ -1832,6 +1838,8 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
     // Hold/unhold toggle handler for Jig Pick Table
     window.holdToggleState = {
       currentHoldCell: null,
+      currentHoldToggle: null,
+      previousToggleState: null,
       intendedState: null,
       currentBatchId: null,
       currentLotId: null
@@ -1842,6 +1850,58 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
     //   tr[data-jig-hold-lot="true"] td:not(:first-child) { filter: blur; ... }
     // Toggle checkbox initial state is set server-side in the Django template.
     // No applyHoldStylingFromData() loop needed — CSS handles it instantly.
+
+    // ===== ROW HIGHLIGHT WHILE HOLD MODAL IS OPEN (mirrors Day Planning's row highlight,
+    // in-place only — no DOM repositioning, to avoid disturbing row order/pagination indices
+    // that other Jig table features (delink panel, scan-to-top, batch lookups) depend on) =====
+    var _jigHoldHighlightedRow = null;
+
+    function restoreJigHoldActionRow() {
+      if (_jigHoldHighlightedRow) {
+        _jigHoldHighlightedRow.classList.remove('jig-row-action-highlight');
+      }
+      _jigHoldHighlightedRow = null;
+    }
+
+    function activateJigHoldActionRow(row) {
+      if (!row) return;
+      restoreJigHoldActionRow();
+      _jigHoldHighlightedRow = row;
+      row.classList.add('jig-row-action-highlight');
+    }
+
+    // Reverts the toggle to its pre-click state (on cancel/close/failure) and clears state.
+    function restoreHoldToggleRowState(revertToggle) {
+      var state = window.holdToggleState;
+      if (revertToggle && state.currentHoldToggle && state.previousToggleState !== null) {
+        state.currentHoldToggle.checked = state.previousToggleState;
+      }
+      restoreJigHoldActionRow();
+      window.holdToggleState = {
+        currentHoldCell: null,
+        currentHoldToggle: null,
+        previousToggleState: null,
+        intendedState: null,
+        currentBatchId: null,
+        currentLotId: null
+      };
+    }
+
+    function restoreFailedHoldAction() {
+      var state = window.holdToggleState;
+      if (state.currentHoldToggle && state.previousToggleState !== null) {
+        state.currentHoldToggle.checked = state.previousToggleState;
+      }
+      restoreJigHoldActionRow();
+    }
+
+    function closeHoldRemarkModal(revertToggle) {
+      var modal = document.getElementById('holdRemarkModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+      restoreHoldToggleRowState(revertToggle);
+    }
 
     // ===== EVENT DELEGATION FOR HOLD TOGGLE (NO CLONENODE, NO PER-ROW BINDING) =====
     function attachHoldToggleListeners() {
@@ -1855,6 +1915,11 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
         if (!btn) return;
         e.preventDefault();
 
+        // If another row's toggle was mid-flow, revert it before starting a new one.
+        if (window.holdToggleState.currentHoldToggle && window.holdToggleState.currentHoldToggle !== btn) {
+          restoreHoldToggleRowState(true);
+        }
+
         var holdCell = btn.closest('td');
         var row = holdCell.closest('tr');
 
@@ -1866,11 +1931,15 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
 
         window.holdToggleState = {
           currentHoldCell: holdCell,
+          currentHoldToggle: btn,
+          previousToggleState: !btn.checked,
           intendedState: btn.checked,
           currentBatchId: row.getAttribute('data-batch-id'),
           currentLotId: row.getAttribute('data-stock-lot-id'),
           rowIdentifier: row.getAttribute('data-stock-lot-id') || row.getAttribute('data-batch-id')
         };
+
+        activateJigHoldActionRow(row);
 
         document.getElementById('holdRemarkModal').querySelector('h5').textContent =
           window.holdToggleState.intendedState ? 'Unholding Reason' : 'Holding Reason';
@@ -1887,10 +1956,12 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
           var remark = document.getElementById('holdRemarkInput').value.trim();
           if (!remark) {
             document.getElementById('holdRemarkError').textContent = 'Remark required!';
+            restoreFailedHoldAction();
             return;
           }
           if (!window.holdToggleState.currentLotId) {
             document.getElementById('holdRemarkError').textContent = 'Lot ID not found!';
+            restoreFailedHoldAction();
             return;
           }
           var action = window.holdToggleState.intendedState ? 'unhold' : 'hold';
@@ -1967,18 +2038,43 @@ body.sidebar-icon-only #order-listing td:nth-child(3) {
                   }
                 }
               }
+              restoreHoldToggleRowState(false);
               setTimeout(function() { if (typeof refreshTableData === 'function') { refreshTableData(); } else { location.reload(); } }, 500);
             } else {
               document.getElementById('holdRemarkError').textContent = data.error || 'Failed to save reason!';
+              restoreFailedHoldAction();
             }
-          }).catch(function(err) { document.getElementById('holdRemarkError').textContent = 'Network error!'; });
+          }).catch(function(err) {
+            document.getElementById('holdRemarkError').textContent = 'Network error!';
+            restoreFailedHoldAction();
+          });
         };
       }
 
       const closeBtn = document.getElementById('closeHoldRemarkModal');
       if (closeBtn && !window.holdCloseHandlerAttached) {
         window.holdCloseHandlerAttached = true;
-        closeBtn.onclick = function () { document.getElementById('holdRemarkModal').style.display = 'none'; window.holdToggleState = { currentHoldCell: null, intendedState: null, currentBatchId: null, currentLotId: null }; };
+        closeBtn.onclick = function () { closeHoldRemarkModal(true); };
+      }
+
+      var holdRemarkModalEl = document.getElementById('holdRemarkModal');
+      if (holdRemarkModalEl && !window.holdOutsideClickHandlerAttached) {
+        window.holdOutsideClickHandlerAttached = true;
+        holdRemarkModalEl.addEventListener('click', function(event) {
+          if (event.target === holdRemarkModalEl) {
+            closeHoldRemarkModal(true);
+          }
+        });
+      }
+
+      if (!window.holdEscapeHandlerAttached) {
+        window.holdEscapeHandlerAttached = true;
+        document.addEventListener('keydown', function(event) {
+          var modal = document.getElementById('holdRemarkModal');
+          if (event.key === 'Escape' && modal && modal.style.display === 'flex') {
+            closeHoldRemarkModal(true);
+          }
+        });
       }
     }
 
@@ -7511,7 +7607,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const resolved = resolvePreviewImage(payload);
     if (!gallery) return;
     if (!resolved || !resolved.url) {
-      renderMessage(trigger, "Coming Soon");
+      renderMessage(trigger, "Coming Soon !");
       return;
     }
     gallery.textContent = "";
@@ -7521,7 +7617,7 @@ document.addEventListener("DOMContentLoaded", function () {
     image.decoding = "async";
     image.style.cssText = "width:120px;height:120px;object-fit:contain;object-position:center;display:block;";
     image.addEventListener("error", function() {
-      renderMessage(trigger, "Coming Soon");
+      renderMessage(trigger, "Coming Soon !");
     }, { once: true });
     gallery.appendChild(image);
   }
@@ -7554,7 +7650,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function(error) {
         console.error("[Jig Loading Pick] Model preview failed:", error);
-        renderMessage(trigger, "Coming Soon");
+        renderMessage(trigger, "Coming Soon !");
       });
   }
 
@@ -9345,6 +9441,7 @@ if (window.jQuery) {
             lot_id: data.lot_id || lotId,
             batch_id: data.batch_id || batchId,
             jig_capacity: parseInt(data.jig_capacity || 0) || 0,
+            broken_hooks: parseInt(data.broken_hooks || 0) || 0,
             multi_model: true,
             secondary_lots: secondaryLots,
           }, function(initData) {

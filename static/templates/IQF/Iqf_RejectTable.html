@@ -1701,7 +1701,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const imageContainer = getIqfModalImageContainer(modal);
         if (!imageContainer) return;
         imageContainer.replaceChildren();
-        imageContainer.textContent = "Coming Soon";
+        imageContainer.textContent = "Coming Soon !";
         if (!stockNo) return;
 
         const requestId = String(Date.now()) + Math.random().toString(36).slice(2);
@@ -1717,7 +1717,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (modal.dataset.iqfModalImageRequestId !== requestId) return;
           if (!resolvedImage) {
             imageContainer.replaceChildren();
-            imageContainer.textContent = "Coming Soon";
+            imageContainer.textContent = "Coming Soon !";
             return;
           }
           imageContainer.replaceChildren();
@@ -1728,13 +1728,13 @@ document.addEventListener("DOMContentLoaded", function () {
           image.style.cssText = "width:50px;height:50px;object-fit:contain;object-position:center;";
           image.addEventListener("error", function() {
             imageContainer.replaceChildren();
-            imageContainer.textContent = "Coming Soon";
+            imageContainer.textContent = "Coming Soon !";
           }, { once: true });
           imageContainer.appendChild(image);
         } catch (error) {
           if (modal.dataset.iqfModalImageRequestId !== requestId) return;
           imageContainer.replaceChildren();
-          imageContainer.textContent = "Coming Soon";
+          imageContainer.textContent = "Coming Soon !";
         }
       }
 
@@ -2149,7 +2149,7 @@ document.addEventListener("DOMContentLoaded", function () {
     gallery.replaceChildren();
     const unavailableText = document.createElement("div");
     unavailableText.className = "model-image-unavailable";
-    unavailableText.textContent = "Coming Soon";
+    unavailableText.textContent = "Coming Soon !";
     gallery.appendChild(unavailableText);
   }
 
@@ -2220,7 +2220,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function () {
         if (trigger.dataset.stockPreviewRequestId !== requestId) return;
-        setTooltipPreview(trigger, "", "Coming soon");
+        setTooltipPreview(trigger, "", "Coming Soon !");
       });
   }
 

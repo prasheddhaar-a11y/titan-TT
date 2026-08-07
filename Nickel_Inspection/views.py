@@ -934,7 +934,7 @@ def nq_action(request):
         return Response({'success': False, 'error': 'This lot is on hold and cannot be processed until released.'}, status=400)
     if action == 'GET_TRAYS':
         trays_qs = NickelQcTrayId.objects.filter(
-            lot_id=lot_id, rejected_tray=False
+            lot_id=lot_id, rejected_tray=False, delink_tray=False
         ).order_by('-top_tray', 'id')
         if trays_qs.exists():
             trays = [
@@ -1090,6 +1090,100 @@ def _nw_generate_record_id(prefix, model_class):
     return f"{prefix}{now.strftime('%Y%m%d%H%M%S')}{str(now.microsecond).zfill(6)}"
 
 
+def _nq_completed_event_rows(allowed_color_ids):
+    """
+    Build one row per Nickel Wiping completion event (Full Accept / Full
+    Reject / Partial Accept child lot), for the Completed table listing.
+    Serves Z1 (NQCompletedView) and Z2 (NQ_Zone_CompletedView).
+
+    A lot's JigUnloadAfterTable row is reused across rework passes — e.g. a
+    lot returned to Nickel Wiping after a Nickel Audit rejection resubmits
+    under the same lot_id/row — so listing live JigUnloadAfterTable objects
+    (one per lot) collapses multiple completed passes into a single row.
+    The NickelWiping_*Record tables are append-only (one row per submission,
+    never updated — see _nq_do_full_accept / _nq_do_submit_accept /
+    _nq_do_submit_reject), so listing those instead preserves every
+    completed pass as its own row.
+    """
+    import copy
+
+    fa_qs = list(NickelWiping_FullAcceptRecord.objects.all())
+    fr_qs = list(NickelWiping_FullRejectRecord.objects.all())
+    pa_qs = list(NickelWiping_PartialAcceptRecord.objects.order_by('created_at'))
+
+    needed_lot_ids = set()
+    for r in fa_qs:
+        needed_lot_ids.add(r.source_lot_id)
+    for r in fr_qs:
+        needed_lot_ids.add(r.source_lot_id)
+    for r in pa_qs:
+        needed_lot_ids.add(r.source_lot_id)
+        needed_lot_ids.add(r.child_lot_id or r.source_lot_id)
+
+    juat_by_lot = {
+        j.lot_id: j for j in JigUnloadAfterTable.objects
+        .select_related('version', 'plating_color', 'polish_finish')
+        .prefetch_related('location')
+        .filter(lot_id__in=needed_lot_ids, plating_color_id__in=allowed_color_ids)
+    }
+
+    def make_row(base, *, lot_id, total_qty, accepted_qty, rejected_qty, event_time, no_of_trays, kind):
+        row = copy.copy(base)
+        row.lot_id = lot_id
+        row.total_case_qty = total_qty
+        row.nq_qc_accepted_qty = accepted_qty
+        row.nq_last_process_date_time = event_time
+        row.nq_qc_accptance = kind == 'full_accept'
+        row.nq_qc_rejection = kind == 'full_reject'
+        row.nq_qc_few_cases_accptance = kind == 'partial'
+        row._nw_rejected_qty = rejected_qty
+        row._nw_no_of_trays = no_of_trays
+        return row
+
+    events = []
+    for r in fa_qs:
+        base = juat_by_lot.get(r.source_lot_id)
+        if not base:
+            continue
+        events.append(make_row(
+            base, lot_id=r.source_lot_id, total_qty=r.total_qty or 0,
+            accepted_qty=r.total_qty or 0, rejected_qty=0,
+            event_time=r.created_at, no_of_trays=len(r.accept_trays or []),
+            kind='full_accept',
+        ))
+    for r in fr_qs:
+        base = juat_by_lot.get(r.source_lot_id)
+        if not base:
+            continue
+        events.append(make_row(
+            base, lot_id=r.source_lot_id, total_qty=r.total_qty or 0,
+            accepted_qty=0, rejected_qty=r.rejected_qty or 0,
+            event_time=r.created_at, no_of_trays=len(r.reject_trays or []),
+            kind='full_reject',
+        ))
+
+    # The child lot (child_lot_id) created by a partial accept is itself a
+    # fully-accepted lot in its own right — its Completed row reflects only
+    # its own qty (accepted_qty / 0 rejected), not the parent's split totals.
+    # The rejected portion belongs to the parent lot's own history, not this
+    # child's, and is tracked separately (NickelWiping_PartialRejectRecord).
+    for pa in pa_qs:
+        display_lot_id = pa.child_lot_id or pa.source_lot_id
+        base = juat_by_lot.get(display_lot_id) or juat_by_lot.get(pa.source_lot_id)
+        if not base:
+            continue
+        events.append(make_row(
+            base, lot_id=display_lot_id,
+            total_qty=pa.accepted_qty or 0,
+            accepted_qty=pa.accepted_qty or 0, rejected_qty=0,
+            event_time=pa.created_at, no_of_trays=len(pa.accept_trays or []),
+            kind='partial',
+        ))
+
+    events.sort(key=lambda r: r.nq_last_process_date_time or timezone.now(), reverse=True)
+    return events
+
+
 def _nq_do_full_accept(request, lot_id, juat):
     """
     Persist FULL acceptance for a NQ lot.
@@ -1141,16 +1235,18 @@ def _nq_do_full_accept(request, lot_id, juat):
             accept_trays_data=trays,
             created_by=request.user,
         )
-        # ERR3: Save tray scan data to independent NickelWiping_FullAcceptRecord
-        NickelWiping_FullAcceptRecord.objects.update_or_create(
+        # ERR3: Save tray scan data to independent NickelWiping_FullAcceptRecord.
+        # Always insert — source_lot_id can repeat across rework passes (e.g. a lot
+        # returned from Nickel Audit reuses the same lot_id), so update_or_create()
+        # here would silently overwrite the prior pass's history instead of
+        # preserving it as its own completed record.
+        NickelWiping_FullAcceptRecord.objects.create(
             source_lot_id=lot_id,
-            defaults={
-                'record_lot_id': _nw_generate_record_id('NWFA', NickelWiping_FullAcceptRecord),
-                'total_qty': total_qty,
-                'accept_trays': trays,
-                'delink_trays': [],
-                'created_by': request.user,
-            },
+            record_lot_id=_nw_generate_record_id('NWFA', NickelWiping_FullAcceptRecord),
+            total_qty=total_qty,
+            accept_trays=trays,
+            delink_trays=[],
+            created_by=request.user,
         )
         juat.nq_qc_accptance = True
         juat.nq_qc_accepted_qty = total_qty
@@ -1239,6 +1335,20 @@ def _nq_do_submit_reject(request, lot_id, juat):
     except ValueError as exc:
         return Response({'success': False, 'error': str(exc)}, status=400)
 
+    # A tray ID may be used in only one of reject / accept / delink for this
+    # submission — catches a tray double-booked across sections that each
+    # individual normalize_* call (which only checks duplicates within its own
+    # list) would miss.
+    reject_ids = {(rt.get('tray_id') or '').upper() for rt in reject_trays}
+    delink_ids = {(dt.get('tray_id') or '').upper() for dt in delink_trays_snapshot}
+    accept_ids = {(at.get('tray_id') or '').upper() for at in accept_trays}
+    cross_dupes = (reject_ids & delink_ids) | (reject_ids & accept_ids) | (delink_ids & accept_ids)
+    if cross_dupes:
+        return Response(
+            {'success': False, 'error': f"Tray(s) {', '.join(sorted(cross_dupes))} used in more than one section"},
+            status=400,
+        )
+
     if tray_qty_total(reject_trays) != rejected_qty:
         return Response({'success': False, 'error': 'Reject tray total does not match rejected qty'}, status=400)
     if tray_qty_total(accept_trays) != accepted_qty:
@@ -1246,7 +1356,9 @@ def _nq_do_submit_reject(request, lot_id, juat):
 
     for rt in reject_trays:
         tid = (rt.get('tray_id') or '').upper()
-        if tid not in reused_tray_ids and not tid.startswith(allowed_prefix):
+        # Reused original trays must also carry an NB/JB code to be reject-eligible —
+        # JR/JD/JL originals cannot be reused as their own reject container.
+        if not tid.startswith(allowed_prefix):
             return Response(
                 {'success': False, 'error': f'Reject tray {tid} must start with {allowed_prefix}'},
                 status=400,
@@ -1320,7 +1432,11 @@ def _nq_do_submit_reject(request, lot_id, juat):
                 tray_obj.delink_tray = True
                 tray_obj.delink_tray_qty = tray_obj.tray_quantity
                 tray_obj.tray_quantity = 0
-                tray_obj.save(update_fields=['delink_tray', 'delink_tray_qty', 'tray_quantity'])
+                # A delinked tray must never keep the "top accept tray" flag —
+                # otherwise it resurfaces (with stale is_top/is_delinked data)
+                # the next time trays are fetched for this lot.
+                tray_obj.top_tray = False
+                tray_obj.save(update_fields=['delink_tray', 'delink_tray_qty', 'tray_quantity', 'top_tray'])
         # Save accepted trays that are new (not existing NickelQcTrayId)
         existing_ids = set(
             NickelQcTrayId.objects.filter(lot_id=lot_id).values_list('tray_id', flat=True)
@@ -1436,44 +1552,41 @@ def _nq_do_submit_reject(request, lot_id, juat):
                 remarks=remarks,
                 created_by=request.user,
             )
-            # ERR3: Save independent NickelWiping records for partial submission
-            NickelWiping_PartialAcceptRecord.objects.update_or_create(
+            # ERR3: Save independent NickelWiping records for partial submission.
+            # Always insert — see note on the Full Accept record above: source_lot_id
+            # is not a unique key, so update_or_create() would overwrite an earlier
+            # completed record for the same lot instead of preserving its history.
+            NickelWiping_PartialAcceptRecord.objects.create(
                 source_lot_id=lot_id,
-                defaults={
-                    'record_lot_id': _nw_generate_record_id('NWPA', NickelWiping_PartialAcceptRecord),
-                    'child_lot_id': child_juat.lot_id,
-                    'accepted_qty': accepted_qty,
-                    'rejected_qty': rejected_qty,
-                    'accept_trays': accept_trays,
-                    'delink_trays': delink_trays_snapshot,
-                    'created_by': request.user,
-                },
+                record_lot_id=_nw_generate_record_id('NWPA', NickelWiping_PartialAcceptRecord),
+                child_lot_id=child_juat.lot_id,
+                accepted_qty=accepted_qty,
+                rejected_qty=rejected_qty,
+                accept_trays=accept_trays,
+                delink_trays=delink_trays_snapshot,
+                created_by=request.user,
             )
-            NickelWiping_PartialRejectRecord.objects.update_or_create(
+            NickelWiping_PartialRejectRecord.objects.create(
                 source_lot_id=lot_id,
-                defaults={
-                    'record_lot_id': _nw_generate_record_id('NWPR', NickelWiping_PartialRejectRecord),
-                    'rejected_qty': rejected_qty,
-                    'reject_trays': reject_trays,
-                    'reject_reasons': reason_data,
-                    'remarks': remarks,
-                    'created_by': request.user,
-                },
+                record_lot_id=_nw_generate_record_id('NWPR', NickelWiping_PartialRejectRecord),
+                rejected_qty=rejected_qty,
+                reject_trays=reject_trays,
+                reject_reasons=reason_data,
+                remarks=remarks,
+                created_by=request.user,
             )
         else:
-            # ERR3: Full Reject — save NickelWiping_FullRejectRecord
-            NickelWiping_FullRejectRecord.objects.update_or_create(
+            # ERR3: Full Reject — save NickelWiping_FullRejectRecord (always insert; see above)
+            NickelWiping_FullRejectRecord.objects.create(
                 source_lot_id=lot_id,
-                defaults={
-                    'record_lot_id': _nw_generate_record_id('NWFR', NickelWiping_FullRejectRecord),
-                    'total_qty': total_qty,
-                    'rejected_qty': rejected_qty,
-                    'reject_trays': reject_trays,
-                    'delink_trays': delink_trays_snapshot,
-                    'reject_reasons': reason_data,
-                    'remarks': remarks,
-                    'created_by': request.user,
-                },
+                record_lot_id=_nw_generate_record_id('NWFR', NickelWiping_FullRejectRecord),
+                total_qty=total_qty,
+                rejected_qty=rejected_qty,
+                reject_trays=reject_trays,
+                delink_trays=delink_trays_snapshot,
+                reject_reasons=reason_data,
+                remarks=remarks,
+                created_by=request.user,
             )
     logger.info(
         "[nq_submit_reject] lot=%s rej_qty=%d partial=%s user=%s",
@@ -1519,16 +1632,14 @@ def _nq_do_submit_accept(request, lot_id, juat):
             'nq_last_process_date_time', 'last_process_module', 'current_stage',
         ])
         _nq_clear_draft_state(lot_id)
-        # ERR3: Save independent NickelWiping_FullAcceptRecord for view icon
-        NickelWiping_FullAcceptRecord.objects.update_or_create(
+        # ERR3: Save independent NickelWiping_FullAcceptRecord for view icon (always insert; see note above)
+        NickelWiping_FullAcceptRecord.objects.create(
             source_lot_id=lot_id,
-            defaults={
-                'record_lot_id': _nw_generate_record_id('NWFA', NickelWiping_FullAcceptRecord),
-                'total_qty': juat.total_case_qty or 0,
-                'accept_trays': accept_trays,
-                'delink_trays': [],
-                'created_by': request.user,
-            },
+            record_lot_id=_nw_generate_record_id('NWFA', NickelWiping_FullAcceptRecord),
+            total_qty=juat.total_case_qty or 0,
+            accept_trays=accept_trays,
+            delink_trays=[],
+            created_by=request.user,
         )
     logger.info("[nq_submit_accept] lot=%s user=%s", lot_id, request.user)
     return Response({'success': True})
@@ -1574,47 +1685,35 @@ class NQCompletedView(APIView):
             jig_unload_zone_1=True
         ).values_list('id', flat=True)
 
-        queryset = (
-            JigUnloadAfterTable.objects.select_related('version', 'plating_color', 'polish_finish')
-            .prefetch_related('location')
-            .filter(
-                total_case_qty__gt=0,
-                plating_color_id__in=allowed_color_ids,
-            )
-            .filter(
-                Q(nq_qc_accptance=True)
-                | Q(nq_qc_rejection=True)
-                | Q(nq_qc_few_cases_accptance=True, nq_onhold_picking=False)
-            )
-            .order_by('-nq_last_process_date_time', '-lot_id')
-        )
-
-        # ERR2 Fix: exclude child lots created by partial rejection — they continue to Nickel Audit.
-        # Only the parent lot (nq_qc_few_cases_accptance=True) should appear in NI completed table.
-        child_lot_ids = NickelQC_PartialAcceptLot.objects.values_list('new_lot_id', flat=True)
-        queryset = queryset.exclude(lot_id__in=child_lot_ids)
+        # ERR4 Fix: list one row per completed submission event (append-only
+        # NickelWiping_*Record history), not one row per live
+        # JigUnloadAfterTable object — a lot's row is reused across rework
+        # passes (e.g. returned from Nickel Audit), so the latter silently
+        # collapsed multiple completed passes into a single row.
+        rows = _nq_completed_event_rows(allowed_color_ids)
 
         from_date = request.GET.get('from_date', '')
         to_date = request.GET.get('to_date', '')
         if from_date and to_date:
-            queryset = queryset.filter(
-                nq_last_process_date_time__date__gte=from_date,
-                nq_last_process_date_time__date__lte=to_date,
-            )
+            try:
+                from datetime import datetime as _dt
+                from_date_obj = _dt.strptime(from_date, '%Y-%m-%d').date()
+                to_date_obj = _dt.strptime(to_date, '%Y-%m-%d').date()
+                rows = [
+                    r for r in rows
+                    if r.nq_last_process_date_time
+                    and from_date_obj <= timezone.localtime(r.nq_last_process_date_time).date() <= to_date_obj
+                ]
+            except ValueError:
+                pass
 
         page_number = request.GET.get('page', 1)
-        paginator = Paginator(queryset, 10)
+        paginator = Paginator(rows, 10)
         page_obj = paginator.get_page(page_number)
-
-        page_lot_ids = [obj.lot_id for obj in page_obj.object_list]
-        rejection_store_by_lot = {
-            r.lot_id: r for r in Nickel_QC_Rejection_ReasonStore.objects.filter(lot_id__in=page_lot_ids)
-        }
 
         master_data = []
         for obj in page_obj.object_list:
-            rejection_store = rejection_store_by_lot.get(obj.lot_id)
-            total_rejection_qty = rejection_store.total_rejection_quantity if rejection_store else 0
+            total_rejection_qty = getattr(obj, '_nw_rejected_qty', 0)
 
             data = {
                 'batch_id': obj.unload_lot_id,
@@ -1667,7 +1766,8 @@ class NQCompletedView(APIView):
             display_qty = obj.total_case_qty or 0
             tray_capacity = obj.tray_capacity or _nq_tray_capacity(obj.tray_type or '') or 0
             data['display_accepted_qty'] = display_qty
-            data['no_of_trays'] = ceil(display_qty / tray_capacity) if display_qty > 0 and tray_capacity > 0 else 0
+            no_of_trays_override = getattr(obj, '_nw_no_of_trays', 0)
+            data['no_of_trays'] = no_of_trays_override or (ceil(display_qty / tray_capacity) if display_qty > 0 and tray_capacity > 0 else 0)
 
             images = []
             if obj.plating_stk_no:
@@ -1710,22 +1810,39 @@ def nq_completed_tray_list(request):
     if not lot_id:
         return JsonResponse({'success': False, 'error': 'lot_id required'}, status=400)
 
-    # Priority 1: NickelWiping_FullAcceptRecord
-    fa = NickelWiping_FullAcceptRecord.objects.filter(source_lot_id=lot_id).first()
-    if fa:
+    # NickelWiping_* records: source_lot_id can repeat across rework passes
+    # (e.g. a lot returned from Nickel Audit resubmits under the same lot_id),
+    # so multiple records of different types may exist for this lot_id. Pick
+    # whichever record is actually the most recent submission event, not a
+    # fixed type-priority — otherwise an older Full Accept record would keep
+    # shadowing a newer Partial Accept/Reject event for the same lot forever.
+    fa = NickelWiping_FullAcceptRecord.objects.filter(source_lot_id=lot_id).order_by('-created_at').first()
+    fr = NickelWiping_FullRejectRecord.objects.filter(source_lot_id=lot_id).order_by('-created_at').first()
+    # The Completed table lists a partial event under its child_lot_id (the
+    # accepted continuation's own lot_id), not source_lot_id — so the view
+    # icon must also resolve by child_lot_id, not just source_lot_id.
+    pa = (
+        NickelWiping_PartialAcceptRecord.objects.filter(source_lot_id=lot_id).order_by('-created_at').first()
+        or NickelWiping_PartialAcceptRecord.objects.filter(child_lot_id=lot_id).order_by('-created_at').first()
+    )
+    pr_lookup_source = pa.source_lot_id if pa else lot_id
+    pr = NickelWiping_PartialRejectRecord.objects.filter(source_lot_id=pr_lookup_source).order_by('-created_at').first()
+
+    # partial accept/reject are written as a pair for one submission event —
+    # date that event by whichever half is newest.
+    partial_at = max((r.created_at for r in (pa, pr) if r is not None), default=None)
+    events = [('full_accept', fa.created_at if fa else None), ('full_reject', fr.created_at if fr else None),
+              ('partial', partial_at)]
+    events = [e for e in events if e[1] is not None]
+    latest_kind = max(events, key=lambda e: e[1])[0] if events else None
+
+    if latest_kind == 'full_accept':
         trays = _nq_normalize_tray_snapshot(fa.accept_trays or [])
         return JsonResponse({'success': True, 'trays': _nq_with_delink_tray_snapshot(lot_id, trays)})
-
-    # Priority 2: NickelWiping_FullRejectRecord
-    fr = NickelWiping_FullRejectRecord.objects.filter(source_lot_id=lot_id).first()
-    if fr:
+    if latest_kind == 'full_reject':
         trays = _nq_normalize_tray_snapshot(fr.reject_trays or [], rejected=True)
         return JsonResponse({'success': True, 'trays': _nq_with_delink_tray_snapshot(lot_id, trays)})
-
-    # Priority 3: NickelWiping Partial records
-    pa = NickelWiping_PartialAcceptRecord.objects.filter(source_lot_id=lot_id).first()
-    pr = NickelWiping_PartialRejectRecord.objects.filter(source_lot_id=lot_id).first()
-    if pa or pr:
+    if latest_kind == 'partial':
         trays = []
         if pa:
             trays += _nq_normalize_tray_snapshot(pa.accept_trays or [])

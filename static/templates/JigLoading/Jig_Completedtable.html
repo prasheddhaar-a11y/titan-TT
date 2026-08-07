@@ -1773,7 +1773,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const normalizedImageUrl = normalizeJigStockImageUrl(imageUrl);
     if (!gallery) return;
     if (!normalizedImageUrl) {
-      setTooltipMessage(trigger, "Coming Soon");
+      setTooltipMessage(trigger, "Coming Soon !");
       return;
     }
     gallery.textContent = "";
@@ -1783,7 +1783,7 @@ document.addEventListener("DOMContentLoaded", function () {
     image.decoding = "async";
     image.style.cssText = "width:120px;height:120px;object-fit:contain;object-position:center;display:block;";
     image.addEventListener("error", function() {
-      setTooltipMessage(trigger, "Coming Soon");
+      setTooltipMessage(trigger, "Coming Soon !");
     }, { once: true });
     gallery.appendChild(image);
   }
@@ -1821,7 +1821,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function(error) {
         console.error('[Jig Loading Completed] Model preview failed:', error);
-        setTooltipMessage(trigger, "Coming Soon");
+        setTooltipMessage(trigger, "Coming Soon !");
       });
   }
 

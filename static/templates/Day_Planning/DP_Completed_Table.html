@@ -1083,7 +1083,7 @@ document.addEventListener("DOMContentLoaded", function () {
     gallery.replaceChildren();
     const unavailableText = document.createElement("div");
     unavailableText.className = "model-image-unavailable";
-    unavailableText.textContent = "Coming Soon";
+    unavailableText.textContent = "Coming Soon !";
     gallery.appendChild(unavailableText);
   }
 
@@ -1239,7 +1239,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch(function (error) {
         console.error("[DP Complete Image] preview failed", error);
         if (trigger.dataset.stockPreviewRequestId !== requestId) return;
-        setTooltipPreview(trigger, "", "Coming Soon");
+        setTooltipPreview(trigger, "", "Coming Soon !");
       });
   }
 

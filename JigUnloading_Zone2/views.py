@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from modelmasterapp.models import *
 from modelmasterapp.tray_code_mapping import get_tray_codes_for_plating_stock, validate_tray_code_for_stock
+from modelmasterapp.color_service import get_model_colors_by_model_no
 from django.db.models import OuterRef, Subquery, Exists, F, TextField, Q
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
@@ -1076,25 +1077,11 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
             ).values('batch_id', 'upload_type'):
                 batch_type_of_input_map[_row['batch_id']] = label_for_upload_type(_row['upload_type'])
 
-        # Define color palette for model circles
-        color_palette = [
-            "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
-            "#e67e22", "#1abc9c", "#34495e", "#f39c12", "#d35400",
-            "#c0392b", "#8e44ad", "#2980b9", "#27ae60", "#16a085"
-        ]
-        
-        # Create a global color mapping for all unique model numbers
-        global_model_colors = {}
-        sorted_model_numbers = sorted(list(all_model_numbers))
-        print(f"🎨 Creating color mapping for models: {sorted_model_numbers}")
-
-        for idx, model_no in enumerate(sorted_model_numbers):
-            color_index = idx % len(color_palette)
-            assigned_color = color_palette[color_index]
-            # Ensure model_no is always stored as a complete string
-            model_key = str(model_no)  # Force string conversion
-            global_model_colors[model_key] = assigned_color
-            print(f"🎨 Assigned {assigned_color} to model '{model_key}'")
+        # DB-persisted, Plating Stk No-unique colors (see modelmasterapp.color_service)
+        # so Model Presents circles match Inprocess Inspection / Jig Unloading.
+        sorted_model_numbers = sorted(str(m) for m in all_model_numbers)
+        global_model_colors = get_model_colors_by_model_no(sorted_model_numbers)
+        print(f"🎨 Resolved color mapping for models: {global_model_colors}")
         
         # 🚀 ENHANCED: Dual-table model data fetching (TotalStock + Recovery)
         model_data_map = {}
@@ -4589,19 +4576,10 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
         # for every lot_id referenced by combine_lot_ids across all completed unload records.
         type_of_input_map = get_type_of_input_map(list(all_lot_ids))
 
-        # ✅ ENHANCED: Use same color palette as JU_Zone_MainTable
-        color_palette = [
-            "#e74c3c", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6",
-            "#e67e22", "#1abc9c", "#34495e", "#f39c12", "#d35400",
-            "#c0392b", "#8e44ad", "#2980b9", "#27ae60", "#16a085"
-        ]
-        
-        # Create a global color mapping for all unique model numbers
-        global_model_colors = {}
-        sorted_model_numbers = sorted(list(all_model_numbers))
-        for idx, model_no in enumerate(sorted_model_numbers):
-            color_index = idx % len(color_palette)
-            global_model_colors[model_no] = color_palette[color_index]
+        # ✅ DB-persisted, Plating Stk No-unique colors (see modelmasterapp.color_service)
+        # so Model Presents circles match JU_Zone_MainTable / Inprocess Inspection.
+        sorted_model_numbers = sorted(str(m) for m in all_model_numbers)
+        global_model_colors = get_model_colors_by_model_no(sorted_model_numbers)
 
         # ✅ ENHANCED: Comprehensive model images fetching (same as MainTable)
         model_images_map = {}
@@ -4949,7 +4927,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 for normalized_model_no in _normalize_completed_model_tokens(model_no):
                     no_of_model_cases.append(normalized_model_no)
                     if normalized_model_no not in global_model_colors:
-                        global_model_colors[normalized_model_no] = color_palette[len(global_model_colors) % len(color_palette)]
+                        global_model_colors.update(get_model_colors_by_model_no([normalized_model_no]))
                     model_colors[normalized_model_no] = global_model_colors.get(normalized_model_no, '#cccccc')
 
                     if normalized_model_no not in model_images:

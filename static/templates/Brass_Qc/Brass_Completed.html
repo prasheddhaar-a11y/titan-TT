@@ -1034,7 +1034,7 @@
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
-                           <th data-column-index="14" class="sortable" data-heading="Process Status">
+                           <th data-column-index="14" class="sortable">
                               Process Status
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
@@ -1046,13 +1046,13 @@
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
-                           <th data-column-index="17" class="sortable" data-heading="Current Stage">
+                           <th data-column-index="17" class="sortable">
                               Current Stage
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
-                           <th data-column-index="3" class="sortable" data-heading="Polishing Stk No">
+                           <th data-column-index="3" class="sortable">
                               Polishing Stk No
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
@@ -1091,7 +1091,7 @@
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
                               <i class="fa fa-sort-down sort-desc" style="display: none;" aria-hidden="true"></i>
                            </th>
-                           <th data-column-index="19" class="sortable" data-heading="Rejection Remarks">
+                           <th data-column-index="19" class="sortable">
                               Rejection Remarks
                               <i class="fa fa-sort sort-icon" aria-hidden="true"></i>
                               <i class="fa fa-sort-up sort-asc" style="display: none;" aria-hidden="true"></i>
@@ -2418,7 +2418,7 @@
      } catch (error) {
        console.error('Unable to load IV model preview:', error);
        image.removeAttribute('src');
-       image.alt = 'Model Coming Soon';
+       image.alt = 'Model image unavailable';
      }
    }
 
@@ -3076,7 +3076,7 @@ document.addEventListener("DOMContentLoaded", function () {
     gallery.replaceChildren();
     const unavailable = document.createElement("div");
     unavailable.className = "model-image-unavailable";
-    unavailable.textContent = message || "Coming Soon";
+    unavailable.textContent = message || "Coming Soon !";
     gallery.appendChild(unavailable);
   }
 
@@ -3088,7 +3088,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const imageUrl = normalizeStockImageUrl(rawUrl);
 
     if (!imageUrl) {
-      renderUnavailable(trigger, "Coming Soon");
+      renderUnavailable(trigger, "Coming Soon !");
       return;
     }
 
@@ -3104,7 +3104,7 @@ document.addEventListener("DOMContentLoaded", function () {
       "border-radius:6px;background:#fff;display:block;";
 
     image.addEventListener("error", function () {
-      renderUnavailable(trigger, "Coming Soon");
+      renderUnavailable(trigger, "Coming Soon !");
     });
 
     gallery.appendChild(image);
@@ -3196,7 +3196,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function () {
         if (trigger.dataset.stockPreviewRequestId !== requestId) return;
-        renderUnavailable(trigger, "Coming Soon");
+        renderUnavailable(trigger, "Coming Soon !");
       });
   }
 
@@ -4004,10 +4004,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const trayDetailsDiv = document.getElementById('trayScanDetails_DayPlanning');
 
             // Update modal header information
-            document.getElementById('modalModelNo_DayPlanning').textContent = modelNo || '-';
-            document.getElementById('modalLotQty_DayPlanning').textContent = totalBatchQuantity || '0';
-            document.getElementById('modalMissingQty_DayPlanning').textContent = missingQty || '0';
-            document.getElementById('modalPhysicalQty_DayPlanning').textContent = physicalQty || '0';
+            const modalModelNoEl = document.getElementById('modalModelNo_DayPlanning');
+            const modalLotQtyEl = document.getElementById('modalLotQty_DayPlanning');
+            const modalMissingQtyEl = document.getElementById('modalMissingQty_DayPlanning');
+            const modalPhysicalQtyEl = document.getElementById('modalPhysicalQty_DayPlanning');
+            if (modalModelNoEl) modalModelNoEl.textContent = modelNo || '-';
+            if (modalLotQtyEl) modalLotQtyEl.textContent = totalBatchQuantity || '0';
+            if (modalMissingQtyEl) modalMissingQtyEl.textContent = missingQty || '0';
+            if (modalPhysicalQtyEl) modalPhysicalQtyEl.textContent = physicalQty || '0';
 
             // Use the same shared IV resolver for the eye-click modal.
             await loadBrassCompletedIvImage(modal, modelNo);

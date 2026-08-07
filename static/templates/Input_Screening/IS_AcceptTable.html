@@ -1544,7 +1544,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const insideViewImage = getInsideViewImage(payload);
         if (!insideViewImage) {
-          gallery.textContent = "Coming Soon";
+          gallery.textContent = "Coming Soon !";
           return;
         }
 
@@ -1555,7 +1555,7 @@ document.addEventListener("DOMContentLoaded", function () {
         img.style.cssText = "width:54px;height:54px;object-fit:contain;object-position:center;border:0;box-shadow:none;background:transparent;";
         img.addEventListener("error", function() {
           gallery.replaceChildren();
-          gallery.textContent = "Coming Soon";
+          gallery.textContent = "Coming Soon !";
         }, { once: true });
         img.src = insideViewImage.url;
         gallery.appendChild(img);
@@ -1894,7 +1894,7 @@ document.addEventListener("DOMContentLoaded", function () {
     gallery.replaceChildren();
     const unavailableText = document.createElement("div");
     unavailableText.className = "model-image-unavailable";
-    unavailableText.textContent = "Coming Soon";
+    unavailableText.textContent = "Coming Soon !";
     gallery.appendChild(unavailableText);
   }
 
@@ -1982,7 +1982,7 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .catch(function () {
         if (trigger.dataset.stockPreviewRequestId !== requestId) return;
-        setTooltipPreview(trigger, "", "Coming Soon");
+        setTooltipPreview(trigger, "", "Coming Soon !");
       });
   }
 
