@@ -604,28 +604,35 @@ body.add-model-mode #selectAllCheckbox {
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
 
-        /* Hover tooltip for model circles showing model list */
+        /* =========================================================
+   JIG UNLOADING ZONE 1 - MODEL PRESENTS HOVER
+   Keep tooltip outside table clipping area
+   ========================================================= */
+
         .model-stock-no-text {
-            position: relative;
-        }
-        .model-stock-no-text .model-hover-list {
-            display: none;
-            position: absolute;
-            left: 0; top: 110%;
-            background: #fff;
-            border: 1px solid #cfd8dc;
-            border-radius: 8px;
-            box-shadow: 0 6px 24px rgba(0,0,0,0.16);
-            padding: 8px 14px;
-            z-index: 15000;
-            white-space: nowrap;
-            font-size: 11px;
-            color: #263238;
-            line-height: 1.7;
-        }
-        .model-stock-no-text:hover .model-hover-list {
-            display: block;
-        }
+    position: relative;
+}
+
+.model-stock-no-text .model-hover-list {
+    display: none;
+    position: fixed !important;
+    left: 0;
+    top: 110%;
+    background: #fff;
+    border: 1px solid #cfd8dc;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.16);
+    padding: 8px 14px;
+    z-index: 15000;
+    white-space: nowrap;
+    font-size: 11px;
+    color: #263238;
+    line-height: 1.7;
+}
+
+.model-stock-no-text:hover .model-hover-list {
+    display: block;
+}
         
         /* Quantity badge styling for multi-model quantities */
         .quantity-badge {
@@ -4055,6 +4062,89 @@ document.addEventListener('DOMContentLoaded', function() {
     attachHoldToggleListeners();
   })();
 });
+function positionModelPresentsTooltip(trigger) {
+    const tooltip = trigger.querySelector('.model-hover-list');
+
+    if (!tooltip) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+
+    tooltip.style.left = '0px';
+    tooltip.style.top = '0px';
+
+    const tooltipRect = tooltip.getBoundingClientRect();
+
+    const gap = 8;
+    const padding = 10;
+
+    let left = triggerRect.left;
+    let top = triggerRect.bottom + gap;
+
+    if (left + tooltipRect.width > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipRect.width - padding;
+    }
+
+    if (left < padding) {
+        left = padding;
+    }
+
+    if (top + tooltipRect.height > window.innerHeight - padding) {
+        top = triggerRect.top - tooltipRect.height - gap;
+    }
+
+    if (top < padding) {
+        top = padding;
+    }
+
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+
+document.addEventListener('mouseover', function (event) {
+
+    const trigger = event.target.closest('.model-stock-no-text');
+
+    if (!trigger) return;
+
+    positionModelPresentsTooltip(trigger);
+
+});
+
+
+window.addEventListener('scroll', function () {
+
+    const visibleTooltip = document.querySelector(
+        '.model-stock-no-text:hover .model-hover-list'
+    );
+
+    if (!visibleTooltip) return;
+
+    const trigger = visibleTooltip.closest('.model-stock-no-text');
+
+    if (trigger) {
+        positionModelPresentsTooltip(trigger);
+    }
+
+}, true);
+
+
+window.addEventListener('resize', function () {
+
+    const visibleTooltip = document.querySelector(
+        '.model-stock-no-text:hover .model-hover-list'
+    );
+
+    if (!visibleTooltip) return;
+
+    const trigger = visibleTooltip.closest('.model-stock-no-text');
+
+    if (trigger) {
+        positionModelPresentsTooltip(trigger);
+    }
+
+});
+
 </script>
 <script src="{% static 'js/model_image_tooltip.js' %}"></script>
 <script src="{% static 'js/row_lock_guard.js' %}"></script>

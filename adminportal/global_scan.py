@@ -856,24 +856,42 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         try:
             from modelmasterapp.models import ModelMasterCreation
             stock = self._stock_for(lot_id)
-            queryset = ModelMasterCreation.objects.filter(
-                total_batch_quantity__gt=0,
-                Moved_to_D_Picker=False,
-            )
-            if stock and stock.batch_id_id:
-                queryset = queryset.filter(pk=stock.batch_id_id)
-            else:
-                queryset = queryset.filter(lot_id=lot_id)
-            batch = queryset.first()
-            if not batch:
-                return None
-            return {
-                'module': 'Day Planning',
-                'url': reverse('dp_pick_table'),
-                'lot_id': batch.lot_id or lot_id,
-                'batch_id': batch.batch_id,
-                'stock_lot_id': batch.lot_id or lot_id,
-            }
+
+            base_queryset = ModelMasterCreation.objects.filter(total_batch_quantity__gt=0)
+
+            def _resolve(queryset):
+                if stock and stock.batch_id_id:
+                    return queryset.filter(pk=stock.batch_id_id).first()
+                return queryset.filter(lot_id=lot_id).first()
+
+            # 1) Still sitting in the DP Pick Table (not yet released/scanned)
+            batch = _resolve(base_queryset.filter(Moved_to_D_Picker=False))
+            if batch:
+                return {
+                    'module': 'Day Planning',
+                    'url': reverse('dp_pick_table'),
+                    'lot_id': batch.lot_id or lot_id,
+                    'batch_id': batch.batch_id,
+                    'stock_lot_id': batch.lot_id or lot_id,
+                }
+
+            # 2) Already released/scanned into the DP Completed Table. A tray
+            #    here may not yet have moved into any downstream module's own
+            #    pick table (e.g. released but not picked up by Input
+            #    Screening yet), so without this branch the scan reports
+            #    "Not Exists" even though the tray is visible on-screen in
+            #    the DP Completed Table.
+            batch = _resolve(base_queryset.filter(Moved_to_D_Picker=True))
+            if batch:
+                return {
+                    'module': 'Day Planning (Completed)',
+                    'url': reverse('dp_completed_table'),
+                    'lot_id': batch.lot_id or lot_id,
+                    'batch_id': batch.batch_id,
+                    'stock_lot_id': batch.lot_id or lot_id,
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_lot_in_day_planning: %s', SCAN_TAG, e)
             return None
@@ -882,21 +900,32 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         """Last-resort batch-level fallback when no lot_id was found."""
         try:
             from modelmasterapp.models import ModelMasterCreation
-            batch = ModelMasterCreation.objects.filter(
+            base_queryset = ModelMasterCreation.objects.filter(
                 pk__in=batch_ids,
                 total_batch_quantity__gt=0,
-                Moved_to_D_Picker=False,
-            ).first()
-            if not batch:
-                return None
-            return {
-                'module': 'Day Planning',
-                'url': reverse('dp_pick_table'),
-                'lot_id': batch.lot_id or batch.batch_id,
-                'batch_id': batch.batch_id,
-                'stock_lot_id': batch.lot_id or batch.batch_id,
-            }
+            )
+
+            batch = base_queryset.filter(Moved_to_D_Picker=False).first()
+            if batch:
+                return {
+                    'module': 'Day Planning',
+                    'url': reverse('dp_pick_table'),
+                    'lot_id': batch.lot_id or batch.batch_id,
+                    'batch_id': batch.batch_id,
+                    'stock_lot_id': batch.lot_id or batch.batch_id,
+                }
+
+            batch = base_queryset.filter(Moved_to_D_Picker=True).first()
+            if batch:
+                return {
+                    'module': 'Day Planning (Completed)',
+                    'url': reverse('dp_completed_table'),
+                    'lot_id': batch.lot_id or batch.batch_id,
+                    'batch_id': batch.batch_id,
+                    'stock_lot_id': batch.lot_id or batch.batch_id,
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_batch_in_day_planning: %s', SCAN_TAG, e)
             return None
-

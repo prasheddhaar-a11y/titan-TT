@@ -54,18 +54,32 @@
          display: inline-flex !important;
          align-items: center;
          justify-content: center;
-         width: 24px !important;
-         height: 24px !important;
-         min-width: 24px !important;
-         border-radius: 50% !important;
+         width: auto !important;
+         height: 27px !important;
+         min-width: 27px !important;
+         padding: 0 4px !important;
+         box-sizing: border-box !important;
+         border-radius: 50px !important;
          margin-right: 12px !important;
          vertical-align: middle;
-         font-size: 9.5px;
+         font-size: 8.5px;
          font-weight: 800;
-         letter-spacing: -0.3px;
+         letter-spacing: -0.4px;
          color: #fff !important;
          line-height: 1;
          flex-shrink: 0;
+         /* Wide bold codes like "NW1", "NA1", "SS1" were wrapping onto two
+            lines inside the circle (e.g. "NW" over "1") because nothing
+            stopped the text from wrapping at this fixed width. white-space:
+            nowrap fixed the wrapping, but some wide letter combos (N, W, A)
+            were then wider than the fixed 27px circle itself, so their edges
+            fell outside the round shape onto the white page - invisible
+            white-on-white. Letting the badge grow only as wide as it needs
+            (min-width keeps 2-letter codes perfectly round, padding lets
+            3-letter codes widen into a pill shape) guarantees the text is
+            always fully inside the colored background. */
+         white-space: nowrap !important;
+         overflow: visible !important;
          }
          .sidebar .nav .nav-item.active > .nav-link .menu-icon.menu-icon-circle {
          box-shadow: 0 0 0 2px rgba(255,255,255,0.55);
@@ -535,19 +549,37 @@
           /* Collapsed (icon-only) sidebar: circle badges like "SS1", "NW1",
              "NA1" were wrapping onto two lines (e.g. "SS" over "1") because
              the box above locks them to a fixed 24px width with no
-             white-space rule. Give the badge a touch more room and keep the
-             code on a single line, same as it already renders in the
-             expanded sidebar. */
+             white-space rule. white-space: nowrap alone then made wide
+             combos (N, W, A) spill past the fixed 27px circle edge, landing
+             on the white page as invisible white-on-white text - same as
+             the expanded sidebar had. Letting the badge grow only as wide
+             as it needs (min-width keeps 2-letter codes round, padding lets
+             3-letter codes widen slightly) keeps the code fully visible. */
           body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
-          width: 27px !important;
+          width: auto !important;
           min-width: 27px !important;
-          max-width: 27px !important;
           height: 27px !important;
+          box-sizing: border-box !important;
+          border-radius: 50px !important;
           font-size: 8.5px !important;
           letter-spacing: -0.4px !important;
           white-space: nowrap !important;
           overflow: visible !important;
-          padding: 0 !important;
+          padding: 0 4px !important;
+          }
+
+          /* Make the "you are here" indicator unmistakable in the collapsed
+             (icon-only) sidebar: a filled rounded highlight behind the link
+             plus a white ring around the circle badge itself. Without this,
+             the existing .nav-link.active background can be easy to miss
+             against the icon's own background color. */
+          body.sidebar-icon-only .sidebar .nav .nav-item > .nav-link.active {
+          background: #028084 !important;
+          border-radius: 10px !important;
+          box-shadow: 0 2px 6px rgba(2,128,132,0.45) !important;
+          }
+          body.sidebar-icon-only .sidebar .nav .nav-item > .nav-link.active .menu-icon.menu-icon-circle {
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.9) !important;
           }
 
           .main-panel {
@@ -3576,6 +3608,7 @@
     sessionStorage.removeItem('globalScanModule');
     sessionStorage.removeItem('globalScanTrayId');
     sessionStorage.removeItem('globalScanLotId');
+    sessionStorage.removeItem('globalScanBatchId');
     if (scanResult) scanResult.innerHTML = '';
     if (!settings.keepInput) scanInput.value = '';
     if (!settings.keepMessage) setScanMessage('Scan or Type ' + getScanFieldLabel(), '#028084');
@@ -3805,6 +3838,7 @@
 
     const moduleName = (responseData && responseData.module) || '';
     const lotId = (responseData && (responseData.lot_id || responseData.stock_lot_id)) || '';
+    const batchId = (responseData && responseData.batch_id) || '';
 
     try {
       sessionStorage.setItem('globalScanModule', moduleName);
@@ -3813,6 +3847,11 @@
         sessionStorage.setItem('globalScanLotId', lotId);
       } else {
         sessionStorage.removeItem('globalScanLotId');
+      }
+      if (batchId) {
+        sessionStorage.setItem('globalScanBatchId', batchId);
+      } else {
+        sessionStorage.removeItem('globalScanBatchId');
       }
     } catch (error) {
       /* sessionStorage can be unavailable in some embedded browsers; navigation still works. */
@@ -3830,6 +3869,7 @@
     const params = new URLSearchParams();
     params.set('highlight', trayId);
     if (lotId) params.set('lot', lotId);
+    if (batchId) params.set('batch', batchId);
     const separator = targetUrl.indexOf('?') === -1 ? '?' : '&';
 
     window.setTimeout(function() {
@@ -4606,6 +4646,7 @@
       sessionStorage.removeItem('globalScanModule');
       sessionStorage.removeItem('globalScanTrayId');
       sessionStorage.removeItem('globalScanLotId');
+      sessionStorage.removeItem('globalScanBatchId');
     } catch(e) {
       console.warn('[Universal Modal Close] Could not clear scan context:', e);
     }
@@ -4675,6 +4716,7 @@
   const urlParams    = new URLSearchParams(window.location.search);
   const highlightTrayId = urlParams.get('highlight');  // This is the scanned tray_id
   const highlightLotId = urlParams.get('lot');        // This is the lot_id (PRIMARY search key)
+  const highlightBatchId = urlParams.get('batch');    // Fallback key for tables that only render data-batch-id (e.g. DP Completed Table)
   const scanInfoIcon = document.getElementById('scanInfoIcon');
   const scanInfoText = document.getElementById('scanInfoText');
 
@@ -4704,6 +4746,7 @@
   const scanModule = sessionStorage.getItem('globalScanModule') || '';
   const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightTrayId;
   const scanLotId = sessionStorage.getItem('globalScanLotId') || highlightLotId;
+  const scanBatchId = sessionStorage.getItem('globalScanBatchId') || highlightBatchId;
   const isValidScan = !!(scanModule && scanTrayId); // Valid scan if we have context
   
   // Don't remove yet - let the fallback banner use them
@@ -4739,7 +4782,7 @@
 
   // ── Row finder ───────────────────────────────────────────────────────────
   function findRow() {
-    console.log('[AUTO-HL] Searching for row... lotId=', highlightLotId, 'trayId=', highlightTrayId);
+    console.log('[AUTO-HL] Searching for row... lotId=', highlightLotId, 'batchId=', scanBatchId, 'trayId=', highlightTrayId);
     
     // PRIMARY: Search by lot_id (the most reliable identifier)
     if (highlightLotId) {
@@ -4769,6 +4812,26 @@
         }
       }
       console.log('[AUTO-HL] ✗ Lot ID not found in any rows');
+    }
+
+    // SECONDARY: Search by batch_id — some tables (e.g. DP Completed Table)
+    // only render data-batch-id on the <tr>, not a lot id, because the row
+    // represents a batch/Plating Stk No that can hold many Tray IDs.
+    if (scanBatchId) {
+      const allRows = document.querySelectorAll('table tbody tr');
+      for (const row of allRows) {
+        const batchId = row.getAttribute('data-batch-id') || row.getAttribute('data-original-batch-id');
+        if (batchId && String(batchId) === String(scanBatchId)) {
+          console.log('[AUTO-HL] ✓ Found by data-batch-id:', batchId);
+          return row;
+        }
+        const batchCell = row.querySelector('[data-batch-id="' + scanBatchId + '"], [data-original-batch-id="' + scanBatchId + '"]');
+        if (batchCell) {
+          console.log('[AUTO-HL] ✓ Found by batch child element');
+          return row;
+        }
+      }
+      console.log('[AUTO-HL] ✗ Batch ID not found in any rows');
     }
     
     // FALLBACK: Search by tray_id text (if lot_id not found)
@@ -4911,6 +4974,7 @@
     sessionStorage.removeItem('globalScanModule');
     sessionStorage.removeItem('globalScanTrayId');
     sessionStorage.removeItem('globalScanLotId');
+    sessionStorage.removeItem('globalScanBatchId');
   }, 20000);
 
 })();
