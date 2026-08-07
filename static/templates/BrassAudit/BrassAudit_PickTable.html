@@ -801,9 +801,11 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   visibility: visible !important;
   pointer-events: auto !important;
 }
+
+
 </style>
 
-<div class="content-wrapper">
+<div class="content-wrapper is-pick-table-page">
 
   <div class="row">
     <div class="col-12 grid-margin stretch-card">
@@ -3673,6 +3675,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
       var key = (event.key || '').toLowerCase();
       var handled = false;
+
+      // Don't let letter-key shortcuts (d/c/o) fire while the user is
+      // typing into an input/textarea/select (e.g. the remarks box).
+      var isLetterShortcut = key === 'd' || key === 'c' || key === 'o';
+      if (isLetterShortcut) {
+        var el = event.target;
+        var tag = el && el.tagName ? el.tagName.toLowerCase() : '';
+        var isTypingTarget = tag === 'input' || tag === 'textarea' || tag === 'select' || !!(el && el.isContentEditable);
+        if (isTypingTarget) return;
+      }
+
       if (key === 'd') {
         if (draftSaveBtn && !draftSaveBtn.disabled) {
           draftSaveBtn.click();

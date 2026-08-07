@@ -3764,6 +3764,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const key = event.key || '';
       let handled = false;
 
+      // Don't let letter-key shortcuts (d/o/c) interrupt the user while they
+      // are typing into an input/textarea (e.g. the remarks box) inside this modal.
+      var isLetterShortcut2 = key === 'd' || key === 'D' || key === 'o' || key === 'O' || key === 'c' || key === 'C';
+      if (isLetterShortcut2 && isBrassRejectTypingTarget()) return;
+
       if (key === 'd' || key === 'D') {
         if (draftSaveBtn && !draftSaveBtn.disabled) {
           draftSaveBtn.click();

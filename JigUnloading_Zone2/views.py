@@ -9,12 +9,10 @@ from django.db.models import OuterRef, Subquery, Exists, F, TextField, Q
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
-import builtins
 import math
 import json
 import logging
 import re
-import sys
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
@@ -41,23 +39,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from modelmasterapp.type_of_input import get_type_of_input_map, label_for_upload_type
 
 logger = logging.getLogger(__name__)
-
-
-def _zone2_safe_print(*args, **kwargs):
-    """Prevent Zone 2 debug output from breaking requests on non-UTF-8 consoles."""
-    try:
-        builtins.print(*args, **kwargs)
-    except UnicodeEncodeError:
-        stream = kwargs.get('file') or sys.stdout
-        encoding = getattr(stream, 'encoding', None) or 'utf-8'
-        safe_args = [
-            str(arg).encode(encoding, errors='replace').decode(encoding)
-            for arg in args
-        ]
-        builtins.print(*safe_args, **kwargs)
-
-
-print = _zone2_safe_print
 
 
 def _zone2_ordered_unique(values):
@@ -893,14 +874,12 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Zone 2: All colors except IPS should be routed here
-        # Get all plating colors except IPS for Zone 2
-        allowed_colors = Plating_Color.objects.exclude(
-            plating_color='IPS'
+        # Zone 2: colors flagged for Jig Unload Zone 2 in Model Master
+        allowed_colors = Plating_Color.objects.filter(
+            jig_unload_zone_2=True
         ).values_list('plating_color', flat=True)
         
         print(f"🔍 Zone 2 - Allowed colors: {list(allowed_colors)}")
-        print(f"🔍 Zone 2 - Excluding IPS, routing colors: 3N, 2N, RG, CHG, CN, J-BLUE, BR, BRN, GUN, BLU, PLUM, BIC, etc.")
 
         # Get all plating colors and strip "IP-" prefix from stored values for matching
         allowed_colors_list = list(allowed_colors)
@@ -1768,15 +1747,11 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
 
         # ✅ FAST PATH: jigs flagged as fully unloaded — Zone 2's JigCompleted uses
         # last_process_module='Jig Unloading' (it does NOT have an unload_over field).
-        completed_jig_ids = set(
-            JigCompleted.objects.filter(last_process_module='Jig Unloading')
-            .values_list('jig_id', flat=True)
-        )
         completed_lot_ids = set(
             JigCompleted.objects.filter(last_process_module='Jig Unloading')
             .values_list('lot_id', flat=True)
         )
-        print(f"[ZONE2 FILTER] Fast-path jig_ids with last_process_module='Jig Unloading': {len(completed_jig_ids)}")
+        print(f"[ZONE2 FILTER] Fast-path lot_ids with last_process_module='Jig Unloading': {len(completed_lot_ids)}")
 
         # Get all unload records once
         unload_records = JigUnloadAfterTable.objects.filter(
@@ -1877,11 +1852,13 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                     continue
 
             jig_lot_ids = set(_jfq.keys())
-            _jig_id_z2 = getattr(jig, 'jig_id', None) or jig.lot_id
 
             # ✅ FAST PATH: single-model jigs can be hidden by their completion flag.
             # Multi-model jigs must stay visible until every model lot_id is submitted.
-            if len(jig_lot_ids) <= 1 and (_jig_id_z2 in completed_jig_ids or jig.lot_id in completed_lot_ids):
+            # Scoped to this record's own lot_id — jig hardware IDs (jig_id) are reused
+            # across lots/cycles, so matching on jig_id alone would hide a brand-new
+            # pending lot just because an unrelated earlier lot shared the same jig.
+            if len(jig_lot_ids) <= 1 and jig.lot_id in completed_lot_ids:
                 print(f"🚫 [ZONE2 FAST PATH] Hiding completed single-model jig: {jig.lot_id}")
                 continue
 
@@ -4664,55 +4641,6 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                         'first_image': "/static/assets/images/imagePlaceholder.jpg"
                     }
 
-        # Detect Nickel Inspection activity in bulk. Zone 2 shares the Nickel
-        # workflow tables and unload-row activity flags with Zone 1, so these
-        # records are the earliest reliable signal that the lot has left Jig
-        # Unloading.
-        from Nickel_Inspection.models import (
-            NickelQcTrayId,
-            Nickel_QC_AutoSave,
-            Nickel_QC_Draft_Store,
-            Nickel_QC_TopTray_Draft_Store,
-            NickelQC_Submission,
-        )
-
-        completed_unload_lot_ids = [
-            unload.lot_id for unload in completed_unloads if unload.lot_id
-        ]
-        nickel_wiping_lot_ids = set(
-            NickelQcTrayId.objects.filter(
-                lot_id__in=completed_unload_lot_ids
-            ).values_list('lot_id', flat=True)
-        )
-        for activity_model in (
-            Nickel_QC_AutoSave,
-            Nickel_QC_Draft_Store,
-            Nickel_QC_TopTray_Draft_Store,
-            NickelQC_Submission,
-        ):
-            nickel_wiping_lot_ids.update(
-                activity_model.objects.filter(
-                    lot_id__in=completed_unload_lot_ids
-                ).values_list('lot_id', flat=True)
-            )
-
-        nickel_activity_fields = (
-            'nq_draft',
-            'nq_onhold_picking',
-            'nq_hold_lot',
-            'nq_release_lot',
-            'nq_qc_accptance',
-            'nq_qc_rejection',
-            'nq_qc_few_cases_accptance',
-            'nq_accepted_tray_scan_status',
-            'nq_rejection_tray_scan_status',
-        )
-        nickel_wiping_lot_ids.update(
-            unload.lot_id
-            for unload in completed_unloads
-            if any(getattr(unload, field, False) for field in nickel_activity_fields)
-        )
-
         # ✅ ENHANCED: Process each unload record using saved list fields (mirroring Zone 1)
         table_data = []
         for idx, unload in enumerate(completed_unloads):
@@ -5050,11 +4978,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
                 # this stays in sync with downstream modules (e.g. Spider Spindle) that
                 # only update current_stage and not last_process_module.
-                'last_process_module': (
-                    'Nickel Wiping'
-                    if unload.lot_id in nickel_wiping_lot_ids
-                    else unload.current_stage or unload.last_process_module
-                ),
+                'last_process_module': unload.current_stage or unload.last_process_module,
                 'created_at': unload.created_at,
                 'un_loaded_date_time': unload.Un_loaded_date_time,
                 'Un_loaded_date_time': unload.Un_loaded_date_time,

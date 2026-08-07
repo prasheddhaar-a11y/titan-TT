@@ -81,13 +81,19 @@
          display: inline-flex;
          align-items: center;
          }
-         /* Active menu: icon and text white, bg teal */
-         .sidebar .nav .nav-item.active > .nav-link .menu-icon,
-         .sidebar .nav .nav-item.active > .nav-link i,
-         .sidebar .nav .nav-item.active > .nav-link .fa,
-         .sidebar .nav .nav-item.active > .nav-link .ti,
-         .sidebar .nav .nav-item.active > .nav-link .menu-title {
+         /* Active menu: icon and text white, bg teal.
+            NOTE: the JS that sets "active" applies it to the <a class="nav-link">
+            itself (not the parent <li>), so these selectors target .nav-link.active
+            rather than .nav-item.active > .nav-link. */
+         .sidebar .nav .nav-item > .nav-link.active,
+         .sidebar .nav .nav-item > .nav-link.active .menu-icon,
+         .sidebar .nav .nav-item > .nav-link.active i,
+         .sidebar .nav .nav-item > .nav-link.active .fa,
+         .sidebar .nav .nav-item > .nav-link.active .ti,
+         .sidebar .nav .nav-item > .nav-link.active .menu-title {
          color: #fff !important;
+         }
+         .sidebar .nav .nav-item > .nav-link.active {
          background: #028084 !important;
          border-radius: 8px;
          }
@@ -97,6 +103,22 @@
          .sidebar .nav .sub-menu .nav-link.active .fa,
          .sidebar .nav .sub-menu .nav-link.active .ti {
          color: #fff !important;
+         }
+         /* Hover state for top-level module links (works on the active module too,
+            not just inactive ones) - subtle highlight + ring, independent of the
+            data-tooltip name popup which still shows in collapsed sidebar mode. */
+         .sidebar .nav .nav-item > .nav-link:hover {
+         background: rgba(2,128,132,0.12) !important;
+         border-radius: 8px;
+         }
+         .sidebar .nav .nav-item > .nav-link.active:hover {
+         background: #026a6d !important;
+         }
+         .sidebar .nav .nav-item > .nav-link:hover .menu-icon.menu-icon-circle {
+         box-shadow: 0 0 0 3px rgba(2,128,132,0.35);
+         }
+         .sidebar .nav .nav-item > .nav-link.active:hover .menu-icon.menu-icon-circle {
+         box-shadow: 0 0 0 3px rgba(255,255,255,0.85), 0 0 0 5px #026a6d;
          }
          @media (min-width: 1200px) and (pointer: fine) {
          /* Only laptops/desktops with mouse/trackpad */
@@ -508,6 +530,24 @@
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
+          }
+
+          /* Collapsed (icon-only) sidebar: circle badges like "SS1", "NW1",
+             "NA1" were wrapping onto two lines (e.g. "SS" over "1") because
+             the box above locks them to a fixed 24px width with no
+             white-space rule. Give the badge a touch more room and keep the
+             code on a single line, same as it already renders in the
+             expanded sidebar. */
+          body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
+          width: 27px !important;
+          min-width: 27px !important;
+          max-width: 27px !important;
+          height: 27px !important;
+          font-size: 8.5px !important;
+          letter-spacing: -0.4px !important;
+          white-space: nowrap !important;
+          overflow: visible !important;
+          padding: 0 !important;
           }
 
           .main-panel {
@@ -1105,6 +1145,18 @@
           --ttt-navbar-height: 60px;
           --ttt-sidebar-width: 250px;
           --ttt-sidebar-collapsed-width: 70px;
+        }
+
+        /* Tablet: use the wider sidebar width (already defined above as
+           --ttt-sidebar-tablet-width but previously never applied) so menu
+           labels like "Nickel Wiping Zone2" / "Spider Spindle Z1" get enough
+           room to render in full, the same as they do on desktop, instead
+           of being cut off with an ellipsis. */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          :root {
+            --ttt-sidebar-width: var(--ttt-sidebar-tablet-width, 280px);
+            --ttt-sidebar-collapsed-width: var(--ttt-sidebar-tablet-collapsed-width, 65px);
+          }
         }
 
         html,
@@ -3686,6 +3738,10 @@
           handleTrayNotFound(trayId);
           return null;
         }
+        if (!resultBelongsToCurrentPath(data)) {
+          navigateToTrayModule(data, trayId);
+          return null;
+        }
         return findTrayInCurrentPickTable(trayId, data)
           .then(function(match) {
             if (scanSequence !== activeScanSequence) return null;
@@ -3734,6 +3790,51 @@
       logScan('[SCAN_LOOKUP]', { error: error && error.message ? error.message : String(error), current_table_match: false });
       return false;
     }
+  }
+
+  // Cross-module navigation: when the scanned tray/JIG ID is found on a DIFFERENT
+  // module's page than the one currently open, redirect there instead of reporting
+  // "Not Exists". The destination page's auto-highlight script (further below in this
+  // file) reads ?highlight=<trayId>&lot=<lotId> from the URL and highlights the row.
+  function navigateToTrayModule(responseData, trayId) {
+    const targetUrl = responseData && responseData.url;
+    if (!targetUrl) {
+      handleTrayNotFound(trayId);
+      return;
+    }
+
+    const moduleName = (responseData && responseData.module) || '';
+    const lotId = (responseData && (responseData.lot_id || responseData.stock_lot_id)) || '';
+
+    try {
+      sessionStorage.setItem('globalScanModule', moduleName);
+      sessionStorage.setItem('globalScanTrayId', trayId);
+      if (lotId) {
+        sessionStorage.setItem('globalScanLotId', lotId);
+      } else {
+        sessionStorage.removeItem('globalScanLotId');
+      }
+    } catch (error) {
+      /* sessionStorage can be unavailable in some embedded browsers; navigation still works. */
+    }
+
+    setInfo('...', trayId + ' found in ' + moduleName + ' - opening...', '#028084');
+    setScanMessage('Found in ' + moduleName + ' \u2014 opening page...', '#028084');
+    if (scanResult) {
+      scanResult.innerHTML = '<div style="text-align:center;padding:10px;color:#028084;">Found in ' + moduleName + '. Opening page\u2026</div>';
+    }
+
+    logScan('[SCAN_CROSS_MODULE_NAV]', { tray_id: trayId, module: moduleName, lot_id: lotId, url: targetUrl });
+    dispatchGlobalScanEvent('globalScan:crossModule', { tray_id: trayId, module: moduleName, target_url: targetUrl });
+
+    const params = new URLSearchParams();
+    params.set('highlight', trayId);
+    if (lotId) params.set('lot', lotId);
+    const separator = targetUrl.indexOf('?') === -1 ? '?' : '&';
+
+    window.setTimeout(function() {
+      window.location.href = targetUrl + separator + params.toString();
+    }, 350);
   }
 
   function buildLookupContext(trayId, responseData) {

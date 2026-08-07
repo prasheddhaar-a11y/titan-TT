@@ -5890,13 +5890,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
     var key = event.key || '';
     var handled = false;
+
+    // ✅ FIX: Don't fire single-letter shortcuts (like 'D') while the user
+    // is typing inside an input, textarea, select, or contenteditable field
+    // (e.g. the Remark box). Escape is still allowed everywhere.
+    var activeEl = event.target;
+    var isTypingTarget = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.tagName === 'SELECT' ||
+      activeEl.isContentEditable
+    );
+
     if (key === 'Escape' || event.keyCode === 27) {
       var closeButton = document.getElementById('iqfCancelBtn') || document.getElementById('iqfModalClose');
       if (closeButton) {
         closeButton.click();
         handled = true;
       }
-    } else if (key.toLowerCase() === 'd') {
+    } else if (key.toLowerCase() === 'd' && !isTypingTarget) {
       var draftButton = document.getElementById('iqfDraftBtn');
       if (draftButton && !draftButton.disabled) {
         draftButton.click();

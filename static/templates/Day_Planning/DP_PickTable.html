@@ -7622,6 +7622,15 @@ document.addEventListener("DOMContentLoaded", function () {
     return target.matches('#trayScanModal input[type="text"], #trayScanModal input[type="number"], #topTrayIdInput');
   }
 
+  // Generic guard: true when focus is on ANY input/textarea/select/contenteditable
+  // (e.g. a remark box), not just the tray-id fields. Used so single-letter
+  // shortcuts like 'D' don't fire while the user is typing.
+  function isTypingIntoAnyField(target) {
+    if (!target) return false;
+    var tag = target.tagName ? target.tagName.toLowerCase() : '';
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || !!target.isContentEditable;
+  }
+
   function canSubmitFromField() {
     if (typeof validateAllTrayIds === 'function' && !validateAllTrayIds()) {
       return false;
@@ -7687,6 +7696,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const target = event.target;
 
     if (key === 'd' || key === 'D') {
+      if (isTypingIntoAnyField(target)) return;
       if (clickIfUsable('#trayScanDraftBtn')) {
         event.preventDefault();
         event.stopImmediatePropagation();
