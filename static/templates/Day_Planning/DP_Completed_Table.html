@@ -295,14 +295,15 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 }
 
 /* Freeze 3rd column */
-#order-listing th:nth-child(3),
-#order-listing td:nth-child(3) {
+html body .dp-completed-table-page #order-listing th:nth-child(3),
+html body .dp-completed-table-page #order-listing td:nth-child(3) {
   position: sticky;
-  left: 175px; /* 100px (1st) + 90px (2nd) */
+  left: 245px; /* Match the existing desktop sticky-column offset */
   z-index: 12;
   background: #f7fafd;
-  min-width: 130px; /* Increased width 100 - old value*/
-  max-width: 140px !important; /* Increased width  110 - old value*/
+  width: 140px !important; /* Plating Stk No */
+  min-width: 140px !important; /* Plating Stk No */
+  max-width: 140px !important; /* Plating Stk No */
 }
 
 /* ...existing code... */
@@ -3363,6 +3364,18 @@ document.addEventListener("DOMContentLoaded", function () {
   
   console.log('✅ ERR 1 & ERR 2 FIXED: Delete confirmation popup loaded');
 });
+</script>
+
+<script nonce="{{ csp_nonce }}">
+  (function () {
+    var userAgent = navigator.userAgent || '';
+    var isTouchTablet = /Android|iPad|Tablet/i.test(userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (!isTouchTablet) {
+      document.documentElement.classList.add('dp-completed-desktop-client');
+    }
+  }());
 </script>
 
   {% endblock %}

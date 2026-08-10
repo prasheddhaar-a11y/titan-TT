@@ -1884,6 +1884,18 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+<script nonce="{{ csp_nonce }}">
+  (function () {
+    var userAgent = navigator.userAgent || '';
+    var isTouchTablet = /Android|iPad|Tablet/i.test(userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (!isTouchTablet) {
+      document.documentElement.classList.add('is-input-screening-desktop-client');
+    }
+  }());
+</script>
+
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
 
 {% endblock %} {% endblock content %}
