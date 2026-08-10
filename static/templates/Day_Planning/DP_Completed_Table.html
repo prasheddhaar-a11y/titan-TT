@@ -651,7 +651,7 @@ html body .dp-completed-table-page #order-listing td:nth-child(3) {
                       data-moved-to-d-picker="{{ row.Moved_to_D_Picker }}"
                       data-tray-qty-list="{{ row.tray_qty_list|default:'[]'|safe }}"
                       data-total-batch-quantity="{{ row.total_batch_quantity }}"
-                      data-lot-status="{% if row.accepted_Ip_stock or row.few_cases_accepted_Ip_stock or row.rejected_ip_stock or row.ip_person_qty_verified or row.draft_tray_verify %}Released{% else %}Yet to Release{% endif %}">
+                      data-lot-status="{{ row.lot_status|default:'Yet to Release' }}">
 
                       <img
                         src="{% static 'assets/icons/view.png' %}"
@@ -682,7 +682,7 @@ html body .dp-completed-table-page #order-listing td:nth-child(3) {
                   </td>
                   <!-- Lot Status -->
                   <td>
-                      {% if row.ip_person_qty_verified or row.draft_tray_verify or row.accepted_Ip_stock or row.few_cases_accepted_Ip_stock or row.rejected_ip_stock %}
+                      {% if row.lot_status == 'Released' %}
                          <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 1px solid #0d5d17; background-color: #c5f9c2; color: #2f801b; font-size: 13px; white-space: nowrap; padding: 5px;">
                           Released
