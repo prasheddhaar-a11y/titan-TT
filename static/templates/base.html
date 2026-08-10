@@ -549,23 +549,19 @@
           /* Collapsed (icon-only) sidebar: circle badges like "SS1", "NW1",
              "NA1" were wrapping onto two lines (e.g. "SS" over "1") because
              the box above locks them to a fixed 24px width with no
-             white-space rule. white-space: nowrap alone then made wide
-             combos (N, W, A) spill past the fixed 27px circle edge, landing
-             on the white page as invisible white-on-white text - same as
-             the expanded sidebar had. Letting the badge grow only as wide
-             as it needs (min-width keeps 2-letter codes round, padding lets
-             3-letter codes widen slightly) keeps the code fully visible. */
+             white-space rule. Give the badge a touch more room and keep the
+             code on a single line, same as it already renders in the
+             expanded sidebar. */
           body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
-          width: auto !important;
+          width: 27px !important;
           min-width: 27px !important;
+          max-width: 27px !important;
           height: 27px !important;
-          box-sizing: border-box !important;
-          border-radius: 50px !important;
           font-size: 8.5px !important;
           letter-spacing: -0.4px !important;
           white-space: nowrap !important;
           overflow: visible !important;
-          padding: 0 4px !important;
+          padding: 0 !important;
           }
 
           /* Make the "you are here" indicator unmistakable in the collapsed
@@ -2771,28 +2767,9 @@
             }
          });
       </script>
-      <!-- /* Highlight active sidebar link based on current URL */ -->
-      <script nonce="{{ csp_nonce }}">
-         document.addEventListener("DOMContentLoaded", function() {
-           // Highlight sidebar nav-link matching current URL
-           var currentUrl = window.location.pathname;
-           document.querySelectorAll('.sidebar .nav-link').forEach(function(link) {
-             if (link.href && link.href.includes(currentUrl)) {
-               link.classList.add('active');
-               // Also expand parent menu if it's a submenu
-               var parentCollapse = link.closest('.collapse');
-               if (parentCollapse) {
-                 parentCollapse.classList.add('show');
-                 var parentNav = parentCollapse.previousElementSibling;
-                 if (parentNav && parentNav.classList.contains('nav-link')) {
-                   parentNav.classList.add('active');
-                 }
-               }
-             }
-           });
-         });
-      </script>
-      <!-- /*  Expand sidebar when a menu icon is clicked in minimized mode */ -->
+      <!-- /* Highlight active sidebar link based on current URL, and expand its
+           submenu — including auto-expanding the sidebar itself if a minimized
+           icon is clicked */ -->
       <script nonce="{{ csp_nonce }}">
          document.addEventListener("DOMContentLoaded", function() {
            // Highlight sidebar nav-link matching current URL
@@ -2818,6 +2795,20 @@
                var body = document.body;
                if (body.classList.contains('sidebar-icon-only')) {
                  body.classList.remove('sidebar-icon-only');
+
+                 var submenuSelector = menuLink.getAttribute('href');
+                 var submenu = submenuSelector ? document.querySelector(submenuSelector) : null;
+                 if (submenu) {
+                   window.setTimeout(function() {
+                     if (window.bootstrap && window.bootstrap.Collapse) {
+                       window.bootstrap.Collapse.getOrCreateInstance(submenu, { toggle: false }).show();
+                     } else {
+                       submenu.classList.add('show');
+                     }
+                     menuLink.setAttribute('aria-expanded', 'true');
+                     menuLink.classList.remove('collapsed');
+                   }, 0);
+                 }
                }
              });
            });
@@ -3838,7 +3829,6 @@
 
     const moduleName = (responseData && responseData.module) || '';
     const lotId = (responseData && (responseData.lot_id || responseData.stock_lot_id)) || '';
-    const batchId = (responseData && responseData.batch_id) || '';
 
     try {
       sessionStorage.setItem('globalScanModule', moduleName);
@@ -3847,11 +3837,6 @@
         sessionStorage.setItem('globalScanLotId', lotId);
       } else {
         sessionStorage.removeItem('globalScanLotId');
-      }
-      if (batchId) {
-        sessionStorage.setItem('globalScanBatchId', batchId);
-      } else {
-        sessionStorage.removeItem('globalScanBatchId');
       }
     } catch (error) {
       /* sessionStorage can be unavailable in some embedded browsers; navigation still works. */
@@ -3869,7 +3854,6 @@
     const params = new URLSearchParams();
     params.set('highlight', trayId);
     if (lotId) params.set('lot', lotId);
-    if (batchId) params.set('batch', batchId);
     const separator = targetUrl.indexOf('?') === -1 ? '?' : '&';
 
     window.setTimeout(function() {

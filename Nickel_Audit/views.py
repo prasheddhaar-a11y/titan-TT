@@ -419,6 +419,45 @@ def _na_source_lot_ids(jig_unload_obj):
     return source_lots or [jig_unload_obj.lot_id]
 
 
+def _na_fresh_nw_reacceptance_q():
+    """
+    Q condition: Nickel Wiping has genuinely re-accepted this lot for a new
+    cycle since Audit's last rejection — evidenced by nq_last_process_date_time
+    (refreshed on every NW accept) being newer than na_last_process_date_time
+    (set when Audit rejected it), together with nq_qc_accptance=True.
+
+    current_stage='Nickel Wiping' was previously used as this signal, but
+    na_toggle_verified (the "Lot Qty verified" checkbox) advances
+    current_stage to 'Nickel Audit' as soon as the operator ticks it — before
+    they've actually submitted an Accept/Reject for this new cycle — which
+    made a re-entered lot vanish from its own pick table the moment it was
+    ticked. The timestamp comparison isn't touched by that action, so it
+    stays valid for the lot's whole time in the pick table.
+    """
+    return Q(nq_qc_accptance=True, nq_last_process_date_time__gt=F('na_last_process_date_time'))
+
+
+def _na_effective_qc_rejection(jig_unload_obj):
+    """
+    na_qc_rejection stays True permanently once a lot is rejected —
+    _na_do_submit_full_reject routes the same row back to Nickel Wiping for
+    rework without clearing it (it's NA's own flag, not NW's to reset). Once
+    Nickel Wiping has re-accepted the lot for a fresh audit cycle, the stale
+    flag no longer reflects this cycle's status. Mirrors the pick-table
+    queryset carve-out in NA_PickTableView.get() so the Action column isn't
+    disabled for a legitimately re-entered lot.
+    """
+    return bool(
+        jig_unload_obj.na_qc_rejection
+        and not (
+            jig_unload_obj.nq_qc_accptance
+            and jig_unload_obj.nq_last_process_date_time
+            and jig_unload_obj.na_last_process_date_time
+            and jig_unload_obj.nq_last_process_date_time > jig_unload_obj.na_last_process_date_time
+        )
+    )
+
+
 def _na_completed_filter_q():
     return (
         Q(na_qc_accptance=True)
@@ -436,14 +475,13 @@ def _na_completed_source_lot_ids(allowed_color_ids):
         )
         .filter(_na_completed_filter_q())
         # A Full Reject from Audit routes the lot back to Nickel Wiping for
-        # rework (see _na_do_submit_full_reject: current_stage set to
-        # 'Nickel Wiping', nq_qc_* flags cleared) while leaving na_qc_rejection
+        # rework (see _na_do_submit_full_reject) while leaving na_qc_rejection
         # permanently True as a historical marker. Without this exclusion that
         # stale flag keeps the lot's original source id blacklisted here
         # forever, so any later Nickel Wiping resubmission for the same source
         # (fresh partial-accept child) is wrongly hidden from the Audit pick
         # table as a "duplicate" of an already-completed source.
-        .exclude(current_stage='Nickel Wiping')
+        .exclude(_na_fresh_nw_reacceptance_q())
         .only('lot_id', 'combine_lot_ids', 'current_stage')
     )
     for completed_row in completed_rows:
@@ -647,10 +685,10 @@ class NA_PickTableView(APIView):
                     # A stale na_qc_rejection=True from a prior audit cycle must not
                     # block the lot forever — _na_do_submit_full_reject routes the
                     # lot back to Nickel Wiping under the same lot_id without
-                    # clearing this flag. Once Nickel Wiping has re-accepted the
-                    # lot for a new cycle (current_stage reset to 'Nickel Wiping',
-                    # nq_qc_accptance=True), the stale flag no longer applies.
-                    | Q(na_qc_rejection=True, current_stage='Nickel Wiping', nq_qc_accptance=True)
+                    # clearing this flag. Once Nickel Wiping has genuinely
+                    # re-accepted the lot for a new cycle, the stale flag no
+                    # longer applies. See _na_fresh_nw_reacceptance_q().
+                    | (Q(na_qc_rejection=True) & _na_fresh_nw_reacceptance_q())
                 ) &
                 ~Q(na_qc_few_cases_accptance=True, na_onhold_picking=False)
                 &
@@ -710,7 +748,7 @@ class NA_PickTableView(APIView):
                 'nq_pick_remarks': jig_unload_obj.nq_pick_remarks,  # Nickel Inspection pick remark (previous stage)
                 'nq_qc_accptance': False,  # Not applicable
                 'na_accepted_tray_scan_status': False,  # Not applicable
-                'na_qc_rejection': jig_unload_obj.na_qc_rejection,
+                'na_qc_rejection': _na_effective_qc_rejection(jig_unload_obj),
                 'na_qc_few_cases_accptance': jig_unload_obj.na_qc_few_cases_accptance,
                 'na_onhold_picking': jig_unload_obj.na_onhold_picking,
                 'na_draft': jig_unload_obj.na_draft,
@@ -1442,12 +1480,29 @@ def _na_do_submit_full_reject(request, lot_id, juat, reason_ids, rejected_qty, t
         # Wiping for rework, so the operator must re-verify qty on this pass
         # rather than inheriting the verified checkmark from its first pass.
         juat.nq_qc_accepted_qty_verified = False
+        # The lot's Nickel Inspection cycle data (accepted qty, missing/physical
+        # qty, tray-scan status) belongs to the PRIOR Inspection pass and must
+        # not leak into the fresh pick-table row for this new rework cycle —
+        # without this reset, NQ_PickTableView/NQ_Zone_PickTableView display
+        # the old accepted qty on a lot that hasn't been re-processed yet.
+        juat.nq_qc_accepted_qty = 0
+        juat.nq_missing_qty = 0
+        juat.nq_physical_qty = 0
+        juat.nq_accepted_tray_scan_status = False
+        # This row's own "Lot Qty verified" checkbox (na_toggle_verified) is
+        # also a per-pass check — if the operator ticked it on the pass that
+        # got rejected, it must not come back pre-ticked when the lot
+        # re-enters the Audit pick table for this new rework cycle; the
+        # operator must verify it again.
+        juat.na_ac_accepted_qty_verified = False
         juat.save(update_fields=[
             'na_qc_rejection', 'na_qc_few_cases_accptance',
             'na_draft', 'na_onhold_picking',
             'na_last_process_date_time', 'last_process_module',
             'nq_qc_accptance', 'nq_qc_rejection', 'rejected_nickle_ip_stock',
             'current_stage', 'nq_qc_accepted_qty_verified',
+            'nq_qc_accepted_qty', 'nq_missing_qty', 'nq_physical_qty',
+            'nq_accepted_tray_scan_status', 'na_ac_accepted_qty_verified',
         ])
         _na_clear_draft_state(lot_id)
 
@@ -1969,7 +2024,14 @@ class NACompletedView(APIView):
                 'combine_lot_ids': jig_unload_obj.combine_lot_ids,
                 'unload_lot_id': jig_unload_obj.unload_lot_id,
                 'audit_check': jig_unload_obj.audit_check,
-                'display_accepted_qty': accepted_qty,
+                # "Lot Qty" is the total quantity processed in this completion
+                # event (accepted + rejected), not just the accepted portion —
+                # for a Full Reject event accepted_qty is legitimately 0, so
+                # falling back to accepted_qty alone showed "0" instead of the
+                # lot's real total. total_case_qty (= this event's
+                # NickelAudit_Submission.total_lot_qty) already carries that
+                # correctly-scoped total.
+                'display_accepted_qty': jig_unload_obj.total_case_qty or accepted_qty,
                 'available_qty': accepted_qty or jig_unload_obj.na_physical_qty or jig_unload_obj.total_case_qty or 0,
                 'no_of_trays': no_of_trays,
                 # Lot is only "Released" once it has actually moved past this stage

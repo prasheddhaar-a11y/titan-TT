@@ -376,6 +376,11 @@ class InprocessInspectionView(TemplateView):
                     polishing_value = master.polishing_stk_no or "No Polishing Stock No"
                     model_data = {
                         'model_name': getattr(getattr(master, 'model_stock_no', None), 'model_no', None) or getattr(master, 'model_no', None) or "N/A",
+                        # Plating Stk No is the actual color/identity key (see
+                        # modelmasterapp.color_service's "one color per Plating Stk No"
+                        # rule) — bare model_no is shared by every plating variant of
+                        # a base model, so circles must be keyed on this instead.
+                        'plating_stk_no': plating_value,
                         'plating_color': getattr(master, 'plating_color', None) or "No Plating Color",
                         'polish_finish': getattr(master, 'polish_finish', None) or "N/A",
                         'tray_type': getattr(master, 'tray_type', None) or "No Tray Type",
@@ -464,19 +469,21 @@ class InprocessInspectionView(TemplateView):
                 # plating_color / polish_finish / tray_type are plain CharFields on ModelMasterCreation
                 model_data = {
                     'model_name': getattr(getattr(master, 'model_stock_no', None), 'model_no', None) or getattr(master, 'model_no', None) or "N/A",
+                    'plating_stk_no': plating_value,
                     'plating_color': getattr(master, 'plating_color', None) or "No Plating Color",
                     'polish_finish': getattr(master, 'polish_finish', None) or "N/A",
                     'tray_type': getattr(master, 'tray_type', None) or "No Tray Type",
                     'tray_capacity': getattr(master, 'tray_capacity', None) or self.get_dynamic_tray_capacity(getattr(master, 'tray_type', None) or "No Tray Type")
                 }
                 models_data.append(model_data)
-                
+
             else:
                 plating_stk_nos.append("No Plating Stock No")
                 polishing_stk_nos.append("No Polishing Stock No")
                 version_names.append("No Version")
                 models_data.append({
                     'model_name': "N/A",
+                    'plating_stk_no': "No Plating Stock No",
                     'plating_color': "No Plating Color",
                     'polish_finish': "N/A",
                     'tray_type': "No Tray Type",
@@ -692,10 +699,20 @@ class InprocessInspectionView(TemplateView):
         draft_data = jig_detail.draft_data or {}
         
         if models_data:
+            # Circle color/identity must key on Plating Stk No, not bare model_no
+            # (modelmasterapp.color_service assigns one color per Plating Stk No —
+            # bare model_no is shared by every plating variant of the same base
+            # model, e.g. "1805", and collapses them all onto one arbitrary color).
+            def _circle_identity(m):
+                psn = m.get('plating_stk_no')
+                if psn and psn != 'No Plating Stock No':
+                    return psn
+                return m.get('model_name', '')
+
             jig_detail.model_presents = ", ".join([m.get('model_name', '') for m in models_data])
             jig_detail.plating_color = models_data[0].get('plating_color', 'No Plating Color') if models_data else 'No Plating Color'
             jig_detail.polish_finish = models_data[0].get('polish_finish', 'N/A') if models_data else 'N/A'
-            jig_detail.no_of_model_cases = [m.get('model_name', '') for m in models_data]  # For circles display
+            jig_detail.no_of_model_cases = [_circle_identity(m) for m in models_data]  # For circles display
             # Provide a string copy in "model:qty" format for templates that call split() + get_model_name/get_model_qty
             try:
                 mm = getattr(jig_detail, 'multi_model_allocation', None)
@@ -707,9 +724,9 @@ class InprocessInspectionView(TemplateView):
                             _qty = _m.get('allocated_qty', 0)
                             if _name:
                                 mm_parts.append(f"{_name}:{_qty}")
-                    jig_detail.no_of_model_cases_str = ','.join(mm_parts) if mm_parts else ','.join([str(m.get('model_name', '')) for m in models_data if m.get('model_name')])
+                    jig_detail.no_of_model_cases_str = ','.join(mm_parts) if mm_parts else ','.join([_circle_identity(m) for m in models_data if _circle_identity(m)])
                 else:
-                    jig_detail.no_of_model_cases_str = ','.join([str(m.get('model_name', '')) for m in models_data if m.get('model_name')])
+                    jig_detail.no_of_model_cases_str = ','.join([_circle_identity(m) for m in models_data if _circle_identity(m)])
             except Exception:
                 jig_detail.no_of_model_cases_str = ''
         else:
@@ -2267,6 +2284,11 @@ class InprocessInspectionCompleteView(TemplateView):
                     polishing_value = master.polishing_stk_no or "No Polishing Stock No"
                     model_data = {
                         'model_name': getattr(getattr(master, 'model_stock_no', None), 'model_no', None) or getattr(master, 'model_no', None) or "N/A",
+                        # Plating Stk No is the actual color/identity key (see
+                        # modelmasterapp.color_service's "one color per Plating Stk No"
+                        # rule) — bare model_no is shared by every plating variant of
+                        # a base model, so circles must be keyed on this instead.
+                        'plating_stk_no': plating_value,
                         'plating_color': getattr(master, 'plating_color', None) or "No Plating Color",
                         'polish_finish': getattr(master, 'polish_finish', None) or "N/A",
                         'tray_type': getattr(master, 'tray_type', None) or "No Tray Type",
@@ -2355,19 +2377,21 @@ class InprocessInspectionCompleteView(TemplateView):
                 # plating_color / polish_finish / tray_type are plain CharFields on ModelMasterCreation
                 model_data = {
                     'model_name': getattr(getattr(master, 'model_stock_no', None), 'model_no', None) or getattr(master, 'model_no', None) or "N/A",
+                    'plating_stk_no': plating_value,
                     'plating_color': getattr(master, 'plating_color', None) or "No Plating Color",
                     'polish_finish': getattr(master, 'polish_finish', None) or "N/A",
                     'tray_type': getattr(master, 'tray_type', None) or "No Tray Type",
                     'tray_capacity': getattr(master, 'tray_capacity', None) or self.get_dynamic_tray_capacity(getattr(master, 'tray_type', None) or "No Tray Type")
                 }
                 models_data.append(model_data)
-                
+
             else:
                 plating_stk_nos.append("No Plating Stock No")
                 polishing_stk_nos.append("No Polishing Stock No")
                 version_names.append("No Version")
                 models_data.append({
                     'model_name': "N/A",
+                    'plating_stk_no': "No Plating Stock No",
                     'plating_color': "No Plating Color",
                     'polish_finish': "N/A",
                     'tray_type': "No Tray Type",

@@ -1,4 +1,6 @@
-from django.test import TestCase, Client
+from unittest.mock import patch
+
+from django.test import TestCase, Client, SimpleTestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework.test import APITestCase, APIClient
@@ -21,6 +23,55 @@ from Jig_Loading.models import (
     JigLoadingManualDraft,
     JigCompleted
 )
+from Jig_Loading.views import (
+    cap_trays_to_lot_qty,
+    exclude_draft_rows_from_add_model_filter,
+    resolve_secondary_lots,
+)
+
+
+class MultiModelQuantityBoundaryTests(SimpleTestCase):
+    def test_trays_are_capped_to_authoritative_lot_quantity(self):
+        trays = [
+            {'tray_id': f'TRAY-{index}', 'qty': qty}
+            for index, qty in enumerate([12, 12, 12, 12, 12, 12, 12, 12, 5], start=1)
+        ]
+
+        capped = cap_trays_to_lot_qty(trays, 100, 'LOT-SECONDARY')
+
+        self.assertEqual(sum(tray['qty'] for tray in capped), 100)
+        self.assertEqual(capped[-1]['qty'], 4)
+        self.assertTrue(all(tray['source_lot_id'] == 'LOT-SECONDARY' for tray in capped))
+
+    @patch('Jig_Loading.views.fetch_lot_data')
+    def test_secondary_quantity_is_refreshed_from_backend(self, fetch_lot_data_mock):
+        fetch_lot_data_mock.return_value = {'lot_qty': 100}
+
+        resolved = resolve_secondary_lots([
+            {'lot_id': 'LOT-SECONDARY', 'batch_id': 'BATCH-2', 'qty': 48},
+        ])
+
+        self.assertEqual(resolved, [
+            {'lot_id': 'LOT-SECONDARY', 'batch_id': 'BATCH-2', 'qty': 100},
+        ])
+
+
+class AddModelDraftFilterTests(SimpleTestCase):
+    def test_add_model_filter_excludes_draft_rows(self):
+        rows = [
+            {'stock_lot_id': 'LOT-1', 'lot_status': 'Yet to Start'},
+            {'stock_lot_id': 'LOT-2', 'lot_status': 'Draft'},
+            {'stock_lot_id': 'LOT-3', 'lot_status': 'Partial Draft'},
+        ]
+
+        filtered = exclude_draft_rows_from_add_model_filter(rows, True)
+
+        self.assertEqual([row['stock_lot_id'] for row in filtered], ['LOT-1'])
+
+    def test_main_pick_table_keeps_draft_rows(self):
+        rows = [{'stock_lot_id': 'LOT-2', 'lot_status': 'Draft'}]
+
+        self.assertEqual(exclude_draft_rows_from_add_model_filter(rows, False), rows)
 
 
 class JigLoadingDraftTestCase(APITestCase):

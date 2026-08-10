@@ -2780,25 +2780,9 @@ def iqf_accepted_tray_slots(request):
         except Exception as _e:
             print(f'[IQF TRAY SLOTS] Re-flagged lot override check failed: {_e}')
 
-        if rw_qty <= 0:
-            return Response({'success': True, 'rw_qty': 0, 'accepted_qty': 0, 'rejected_qty': 0, 'slots': []})
-
-        if iqf_rejection_total > rw_qty:
-            return Response({'success': False, 'error': 'Rejection total exceeds RW qty', 'rw_qty': rw_qty}, status=400)
-
-        accepted_qty = rw_qty - iqf_rejection_total
-        rejected_qty = iqf_rejection_total
-
-        if accepted_qty <= 0:
-            return Response({
-                'success': True,
-                'rw_qty': rw_qty,
-                'accepted_qty': 0,
-                'rejected_qty': rejected_qty,
-                'slots': [],
-            })
-
         # 2. Resolve tray capacity from IQFTrayId → BrassTrayId → ModelMaster
+        # Resolved unconditionally so every response branch (including empty-slot
+        # early returns) reports the real capacity instead of leaving it blank.
         ts = TotalStockModel.objects.filter(lot_id=lot_id).select_related('batch_id', 'batch_id__model_stock_no').first()
         if not ts:
             return Response({'success': False, 'error': 'Lot not found'}, status=404)
@@ -2816,6 +2800,25 @@ def iqf_accepted_tray_slots(request):
             return 16  # safe default
 
         tray_capacity = _resolve_capacity()
+
+        if rw_qty <= 0:
+            return Response({'success': True, 'rw_qty': 0, 'accepted_qty': 0, 'rejected_qty': 0, 'tray_capacity': tray_capacity, 'slots': []})
+
+        if iqf_rejection_total > rw_qty:
+            return Response({'success': False, 'error': 'Rejection total exceeds RW qty', 'rw_qty': rw_qty}, status=400)
+
+        accepted_qty = rw_qty - iqf_rejection_total
+        rejected_qty = iqf_rejection_total
+
+        if accepted_qty <= 0:
+            return Response({
+                'success': True,
+                'rw_qty': rw_qty,
+                'accepted_qty': 0,
+                'rejected_qty': rejected_qty,
+                'tray_capacity': tray_capacity,
+                'slots': [],
+            })
 
         # 3. Compute accepted tray slots — REUSE surviving trays after rejection
         #    RULE: Consume rejection from smallest trays first. Survivors are reused.
@@ -3263,6 +3266,20 @@ def iqf_accept_delink_modal(request):
 
     if not lot_id:
         return Response({'success': False, 'error': 'Missing lot_id'}, status=400)
+
+    from .services.validators import validate_unique_tray_assignments
+
+    normalized_assignments, assignment_error = validate_unique_tray_assignments(
+        accepted_tray_ids,
+        rejected_tray_ids_in,
+        delinked_tray_ids,
+    )
+    if assignment_error:
+        return Response({'success': False, 'error': assignment_error}, status=400)
+
+    accepted_tray_ids = normalized_assignments['accept']
+    rejected_tray_ids_in = normalized_assignments['reject']
+    delinked_tray_ids = normalized_assignments['delink']
 
     try:
         iqf_rejection_total = int(rej_total_str)

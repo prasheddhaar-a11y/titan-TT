@@ -2048,21 +2048,14 @@ document.addEventListener("DOMContentLoaded", function() {
         fullRejCb.onchange = function () {
           if (fullRejCb.checked) {
             reasonsGrid.querySelectorAll('.na-reason-qty').forEach(function (inp) { inp.value = ''; });
-            totalQtyDisp.textContent = state.totalQty;
-            remainingDisp.textContent = '0';
-            // Full Lot Rejection: the entire lot moves to Nickel Wiping as-is —
-            // no tray split, so no tray-scan step is requested.
-            allocSection.style.display = 'none';
-            state.allocDone = false;
-          } else {
-            totalQtyDisp.textContent = '0';
-            remainingDisp.textContent = state.totalQty;
-            allocSection.style.display = 'none';
-            state.allocDone = false;
-            var remarksInputEl3 = document.getElementById('naRejectRemarksInput');
-            if (remarksInputEl3) remarksInputEl3.style.border = '';
-            if (errDiv.textContent.indexOf('AQL limit') !== -1) errDiv.textContent = '';
           }
+          // Route both checked and unchecked transitions through the single
+          // recalculation function below instead of duplicating its logic
+          // here — a duplicated copy is what let this handler and the
+          // qty-input handler drift out of sync (unchecking "Full Lot
+          // Rejection" wasn't refreshing the modal, and re-entering a valid
+          // qty afterward kept showing the earlier AQL-exceeding result).
+          onReasonQtyChange();
         };
       }
     }
@@ -2091,22 +2084,29 @@ document.addEventListener("DOMContentLoaded", function() {
         if (remarksInputEl) {
           remarksInputEl.style.border = '2px solid #c62828';
         }
+      }
+
+      if (fullRejCb && fullRejCb.checked) {
+        // Full Lot Rejection (manual or AQL-forced): entire lot moves to
+        // Nickel Wiping as-is — no tray split, so no tray-scan step is requested.
         totalQtyDisp.textContent = state.totalQty;
         remainingDisp.textContent = '0';
-        // Full Lot Rejection (AQL-forced): entire lot moves to Nickel Wiping
-        // as-is — no tray split, so no tray-scan step is requested.
         allocSection.style.display = 'none';
         state.allocDone = false;
         return;
       }
 
+      // Checkbox is unchecked here (fresh call, or just unchecked by the
+      // user) — always clear any AQL styling/message left over from a prior
+      // exceed and recompute from the live reason-qty fields, so a
+      // corrected below-limit qty never keeps showing the earlier
+      // exceeding-qty calculation.
+      var remarksInputEl2 = document.getElementById('naRejectRemarksInput');
+      if (remarksInputEl2) remarksInputEl2.style.border = '';
+      if (errDiv.textContent.indexOf('AQL limit') !== -1) errDiv.textContent = '';
+
       totalQtyDisp.textContent = total;
       remainingDisp.textContent = Math.max(0, state.totalQty - total);
-      if (total <= state.aqlLimit || (fullRejCb && !fullRejCb.checked)) {
-        var remarksInputEl2 = document.getElementById('naRejectRemarksInput');
-        if (remarksInputEl2) remarksInputEl2.style.border = '';
-        if (errDiv.textContent.indexOf('AQL limit') !== -1) errDiv.textContent = '';
-      }
       if (total > 0 && total <= state.totalQty) {
         fetchAllocation(total);
       } else {

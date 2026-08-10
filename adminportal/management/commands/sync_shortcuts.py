@@ -124,10 +124,16 @@ CANONICAL_SHORTCUTS = [
     },
     {
         'code': 'jump_page',
-        'keys': ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
-        'key_display': '1-9',
+        'keys': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+        'key_display': '0-9',
         'label': 'Jump Page',
-        'description': 'Jump to the matching visible page number.',
+        'description': (
+            'Type a page number (digits are buffered briefly so multi-digit '
+            'pages like "10" work) then pause to jump to it. The JS handler '
+            'debounces keystrokes and ignores digit bursts typed faster than '
+            'a human can type (i.e. barcode scanner input), so this is safe '
+            'to use alongside tray-ID scanning.'
+        ),
         'action_type': 'builtin',
         'target_selector': '',
         'fallback_selector': '',
@@ -471,5 +477,3 @@ class Command(BaseCommand):
             key_display = str(sc.key_display).encode('ascii', 'replace').decode('ascii')
             label = str(sc.label).encode('ascii', 'replace').decode('ascii')
             self.stdout.write(f'  [{status}] {key_display:15s} {sc.code:25s} {label}')
-
-

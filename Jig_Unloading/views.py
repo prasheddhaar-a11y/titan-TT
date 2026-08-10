@@ -410,10 +410,9 @@ class Jig_Unloading_MainTable(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Zone 1: Only IPS color should be routed here
-        # Get only IPS plating color for Zone 1
+        # Zone 1: colors flagged for Jig Unload Zone 1 in Model Master
         allowed_colors = Plating_Color.objects.filter(
-            plating_color='IPS'
+            jig_unload_zone_1=True
         ).values_list('plating_color', flat=True)
         
         print(f"🔍 Zone 1 - Allowed colors: {list(allowed_colors)}")

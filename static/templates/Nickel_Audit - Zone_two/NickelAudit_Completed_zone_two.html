@@ -911,16 +911,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td>
                       <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_accepted_qty }}</span>
                       <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        <input type="checkbox"
-                                class="brass-checkbox"
-                                data-lot-id="{{ data.stock_lot_id }}"
-                                style="width: 15px; height: 15px"
-                                {% if data.na_ac_accepted_qty_verified %}checked disabled{% endif %} />
-                        <input type="text"
-                                class="missing-qty-input"
-                                value="{{ data.na_missing_qty|default_if_none:'' }}"
-                                style="width: 36px; padding: 1px 3px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;"
-                                {% if data.na_ac_accepted_qty_verified %}disabled{% endif %} />
+                        
+                       
                       </span>
                     </td>
                     <td>{{data.na_physical_qty}}</td>

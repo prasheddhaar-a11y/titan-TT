@@ -1359,7 +1359,7 @@ tbody tr.jig-row-action-highlight:not(.delink-row-scanned):not(.delink-row-disab
             {% if add_model_no_results %}
             <tr>
               <td colspan="17" style="text-align:center; padding:32px 16px; background:#fff3cd; color:#856404; font-size:14px; font-weight:700; border-radius:8px;">
-                ? No compatible models found for this selection.
+                 No compatible models found for this selection.
               </td>
             </tr>
             {% endif %}
@@ -3947,20 +3947,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     var delinkSelectAll = document.getElementById('delinkSelectAll');
     if (delinkSelectAll) { delinkSelectAll.disabled = false; delinkSelectAll.style.opacity = ''; }
-    // Show ready message
-    var leftPanel = document.getElementById('splitPanelLeft');
-    if (leftPanel) {
-      var existMsg = document.getElementById('delinkReadyMessage');
-      if (!existMsg) {
-        existMsg = document.createElement('div');
-        existMsg.id = 'delinkReadyMessage';
-        existMsg.style.cssText = 'font-size:11px;color:#155724;font-weight:600;padding:6px 10px;background:#d4edda;border-radius:6px;margin-bottom:8px;border:1px solid #28a745;';
-        //existMsg.innerHTML = '&#10003; Excess allocation complete &mdash; scan or select delink trays now';
-        var splitTitle = leftPanel.querySelector('.split-panel-title');
-        if (splitTitle && splitTitle.nextSibling) leftPanel.insertBefore(existMsg, splitTitle.nextSibling);
-        else leftPanel.insertBefore(existMsg, leftPanel.firstChild);
-      }
-    }
     // NOTE: Do NOT auto-focus the delink panel here. _moveToNextSplitInput (called
     // right after every successful scan) is the single source of truth for cursor
     // movement across top-tray ? excess ? delink. Focusing here too raced against
@@ -4265,14 +4251,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var ownRow = document.querySelector('#splitPanelContainer tr[data-tray-id="' + trayId.replace(/"/g, '\\"') + '"][data-row-type="delink"]')
         || document.querySelector('#splitPanelContainer tr[data-tray-id="' + trayId.replace(/"/g, '\\"') + '"]');
       if (ownRow && typeof window._copyRowScanContext === 'function') window._copyRowScanContext(activeInput, ownRow);
-      // Immediate "used" indication: strike the chip the instant it's tapped, rather
-      // than waiting for the async scan API round-trip (_validateSplitScan) to confirm
-      // and for the next re-render's isDone check to catch up. Purely visual — the real
-      // isDone recompute on the next render still owns the authoritative state, so if
-      // the backend ever rejects this scan the chip reverts on that re-render same as
-      // any other row does.
-      chip.classList.add('delink-tray-chip-struck');
-      chip.title = 'Already delinked';
       activeInput.value = trayId;
       activeInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -4362,6 +4340,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+  window._renderDelinkTrayChipStrip = _renderDelinkTrayChipStrip;
 
   // ===== COMPLETED DELINK QTY (single source of truth) =====
   // completedDelinkQty = scannedFullDelinkQty (validated delink scan inputs)
@@ -4636,7 +4615,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const displayName = m.display_name || ('Model ' + (idx + 1));
       const modelNo = (m.model_image_label || m.model_name || m.model || '').replace(/\s*\[.*?\]\s*/g, '').trim();
       const role = m.model_role || (idx === 0 ? 'primary' : 'secondary');
-      const allocQty = m.allocated_qty || m.allocated_qty === 0 ? m.allocated_qty : '';
+      const allocQty = m.requested_qty ?? m.allocated_qty ?? '';
       const lotId = m.lot_id || '';
       const batchId = m.batch_id || '';
 
@@ -6433,8 +6412,6 @@ function clearJigUserInputs() {
   if (excessMsg) excessMsg.innerText = '';
 
   // 7. Clear dynamic alerts (like "Excess allocation complete" and "Delink complete" messages)
-  var delinkReadyMessage = document.getElementById('delinkReadyMessage');
-  if (delinkReadyMessage) delinkReadyMessage.remove();
   var excessReadyMessage = document.getElementById('excessReadyMessage');
   if (excessReadyMessage) excessReadyMessage.remove();
 
@@ -7793,17 +7770,103 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  /**
+   * Jig ID prefix lock — the first 5 chars ("J" + zero-padded capacity + "-")
+   * are fully determined by the jig's capacity, so the user only ever keys in
+   * the trailing 4 digits. Keeps the field self-consistent with
+   * validateJigIdFormat() above instead of relying on the user to type the
+   * capacity digits correctly by hand.
+   */
+  function _getJigIdPrefix() {
+    var capacity = parseInt(window.BACKEND_ORIGINAL_CAPACITY || window.jigCapacity || 0) || 0;
+    return capacity ? ('J' + String(capacity).padStart(3, '0') + '-') : null;
+  }
+
+  function _syncJigIdPrefix(inputEl) {
+    if (!inputEl) return;
+    var prefix = _getJigIdPrefix();
+    if (!prefix) return;
+    inputEl.dataset.jigPrefix = prefix;
+    inputEl.placeholder = prefix + '0000';
+    var val = (inputEl.value || '').toUpperCase();
+    if (!val.startsWith(prefix)) {
+      // Preserve any digits already typed (e.g. capacity resolved after the
+      // user started typing, or a stale prefix from a previously picked jig).
+      var digits = val.replace(/[^0-9]/g, '').slice(0, 4);
+      inputEl.value = prefix + digits;
+      applyJigIdValidation(inputEl);
+    }
+  }
+  window._syncJigIdPrefix = _syncJigIdPrefix;
+
+  // window.jigCapacity resolves immediately on modal open (from the jig button's
+  // data-jig-capacity attribute); window.BACKEND_ORIGINAL_CAPACITY resolves
+  // slightly later from the init API response. Hooking both as property setters
+  // re-syncs the prefix the instant either becomes known, without having to
+  // touch every one of their assignment call sites.
+  ['jigCapacity', 'BACKEND_ORIGINAL_CAPACITY'].forEach(function(propName) {
+    var current = window[propName];
+    Object.defineProperty(window, propName, {
+      configurable: true,
+      enumerable: true,
+      get: function() { return current; },
+      set: function(v) {
+        current = v;
+        _syncJigIdPrefix(document.getElementById('jigIdInput'));
+      }
+    });
+  });
+
   // Attach handler once DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     var jigInput = document.getElementById('jigIdInput');
     if (jigInput) {
       jigInput.addEventListener('input', function() { applyJigIdValidation(jigInput); });
       jigInput.addEventListener('blur', function() { applyJigIdValidation(jigInput); });
-      // Allow only alphanumeric and hyphen (J + digits + hyphen + digits)
+      // Allow only alphanumeric and hyphen (J + digits + hyphen + digits) when the
+      // capacity — and therefore the fixed prefix — isn't known yet. Once known,
+      // only digits are accepted, and only after the locked prefix.
       jigInput.addEventListener('keypress', function(e) {
         var char = String.fromCharCode(e.which || e.keyCode);
+        var prefix = this.dataset.jigPrefix || '';
+        if (prefix) {
+          var suffixLen = (this.value || '').length - prefix.length;
+          if (!/[0-9]/.test(char) || this.selectionStart < prefix.length || suffixLen >= 4) {
+            e.preventDefault();
+          }
+          return;
+        }
         if (!/[a-zA-Z0-9\-]/.test(char)) { e.preventDefault(); }
       });
+      // Block Backspace/Delete from eating into the locked prefix.
+      jigInput.addEventListener('keydown', function(e) {
+        var prefix = this.dataset.jigPrefix || '';
+        if (!prefix) return;
+        var pos = this.selectionStart;
+        if ((e.key === 'Backspace' && pos <= prefix.length && this.selectionEnd <= prefix.length) ||
+            (e.key === 'Delete' && pos < prefix.length)) {
+          e.preventDefault();
+        }
+      });
+      // Keep the caret in the editable (post-prefix) portion of the field.
+      var _clampCaret = function() {
+        var prefix = this.dataset.jigPrefix || '';
+        if (prefix && this.selectionStart < prefix.length) {
+          this.setSelectionRange(prefix.length, prefix.length);
+        }
+      };
+      jigInput.addEventListener('click', _clampCaret);
+      jigInput.addEventListener('focus', function() { setTimeout(_clampCaret.bind(this), 0); });
+      // Sanitize pasted content down to the 4 trailing digits.
+      jigInput.addEventListener('paste', function(e) {
+        var prefix = this.dataset.jigPrefix || '';
+        if (!prefix) return;
+        e.preventDefault();
+        var text = (e.clipboardData || window.clipboardData).getData('text') || '';
+        this.value = prefix + text.replace(/[^0-9]/g, '').slice(0, 4);
+        applyJigIdValidation(this);
+      });
+      _syncJigIdPrefix(jigInput);
     }
   });
 
@@ -9426,7 +9489,7 @@ if (window.jQuery) {
       // ===== Multi-model draft: re-trigger init to restore full tray table =====
       if (data.is_multi_model && data.multi_model_allocation && data.multi_model_allocation.length > 1) {
         var secondaryLots = data.multi_model_allocation.slice(1).map(function(m) {
-          return { lot_id: m.lot_id, batch_id: m.batch_id || '', qty: parseInt(m.allocated_qty || m.qty || 0) || 0 };
+          return { lot_id: m.lot_id, batch_id: m.batch_id || '', qty: parseInt(m.requested_qty || m.qty || 0) || 0 };
         });
         window._currentSecondaryLots = secondaryLots;
         window._pendingSecondaryLots = secondaryLots;
@@ -9564,6 +9627,9 @@ if (window.jQuery) {
       });
 
     // Update UI elements after full restore
+    if (typeof window._renderDelinkTrayChipStrip === 'function') {
+      window._renderDelinkTrayChipStrip(document.getElementById('delinkPanelTableBody'));
+    }
     if (typeof window._updateDelinkTotalBar === 'function') window._updateDelinkTotalBar();
     if (typeof window._updateDelinkStatsBadge === 'function') window._updateDelinkStatsBadge();
     if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
@@ -9661,7 +9727,11 @@ if (window.jQuery) {
       if (inp.disabled) return;
       anyActive = true;
       var val = (inp.value || '').trim();
-      if (!val || val.length < 3) { ready = false; return; }
+      // Backend validation is async (_validateSplitScan): a scan only counts once
+      // the server has confirmed it and stamped the input with the 'validated'
+      // class. A partially-typed id (length check alone) must NOT pass here, or
+      // Submit enables while validation is still pending / has failed.
+      if (!val || val.length < 3 || !inp.classList.contains('validated')) { ready = false; return; }
       var upper = val.toUpperCase();
       if (scannedIds[upper]) { ready = false; return; }
       scannedIds[upper] = true;
@@ -9672,7 +9742,7 @@ if (window.jQuery) {
     var topInp = document.getElementById('excessTopTrayScanInput');
     if (topInp && topInp.offsetParent !== null) {
       var topVal = (topInp.value || '').trim();
-      if (!topVal || topVal.length < 3) { ready = false; }
+      if (!topVal || topVal.length < 3 || !topInp.classList.contains('validated')) { ready = false; }
       else {
         var topUpper = topVal.toUpperCase();
         if (scannedIds[topUpper]) ready = false;
@@ -9685,7 +9755,7 @@ if (window.jQuery) {
       if (inp.disabled) return;
       anyActive = true;
       var val = (inp.value || '').trim();
-      if (!val || val.length < 3) { ready = false; return; }
+      if (!val || val.length < 3 || !inp.classList.contains('validated')) { ready = false; return; }
       var upper = val.toUpperCase();
       if (scannedIds[upper]) { ready = false; return; }
       scannedIds[upper] = true;

@@ -85,6 +85,42 @@ def validate_rejection_reasons(rejection_reasons, rejected_qty):
     return total, None
 
 
+def validate_unique_tray_assignments(accepted_tray_ids, rejected_tray_ids, delinked_tray_ids):
+    """Normalize tray IDs and reject duplicates within or across assignment groups."""
+    assignments = (
+        ("Accept", accepted_tray_ids),
+        ("Reject", rejected_tray_ids),
+        ("Delink", delinked_tray_ids),
+    )
+    normalized = {}
+    assigned_group = {}
+
+    for group_name, tray_ids in assignments:
+        if not isinstance(tray_ids, (list, tuple)):
+            return None, f"{group_name} tray IDs must be a list."
+
+        normalized_ids = []
+        seen_in_group = set()
+        for raw_tray_id in tray_ids:
+            tray_id = str(raw_tray_id or "").strip().upper()
+            if not tray_id:
+                continue
+            if tray_id in seen_in_group:
+                return None, f"Duplicate tray ID {tray_id} in {group_name}."
+            if tray_id in assigned_group:
+                return None, (
+                    f"Tray ID {tray_id} cannot be used in both "
+                    f"{assigned_group[tray_id]} and {group_name}."
+                )
+            seen_in_group.add(tray_id)
+            assigned_group[tray_id] = group_name
+            normalized_ids.append(tray_id)
+
+        normalized[group_name.lower()] = normalized_ids
+
+    return normalized, None
+
+
 def validate_tray_cross_module_occupancy(tray_id, lot_id):
     """
     Checks tray occupancy across IS, Brass QC, Brass Audit, and IQF modules.

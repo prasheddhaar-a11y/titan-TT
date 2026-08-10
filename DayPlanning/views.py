@@ -2883,7 +2883,7 @@ class TrayIdUniqueCheckAPIView(APIView):
             batch_tray_type = batch_instance.tray_type
             scanned_tray_type = tray.tray_type
             
-            print(f"🔍 Tray Type Validation: Batch={batch_tray_type}, Scanned Tray={scanned_tray_type}")
+            logger.debug(f"Tray Type Validation: Batch={batch_tray_type}, Scanned Tray={scanned_tray_type}")
             
             # If either tray type is not set, allow but warn
             if not batch_tray_type or not scanned_tray_type:
@@ -2903,7 +2903,7 @@ class TrayIdUniqueCheckAPIView(APIView):
             scanned_category = _norm_cat(scanned_tray_type)
 
             if batch_category != scanned_category:
-                error_msg = f"❌ Tray Type Mismatch: Batch requires '{batch_category}' type but scanned tray '{tray.tray_id}' is '{scanned_category}' type"
+                error_msg = f"Tray Type Mismatch: Batch requires '{batch_category}' type but scanned tray '{tray.tray_id}' is '{scanned_category}' type"
                 return {
                     'compatible': False,
                     'error': error_msg,
@@ -2916,7 +2916,7 @@ class TrayIdUniqueCheckAPIView(APIView):
             scanned_tray_capacity = tray.tray_capacity
 
             if scanned_tray_capacity and scanned_tray_capacity != expected_prejig_cap:
-                error_msg = f"⚠️ Tray Capacity Mismatch: Expected {expected_prejig_cap} for {batch_category} type, but scanned tray has capacity {scanned_tray_capacity}"
+                error_msg = f"Tray Capacity Mismatch: Expected {expected_prejig_cap} for {batch_category} type, but scanned tray has capacity {scanned_tray_capacity}"
                 return {
                     'compatible': False,
                     'error': error_msg,
@@ -2933,7 +2933,7 @@ class TrayIdUniqueCheckAPIView(APIView):
             }
             
         except Exception as e:
-            logger.error(f"❌ Error in tray type validation: {str(e)}", exc_info=True)
+            logger.error(f"Error in tray type validation: {str(e)}", exc_info=True)
             return {
                 'compatible': False,
                 'error': 'Unable to process the request. Please verify the submitted data and try again.',
@@ -2953,7 +2953,7 @@ class UpdateBatchQuantityAndColorAPIView(APIView):
             batch_id = data.get('batch_id')
             new_quantity = data.get('total_batch_quantity')
             new_plating_color = data.get('plating_color')
-            
+
             if not batch_id:
                 return JsonResponse({'success': False, 'error': 'Missing batch_id'}, status=400)
             
@@ -2965,17 +2965,18 @@ class UpdateBatchQuantityAndColorAPIView(APIView):
             if new_quantity is not None:
                 try:
                     new_quantity = int(new_quantity)
-                    if new_quantity <= 0:
-                        return JsonResponse({'success': False, 'error': 'Quantity must be greater than 0'}, status=400)
-                    
-                    # ✅ FIXED: If quantity changes, invalidate top tray verification
-                    if obj.total_batch_quantity != new_quantity:
-                        obj.top_tray_qty_verified = False
-                        print(f"🔄 Quantity changed from {obj.total_batch_quantity} to {new_quantity} - resetting top_tray_qty_verified to False")
-                    
-                    obj.total_batch_quantity = new_quantity
                 except (ValueError, TypeError):
                     return JsonResponse({'success': False, 'error': 'Invalid quantity value'}, status=400)
+
+                if new_quantity <= 0:
+                    return JsonResponse({'success': False, 'error': 'Quantity must be greater than 0'}, status=400)
+
+                # If quantity changes, invalidate top tray verification
+                if obj.total_batch_quantity != new_quantity:
+                    obj.top_tray_qty_verified = False
+                    logger.info(f"Quantity changed from {obj.total_batch_quantity} to {new_quantity} for batch {batch_id} - resetting top_tray_qty_verified to False")
+
+                obj.total_batch_quantity = new_quantity
             
             # Update plating color if provided
             if new_plating_color:
@@ -3008,7 +3009,7 @@ class UpdateBatchQuantityAndColorAPIView(APIView):
             })
             
         except Exception as e:
-            logger.error(f"❌ Error in UpdateBatchQuantityAndColorAPIView: {str(e)}", exc_info=True)
+            logger.error(f"Error in UpdateBatchQuantityAndColorAPIView: {str(e)}", exc_info=True)
             return JsonResponse({'success': False, 'error': 'Unable to process the request. Please verify the submitted data and try again.'}, status=500)
 
 

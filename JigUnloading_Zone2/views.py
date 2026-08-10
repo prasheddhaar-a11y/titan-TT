@@ -3301,7 +3301,10 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                             jig_obj.save(update_fields=['is_loaded'])
                     
                     # Now proceed with normal release logic
-                    released_jigs = Jig.objects.filter(jig_qr_id=jig_qr_id, is_loaded=True)
+                    # Filter by jig_qr_id only (not is_loaded=True) so jigs left
+                    # stuck with drafted/occupied_flag still True (e.g. from a
+                    # prior partial release) are also normalized on this pass.
+                    released_jigs = Jig.objects.filter(jig_qr_id=jig_qr_id)
                     released_jigs_count = released_jigs.count()
                     
                     if released_jigs_count > 0:
@@ -3310,10 +3313,15 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                         released_jigs.update(
                             is_loaded=False,
                             occupied_flag=False,
+                            drafted=False,
+                            current_user=None,
+                            locked_at=None,
+                            batch_id=None,
+                            lot_id=None,
                             cycle_count=F('cycle_count') + 1
                         )
                         total_released_jigs_count += released_jigs_count
-                        print(f"[JIG RELEASE Zone2] ✅ Released {released_jigs_count} Jig QR ID(s) '{jig_qr_id}' (set is_loaded=False, occupied_flag=False, cycle_count+1)")
+                        print(f"[JIG RELEASE Zone2] ✅ Released {released_jigs_count} Jig QR ID(s) '{jig_qr_id}' (set is_loaded=False, occupied_flag=False, drafted=False, cycle_count+1)")
                         
                         # Log each released jig for tracking with cycle count
                         for jig in released_jigs:

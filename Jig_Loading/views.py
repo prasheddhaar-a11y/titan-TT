@@ -193,6 +193,16 @@ def fetch_model_image_metadata(lot_id, batch_id):
 		logging.exception(f"[MULTI_MODEL] Error fetching image metadata for {lot_id}: {e}")
 	return result
 
+
+def exclude_draft_rows_from_add_model_filter(rows, is_add_model_popup):
+	"""Hide active draft allocations only from the Add Model filter screen."""
+	if not is_add_model_popup:
+		return rows
+	return [
+		row for row in rows
+		if row.get('lot_status') not in {'Draft', 'Partial Draft'}
+	]
+
 @method_decorator(login_required, name='dispatch')
 class JigView(TemplateView):
 	"""Minimal Jig view to render the pick table template."""
@@ -268,7 +278,7 @@ class JigView(TemplateView):
 							if mlot:
 								exclude_lot_ids.add(mlot)
 				if is_add_model_popup:
-					other_drafts = JigCompleted.objects.filter(draft_status='draft')
+					other_drafts = JigCompleted.objects.filter(draft_status__in=['draft', 'active'])
 					if primary_lot:
 						other_drafts = other_drafts.exclude(lot_id=primary_lot)
 					exclude_lot_ids.update(other_drafts.values_list('lot_id', flat=True))
@@ -636,12 +646,12 @@ class JigView(TemplateView):
 					# Non-multi-model drafts: get lot_ids directly via DB (no Python loop)
 					draft_lot_ids = set(
 						JigCompleted.objects.filter(
-							draft_status='draft', is_multi_model=False
+							draft_status__in=['draft', 'active'], is_multi_model=False
 						).values_list('lot_id', flat=True)
 					)
 					partial_draft_lot_ids = set()
 					for rec in JigCompleted.objects.filter(
-						draft_status='draft', is_multi_model=True,
+						draft_status__in=['draft', 'active'], is_multi_model=True,
 						multi_model_allocation__isnull=False
 					).only('multi_model_allocation')[:100]:
 						if rec.multi_model_allocation:
@@ -679,6 +689,12 @@ class JigView(TemplateView):
 							d.setdefault('lot_status_class', 'lot-status-yet')
 			except Exception:
 				logging.exception('[JIG PICK] Failed to compute lot draft statuses')
+
+			# Add Model is a selection screen, so active draft allocations must not
+			# appear there regardless of whether they came from TotalStockModel or
+			# the appended excess/half-filled flow. The main pick table still keeps
+			# draft rows visible so operators can resume them.
+			master_data = exclude_draft_rows_from_add_model_filter(master_data, is_add_model_popup)
 
 			_t6 = _time.time()
 			print(f"[JIG PERF] draft status: {_t6 - _t5:.3f}s")
@@ -2671,19 +2687,58 @@ def count_trays_for_lot(lot_id):
 	return len(fetch_trays_for_lot(lot_id))
 
 
-def aggregate_multi_model_trays(primary_lot_id, secondary_lots):
+def cap_trays_to_lot_qty(trays, lot_qty, lot_id):
+	"""Return ordered tray portions capped to the backend-authoritative lot qty."""
+	remaining_qty = max(0, int(lot_qty or 0))
+	capped_trays = []
+	for tray in trays:
+		if remaining_qty <= 0:
+			break
+		tray_qty = max(0, int(tray.get('qty', 0) or 0))
+		if tray_qty <= 0:
+			continue
+		capped_tray = dict(tray)
+		capped_tray['qty'] = min(tray_qty, remaining_qty)
+		capped_tray['source_lot_id'] = lot_id
+		capped_trays.append(capped_tray)
+		remaining_qty -= capped_tray['qty']
+	return capped_trays
+
+
+def resolve_secondary_lots(secondary_lots):
+	"""Resolve secondary quantities from the database; never trust browser-stored qty."""
+	resolved_lots = []
+	seen_lot_ids = set()
+	for secondary in secondary_lots or []:
+		if not isinstance(secondary, dict):
+			continue
+		lot_id = secondary.get('lot_id')
+		if not lot_id or lot_id in seen_lot_ids:
+			continue
+		batch_id = secondary.get('batch_id') or ''
+		lot_data = fetch_lot_data(lot_id, batch_id)
+		resolved_lots.append({
+			'lot_id': lot_id,
+			'batch_id': batch_id,
+			'qty': int(lot_data.get('lot_qty', 0) or 0),
+		})
+		seen_lot_ids.add(lot_id)
+	return resolved_lots
+
+
+def aggregate_multi_model_trays(primary_lot_id, secondary_lots, primary_lot_qty=None):
 	"""Aggregate trays from all model lots (primary + secondary) into one combined list.
 	Used by JigLoadUpdateAPI and JigSaveAPI for multi-model recomputation.
-	compute_jig_loading receives ALL trays and distributes up to jig_capacity."""
+	Each lot is capped to its backend-authoritative quantity before computation."""
 	all_trays = []
 	seen_lot_ids = set()
 
 	# Primary model trays first
 	if primary_lot_id:
 		primary_trays = fetch_trays_for_lot(primary_lot_id)
-		for t in primary_trays:
-			t['source_lot_id'] = primary_lot_id
-		all_trays.extend(primary_trays)
+		if primary_lot_qty is None:
+			primary_lot_qty = fetch_lot_data(primary_lot_id, '').get('lot_qty', 0)
+		all_trays.extend(cap_trays_to_lot_qty(primary_trays, primary_lot_qty, primary_lot_id))
 		seen_lot_ids.add(primary_lot_id)
 
 	# Secondary model trays
@@ -2692,9 +2747,7 @@ def aggregate_multi_model_trays(primary_lot_id, secondary_lots):
 		if not sec_lot_id or sec_lot_id in seen_lot_ids:
 			continue
 		sec_trays = fetch_trays_for_lot(sec_lot_id)
-		for t in sec_trays:
-			t['source_lot_id'] = sec_lot_id
-		all_trays.extend(sec_trays)
+		all_trays.extend(cap_trays_to_lot_qty(sec_trays, sec.get('qty', 0), sec_lot_id))
 		seen_lot_ids.add(sec_lot_id)
 
 	logging.info(f"[AGGREGATE] Combined {len(all_trays)} trays from {len(seen_lot_ids)} lots: {list(seen_lot_ids)}")
@@ -2784,6 +2837,8 @@ class JigLoadInitAPI(APIView):
 
 		if not lot_id or not batch_id:
 			return Response({'error': 'lot_id and batch_id are required'}, status=status.HTTP_400_BAD_REQUEST)
+		if multi_model_flag:
+			secondary_lots = resolve_secondary_lots(secondary_lots)
 
 		# 0. Check for existing draft up front (single source of truth) — needed below to
 		# resolve the default broken_hooks so a re-opened draft renders the SAME split-panel
@@ -2868,7 +2923,7 @@ class JigLoadInitAPI(APIView):
 						seen_lot_ids.add(sec_lot_id)
 				logging.info(f'[AGGREGATE_EXCESS] Excess primary + {len(seen_lot_ids)-1} secondary lot(s), total {len(trays)} trays, lot_qty={lot_qty}')
 			else:
-				trays = aggregate_multi_model_trays(lot_id, secondary_lots)
+				trays = aggregate_multi_model_trays(lot_id, secondary_lots, lot_qty)
 		else:
 			if excess_primary_trays:
 				trays = excess_primary_trays
@@ -3105,7 +3160,8 @@ class JigLoadInitAPI(APIView):
 				'model': primary_model_name,
 				'model_name': primary_model_name,
 				'model_role': 'primary', 'lot_id': primary_lot_id, 'batch_id': primary_batch_id,
-				'sequence': 0, 'allocated_qty': primary_result['allocated_qty'],
+				'sequence': 0, 'requested_qty': primary_lot_qty,
+				'allocated_qty': primary_result['allocated_qty'],
 				'tray_info': primary_result['tray_info'],
 				'model_image_url': primary_img['model_image_url'],
 				'model_image_label': primary_image_label,
@@ -3142,7 +3198,8 @@ class JigLoadInitAPI(APIView):
 				allocation.append({
 					'model': sec_model_name, 'model_name': sec_model_name,
 					'model_role': 'secondary', 'lot_id': sec_lot_id, 'batch_id': sec_batch_id,
-					'sequence': seq, 'allocated_qty': secondary_result['allocated_qty'],
+					'sequence': seq, 'requested_qty': sec_lot_qty,
+					'allocated_qty': secondary_result['allocated_qty'],
 					'tray_info': secondary_result['tray_info'],
 					'model_image_url': sec_img['model_image_url'],
 					'model_image_label': sec_image_label,
@@ -3240,13 +3297,14 @@ class JigLoadInitAPI(APIView):
 				'model_role': m_alloc.get('model_role', ''),
 				'lot_id': m_alloc.get('lot_id', ''),
 				'batch_id': m_alloc.get('batch_id', ''),
-				'qty': m_alloc.get('allocated_qty', 0),
+				'qty': m_alloc.get('requested_qty', 0),
+				'allocated_qty': m_alloc.get('allocated_qty', 0),
 			})
 
 		return {
 			'allocation': allocation, 'half_filled': half_filled_tray_info,
 			'half_filled_qty': half_filled_tray_qty,
-			'total_qty': sum(m['allocated_qty'] for m in allocation),
+			'total_qty': sum(int(m.get('requested_qty', 0) or 0) for m in allocation),
 			'ui_delink': ui_delink,
 			'tray_distribution': tray_distribution,
 			'models': models_summary,
@@ -3282,6 +3340,8 @@ class JigLoadUpdateAPI(APIView):
 				secondary_lots = []
 		if not isinstance(secondary_lots, list):
 			secondary_lots = []
+		if multi_model_flag:
+			secondary_lots = resolve_secondary_lots(secondary_lots)
 
 		state_lot_id = primary_lot_id if multi_model_flag and primary_lot_id else lot_id
 		state_batch_id = primary_batch_id if multi_model_flag and primary_batch_id else batch_id
@@ -3389,7 +3449,7 @@ class JigLoadUpdateAPI(APIView):
 		# Multi-model: use PRIMARY lot for capacity/metadata, aggregate trays from ALL lots
 		if multi_model_flag and secondary_lots:
 			lot_data = fetch_lot_data(primary_lot_id, primary_batch_id, jig_capacity_override)
-			trays = aggregate_multi_model_trays(primary_lot_id, secondary_lots)
+			trays = aggregate_multi_model_trays(primary_lot_id, secondary_lots, lot_data['lot_qty'])
 			logging.info(f"[UPDATE_MM] Aggregated {len(trays)} trays from primary={primary_lot_id} + {len(secondary_lots)} secondary lots")
 		else:
 			lot_data = fetch_lot_data(lot_id, batch_id, jig_capacity_override)
@@ -4176,12 +4236,22 @@ class JigSaveAPI(APIView):
 					)
 					delink_created += 1
 
-					# Propagate delink status to the shared tray master and Day Planning's
-					# tray history so the tray becomes assignable again outside Jig Loading.
-					# (Mirrors the pattern used by InputScreening/IQF/Recovery_BrassAudit.)
+					# Propagate delink status to the shared tray master, Day Planning's tray
+					# history, AND every other module's own tray mirror table, so the tray
+					# reads as free everywhere — not just in Jig Loading's own records.
+					# Mirrors the exact cross-module propagation IQF already does for its
+					# own delink flow (IQF/views.py, LotDelinkAPIView: BrassTrayId /
+					# BrassAuditTrayId / IPTrayId updates after freeing the TrayId master).
+					# Jig Loading previously only updated the master + DPTrayId_History,
+					# leaving stale delink_tray=False rows in IS/Brass QC/Brass Audit/IQF's
+					# own tables — DayPlanning's validate_tray_cross_module_occupancy() reads
+					# those directly and blocked reuse even though the master was already free.
 					try:
 						from DayPlanning.models import DPTrayId_History
-						source_lot_id = tray.get('source_lot_id', '') or lot_id
+						from InputScreening.models import IPTrayId
+						from Brass_QC.models import BrassTrayId
+						from BrassAudit.models import BrassAuditTrayId
+						from IQF.models import IQFTrayId
 
 						tray_obj = TrayId.objects.filter(tray_id=tray_id_val).first()
 						if tray_obj:
@@ -4194,8 +4264,29 @@ class JigSaveAPI(APIView):
 								'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray'
 							])
 
+						# NOTE: all of the following are scoped to tray_id only (no lot_id
+						# filter). By the time a tray reaches Jig Loading it has typically
+						# moved through several modules, each minting a new child lot_id (see
+						# LotMaster's strict-hierarchy design in modelmasterapp/models.py) —
+						# a row scoped to the ORIGINAL lot_id would silently never match. Every
+						# downstream availability check (DP's _is_tray_active_in_dp(),
+						# validate_tray_cross_module_occupancy()) is likewise tray_id-only, so
+						# this must mirror that scope or the delink never actually clears and
+						# the tray stays permanently blocked from reuse.
 						DPTrayId_History.objects.filter(
-							tray_id=tray_id_val, lot_id=source_lot_id
+							tray_id=tray_id_val, delink_tray=False
+						).update(delink_tray=True)
+						IPTrayId.objects.filter(
+							tray_id=tray_id_val, delink_tray=False
+						).update(delink_tray=True)
+						BrassTrayId.objects.filter(
+							tray_id=tray_id_val, delink_tray=False
+						).update(delink_tray=True)
+						BrassAuditTrayId.objects.filter(
+							tray_id=tray_id_val, delink_tray=False
+						).update(delink_tray=True)
+						IQFTrayId.objects.filter(
+							tray_id=tray_id_val, delink_tray=False
 						).update(delink_tray=True)
 					except Exception:
 						logging.exception(f'JigSaveAPI: tray delink propagation failed for tray_id={tray_id_val}')
