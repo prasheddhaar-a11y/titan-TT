@@ -522,13 +522,13 @@
    #order-listing th:nth-child(4)  { min-width: 135px !important; max-width: 135px !important; }
    #order-listing th:nth-child(5)  { min-width: 115px !important; max-width: 115px !important; }
    #order-listing th:nth-child(6)  { min-width: 135px !important; max-width: 135px !important; }
-   #order-listing th:nth-child(7)  { min-width: 105px !important; max-width: 105px !important; }
+   #order-listing th:nth-child(7)  { min-width: 130px !important; max-width: 150px !important; }
    #order-listing th:nth-child(8)  { min-width: 140px !important; max-width: 140px !important; }
-   #order-listing th:nth-child(9)  { min-width: 140px !important; max-width: 145px !important; }
+   #order-listing th:nth-child(9)  { min-width: 130px !important; max-width: 150px !important; }
    #order-listing th:nth-child(10) { min-width: 120px !important; max-width: 120px !important; }
-   #order-listing th:nth-child(11) { min-width: 120px !important; max-width: 130px !important; }
-   #order-listing th:nth-child(12) { min-width: 130px !important; max-width: 130px !important; }
-   #order-listing th:nth-child(13) { min-width: 120px !important; max-width: 120px !important; }
+   #order-listing th:nth-child(11) { min-width: 140px !important; max-width: 160px !important; }
+   #order-listing th:nth-child(12) { min-width: 150px !important; max-width: 170px !important; }
+   #order-listing th:nth-child(13) { min-width: 150px !important; max-width: 170px !important; }
    #order-listing th:nth-child(14) { min-width: 140px !important; max-width: 140px !important; }
    #order-listing th:nth-child(15) { min-width: 130px !important; max-width: 130px !important; }
    #order-listing th:nth-child(16) { min-width: 120px !important; max-width: 130px !important; }
@@ -576,51 +576,51 @@
    #order-listing th:nth-child(4) {
    min-width: 110px;
    max-width: 120px;
-   } /* Polishing Stk No */
+   }
    #order-listing th:nth-child(5) {
    min-width: 90px;
    max-width: 100px;
-   } /* Plating Color */
+   }
    #order-listing th:nth-child(6) {
    min-width: 100px;
    max-width: 110px;
-   } /* Category */
+   }
    #order-listing th:nth-child(7) {
-   min-width: 85px;
-   max-width: 95px;
-   } /* Polish Finish */
+   min-width: 130px;
+   max-width: 150px;
+   } /* Accept Qty */
    #order-listing th:nth-child(8) {
    min-width: 105px;
    max-width: 110px;
-   } /* Version */
+   }
    #order-listing th:nth-child(9) {
-   min-width: 90px;
-   max-width: 100px;
-   } /* Source */
-   #order-listing th:nth-child(11) {
-   min-width: 80px;
-   max-width: 80px;
-   } /* No of Trays */
-   #order-listing th:nth-child(12) {
-   min-width: 100px;
-   max-width: 105px;
-   } /* Input Qty */
-   #order-listing th:nth-child(13) {
-   min-width: 95px;
-   max-width: 100px;
+   min-width: 130px;
+   max-width: 150px;
    } /* Process Status */
+   #order-listing th:nth-child(11) {
+   min-width: 140px;
+   max-width: 160px;
+   } /* Current Stage */
+   #order-listing th:nth-child(12) {
+   min-width: 150px;
+   max-width: 170px;
+   } /* Polishing Stk No */
+   #order-listing th:nth-child(13) {
+   min-width: 150px;
+   max-width: 170px;
+   } /* Plating Color */
    #order-listing th:nth-child(14) {
    min-width: 95px;
    max-width: 100px;
-   } /*  Action */
+   }
    #order-listing th:nth-child(15) {
    min-width: 90px;
    max-width: 100px;
-   } /* Lot Status */
+   }
    #order-listing th:nth-child(16) {
    min-width: 140px;
    max-width: 150px;
-   } /* Current Stage */
+   }
    #order-listing th:nth-child(17) {
    min-width: 110px;
    max-width: 100px;
@@ -949,7 +949,79 @@
 
    /* Brass QC model hover tooltip now uses the Day Planning inline-style
       implementation directly (see markup below) — no CSS overrides needed. */
+    /* Brass QC Completed Table - pagination fixed at bottom of content area */
+/* Brass QC Completed Table - keep pagination at bottom */
+.brass-completed-table-page.is-completed-table-page {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: calc(100vh - 100px) !important;
+    height: calc(100vh - 100px) !important;
+    overflow: visible !important;
+    flex: none !important;
+}
 
+.brass-completed-table-page.is-completed-table-page > .row {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-height: 0 !important;
+}
+
+.brass-completed-table-page.is-completed-table-page > .row > .col-12.grid-margin.stretch-card {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.brass-completed-table-page.is-completed-table-page .card {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+
+.brass-completed-table-page.is-completed-table-page .card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+}
+
+.brass-completed-table-page.is-completed-table-page .table-responsive {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: stable !important;
+    margin-bottom: 0 !important;
+}
+
+.brass-completed-table-page.is-completed-table-page .pagination-wrapper {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 4px 0 0 !important;
+    margin-top: 0.35rem !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 4 !important;
+}
+
+.brass-completed-table-page.is-completed-table-page .pagination-wrapper .pagination {
+    margin: 0 auto !important;
+    justify-content: center !important;
+}
 </style>
 <div class="content-wrapper brass-completed-table-page is-completed-table-page">
    <div class="row">
@@ -1438,7 +1510,7 @@
                <!-- Pagination Section -->
                <div class="pagination-wrapper">
                   <nav aria-label="Page navigation">
-                     <ul class="pagination justify-content-end mb-0">
+                     <ul class="pagination justify-content-center mb-0">
                         {# Previous button #}
                         {% if page_obj.has_previous %}
                         <li>
@@ -1563,7 +1635,7 @@
 </div>
 {% block script %}
 <!-- 🔥 NEW: Enhanced Date Filter JavaScript for Brass QC Completed Table with Future Date Validation -->
-<script type="text/plain" data-disabled="legacy-brass-completed-tooltip" nonce="{{ csp_nonce }}">
+<script type="text/javascript" nonce="{{ csp_nonce }}">
    document.addEventListener("DOMContentLoaded", function() {
      console.log('🔄 Initializing enhanced date filtering with future date validation for Brass QC Completed Table...');
      
