@@ -210,8 +210,8 @@
          padding-bottom: 0.42rem !important;
          }
          .sidebar .nav .nav-item .nav-link .menu-title {
-         font-size: 13px !important;
-         line-height: 1.15 !important;
+         font-size: 14px !important;
+         line-height: 1.2 !important;
          }
 
          }
@@ -334,6 +334,35 @@
          position: sticky;
          left: 160px; /* adjust as per your table's sticky layout */
          }
+         /*
+          * Global highlighted-row yellow coating/outline.
+          * Applies to the existing scan/highlight classes used across modules.
+          * Keeps the existing pale-yellow row background and adds the
+          * yellow/orange outline seen in Jig Loading.
+          */
+         tr.gs-active-scan > td,
+         tr.gs-hi > td,
+         tr.gkb-row-focus > td,
+         tr.dp-row-action-highlight > td {
+         background-color: #fff5bd !important;
+         border-top: 2px solid #e0a800 !important;
+         border-bottom: 2px solid #e0a800 !important;
+         }
+
+         tr.gs-active-scan > td:first-child,
+         tr.gs-hi > td:first-child,
+         tr.gkb-row-focus > td:first-child,
+         tr.dp-row-action-highlight > td:first-child {
+         border-left: 2px solid #e0a800 !important;
+         }
+
+         tr.gs-active-scan > td:last-child,
+         tr.gs-hi > td:last-child,
+         tr.gkb-row-focus > td:last-child,
+         tr.dp-row-action-highlight > td:last-child {
+         border-right: 2px solid #e0a800 !important;
+         }
+
          /* Sidebar minimized: icons white, bg teal */
          body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon,
          body.sidebar-icon-only .sidebar .nav .nav-item i,
@@ -1125,6 +1154,8 @@
          tr.dp-row-action-highlight > td:nth-child(2) {
          left: 80px; /* match your sticky left for 2nd column */
          }
+
+         
       </style>
 
       <!-- Required meta tags -->
@@ -1315,7 +1346,7 @@
           }
         }
       </style>
-      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=dp-completed-widths-2">
+      <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=dp-completed-widths-9">
    </head>
    <body class="sidebar-icon-only{% block body_extra_class %}{% endblock %}">
       {% csrf_token %}
@@ -2767,9 +2798,6 @@
             }
          });
       </script>
-      <!-- /* Highlight active sidebar link based on current URL, and expand its
-           submenu — including auto-expanding the sidebar itself if a minimized
-           icon is clicked */ -->
       <script nonce="{{ csp_nonce }}">
          document.addEventListener("DOMContentLoaded", function() {
            // Highlight sidebar nav-link matching current URL
@@ -2795,7 +2823,7 @@
                var body = document.body;
                if (body.classList.contains('sidebar-icon-only')) {
                  body.classList.remove('sidebar-icon-only');
-
+ 
                  var submenuSelector = menuLink.getAttribute('href');
                  var submenu = submenuSelector ? document.querySelector(submenuSelector) : null;
                  if (submenu) {
@@ -2813,6 +2841,7 @@
              });
            });
          });
+      
       </script>
       <!-- script for custom tooltips on navbar icons -->
       <script nonce="{{ csp_nonce }}">
@@ -4475,7 +4504,14 @@
 
   function handleTrayFound(match, responseData, trayId) {
     const row = match.row;
-    moveHighlightedRowToTop(row);
+    // NOTE: intentionally NOT calling moveHighlightedRowToTop(row) here.
+    // That function physically relocated the matched <tr> to be the first
+    // row in <tbody>, which visually reordered tables (e.g. DP Completed
+    // Table) so the scanned row jumped above unrelated rows. Jig Loading
+    // never showed this problem only because its matches happened to
+    // already be the first row. We now leave the row exactly where it
+    // naturally sits and just scroll+highlight it in place (applyFoundHighlight
+    // already does both), which matches the Jig Loading behavior everywhere.
     applyFoundHighlight(row);
     const openedJigUnload = maybeOpenJigUnloadingTrayScan(row, responseData, trayId);
     const openedDraft = openedJigUnload ? true : openDraftRowModal(row, responseData, trayId);

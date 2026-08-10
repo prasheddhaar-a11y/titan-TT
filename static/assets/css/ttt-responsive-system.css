@@ -80,6 +80,20 @@ html.ttt-viewport-tablet :where(
   font-size: var(--ttt-font-size-tablet, 22px) !important;
 }
 
+/* Sidebar circle badges (D, DP, IS, BQ, NW1, etc.) must stay at their
+   compact desktop size on tablet. The site-wide tablet font baseline
+   above bumps every .sidebar descendant to 22px !important, which beat
+   the circle badge's 8.5px font-size in base.html (that rule had no
+   !important). The 22px letters were spilling outside the fixed 27px
+   circle, making both the text AND the circle look oversized on tablet.
+   This rule wins on specificity (more classes) while matching !important,
+   so it restores the original compact size without touching base.html. */
+html.ttt-viewport-tablet .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
+  font-size: 8.5px !important;
+  height: 27px !important;
+  min-width: 27px !important;
+}
+
 html.ttt-viewport-tablet .dropdown-menu .dropdown-item {
   line-height: 1.35 !important;
   min-height: 48px !important;
@@ -763,14 +777,26 @@ html body .dp-completed-table-page #order-listing td:nth-child(2) {
 html body .dp-completed-table-page #order-listing th:nth-child(3),
 html body .dp-completed-table-page #order-listing td:nth-child(3) {
   left: 245px !important;
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
 }
 
 /* Tablet-only balance for the Day Planning Completed Table. */
 html.ttt-viewport-tablet .dp-completed-table-page #order-listing th:nth-child(3),
 html.ttt-viewport-tablet .dp-completed-table-page #order-listing td:nth-child(3) {
-  width: 230px !important;
-  min-width: 230px !important;
-  max-width: 230px !important;
+  width: 210px !important;
+  min-width: 210px !important;
+  max-width: 210px !important;
+}
+
+/* Scope the desktop correction to the Completed Table when the shared
+   responsive helper misclassifies a desktop browser as a tablet. */
+html.dp-completed-desktop-client.ttt-viewport-tablet .dp-completed-table-page #order-listing th:nth-child(3),
+html.dp-completed-desktop-client.ttt-viewport-tablet .dp-completed-table-page #order-listing td:nth-child(3) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
 }
 
 html.ttt-viewport-tablet .dp-completed-table-page #order-listing th:nth-child(4),
@@ -904,9 +930,9 @@ html.ttt-viewport-tablet .module-pick-table-page #order-listing th:nth-child(3),
 html.ttt-viewport-tablet .module-pick-table-page #order-listing td:nth-child(3) {
   position: sticky !important;
   left: 345px !important;
-  width: 280px !important;
-  min-width: 275px !important;
-  max-width: 275px !important;
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
   z-index: 45 !important;
 }
 
@@ -976,9 +1002,9 @@ html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page
 html:not(.ttt-viewport-tablet) :is(.is-pick-table-page, .is-completed-table-page) #order-listing td:nth-child(3) {
   position: sticky !important;
   left: 225px !important;
-  width: 180px !important;
-  min-width: 180px !important;
-  max-width: 180px !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
   z-index: 45 !important;
 }
 
@@ -1017,6 +1043,22 @@ html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4
 
 html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4) :is(button, .btn, a) {
   white-space: nowrap !important;
+}
+
+/* Input Screening Pick Table: preserve the desktop column widths when the
+   shared responsive helper classifies a desktop browser as tablet. */
+html.is-input-screening-desktop-client .is-pick-table-page #order-listing[data-lock-module="INPUT_SCREENING"] th:nth-child(3),
+html.is-input-screening-desktop-client .is-pick-table-page #order-listing[data-lock-module="INPUT_SCREENING"] td:nth-child(3) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+}
+
+html.is-input-screening-desktop-client .is-pick-table-page #order-listing[data-lock-module="INPUT_SCREENING"] th:nth-child(4),
+html.is-input-screening-desktop-client .is-pick-table-page #order-listing[data-lock-module="INPUT_SCREENING"] td:nth-child(4) {
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
 }
 /* Desktop fix: widen Input Screening Pick Table Process Status column. */
 html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing th:nth-child(9),

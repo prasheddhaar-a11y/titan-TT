@@ -195,6 +195,23 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         tray_variants = self._tray_id_variants(tray_id)
         tray_query = self._tray_query(tray_variants)
 
+        # Direct lot_id lookup: the scanned value may itself be a lot_id
+        # rather than a tray_id — e.g. a source lot_id printed/shown on a
+        # consolidated Nickel Wiping row, or any lot label scanned straight
+        # off a lot. Check the lot tables directly so these resolve without
+        # requiring the value to appear in any tray table first.
+        try:
+            from modelmasterapp.models import TotalStockModel, ModelMasterCreation
+            lot_variant_query = self._tray_query(tray_variants, field_name='lot_id')
+            for lid in TotalStockModel.objects.filter(lot_variant_query).values_list('lot_id', flat=True):
+                if lid:
+                    lot_ids.add(lid)
+            for lid in ModelMasterCreation.objects.filter(lot_variant_query).values_list('lot_id', flat=True):
+                if lid:
+                    lot_ids.add(lid)
+        except Exception as e:
+            logger.debug('%s direct lot_id probe failed: %s', SCAN_TAG, e)
+
         def _safe_collect(qs, attr='lot_id'):
             try:
                 for val in qs.values_list(attr, flat=True):
@@ -391,6 +408,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         # Step 2: Check each module's pick table (newest stage first)
         checks = [
             ('Jig Loading',     self._check_lot_in_jig_loading),
+            ('Inprocess Inspection', self._check_lot_in_inprocess_inspection),
             ('Jig Unloading',   self._check_lot_in_jig_unloading),
             ('Nickel Wiping',   self._check_lot_in_nickel_wiping),
             ('Nickel Wiping Z2', self._check_lot_in_nickel_wiping_z2),
@@ -420,14 +438,23 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             except Exception as e:
                 logger.error('%s Unexpected error in %s: %s', SCAN_TAG, label, e)
 
-        if fallback_result and not requested_path:
+        # No exact same-page match was found above. That does NOT mean the
+        # tray doesn't exist - it usually means the tray belongs to a
+        # DIFFERENT page than the one the user is currently on (e.g.
+        # scanning from the Dashboard for a tray that lives in DP Completed
+        # Table). That is a normal cross-page case and must still resolve so
+        # the frontend can navigate there and highlight the row. Previously
+        # this fallback only fired when requested_path was empty, which is
+        # almost never true since the frontend always sends current_path -
+        # so real cross-page matches were being silently discarded here.
+        if fallback_result:
             return fallback_result
 
         # Day Planning batch fallback (when lot_id not yet created)
         if batch_ids:
             try:
                 result = self._check_batch_in_day_planning(batch_ids)
-                if result and (not requested_path or self._path_matches(result.get('url'), requested_path)):
+                if result:
                     return result
             except Exception as e:
                 logger.error('%s DP batch fallback error: %s', SCAN_TAG, e)
@@ -439,6 +466,26 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
     # that lot is currently active in the module's pick table, else None.
     # NOTE: We use the SAME queryset as the module's UI Pick Table so
     # Global Scan ownership matches what the user sees on screen.
+
+    def _wide_date_range_query(self):
+        """Query string spanning from year 2000 through today (IST).
+
+        Several Completed/Reject table pages (Brass QC, Brass Audit,
+        Nickel Audit, Spider Spindle) default to a "yesterday to today"
+        date range when no from_date/to_date is given. A tray scan can
+        correctly resolve to one of these pages yet still land on an
+        empty-looking table if the row is older than that default window.
+        Appending this wide range to the navigation URL guarantees the
+        matched row is actually visible after navigating there.
+        """
+        try:
+            from django.utils import timezone
+            import pytz
+            tz = pytz.timezone('Asia/Kolkata')
+            today = timezone.now().astimezone(tz).date()
+            return f'from_date=2000-01-01&to_date={today.isoformat()}'
+        except Exception:
+            return ''
 
     def _stock_for(self, lot_id):
         from modelmasterapp.models import TotalStockModel
@@ -503,6 +550,23 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         try:
             from Jig_Loading.models import JigCompleted
             stock = self._stock_for(lot_id)
+
+            # 1) Already submitted -> sitting in the Jig Loading Completed
+            #    Table (JigCompletedTable shows every draft_status='submitted'
+            #    row, regardless of downstream jig_position progress). This is
+            #    a historical fact about the JigCompleted record itself, so it
+            #    must be checked BEFORE the stock-eligibility gate below —
+            #    that gate only decides whether the lot should still appear on
+            #    the active Jig Loading work screen, and wrongly hid already
+            #    -submitted jigs whose current stock flags no longer matched it.
+            if JigCompleted.objects.filter(lot_id=lot_id, draft_status='submitted').exists():
+                return {
+                    'module': 'Jig Loading (Completed)',
+                    'url': reverse('JigCompletedTable'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
             if not stock:
                 return None
             eligible = (
@@ -512,8 +576,8 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             )
             if not eligible:
                 return None
-            if JigCompleted.objects.filter(lot_id=lot_id, draft_status='submitted').exists():
-                return None
+
+            # 2) Still being worked on in the active Jig Loading screen
             return {
                 'module': 'Jig Loading',
                 'url': reverse('JigView'),
@@ -574,6 +638,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 zone_field='jig_unload_zone_1',
                 module_name='Nickel Wiping',
                 url_name='Nickel_Inspection',
+                completed_url_name='NI_Completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_nickel_wiping: %s', SCAN_TAG, e)
@@ -586,18 +651,22 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 zone_field='jig_unload_zone_2',
                 module_name='Nickel Wiping Z2',
                 url_name='NQ_Zone_PickTable',
+                completed_url_name='NQ_Zone_Completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_nickel_wiping_z2: %s', SCAN_TAG, e)
             return None
 
-    def _check_lot_in_nickel_wiping_zone(self, lot_id, zone_field, module_name, url_name):
+    def _check_lot_in_nickel_wiping_zone(self, lot_id, zone_field, module_name, url_name, completed_url_name):
         from Jig_Unloading.models import JigUnloadAfterTable
         from modelmasterapp.models import Plating_Color
 
         allowed_color_ids = Plating_Color.objects.filter(
             **{zone_field: True}
         ).values_list('id', flat=True)
+        stock = self._stock_for(lot_id)
+
+        # 1) Still active / pending in the Nickel Wiping Pick Table
         active_filter = (
             (
                 (Q(nq_qc_accptance__isnull=True) | Q(nq_qc_accptance=False))
@@ -608,20 +677,47 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             | Q(send_to_nickel_brass=True)
             | Q(rejected_nickle_ip_stock=True, nq_onhold_picking=True)
         )
-        if not JigUnloadAfterTable.objects.filter(
+        if JigUnloadAfterTable.objects.filter(
             lot_id=lot_id,
             total_case_qty__gt=0,
             plating_color_id__in=allowed_color_ids,
         ).filter(active_filter).exists():
-            return None
+            return {
+                'module': module_name,
+                'url': reverse(url_name),
+                'lot_id': lot_id,
+                'batch_id': self._batch_str(stock, lot_id),
+            }
 
-        stock = self._stock_for(lot_id)
-        return {
-            'module': module_name,
-            'url': reverse(url_name),
-            'lot_id': lot_id,
-            'batch_id': self._batch_str(stock, lot_id),
-        }
+        # 2) Already submitted -> Completed Table. The Completed table is
+        #    built from the append-only NickelWiping_*Record event history
+        #    (Full Accept / Full Reject / Partial Accept), keyed by the
+        #    JigUnloadAfterTable lot_id (source_lot_id / child_lot_id), not
+        #    the live JigUnloadAfterTable row state. Confirm the lot belongs
+        #    to this zone via its plating colour.
+        from Nickel_Inspection.models import (
+            NickelWiping_FullAcceptRecord,
+            NickelWiping_FullRejectRecord,
+            NickelWiping_PartialAcceptRecord,
+        )
+        has_completed_event = (
+            NickelWiping_FullAcceptRecord.objects.filter(source_lot_id=lot_id).exists() or
+            NickelWiping_FullRejectRecord.objects.filter(source_lot_id=lot_id).exists() or
+            NickelWiping_PartialAcceptRecord.objects.filter(
+                Q(source_lot_id=lot_id) | Q(child_lot_id=lot_id)
+            ).exists()
+        )
+        if has_completed_event and JigUnloadAfterTable.objects.filter(
+            lot_id=lot_id, plating_color_id__in=allowed_color_ids
+        ).exists():
+            return {
+                'module': f'{module_name} (Completed)',
+                'url': reverse(completed_url_name),
+                'lot_id': lot_id,
+                'batch_id': self._batch_str(stock, lot_id),
+            }
+
+        return None
 
     @staticmethod
     def _nickel_audit_source_lot_ids(jig_unload_obj):
@@ -656,7 +752,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             completed_sources.update(self._nickel_audit_source_lot_ids(completed_row))
         return completed_sources
 
-    def _check_lot_in_nickel_audit_zone(self, lot_id, zone_field, module_name, url_name):
+    def _check_lot_in_nickel_audit_zone(self, lot_id, zone_field, module_name, url_name, completed_url_name):
         from Jig_Unloading.models import JigUnloadAfterTable
         from modelmasterapp.models import Plating_Color
         from Nickel_Audit.models import NickelAudit_Submission
@@ -686,21 +782,40 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             .only('lot_id', 'combine_lot_ids')
             .first()
         )
-        if not pick_row:
-            return None
-        if NickelAudit_Submission.objects.filter(lot_id=pick_row.lot_id).exists():
-            return None
-        completed_sources = self._nickel_audit_completed_source_lot_ids(allowed_color_ids)
-        if any(source_lot in completed_sources for source_lot in self._nickel_audit_source_lot_ids(pick_row)):
-            return None
-
         stock = self._stock_for(lot_id)
-        return {
-            'module': module_name,
-            'url': reverse(url_name),
-            'lot_id': lot_id,
-            'batch_id': self._batch_str(stock, lot_id),
-        }
+
+        if pick_row:
+            already_submitted = NickelAudit_Submission.objects.filter(lot_id=pick_row.lot_id).exists()
+            already_completed_source = False
+            if not already_submitted:
+                completed_sources = self._nickel_audit_completed_source_lot_ids(allowed_color_ids)
+                already_completed_source = any(
+                    source_lot in completed_sources
+                    for source_lot in self._nickel_audit_source_lot_ids(pick_row)
+                )
+            if not already_submitted and not already_completed_source:
+                return {
+                    'module': module_name,
+                    'url': reverse(url_name),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+        # Not (or no longer) active in the Pick Table - check the Completed
+        # Table via its NickelAudit_Submission event, so scans of trays that
+        # already finished Nickel Audit still resolve instead of "Not Exists".
+        if (
+            JigUnloadAfterTable.objects.filter(lot_id=lot_id, plating_color_id__in=allowed_color_ids).exists()
+            and NickelAudit_Submission.objects.filter(lot_id=lot_id).exists()
+        ):
+            return {
+                'module': f'{module_name} (Completed)',
+                'url': reverse(completed_url_name) + '?' + self._wide_date_range_query(),
+                'lot_id': lot_id,
+                'batch_id': self._batch_str(stock, lot_id),
+            }
+
+        return None
 
     def _check_lot_in_nickel_audit_z1(self, lot_id):
         try:
@@ -709,6 +824,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 zone_field='jig_unload_zone_1',
                 module_name='Nickel Audit',
                 url_name='NA_PickTable',
+                completed_url_name='NA_Completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_nickel_audit_z1: %s', SCAN_TAG, e)
@@ -721,12 +837,15 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 zone_field='jig_unload_zone_2',
                 module_name='Nickel Audit Z2',
                 url_name='NA_Zone_PickTable',
+                completed_url_name='NA_Zone_Completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_nickel_audit_z2: %s', SCAN_TAG, e)
             return None
 
-    def _check_lot_in_spider_spindle_zone(self, lot_id, zone_field, completed_field, module_name, url_name):
+    def _check_lot_in_spider_spindle_zone(
+        self, lot_id, zone_field, completed_field, module_name, url_name, completed_url_name
+    ):
         from Jig_Unloading.models import JigUnloadAfterTable
         from modelmasterapp.models import Plating_Color
 
@@ -745,16 +864,39 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             .only('lot_id')
             .first()
         )
-        if not pick_row:
-            return None
+        if pick_row:
+            stock = self._stock_for(pick_row.lot_id)
+            return {
+                'module': module_name,
+                'url': reverse(url_name),
+                'lot_id': pick_row.lot_id,
+                'batch_id': self._batch_str(stock, pick_row.lot_id),
+            }
 
-        stock = self._stock_for(pick_row.lot_id)
-        return {
-            'module': module_name,
-            'url': reverse(url_name),
-            'lot_id': pick_row.lot_id,
-            'batch_id': self._batch_str(stock, pick_row.lot_id),
-        }
+        # Not (or no longer) active in the Pick Table - the row may have
+        # already finished Spider Spindle (completed_field=True) and moved
+        # to its Completed Table. Check that directly so the scan still
+        # resolves instead of "Not Exists".
+        completed_row = (
+            JigUnloadAfterTable.objects.filter(
+                lot_id=lot_id,
+                plating_color_id__in=allowed_color_ids,
+                na_qc_accptance=True,
+                **{completed_field: True},
+            )
+            .only('lot_id')
+            .first()
+        )
+        if completed_row:
+            stock = self._stock_for(completed_row.lot_id)
+            return {
+                'module': f'{module_name} (Completed)',
+                'url': reverse(completed_url_name) + '?' + self._wide_date_range_query(),
+                'lot_id': completed_row.lot_id,
+                'batch_id': self._batch_str(stock, completed_row.lot_id),
+            }
+
+        return None
 
     def _check_lot_in_ss_z1(self, lot_id):
         try:
@@ -764,6 +906,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 completed_field='ss_z1_completed',
                 module_name='Spider Spindle Z1',
                 url_name='ss_z1_pick_table',
+                completed_url_name='ss_z1_completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_ss_z1: %s', SCAN_TAG, e)
@@ -777,6 +920,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 completed_field='ss_z2_completed',
                 module_name='Spider Spindle Z2',
                 url_name='ss_z2_pick_table',
+                completed_url_name='ss_z2_completed',
             )
         except Exception as e:
             logger.error('%s _check_lot_in_ss_z2: %s', SCAN_TAG, e)
@@ -785,15 +929,39 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
     def _check_lot_in_iqf(self, lot_id):
         try:
             from IQF.services.selectors import get_iqf_picktable_base_queryset
-            if not get_iqf_picktable_base_queryset().filter(lot_id=lot_id).exists():
-                return None
             stock = self._stock_for(lot_id)
-            return {
-                'module': 'IQF',
-                'url': reverse('iqf_picktable'),
-                'lot_id': lot_id,
-                'batch_id': self._batch_str(stock, lot_id),
-            }
+
+            # 1) Still sitting in the IQF Pick Table (not yet submitted)
+            if get_iqf_picktable_base_queryset().filter(lot_id=lot_id).exists():
+                return {
+                    'module': 'IQF',
+                    'url': reverse('iqf_picktable'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 2) Submitted -> Completed / Reject Table. IQF_Submitted is the
+            #    single source of truth for both (no date-range default, so
+            #    no wide date range needed here unlike Brass QC/Audit).
+            from IQF.models import IQF_Submitted
+
+            submission = IQF_Submitted.objects.filter(lot_id=lot_id, is_completed=True).first()
+            if submission:
+                if getattr(submission, 'rejected_qty', 0):
+                    return {
+                        'module': 'IQF (Reject)',
+                        'url': reverse('iqf_rejection_table'),
+                        'lot_id': lot_id,
+                        'batch_id': self._batch_str(stock, lot_id),
+                    }
+                return {
+                    'module': 'IQF (Completed)',
+                    'url': reverse('iqf_completed_table'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_lot_in_iqf: %s', SCAN_TAG, e)
             return None
@@ -802,15 +970,60 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         try:
             from BrassAudit.selectors import get_picktable_base_queryset
 
-            if not get_picktable_base_queryset().filter(lot_id=lot_id).exists():
-                return None
             stock = self._stock_for(lot_id)
-            return {
-                'module': 'Brass Audit',
-                'url': reverse('brass_audit_picktable'),
-                'lot_id': lot_id,
-                'batch_id': self._batch_str(stock, lot_id),
-            }
+
+            # 1) Still sitting in the Brass Audit Pick Table (not yet submitted)
+            if get_picktable_base_queryset().filter(lot_id=lot_id).exists():
+                return {
+                    'module': 'Brass Audit',
+                    'url': reverse('brass_audit_picktable'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            from modelmasterapp.models import TotalStockModel
+            from BrassAudit.models import Brass_Audit_Submission
+
+            # 2) Submitted and accepted/rejected -> Completed Table. Mirrors
+            #    BrassAuditCompletedView's filter, minus the default date
+            #    range, so a tray scan finds the row regardless of when it
+            #    was processed.
+            processed = TotalStockModel.objects.filter(
+                lot_id=lot_id,
+                batch_id__total_batch_quantity__gt=0,
+            ).filter(
+                Q(brass_audit_accptance=True) |
+                Q(brass_audit_rejection=True) |
+                Q(brass_audit_few_cases_accptance=True, brass_audit_onhold_picking=False)
+            ).exists()
+            has_submission = Brass_Audit_Submission.objects.filter(
+                lot_id=lot_id, is_completed=True
+            ).exists()
+            if processed and has_submission:
+                return {
+                    'module': 'Brass Audit (Completed)',
+                    'url': reverse('brass_audit_completed') + '?' + self._wide_date_range_query(),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 3) Rejected (full or partial) -> Reject Table. Mirrors
+            #    BrassAuditRejectTableView's filter, minus the date range.
+            rejected = TotalStockModel.objects.filter(
+                lot_id=lot_id,
+                batch_id__total_batch_quantity__gt=0,
+            ).filter(
+                Q(brass_audit_rejection=True) | Q(brass_audit_few_cases_accptance=True)
+            ).exists()
+            if rejected:
+                return {
+                    'module': 'Brass Audit (Reject)',
+                    'url': reverse('brass_audit_rejection') + '?' + self._wide_date_range_query(),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_lot_in_brass_audit: %s', SCAN_TAG, e)
             return None
@@ -818,16 +1031,40 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
     def _check_lot_in_brass_qc(self, lot_id):
         try:
             from Brass_QC.services.selectors import get_picktable_base_queryset
-            # Use SAME queryset as Brass QC Pick Table UI (TotalStockModel-based)
-            if not get_picktable_base_queryset().filter(lot_id=lot_id).exists():
-                return None
             stock = self._stock_for(lot_id)
-            return {
-                'module': 'Brass QC',
-                'url': reverse('BrassPickTableView'),
-                'lot_id': lot_id,
-                'batch_id': self._batch_str(stock, lot_id),
-            }
+
+            # 1) Still sitting in the Brass QC Pick Table (not yet submitted)
+            # Use SAME queryset as Brass QC Pick Table UI (TotalStockModel-based)
+            if get_picktable_base_queryset().filter(lot_id=lot_id).exists():
+                return {
+                    'module': 'Brass QC',
+                    'url': reverse('BrassPickTableView'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 2) Submitted (accepted or rejected) -> Completed Table. Brass QC
+            #    has a single Completed Table that also lists rejected lots,
+            #    unlike other modules which split accept/reject. Mirrors
+            #    get_completed_base_queryset's filter, minus the date range.
+            from modelmasterapp.models import TotalStockModel
+            processed = TotalStockModel.objects.filter(
+                lot_id=lot_id,
+                batch_id__total_batch_quantity__gt=0,
+            ).filter(
+                Q(brass_qc_accptance=True) |
+                Q(brass_qc_rejection=True) |
+                Q(brass_qc_few_cases_accptance=True, brass_onhold_picking=False)
+            ).exists()
+            if processed:
+                return {
+                    'module': 'Brass QC (Completed)',
+                    'url': reverse('BrassCompletedView') + '?' + self._wide_date_range_query(),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_lot_in_brass_qc: %s', SCAN_TAG, e)
             return None
@@ -835,21 +1072,78 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
     def _check_lot_in_input_screening(self, lot_id):
         try:
             from InputScreening.selectors import pick_table_queryset
+            stock = self._stock_for(lot_id)
+
+            # 1) Still sitting in the IS Pick Table (not yet submitted)
             # IS Pick Table renders the TotalStockModel lot as the annotated
             # stock_lot_id, while ModelMasterCreation.lot_id is often empty.
-            if not pick_table_queryset().filter(
+            if pick_table_queryset().filter(
                 Q(stock_lot_id=lot_id) | Q(lot_id=lot_id)
             ).exists():
-                return None
-            stock = self._stock_for(lot_id)
-            return {
-                'module': 'Input Screening',
-                'url': reverse('IS_PickTable'),
-                'lot_id': lot_id,
-                'batch_id': self._batch_str(stock, lot_id),
-            }
+                return {
+                    'module': 'Input Screening',
+                    'url': reverse('IS_PickTable'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 2) Submitted (accepted/partial) -> Completed Table
+            from InputScreening.models import InputScreening_Submitted, IS_PartialRejectLot
+
+            if InputScreening_Submitted.objects.filter(
+                lot_id=lot_id, is_submitted=True, is_active=True
+            ).exists():
+                return {
+                    'module': 'Input Screening (Completed)',
+                    'url': reverse('IS_Completed_Table'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 3) Rejected (full or partial) -> Reject Table
+            if IS_PartialRejectLot.objects.filter(parent_lot_id=lot_id).exists():
+                return {
+                    'module': 'Input Screening (Reject)',
+                    'url': reverse('IS_RejectTable'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            return None
         except Exception as e:
             logger.error('%s _check_lot_in_input_screening: %s', SCAN_TAG, e)
+            return None
+
+    def _check_lot_in_inprocess_inspection(self, lot_id):
+        try:
+            from Jig_Loading.models import JigCompleted
+            stock = self._stock_for(lot_id)
+
+            # 1) Completed (jig_position assigned) -> Inprocess Inspection Completed
+            if JigCompleted.objects.filter(
+                lot_id=lot_id, jig_position__isnull=False
+            ).exists():
+                return {
+                    'module': 'Inprocess Inspection (Completed)',
+                    'url': reverse('inprocess_inspection_complete'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            # 2) Submitted from Jig Loading, awaiting jig position -> main table
+            if JigCompleted.objects.filter(
+                lot_id=lot_id, draft_status='submitted', jig_position__isnull=True
+            ).exists():
+                return {
+                    'module': 'Inprocess Inspection',
+                    'url': reverse('inprocess_inspection_main'),
+                    'lot_id': lot_id,
+                    'batch_id': self._batch_str(stock, lot_id),
+                }
+
+            return None
+        except Exception as e:
+            logger.error('%s _check_lot_in_inprocess_inspection: %s', SCAN_TAG, e)
             return None
 
     def _check_lot_in_day_planning(self, lot_id):

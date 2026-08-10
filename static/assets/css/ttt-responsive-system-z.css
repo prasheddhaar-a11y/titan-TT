@@ -697,6 +697,9 @@ html body .dp-completed-table-page #order-listing td:nth-child(2) {
 html body .dp-completed-table-page #order-listing th:nth-child(3),
 html body .dp-completed-table-page #order-listing td:nth-child(3) {
   left: 245px !important;
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
 }
 
 html.ttt-viewport-tablet body .content-wrapper:not(.is-pick-table-page):not(.is-completed-table-page) #order-listing th:nth-child(2),
