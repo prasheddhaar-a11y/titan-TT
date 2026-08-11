@@ -335,16 +335,14 @@
          left: 160px; /* adjust as per your table's sticky layout */
          }
          /*
-          * Global highlighted-row yellow coating/outline.
-          * Applies to the existing scan/highlight classes used across modules.
-          * Keeps the existing pale-yellow row background and adds the
-          * yellow/orange outline seen in Jig Loading.
+          * Global active-row outline for scan/highlight classes.
+          * Keep the row's own background intact: active row is border only.
           */
          tr.gs-active-scan > td,
          tr.gs-hi > td,
          tr.gkb-row-focus > td,
          tr.dp-row-action-highlight > td {
-         background-color: #fff5bd !important;
+         background-color: transparent !important;
          border-top: 2px solid #e0a800 !important;
          border-bottom: 2px solid #e0a800 !important;
          }
@@ -3787,6 +3785,10 @@
       .then(function(response) { return response.json(); })
       .then(function(data) {
         if (scanSequence !== activeScanSequence) return null;
+        if (data && data.restricted) {
+          handleTrayRestricted(trayId, data.message);
+          return null;
+        }
         if (!data || !data.success || !data.found) {
           handleTrayNotFound(trayId);
           return null;
@@ -3883,6 +3885,8 @@
     const params = new URLSearchParams();
     params.set('highlight', trayId);
     if (lotId) params.set('lot', lotId);
+    if (responseData && responseData.batch_id) params.set('batch', responseData.batch_id);
+    if (responseData && responseData.page) params.set('page', responseData.page);
     const separator = targetUrl.indexOf('?') === -1 ? '?' : '&';
 
     window.setTimeout(function() {
@@ -4563,6 +4567,26 @@
     logScan('[SCAN_NOT_FOUND]', { tray_id: trayId, table_id: getCurrentTableId() });
   }
 
+  function handleTrayRestricted(trayId, message) {
+    const text = message || 'Access restricted';
+    clearScanHighlights();
+    restorePrioritizedRow();
+    scanInput.disabled = false;
+    setInfo('!', text, '#ff6b00');
+    setScanMessage(text, '#ff6b00');
+    if (scanResult) {
+      const restrictedMessage = document.createElement('div');
+      restrictedMessage.style.color = '#ff6b00';
+      restrictedMessage.style.fontWeight = '700';
+      restrictedMessage.style.padding = '6px 0';
+      restrictedMessage.textContent = text;
+      scanResult.replaceChildren(restrictedMessage);
+    }
+    focusScanInput(true);
+    dispatchGlobalScanEvent('globalScan:restricted', { tray_id: trayId, message: text });
+    logScan('[SCAN_RESTRICTED]', { tray_id: trayId, table_id: getCurrentTableId(), message: text });
+  }
+
   window.GlobalPickTableScanner = {
     openScanModal: openGlobalScanModal,
     openGlobalScanModal: openGlobalScanModal,
@@ -4571,6 +4595,7 @@
     findTrayInCurrentPickTable: findTrayInCurrentPickTable,
     handleTrayFound: handleTrayFound,
     handleTrayNotFound: handleTrayNotFound,
+    handleTrayRestricted: handleTrayRestricted,
     resetPreviousScanState: resetPreviousScanState,
     moveHighlightedRowToTop: moveHighlightedRowToTop,
     closeScanModal: closeGlobalScanModal,
@@ -4880,6 +4905,9 @@
 
   // ── Highlight and scroll (sticky-header aware) ────────────────────────────
   function highlightRow(row) {
+    if (row && row.parentNode && row.parentNode.firstElementChild !== row) {
+      row.parentNode.insertBefore(row, row.parentNode.firstElementChild);
+    }
     row.classList.add('gs-hi');
     const pg = getCurrentPage();
     
