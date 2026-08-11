@@ -35,6 +35,149 @@ _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
 _RE_SUFFIX = re.compile(r'^[A-Z][A-Z]02$')
 
 
+def _extract_dp_completed_lot_id(raw_lot_id):
+    """Normalize stored lot tokens used by downstream Jig Unloading rows."""
+    if not raw_lot_id:
+        return ''
+    lot_id = str(raw_lot_id).strip().lstrip('-')
+    if ':' in lot_id:
+        possible_lot = lot_id.rsplit(':', 1)[-1].strip()
+        if possible_lot:
+            return possible_lot
+    if lot_id.startswith('JLOT-') and '-' in lot_id[5:]:
+        return lot_id.rsplit('-', 1)[-1].strip()
+    return lot_id
+
+
+def _dp_completed_lot_status_for_stage(stage_name):
+    stage = str(stage_name or '').strip().lower().replace('_', ' ')
+    return 'Yet to Release' if stage == 'day planning' else 'Released'
+
+
+def _enrich_dp_completed_status_fields(master_data):
+    """
+    Add backend-owned current_stage_display and lot_status to DP Completed rows.
+
+    The lookup follows the production chain:
+    ModelMasterCreation.batch_id -> TotalStockModel.lot_id -> JigCompleted
+    -> JigUnloadAfterTable, while avoiding plating_stk_no as a lookup key.
+    """
+    if not master_data:
+        return
+
+    from collections import defaultdict
+    from Jig_Loading.models import JigCompleted
+    from Jig_Unloading.models import JigUnloadAfterTable
+    from modelmasterapp.stage_service import most_advanced_stage
+
+    page_batch_ids = [row.get('batch_id') for row in master_data if row.get('batch_id')]
+    batch_id_set = set(page_batch_ids)
+    if not batch_id_set:
+        return
+
+    batch_to_stage_candidates = defaultdict(list)
+    lot_id_to_batch_ids = defaultdict(set)
+
+    stock_rows = list(
+        TotalStockModel.objects.filter(
+            batch_id__batch_id__in=batch_id_set
+        ).values(
+            'batch_id__batch_id',
+            'lot_id',
+            'current_stage',
+            'last_process_module',
+        )
+    )
+    for stock in stock_rows:
+        batch_id = stock.get('batch_id__batch_id')
+        if not batch_id:
+            continue
+        stage = stock.get('current_stage') or stock.get('last_process_module')
+        if stage:
+            batch_to_stage_candidates[batch_id].append(stage)
+        lot_id = _extract_dp_completed_lot_id(stock.get('lot_id'))
+        if lot_id:
+            lot_id_to_batch_ids[lot_id].add(batch_id)
+
+    source_lot_ids = set(lot_id_to_batch_ids)
+    jig_completed_filter = Q(batch_id__in=batch_id_set)
+    if source_lot_ids:
+        jig_completed_filter |= Q(lot_id__in=source_lot_ids)
+
+    jig_ids = set()
+    jig_id_to_batch_ids = defaultdict(set)
+
+    jig_rows = list(
+        JigCompleted.objects.filter(jig_completed_filter).values(
+            'batch_id',
+            'lot_id',
+            'jig_id',
+            'last_process_module',
+        )
+    )
+    for jig in jig_rows:
+        related_batch_ids = set()
+        batch_id = jig.get('batch_id')
+        if batch_id in batch_id_set:
+            related_batch_ids.add(batch_id)
+
+        lot_id = _extract_dp_completed_lot_id(jig.get('lot_id'))
+        related_batch_ids.update(lot_id_to_batch_ids.get(lot_id, set()))
+
+        stage = jig.get('last_process_module')
+        for related_batch_id in related_batch_ids:
+            if stage:
+                batch_to_stage_candidates[related_batch_id].append(stage)
+            jig_id = str(jig.get('jig_id') or '').strip()
+            if jig_id:
+                jig_ids.add(jig_id)
+                jig_id_to_batch_ids[jig_id].add(related_batch_id)
+
+    juat_filter = Q()
+    if source_lot_ids:
+        juat_filter |= Q(combine_lot_ids__overlap=list(source_lot_ids))
+    if jig_ids:
+        juat_filter |= Q(jig_qr_id__in=list(jig_ids))
+
+    juat_rows = list(
+        JigUnloadAfterTable.objects.filter(juat_filter).values(
+            'jig_qr_id',
+            'combine_lot_ids',
+            'current_stage',
+            'last_process_module',
+        )
+    ) if juat_filter else []
+
+    for juat in juat_rows:
+        related_batch_ids = set()
+        jig_qr_id = str(juat.get('jig_qr_id') or '').strip()
+        if jig_qr_id:
+            related_batch_ids.update(jig_id_to_batch_ids.get(jig_qr_id, set()))
+
+        for raw_lot_id in juat.get('combine_lot_ids') or []:
+            lot_id = _extract_dp_completed_lot_id(raw_lot_id)
+            related_batch_ids.update(lot_id_to_batch_ids.get(lot_id, set()))
+
+        stage = juat.get('current_stage') or juat.get('last_process_module')
+        for related_batch_id in related_batch_ids:
+            if stage:
+                batch_to_stage_candidates[related_batch_id].append(stage)
+
+    for row in master_data:
+        batch_id = row.get('batch_id')
+        fallback_stage = (
+            row.get('current_stage')
+            or row.get('last_process_module')
+            or 'Day Planning'
+        )
+        current_stage = most_advanced_stage(
+            *batch_to_stage_candidates.get(batch_id, []),
+            fallback_stage,
+        ) or fallback_stage
+        row['current_stage_display'] = current_stage
+        row['lot_status'] = _dp_completed_lot_status_for_stage(current_stage)
+
+
 
 # API to lock a row when accessed - Day Planning Pick Table
 
@@ -3285,6 +3428,8 @@ class DPCompletedTableView(APIView):
                 'preview_image': uploaded_urls[0] if uploaded_urls else (urls[0] if urls else ''),
             }
 
+        _enrich_dp_completed_status_fields(master_data)
+
         # Calculate no_of_trays dynamically and add tray_qty_list
         for data in master_data:
             total_batch_quantity = data.get('total_batch_quantity', 0)
@@ -3300,12 +3445,6 @@ class DPCompletedTableView(APIView):
             # and surfacing it here previously made a lot show e.g. "Brass QC"
             # the instant a split/reject routed it there — before Brass QC had
             # ever opened it.
-            data['current_stage_display'] = (
-                data.get('current_stage')
-                or data.get('last_process_module')
-                or 'N/A'
-            )
-
             if tray_capacity > 0:
                 no_of_trays = math.ceil(total_batch_quantity / tray_capacity)
                 data['no_of_trays'] = no_of_trays

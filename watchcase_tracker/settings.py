@@ -444,7 +444,7 @@ LOGGING = {
 }
 
 # Microsoft (Entra ID) / MSAL settings
-MSAL_CLIENT_ID = os.getenv("MSAL_CLIENT_ID", "54a2fd19-0009-4e29-9d7b-b33e9ae8fbfa")
+MSAL_CLIENT_ID = os.getenv("MSAL_CLIENT_ID", "00855866-7b9b-498f-b1d5-d8aae7c9680e")
 MSAL_CLIENT_SECRET = os.getenv("MSAL_CLIENT_SECRET")
 # MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID", "common")
 # The Azure App Registration's Redirect URI is registered WITH a trailing
@@ -458,7 +458,7 @@ MSAL_REDIRECT_PATH = "/auth/microsoft/callback/"
 
 
 
-MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID","04132f71-f746-4a5b-a30e-66ea6d16714c",).strip()
+MSAL_TENANT_ID = os.getenv("MSAL_TENANT_ID","7cc91c38-648e-4ce2-a4e4-517ae39fc189",).strip()
 
 # Optional fixed origin (scheme+host[:port]) for the OAuth redirect URI, e.g.
 # "http://localhost:8000" or "https://titan.example.com". Pinning to one

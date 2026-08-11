@@ -7770,103 +7770,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /**
-   * Jig ID prefix lock — the first 5 chars ("J" + zero-padded capacity + "-")
-   * are fully determined by the jig's capacity, so the user only ever keys in
-   * the trailing 4 digits. Keeps the field self-consistent with
-   * validateJigIdFormat() above instead of relying on the user to type the
-   * capacity digits correctly by hand.
-   */
-  function _getJigIdPrefix() {
-    var capacity = parseInt(window.BACKEND_ORIGINAL_CAPACITY || window.jigCapacity || 0) || 0;
-    return capacity ? ('J' + String(capacity).padStart(3, '0') + '-') : null;
-  }
-
-  function _syncJigIdPrefix(inputEl) {
-    if (!inputEl) return;
-    var prefix = _getJigIdPrefix();
-    if (!prefix) return;
-    inputEl.dataset.jigPrefix = prefix;
-    inputEl.placeholder = prefix + '0000';
-    var val = (inputEl.value || '').toUpperCase();
-    if (!val.startsWith(prefix)) {
-      // Preserve any digits already typed (e.g. capacity resolved after the
-      // user started typing, or a stale prefix from a previously picked jig).
-      var digits = val.replace(/[^0-9]/g, '').slice(0, 4);
-      inputEl.value = prefix + digits;
-      applyJigIdValidation(inputEl);
-    }
-  }
-  window._syncJigIdPrefix = _syncJigIdPrefix;
-
-  // window.jigCapacity resolves immediately on modal open (from the jig button's
-  // data-jig-capacity attribute); window.BACKEND_ORIGINAL_CAPACITY resolves
-  // slightly later from the init API response. Hooking both as property setters
-  // re-syncs the prefix the instant either becomes known, without having to
-  // touch every one of their assignment call sites.
-  ['jigCapacity', 'BACKEND_ORIGINAL_CAPACITY'].forEach(function(propName) {
-    var current = window[propName];
-    Object.defineProperty(window, propName, {
-      configurable: true,
-      enumerable: true,
-      get: function() { return current; },
-      set: function(v) {
-        current = v;
-        _syncJigIdPrefix(document.getElementById('jigIdInput'));
-      }
-    });
-  });
-
   // Attach handler once DOM is ready
+  // Prefix auto-lock removed — user types/scans the full Jig ID (e.g. J144-0000)
+  // themselves; validateJigIdFormat()/applyJigIdValidation() above still enforce
+  // the correct capacity-based format and flag it invalid otherwise.
   document.addEventListener('DOMContentLoaded', function() {
     var jigInput = document.getElementById('jigIdInput');
     if (jigInput) {
       jigInput.addEventListener('input', function() { applyJigIdValidation(jigInput); });
       jigInput.addEventListener('blur', function() { applyJigIdValidation(jigInput); });
-      // Allow only alphanumeric and hyphen (J + digits + hyphen + digits) when the
-      // capacity — and therefore the fixed prefix — isn't known yet. Once known,
-      // only digits are accepted, and only after the locked prefix.
+      // Allow only alphanumeric and hyphen while typing.
       jigInput.addEventListener('keypress', function(e) {
         var char = String.fromCharCode(e.which || e.keyCode);
-        var prefix = this.dataset.jigPrefix || '';
-        if (prefix) {
-          var suffixLen = (this.value || '').length - prefix.length;
-          if (!/[0-9]/.test(char) || this.selectionStart < prefix.length || suffixLen >= 4) {
-            e.preventDefault();
-          }
-          return;
-        }
         if (!/[a-zA-Z0-9\-]/.test(char)) { e.preventDefault(); }
       });
-      // Block Backspace/Delete from eating into the locked prefix.
-      jigInput.addEventListener('keydown', function(e) {
-        var prefix = this.dataset.jigPrefix || '';
-        if (!prefix) return;
-        var pos = this.selectionStart;
-        if ((e.key === 'Backspace' && pos <= prefix.length && this.selectionEnd <= prefix.length) ||
-            (e.key === 'Delete' && pos < prefix.length)) {
-          e.preventDefault();
-        }
-      });
-      // Keep the caret in the editable (post-prefix) portion of the field.
-      var _clampCaret = function() {
-        var prefix = this.dataset.jigPrefix || '';
-        if (prefix && this.selectionStart < prefix.length) {
-          this.setSelectionRange(prefix.length, prefix.length);
-        }
-      };
-      jigInput.addEventListener('click', _clampCaret);
-      jigInput.addEventListener('focus', function() { setTimeout(_clampCaret.bind(this), 0); });
-      // Sanitize pasted content down to the 4 trailing digits.
-      jigInput.addEventListener('paste', function(e) {
-        var prefix = this.dataset.jigPrefix || '';
-        if (!prefix) return;
-        e.preventDefault();
-        var text = (e.clipboardData || window.clipboardData).getData('text') || '';
-        this.value = prefix + text.replace(/[^0-9]/g, '').slice(0, 4);
-        applyJigIdValidation(this);
-      });
-      _syncJigIdPrefix(jigInput);
     }
   });
 
