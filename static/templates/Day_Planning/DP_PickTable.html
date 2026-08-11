@@ -649,6 +649,13 @@ html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4
   white-space: nowrap !important;
 }
 
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing th:nth-child(3),
+html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(3) {
+  width: 200px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+}
+
 /* Freeze style for 1st - 3 columns */
 /* --- Freeze first 3 columns and table header for #order-listing --- */
 #order-listing {
@@ -704,8 +711,8 @@ html:not(.ttt-viewport-tablet) .dp-pick-table-page #order-listing td:nth-child(4
   left: 182px; /* 100px (1st) + 90px (2nd) */
   z-index: 12;
   background: #f7fafd;
-  min-width: 130px; /* Increased width 100 - old value*/
-  max-width: 140px; /* Increased width  110 - old value*/
+  min-width: 150px; /* Increased width so Plating Stk No header does not crop */
+  max-width: 160px; /* Increased width so Plating Stk No header does not crop */
 }
 
 
