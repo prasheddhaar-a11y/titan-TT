@@ -7740,52 +7740,75 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /* # Jig ID Validation with formatter */
   function applyJigIdValidation(inputEl) {
-    // UI FIX: while typing, feedback is the chip's own outline (red = invalid,
-    // green = valid) only — no text alert, no layout shift. #jigIdError stays
-    // out of flow (position:absolute, see CSS) and is left untouched here on
-    // purpose; other flows (submit-time validation) may still populate it.
-    var chipEl = inputEl.closest('.jig-header-meta-chip');
-    var val = (inputEl.value || '').toUpperCase();
-    inputEl.value = val;  // force uppercase
+    if (!inputEl) return;
 
-    // Auto-insert hyphen at position 4 if user types without it
-    if (val.length >= 5 && val[4] !== '-' && /^\d/.test(val[4])) {
-      val = val.substring(0, 4) + '-' + val.substring(4);
-      inputEl.value = val;
+    var chipEl = inputEl.closest('.jig-header-meta-chip');
+
+    // Read the current value without selecting/replacing it.
+    var val = (inputEl.value || '').toUpperCase();
+
+    // Keep the DOM value synchronized, but DO NOT select the field.
+    if (inputEl.value !== val) {
+        var start = inputEl.selectionStart;
+        var end = inputEl.selectionEnd;
+
+        inputEl.value = val;
+
+        // Preserve scanner/cursor position.
+        try {
+            inputEl.setSelectionRange(start, end);
+        } catch (e) {}
     }
 
     var result = validateJigIdFormat(val);
-    if (!result.valid) {
-      inputEl.classList.add('jig-id-error');
-      inputEl.classList.remove('jig-id-valid');
-      if (chipEl) { chipEl.classList.add('jig-chip-invalid'); chipEl.classList.remove('jig-chip-valid'); }
-      if (val.length === 9) inputEl.select();
-    } else if (val.length === 9) {
-      inputEl.classList.remove('jig-id-error');
-      inputEl.classList.add('jig-id-valid');
-      if (chipEl) { chipEl.classList.add('jig-chip-valid'); chipEl.classList.remove('jig-chip-invalid'); }
-    } else {
-      inputEl.classList.remove('jig-id-error', 'jig-id-valid');
-      if (chipEl) { chipEl.classList.remove('jig-chip-invalid', 'jig-chip-valid'); }
-    }
-  }
 
+    if (!result.valid) {
+        inputEl.classList.add('jig-id-error');
+        inputEl.classList.remove('jig-id-valid');
+
+        if (chipEl) {
+            chipEl.classList.add('jig-chip-invalid');
+            chipEl.classList.remove('jig-chip-valid');
+        }
+
+        // IMPORTANT:
+        // Do NOT call inputEl.select().
+        // Barcode scanners behave like keyboards and selecting the
+        // complete field can cause the next scanned character to
+        // replace the entire Jig ID.
+    } else if (val.length === 9) {
+        inputEl.classList.remove('jig-id-error');
+        inputEl.classList.add('jig-id-valid');
+
+        if (chipEl) {
+            chipEl.classList.add('jig-chip-valid');
+            chipEl.classList.remove('jig-chip-invalid');
+        }
+    } else {
+        inputEl.classList.remove('jig-id-error', 'jig-id-valid');
+
+        if (chipEl) {
+            chipEl.classList.remove('jig-chip-invalid', 'jig-chip-valid');
+        }
+    }
+}
   // Attach handler once DOM is ready
   // Prefix auto-lock removed — user types/scans the full Jig ID (e.g. J144-0000)
   // themselves; validateJigIdFormat()/applyJigIdValidation() above still enforce
   // the correct capacity-based format and flag it invalid otherwise.
   document.addEventListener('DOMContentLoaded', function() {
     var jigInput = document.getElementById('jigIdInput');
-    if (jigInput) {
-      jigInput.addEventListener('input', function() { applyJigIdValidation(jigInput); });
-      jigInput.addEventListener('blur', function() { applyJigIdValidation(jigInput); });
-      // Allow only alphanumeric and hyphen while typing.
-      jigInput.addEventListener('keypress', function(e) {
-        var char = String.fromCharCode(e.which || e.keyCode);
-        if (!/[a-zA-Z0-9\-]/.test(char)) { e.preventDefault(); }
-      });
-    }
-  });
+
+    if (!jigInput) return;
+
+    jigInput.addEventListener('input', function() {
+        applyJigIdValidation(this);
+    });
+
+    jigInput.addEventListener('blur', function() {
+        applyJigIdValidation(this);
+    });
+});
 
   // Expose for external usage (submit handler pre-check)
   window.validateJigIdFormat = validateJigIdFormat;
