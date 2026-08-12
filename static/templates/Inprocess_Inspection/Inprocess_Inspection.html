@@ -1310,7 +1310,7 @@
                   </thead>
                   <tbody>
                      {% for jig_detail in jig_details %}
-                     <tr class="highlighted-tray-scan" data-lot-id="{{ jig_detail.lot_id }}">
+                     <tr class="highlighted-tray-scan" data-lot-id="{{ jig_detail.lot_id }}" data-jig-id="{{ jig_detail.jig_qr_id }}">
                         <!-- S.No -->
                         <td>
                            <span style="display:flex; align-items:center; gap:0px;">

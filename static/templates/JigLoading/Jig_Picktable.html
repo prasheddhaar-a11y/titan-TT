@@ -8831,12 +8831,21 @@ if (window.jQuery) {
       }
       
       // Format check: J###-#### (9 chars)
-      if (!/^J\d{3}-\d{4}$/.test(val)) {
-        this.classList.add('jig-id-error');
-        this.classList.remove('jig-id-valid');
-        if (jigIdErrEl) { jigIdErrEl.textContent = 'Invalid format'; jigIdErrEl.style.display = 'block'; }
-        return;
-      }
+      // Capacity-based Jig ID validation
+var formatResult = validateJigIdFormat(val);
+
+if (!formatResult.valid) {
+    this.classList.add('jig-id-error');
+    this.classList.remove('jig-id-valid');
+
+    if (jigIdErrEl) {
+        jigIdErrEl.textContent = formatResult.message;
+        jigIdErrEl.style.display = 'block';
+    }
+
+    console.log('[JIG_VALIDATE] Capacity validation failed on blur:', formatResult.message);
+    return;
+}
       
       // Debounce validation: wait 300ms before calling backend
       validationTimeout = setTimeout(function() {
@@ -9276,6 +9285,29 @@ if (window.jQuery) {
     e.preventDefault();
 
     var payload = buildFullPayload();
+    // Validate Jig ID before saving draft
+    var jigIdInput = document.getElementById('jigIdInput');
+    var jigId = (jigIdInput ? jigIdInput.value : '').trim();
+
+    var jigValidation = validateJigIdFormat(jigId);
+
+    if (!jigValidation.valid) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Draft Failed',
+            text: 'Draft save failed: Invalid Jig ID. ' + jigValidation.message,
+            confirmButtonColor: '#028084'
+        });
+
+        console.log(
+            '[DRAFT] Blocked invalid Jig ID:',
+            jigId,
+            '|',
+            jigValidation.message
+        );
+
+        return;
+    }
     if (!payload.lot_id || !payload.batch_id) {
       Swal.fire({ icon: 'warning', title: 'Missing Information', text: 'Missing lot or batch information. Cannot save draft.', confirmButtonColor: '#028084' });
       return;
