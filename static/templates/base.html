@@ -1345,8 +1345,45 @@
         }
       </style>
       <link rel="stylesheet" href="{% static 'assets/css/ttt-responsive-system.css' %}?v=dp-completed-widths-9">
+      <style nonce="{{ csp_nonce }}">
+        .network-banner {
+          display: none;
+          position: fixed;
+          top: 14px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 300000;
+          background: #1e293b;
+          color: #fff;
+          text-align: center;
+          padding: 10px 20px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: 0.2px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+          align-items: center;
+          gap: 8px;
+        }
+        .network-banner.show { display: flex; }
+        .network-banner-dot {
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          background: #dc2626;
+          flex-shrink: 0;
+          animation: network-pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes network-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+      </style>
    </head>
    <body class="sidebar-icon-only{% block body_extra_class %}{% endblock %}">
+      <div id="network-status-banner" class="network-banner">
+        <span class="network-banner-dot"></span>
+        Network is too slow
+      </div>
       {% csrf_token %}
       <!--Global Buffering -->
       <div id="global-loading-spinner" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.55); z-index:200000; align-items:center; justify-content:center;">
@@ -5203,6 +5240,56 @@
 </div>
 
 <script src="{% static 'js/sop_viewer.js' %}" nonce="{{ csp_nonce }}"></script>
+
+<!-- Network stability monitor -->
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var banner = document.getElementById('network-status-banner');
+  var PING_URL = '/adminportal/api/network-ping/';
+  var SLOW_THRESHOLD_MS = 2000;
+  var CHECK_INTERVAL_MS = 8000;
+  var CONSECUTIVE_SLOW_TO_SHOW = 2;
+  var consecutiveSlow = 0;
+  var checking = false;
+
+  function showBanner() { banner.classList.add('show'); }
+  function hideBanner() { banner.classList.remove('show'); consecutiveSlow = 0; }
+
+  function checkNetwork() {
+    if (checking) return;
+    checking = true;
+
+    if (!navigator.onLine) {
+      showBanner();
+      checking = false;
+      return;
+    }
+
+    var start = performance.now();
+    fetch(PING_URL, { method: 'GET', cache: 'no-store', credentials: 'same-origin' })
+      .then(function (res) {
+        var elapsed = performance.now() - start;
+        if (!res.ok || elapsed > SLOW_THRESHOLD_MS) {
+          consecutiveSlow++;
+          if (consecutiveSlow >= CONSECUTIVE_SLOW_TO_SHOW) { showBanner(); }
+        } else {
+          hideBanner();
+        }
+      })
+      .catch(function () {
+        consecutiveSlow++;
+        if (consecutiveSlow >= CONSECUTIVE_SLOW_TO_SHOW) { showBanner(); }
+      })
+      .finally(function () { checking = false; });
+  }
+
+  window.addEventListener('online', checkNetwork);
+  window.addEventListener('offline', showBanner);
+
+  checkNetwork();
+  setInterval(checkNetwork, CHECK_INTERVAL_MS);
+})();
+</script>
 
    </body>
 </html>

@@ -4733,6 +4733,13 @@ def my_allowed_modules_status(request):
     return Response({'has_modules': bool(modules)})
 
 
+# Lightweight, no-auth endpoint used purely to time a same-origin round trip
+# for the network-stability banner in base.html. Deliberately does no DB work
+# so slowness measured here reflects real network latency, not server load.
+def network_ping(request):
+    return JsonResponse({'ok': True})
+
+
 #Class for User Deletion API (inactive — route is commented out in urls.py)
 class UserDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminPermission]
