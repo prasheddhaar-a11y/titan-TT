@@ -39,7 +39,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true',
 
 ALLOWED_HOSTS = [
     "trackandtrace.titan.in",
-    "192.168.1.2",
+    "192.168.1.5",
     "localhost",
     "127.0.0.1",
     ".devtunnels.ms",

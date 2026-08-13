@@ -9,12 +9,10 @@ from django.db.models import OuterRef, Subquery, Exists, F, TextField, Q
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.paginator import Paginator
-import builtins
 import math
 import json
 import logging
 import re
-import sys
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
@@ -41,23 +39,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from modelmasterapp.type_of_input import get_type_of_input_map, label_for_upload_type
 
 logger = logging.getLogger(__name__)
-
-
-def _zone2_safe_print(*args, **kwargs):
-    """Prevent Zone 2 debug output from breaking requests on non-UTF-8 consoles."""
-    try:
-        builtins.print(*args, **kwargs)
-    except UnicodeEncodeError:
-        stream = kwargs.get('file') or sys.stdout
-        encoding = getattr(stream, 'encoding', None) or 'utf-8'
-        safe_args = [
-            str(arg).encode(encoding, errors='replace').decode(encoding)
-            for arg in args
-        ]
-        builtins.print(*safe_args, **kwargs)
-
-
-print = _zone2_safe_print
 
 
 def _zone2_ordered_unique(values):
@@ -4668,55 +4649,6 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                         'first_image': "/static/assets/images/imagePlaceholder.jpg"
                     }
 
-        # Detect Nickel Inspection activity in bulk. Zone 2 shares the Nickel
-        # workflow tables and unload-row activity flags with Zone 1, so these
-        # records are the earliest reliable signal that the lot has left Jig
-        # Unloading.
-        from Nickel_Inspection.models import (
-            NickelQcTrayId,
-            Nickel_QC_AutoSave,
-            Nickel_QC_Draft_Store,
-            Nickel_QC_TopTray_Draft_Store,
-            NickelQC_Submission,
-        )
-
-        completed_unload_lot_ids = [
-            unload.lot_id for unload in completed_unloads if unload.lot_id
-        ]
-        nickel_wiping_lot_ids = set(
-            NickelQcTrayId.objects.filter(
-                lot_id__in=completed_unload_lot_ids
-            ).values_list('lot_id', flat=True)
-        )
-        for activity_model in (
-            Nickel_QC_AutoSave,
-            Nickel_QC_Draft_Store,
-            Nickel_QC_TopTray_Draft_Store,
-            NickelQC_Submission,
-        ):
-            nickel_wiping_lot_ids.update(
-                activity_model.objects.filter(
-                    lot_id__in=completed_unload_lot_ids
-                ).values_list('lot_id', flat=True)
-            )
-
-        nickel_activity_fields = (
-            'nq_draft',
-            'nq_onhold_picking',
-            'nq_hold_lot',
-            'nq_release_lot',
-            'nq_qc_accptance',
-            'nq_qc_rejection',
-            'nq_qc_few_cases_accptance',
-            'nq_accepted_tray_scan_status',
-            'nq_rejection_tray_scan_status',
-        )
-        nickel_wiping_lot_ids.update(
-            unload.lot_id
-            for unload in completed_unloads
-            if any(getattr(unload, field, False) for field in nickel_activity_fields)
-        )
-
         # ✅ ENHANCED: Process each unload record using saved list fields (mirroring Zone 1)
         table_data = []
         for idx, unload in enumerate(completed_unloads):
@@ -5054,11 +4986,7 @@ class JU_Zone_Completedtable(LoginRequiredMixin, TemplateView):
                 # Prefer the live current_stage SSOT (modelmasterapp/stage_service.py) so
                 # this stays in sync with downstream modules (e.g. Spider Spindle) that
                 # only update current_stage and not last_process_module.
-                'last_process_module': (
-                    'Nickel Wiping'
-                    if unload.lot_id in nickel_wiping_lot_ids
-                    else unload.current_stage or unload.last_process_module
-                ),
+                'last_process_module': unload.current_stage or unload.last_process_module,
                 'created_at': unload.created_at,
                 'un_loaded_date_time': unload.Un_loaded_date_time,
                 'Un_loaded_date_time': unload.Un_loaded_date_time,

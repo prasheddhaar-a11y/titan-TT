@@ -71,63 +71,6 @@ def _get_sorted_model_images(model_master):
 # ═══════════════════════════════════════════════════════════════
 # Brass Audit Pick Table View
 # ═══════════════════════════════════════════════════════════════
-def _get_pick_table_hover_preview_url(model_master):
-    """Resolve the Brass Audit Pick Table's one-image hover preview.
-
-    This intentionally does not alter the ordered image lists used by Visual
-    Aid or the other Brass Audit tables. The Pick Table preview alone uses
-    IV -> TV -> FV -> RSV, then the uploaded global NO_IMAGE placeholder.
-    """
-    try:
-        from modelmasterapp.image_utils import (
-            get_global_no_image,
-            get_image_by_view,
-            get_image_url,
-        )
-    except ImportError:
-        logger.exception("Model image helpers are unavailable for Brass Audit hover preview")
-        return None
-
-    images = model_master.images.all() if model_master else []
-    for view_code in ("IV", "TV", "FV", "RSV"):
-        image = get_image_by_view(images, view_code)
-        if image:
-            return get_image_url(image)
-
-    placeholder = get_global_no_image()
-    return get_image_url(placeholder) if placeholder else None
-
-
-def _get_brass_audit_pick_lot_status(workflow_data):
-    """Return the Pick Table status from saved Brass Audit workflow fields.
-
-    In particular, ``brass_audit_accepted_qty_verified`` is set by the
-    verification endpoint and stored on ``TotalStockModel``.  ``workflow_data``
-    is built directly from that model during the GET request; do not replace
-    its values with request/UI state.
-    """
-    if workflow_data.get('brass_audit_onhold_picking') or workflow_data.get('brass_audit_draft'):
-        return 'Draft'
-    if workflow_data.get('brass_audit_hold_lot'):
-        return 'On Hold'
-
-    audit_completed = any((
-        workflow_data.get('brass_audit_accptance'),
-        workflow_data.get('brass_audit_rejection'),
-        workflow_data.get('brass_audit_few_cases_accptance'),
-    ))
-    # This is the Brass Audit -> Brass QC release flag.  Do not use
-    # send_brass_qc here: it belongs to a different workflow route and may
-    # remain set from an earlier stage.
-    if audit_completed and workflow_data.get('send_brass_audit_to_qc'):
-        return 'Released'
-    if audit_completed:
-        return 'Yet to Release'
-    if workflow_data.get('brass_audit_accepted_qty_verified'):
-        return 'In Progress'
-    return 'Yet to Start'
-
-
 @method_decorator(login_required, name='dispatch')
 class BrassAuditPickTableView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
@@ -298,9 +241,6 @@ class BrassAuditPickTableView(APIView):
             if not images:
                 images = [static('assets/images/imagePlaceholder.jpg')]
             data['model_images'] = images
-            data['model_preview_image'] = _get_pick_table_hover_preview_url(
-                batch_obj.model_stock_no if batch_obj else None
-            )
 
             data['available_qty'] = data.get('brass_audit_accepted_qty') if data.get('brass_audit_accepted_qty') and data.get('brass_audit_accepted_qty') > 0 else (data.get('brass_audit_physical_qty') if data.get('brass_audit_physical_qty') and data.get('brass_audit_physical_qty') > 0 else data.get('brass_qc_accepted_qty', 0))
 
@@ -1131,16 +1071,6 @@ def brass_audit_toggle_verified(request):
         "success": True,
         "lot_id": lot_id,
         "brass_audit_accepted_qty_verified": ts.brass_audit_accepted_qty_verified,
-        "lot_status": _get_brass_audit_pick_lot_status({
-            'brass_audit_onhold_picking': ts.brass_audit_onhold_picking,
-            'brass_audit_draft': ts.brass_audit_draft,
-            'brass_audit_hold_lot': ts.brass_audit_hold_lot,
-            'brass_audit_accptance': ts.brass_audit_accptance,
-            'brass_audit_rejection': ts.brass_audit_rejection,
-            'brass_audit_few_cases_accptance': ts.brass_audit_few_cases_accptance,
-            'send_brass_audit_to_qc': ts.send_brass_audit_to_qc,
-            'brass_audit_accepted_qty_verified': ts.brass_audit_accepted_qty_verified,
-        }),
         "last_process_module": ts.last_process_module,
         "can_delete": can_delete,
     })
