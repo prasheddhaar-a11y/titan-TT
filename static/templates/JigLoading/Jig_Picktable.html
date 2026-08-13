@@ -7,6 +7,38 @@
 
 <!-- Jig Loading - Inline Styles -->
 <style nonce="{{ csp_nonce }}">
+/* ===== FIX: Keep Jig Loading - Pick Table heading visible while scrolling ===== */
+/* FIX: The title bar being sticky at the SAME top:0 as the table's own
+   thead was the real cause of the "header gets sliced/hidden" bug — both
+   elements pinned to the top of the page and the title (higher z-index,
+   solid white bg) visually covered the top portion of the table header as
+   soon as the page scrolled. The title no longer needs to stick — the
+   table header below now handles staying visible on its own (see
+   .table-responsive / #order-listing thead th below). */
+.jig-pick-table-title {
+  position: static !important;
+  background: #ffffff;
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+/* ===== FIX: Make the table area itself the scrolling region, and pin the
+   header to the TOP of that region — not the page.
+   titan-style.css already sets .table-responsive to max-height:450px, and
+   ttt-responsive-system.css applies its OWN #order-listing thead th rules
+   under certain viewport/pointer conditions (html.ttt-viewport-tablet ...)
+   with higher specificity than a bare "#order-listing thead th". The
+   selectors below add the .card-body ancestor + !important on every
+   relevant property so this wins regardless of load order, viewport class,
+   or which of those two stylesheets happens to match. */
+.card-body > .jig-pick-table-scroll {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
 /* ===== FIX: Freeze first 3 columns (S.No, Last Updated, Plating Stk No) ===== */
 #order-listing {
   position: relative;
@@ -19,12 +51,17 @@
   position: relative;
 }
 
-/* Sticky header */
+/* Sticky header — pinned to the top of .table-responsive (its nearest
+   scrolling ancestor, set above), so it stays visible while the rows
+   scroll underneath it instead of scrolling away with them. Also raised
+   above the old title z-index (102) in case any external rule restores it,
+   so the header can never again render underneath the title bar. */
+.card-body #order-listing thead th,
 #order-listing thead th {
-  position: sticky;
-  top: 0;
-  background: white;
-  z-index: 100;
+  position: sticky !important;
+  top: 0 !important;
+  background: #028084 !important;
+  z-index: 110 !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
@@ -874,7 +911,7 @@ tbody tr.jig-row-action-highlight:not(.delink-row-scanned):not(.delink-row-disab
 <div class="content-wrapper">
   <div class="col-12 grid-margin stretch-card">
     <div class="card-body" style="padding-bottom: 12px">
-      <div class="d-flex align-items-center gap-2 mb-4" style="flex-wrap: wrap">
+      <div class="d-flex align-items-center gap-2 mb-4 jig-pick-table-title" style="flex-wrap: wrap">
         <h5 class="text-left mt-0 mb-0" style="font-weight: 700">
           Jig Loading - Pick Table
         </h5>
@@ -888,7 +925,7 @@ tbody tr.jig-row-action-highlight:not(.delink-row-scanned):not(.delink-row-disab
           aria-hidden="true"
         />
       </div>
-      <div class="table-responsive">
+      <div class="table-responsive jig-pick-table-scroll">
         <table id="order-listing" class="table" data-lock-module="JIG_LOADING">
           <thead>
             <tr>
@@ -908,7 +945,7 @@ tbody tr.jig-row-action-highlight:not(.delink-row-scanned):not(.delink-row-disab
                 Trays <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
               <th>
-                Process <br> el leftStatus <i class="fa fa-filter" aria-hidden="true"></i>
+                Process <br> Status <i class="fa fa-filter" aria-hidden="true"></i>
               </th>
               <th>Jig Type <i class="fa fa-filter" aria-hidden="true"></i></th>
               <th>
@@ -7180,13 +7217,9 @@ document.addEventListener('DOMContentLoaded', function() {
       tbody.insertBefore(row, tbody.firstElementChild);
     }
 
-    // Scroll table to top
-    const table = tbody.closest('table') || document.getElementById('order-listing');
-    if (table) {
-      setTimeout(function() {
-        table.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
+    // Do not scroll the whole page when moving the row.
+    // The Pick Table has its own scroll area; scrolling the table element itself
+    // pushes the Jig Loading - Pick Table title out of the viewport.
   }
 
   // Restore the row that was moved to top back to its original position
@@ -7224,10 +7257,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      // Scroll row back into view
-      setTimeout(function() {
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+      // Do not scroll the whole page after restoring the row.
+      // The title is kept visible by .jig-pick-table-title.
     } catch(e) { console.warn('[RESTORE_POS]', e); }
   }
 
@@ -8831,12 +8862,21 @@ if (window.jQuery) {
       }
       
       // Format check: J###-#### (9 chars)
-      if (!/^J\d{3}-\d{4}$/.test(val)) {
-        this.classList.add('jig-id-error');
-        this.classList.remove('jig-id-valid');
-        if (jigIdErrEl) { jigIdErrEl.textContent = 'Invalid format'; jigIdErrEl.style.display = 'block'; }
-        return;
-      }
+      // Capacity-based Jig ID validation
+var formatResult = validateJigIdFormat(val);
+
+if (!formatResult.valid) {
+    this.classList.add('jig-id-error');
+    this.classList.remove('jig-id-valid');
+
+    if (jigIdErrEl) {
+        jigIdErrEl.textContent = formatResult.message;
+        jigIdErrEl.style.display = 'block';
+    }
+
+    console.log('[JIG_VALIDATE] Capacity validation failed on blur:', formatResult.message);
+    return;
+}
       
       // Debounce validation: wait 300ms before calling backend
       validationTimeout = setTimeout(function() {
@@ -9276,6 +9316,29 @@ if (window.jQuery) {
     e.preventDefault();
 
     var payload = buildFullPayload();
+    // Validate Jig ID before saving draft
+    var jigIdInput = document.getElementById('jigIdInput');
+    var jigId = (jigIdInput ? jigIdInput.value : '').trim();
+
+    var jigValidation = validateJigIdFormat(jigId);
+
+    if (!jigValidation.valid) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Draft Failed',
+            text: 'Draft save failed: Invalid Jig ID. ' + jigValidation.message,
+            confirmButtonColor: '#028084'
+        });
+
+        console.log(
+            '[DRAFT] Blocked invalid Jig ID:',
+            jigId,
+            '|',
+            jigValidation.message
+        );
+
+        return;
+    }
     if (!payload.lot_id || !payload.batch_id) {
       Swal.fire({ icon: 'warning', title: 'Missing Information', text: 'Missing lot or batch information. Cannot save draft.', confirmButtonColor: '#028084' });
       return;

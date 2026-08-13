@@ -364,6 +364,22 @@
       availableHeight = Math.max(minimumHeight, availableHeight);
 
       wrapper.style.setProperty("--ttt-table-available-height", availableHeight + "px");
+      if (wrapper.classList && wrapper.classList.contains("jig-pick-table-scroll")) {
+        setImportant(wrapper, "height", "auto");
+        setImportant(wrapper, "max-height", "none");
+        setImportant(wrapper, "overflow-x", "auto");
+        setImportant(wrapper, "overflow-y", "hidden");
+
+        var jigDataTableScroll = wrapper.querySelector(".dataTables_scrollBody");
+        if (jigDataTableScroll) {
+          setImportant(jigDataTableScroll, "height", "auto");
+          setImportant(jigDataTableScroll, "max-height", "none");
+          setImportant(jigDataTableScroll, "overflow-x", "auto");
+          setImportant(jigDataTableScroll, "overflow-y", "hidden");
+        }
+        return;
+      }
+
       setImportant(wrapper, "max-height", availableHeight + "px");
       setImportant(wrapper, "overflow-x", "auto");
       setImportant(wrapper, "overflow-y", "auto");
