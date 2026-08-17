@@ -69,6 +69,35 @@ def _safe_int(value, default=0):
         return default
 
 
+
+
+def _get_series_tray_capacity(batch):
+    """
+    Return IQF tray capacity based on the product series.
+
+    1805 -> 12
+    2649 -> 16
+    2617 -> 16
+
+    For other series, preserve the existing configured batch capacity.
+    """
+    if not batch:
+        return 16
+
+    series_source = str(getattr(batch, 'plating_stk_no', '') or '').strip()
+
+    if not series_source:
+        model_stock = getattr(batch, 'model_stock_no', None)
+        series_source = str(getattr(model_stock, 'model_no', '') or '').strip()
+
+    series = series_source[:4]
+
+    return {
+        '1805': 12,
+        '2649': 16,
+        '2617': 16,
+    }.get(series, getattr(batch, 'tray_capacity', None) or 16)
+
 def _resolve_tray_type_capacity_from_trays(tray_ids, lot_ids=None, fallback_type='', fallback_capacity=0):
     """Resolve tray type/capacity from actual tray records, with batch as last fallback."""
     clean_tray_ids = [str(tid or '').strip().upper() for tid in tray_ids if str(tid or '').strip()]
@@ -1246,30 +1275,8 @@ def iqf_submit_audit(request):
 
             # ── Helper: resolve tray capacity for an IQFTrayId record ──
             def _resolve_tray_capacity(iqf_tray_obj):
-                """Resolve the REAL capacity for a tray.
-                Priority: IQFTrayId.tray_capacity → BrassTrayId → TrayId master → ModelMaster → 16
-                """
-                cap = getattr(iqf_tray_obj, 'tray_capacity', None)
-                if cap and cap > 0:
-                    return cap
-                # BrassTrayId (same tray_id, any lot)
-                brass = BrassTrayId.objects.filter(tray_id=iqf_tray_obj.tray_id).exclude(
-                    tray_capacity__isnull=True).first()
-                if brass and brass.tray_capacity and brass.tray_capacity > 0:
-                    return brass.tray_capacity
-                # TrayId master
-                tray_master = TrayId.objects.filter(tray_id=iqf_tray_obj.tray_id).exclude(
-                    tray_capacity__isnull=True).first()
-                if tray_master and tray_master.tray_capacity and tray_master.tray_capacity > 0:
-                    return tray_master.tray_capacity
-                # ModelMasterCreation (via TotalStockModel.batch_id)
-                try:
-                    mmc_cap = ts.batch_id.tray_capacity if ts.batch_id else None
-                    if mmc_cap and mmc_cap > 0:
-                        return mmc_cap
-                except Exception:
-                    pass
-                return 16  # safe default
+                """Resolve capacity from the product series for this IQF lot."""
+                return _get_series_tray_capacity(ts.batch_id)
 
             if submission_type == IQF_Submitted.SUB_FULL_ACCEPT:
                 # ✅ FULL ACCEPT — Use actual IQFTrayId.tray_quantity when reliable,
@@ -2788,16 +2795,8 @@ def iqf_accepted_tray_slots(request):
             return Response({'success': False, 'error': 'Lot not found'}, status=404)
 
         def _resolve_capacity():
-            """Resolve tray capacity: IQFTrayId.tray_capacity → BrassTrayId → ModelMaster → 16"""
-            iqf_tray = IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).exclude(tray_capacity__isnull=True).exclude(tray_capacity=0).first()
-            if iqf_tray and iqf_tray.tray_capacity and iqf_tray.tray_capacity > 0:
-                return iqf_tray.tray_capacity
-            brass_tray = BrassTrayId.objects.filter(lot_id=lot_id, delink_tray=False).exclude(tray_capacity__isnull=True).exclude(tray_capacity=0).first()
-            if brass_tray and brass_tray.tray_capacity and brass_tray.tray_capacity > 0:
-                return brass_tray.tray_capacity
-            if ts.batch_id and ts.batch_id.tray_capacity and ts.batch_id.tray_capacity > 0:
-                return ts.batch_id.tray_capacity
-            return 16  # safe default
+            """Resolve IQF tray capacity from the product series."""
+            return _get_series_tray_capacity(ts.batch_id)
 
         tray_capacity = _resolve_capacity()
 
@@ -2894,21 +2893,22 @@ def iqf_accepted_tray_slots(request):
             full_trays = accepted_qty // tray_capacity
             remainder = accepted_qty % tray_capacity
 
-            if remainder > 0:
-                slots.append({
-                    'slot_no': slot_no,
-                    'qty': remainder,
-                    'is_top_tray': True,
-                    'tray_id': '',
-                    'status': 'new',
-                })
-                slot_no += 1
-
+            # Allocate full-capacity trays first, then the remainder.
             for _ in range(full_trays):
                 slots.append({
                     'slot_no': slot_no,
                     'qty': tray_capacity,
                     'is_top_tray': False,
+                    'tray_id': '',
+                    'status': 'new',
+                })
+                slot_no += 1
+
+            if remainder > 0:
+                slots.append({
+                    'slot_no': slot_no,
+                    'qty': remainder,
+                    'is_top_tray': True,
                     'tray_id': '',
                     'status': 'new',
                 })
@@ -3363,44 +3363,15 @@ def iqf_accept_delink_modal(request):
 
         # ── Resolve global tray capacity ──
         def _resolve_global_cap():
-            iqf_t = IQFTrayId.objects.filter(lot_id=lot_id, delink_tray=False).exclude(
-                tray_capacity__isnull=True).exclude(tray_capacity=0).first()
-            if iqf_t and iqf_t.tray_capacity and iqf_t.tray_capacity > 0:
-                return iqf_t.tray_capacity
-            brass_t = BrassTrayId.objects.filter(lot_id=lot_id, delink_tray=False).exclude(
-                tray_capacity__isnull=True).exclude(tray_capacity=0).first()
-            if brass_t and brass_t.tray_capacity and brass_t.tray_capacity > 0:
-                return brass_t.tray_capacity
-            if ts.batch_id and ts.batch_id.tray_capacity and ts.batch_id.tray_capacity > 0:
-                return ts.batch_id.tray_capacity
-            return 16
+            """Resolve reject/accept allocation capacity from the product series."""
+            return _get_series_tray_capacity(ts.batch_id)
 
         tray_capacity = _resolve_global_cap()
 
         # ── Resolve per-tray capacity (same as iqf_submit_audit) ──
         def _resolve_tray_cap(iqf_tray_obj):
-            # Handle both IQFTrayId objects and dict records from snapshots
-            if isinstance(iqf_tray_obj, dict):
-                # From snapshot: {'tray_id': ..., 'qty': ..., 'capacity': ...}
-                return iqf_tray_obj.get('capacity', tray_capacity)
-            # IQFTrayId object
-            cap = getattr(iqf_tray_obj, 'tray_capacity', None)
-            if cap and cap > 0:
-                return cap
-            brass = BrassTrayId.objects.filter(tray_id=iqf_tray_obj.tray_id).exclude(
-                tray_capacity__isnull=True).first()
-            if brass and brass.tray_capacity and brass.tray_capacity > 0:
-                return brass.tray_capacity
-            tray_master = TrayId.objects.filter(tray_id=iqf_tray_obj.tray_id).exclude(
-                tray_capacity__isnull=True).first()
-            if tray_master and tray_master.tray_capacity and tray_master.tray_capacity > 0:
-                return tray_master.tray_capacity
-            try:
-                if ts.batch_id and ts.batch_id.tray_capacity and ts.batch_id.tray_capacity > 0:
-                    return ts.batch_id.tray_capacity
-            except Exception:
-                pass
-            return 16
+            """Resolve capacity from the product series for this IQF lot."""
+            return _get_series_tray_capacity(ts.batch_id)
 
         # ── Resolve capacity for a directly-scanned reject tray ID (may be brand new, not in IQFTrayId) ──
         def _resolve_cap_for_tray_id(tid):
@@ -3508,8 +3479,14 @@ def iqf_accept_delink_modal(request):
             if rejected_qty > 0:
                 rem = rejected_qty % tray_capacity
                 full = rejected_qty // tray_capacity
-                slots = ([{'qty': rem, 'top_tray': True}] if rem > 0 else []) + \
-                        [{'qty': tray_capacity, 'top_tray': False} for _ in range(full)]
+
+                # Allocate full-capacity trays first (bottom), then the remainder (top).
+                slots = [
+                    {'qty': tray_capacity, 'top_tray': False}
+                    for _ in range(full)
+                ]
+                if rem > 0:
+                    slots.append({'qty': rem, 'top_tray': True})
                 for i, tid in enumerate(rejected_tray_id_list):
                     if i < len(slots):
                         reject_allocation.append({

@@ -130,7 +130,7 @@ MIDDLEWARE = [
     # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
     'adminportal.middleware.SecurityHeadersMiddleware',
     # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
-    'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
+    #'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # SafeSessionMiddleware = Django's SessionMiddleware + graceful handling of
@@ -219,19 +219,19 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'watch_tracker',
+        'NAME': 'trackandtrace2026',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': '5432',
     }
-}
+} 
 
 # UAT Database
-""" DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'watch_tracker',
+        'NAME': 'watchcasetrack',
         'USER':'postgres',
         'PASSWORD':'postgres',
         'HOST':'127.0.0.1',
@@ -303,7 +303,10 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # SESSION_COOKIE_SECURE = False   # Issue #4: require HTTPS for session cookie
 #
@@ -316,10 +319,7 @@ CSRF_COOKIE_SECURE = True
 # login. DJANGO_SESSION_COOKIE_SECURE lets ops correct this from the
 # deployed .env alone (no code/web.config change) if that turns out to be
 # the case; unset, behavior is unchanged from before.
-SESSION_COOKIE_SECURE = os.environ.get(
-    'DJANGO_SESSION_COOKIE_SECURE',
-    'False' if DEBUG else 'True',
-).strip().lower() in ('1', 'true', 'yes', 'on')
+SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_AGE = 900       #15 -minute session timeout (was 86400 sec / 24 h)
 
 # ---------------------------------------------------------------------------
@@ -360,8 +360,13 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'watchcase_tracker.staticfiles_finders.ExcludeDRFBootstrapFinder',
+]
 
 MODEL_IMAGE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 

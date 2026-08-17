@@ -5667,8 +5667,9 @@
   setInterval(checkNetwork, CHECK_INTERVAL_MS);
 })();
 </script>
-{{ normal_user_fix_config|json_script:"normal-user-fix-config" }}
 
+{{ normal_user_fix_config|json_script:"normal-user-fix-config" }}
+ 
 <script nonce="{{ csp_nonce }}">
     window.NORMAL_USER_FIX_CONFIG = JSON.parse(
         document.getElementById('normal-user-fix-config').textContent
