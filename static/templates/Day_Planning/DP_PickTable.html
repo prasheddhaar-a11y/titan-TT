@@ -3306,6 +3306,12 @@ function moveToTrayVerifyCheckbox() {
 document.addEventListener('keydown', function(e) {
   const modal = document.getElementById('trayScanModal');
   if (!modal || !modal.classList.contains('open')) return;
+
+  // D is handled by the dedicated global Draft shortcut below.
+  // Do NOT let this overflow/scanner handler consume D when focus is outside
+  // a Tray ID input, otherwise D never reaches the Draft handler.
+  if (e.key === 'd' || e.key === 'D') return;
+
   if (!areTraySlotsCompletelyFilled()) return;
 
   const target = e.target;
@@ -6945,16 +6951,106 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
     // Also for Set Top Tray (if you have a separate button, add similar logic)
 
     // Close: enable Hold toggles
+    function restoreHoldTogglesAfterModalClose() {
+      // Wait until the modal close operation has completed.
+      setTimeout(function () {
+        document.querySelectorAll('.hold-toggle-btn').forEach(function(btn) {
+          btn.disabled = false;
+          btn.removeAttribute('disabled');
+          btn.style.pointerEvents = 'auto';
+          btn.style.visibility = 'visible';
+          btn.style.opacity = '1';
+
+          var label = btn.closest('.hold-toggle-switch, label');
+          if (label) {
+            label.classList.remove('hold-toggle-disabled');
+            label.style.pointerEvents = 'auto';
+            label.style.visibility = 'visible';
+            label.style.opacity = '1';
+            label.style.display = 'inline-flex';
+          }
+
+          var slider = label ? label.querySelector('.hold-slider') : null;
+          if (slider) {
+            slider.style.visibility = 'visible';
+            slider.style.opacity = '1';
+            slider.style.pointerEvents = 'auto';
+          }
+        });
+
+        console.log('\u2705 Hold toggles restored after tray-scan modal close');
+      }, 300);
+    }
+
     if (closeTrayScanModal) {
       closeTrayScanModal.addEventListener('click', function() {
-        setTimeout(enableHoldToggles, 200);
+        restoreHoldTogglesAfterModalClose();
       });
     }
+
     if (closeTrayScanModalDayPlanning) {
       closeTrayScanModalDayPlanning.addEventListener('click', function() {
-        setTimeout(enableHoldToggles, 200);
+        restoreHoldTogglesAfterModalClose();
       });
     }
+
+    // ESC: close whichever tray-scan modal is open, then restore Hold toggles.
+    document.addEventListener('keydown', function(event) {
+      if (event.key !== 'Escape') return;
+
+      var normalModal = document.getElementById('trayScanModal');
+      var dayPlanningModal = document.getElementById('trayScanModal_DayPlanning');
+
+      function isOpen(modal) {
+        if (!modal) return false;
+        return modal.classList.contains('open') ||
+          window.getComputedStyle(modal).display !== 'none';
+      }
+
+      if (isOpen(normalModal)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (closeTrayScanModal) {
+          closeTrayScanModal.click();
+        } else {
+          normalModal.classList.remove('open');
+        }
+
+        restoreHoldTogglesAfterModalClose();
+        return;
+      }
+
+      if (isOpen(dayPlanningModal)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (closeTrayScanModalDayPlanning) {
+          closeTrayScanModalDayPlanning.click();
+        } else {
+          dayPlanningModal.classList.remove('open');
+        }
+
+        restoreHoldTogglesAfterModalClose();
+      }
+    }, true);
+
+    // Safety net: if any other code closes the modal by changing its class/style,
+    // restore the Hold toggles automatically.
+    [trayScanModal, trayScanModalDayPlanning].forEach(function(modal) {
+      if (!modal) return;
+
+      var observer = new MutationObserver(function() {
+        var normalOpen = trayScanModal && trayScanModal.classList.contains('open');
+        var dayOpen = trayScanModalDayPlanning && trayScanModalDayPlanning.classList.contains('open');
+
+        if (!normalOpen && !dayOpen) {
+          restoreHoldTogglesAfterModalClose();
+        }
+      });
+
+      observer.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
+    });
 
     // Also re-enable on modal cancel/draft/submit if needed
     ["trayScanCancelBtn", "trayScanDraftBtn", "trayScanSubmitBtn"].forEach(function(id) {
@@ -7605,6 +7701,41 @@ All other actions (edit, delete, filter, etc.) are blocked visually and function
   }
 </script>
 
+<!-- DP Pick Table: GLOBAL D -> Draft shortcut (window capture, runs before all document handlers) -->
+<script nonce="{{ csp_nonce }}">
+(function () {
+  if (!window.location.pathname.includes('/dayplanning/dp_pick_table/')) return;
+
+  window.addEventListener('keydown', function (event) {
+    if (event.key !== 'd' && event.key !== 'D') return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const modal = document.getElementById('trayScanModal');
+    if (!modal) return;
+
+    const style = window.getComputedStyle(modal);
+    const modalOpen = modal.classList.contains('open') ||
+      (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0');
+
+    if (!modalOpen) return;
+
+    const draftBtn = document.getElementById('trayScanDraftBtn');
+    if (!draftBtn) return;
+
+    // D is ALWAYS Draft while the DP Tray Scan dialog is open.
+    // Capture it at window level so no other keyboard handler can consume it.
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    if (!draftBtn.disabled && draftBtn.getAttribute('aria-disabled') !== 'true') {
+      draftBtn.click();
+      console.log('[DP GLOBAL SHORTCUT] D -> Draft triggered');
+    }
+  }, true);
+})();
+</script>
+
 <!-- DP Pick Table tray-scan modal shortcuts: D=Draft, Enter=Submit, O/C=Clear -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
@@ -7612,7 +7743,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function isDpTrayScanModalOpen() {
     const modal = document.getElementById('trayScanModal');
-    return !!(modal && modal.classList.contains('open'));
+    if (!modal) return false;
+
+    // Treat the modal as open based on its actual visibility as well as the
+    // `open` class. This keeps keyboard shortcuts working even if another
+    // script changes the modal display state without the class.
+    const style = window.getComputedStyle(modal);
+    return modal.classList.contains('open') ||
+           (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0');
   }
 
   function clickIfUsable(selector) {
@@ -7703,10 +7841,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const target = event.target;
 
     if (key === 'd' || key === 'D') {
-      if (isTypingIntoAnyField(target)) return;
-      if (clickIfUsable('#trayScanDraftBtn')) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
+      // D is reserved exclusively for Draft while the DP Tray Scan modal is visible.
+      // It must work regardless of where the mouse/focus is and must never type
+      // the letter D into a Tray ID/Quantity/other input.
+      const draftBtn = document.getElementById('trayScanDraftBtn');
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      if (draftBtn && !draftBtn.disabled && draftBtn.getAttribute('aria-disabled') !== 'true') {
+        draftBtn.click();
+        console.log('[DP SHORTCUT] D -> Draft triggered (global modal)');
       }
       return;
     }
@@ -7751,6 +7896,9 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- ✅ ERR 2 FIX: D Key Delete Mode for DP_PickTable -->
 <script nonce="{{ csp_nonce }}">
 document.addEventListener("DOMContentLoaded", function () {
+  // Disabled: D is reserved exclusively for Draft in the DP tray-scan modal.
+  return;
+
   const table = document.getElementById("order-listing");
   if (!table) return;
   if (window.TTT_DB_SHORTCUTS_ENABLED) return;

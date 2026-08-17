@@ -725,6 +725,16 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   border-radius: 6px;
 }
 
+/* Remove the extra horizontal scrollbar that appears below the
+   pagination row (above the footer/copyright). titan-style.css sets
+   `html:not(.ttt-viewport-tablet) .is-completed-table-page { overflow-x: visible !important; }`
+   which lets this container's content spill out and create a second
+   scrollbar. We override just that property, at matching specificity,
+   back to hidden. The table's own horizontal scroll (inside
+   .table-responsive) is untouched. */
+html:not(.ttt-viewport-tablet) .is-completed-table-page {
+  overflow-x: hidden !important;
+}
 </style>
  
 <div class="content-wrapper is-completed-table-page">

@@ -1,6 +1,7 @@
 from django.conf import settings
 
 from adminportal.services import get_user_allowed_module_names, is_admin_user
+from adminportal.permission import get_normal_user_fix_config
 
 
 def user_permissions(request):
@@ -34,6 +35,12 @@ def user_permissions(request):
             is_admin = is_admin_user(request.user)
             request._ttt_is_admin = is_admin
 
+        normal_user_fix_config = get_normal_user_fix_config(
+            request.user,
+            "Day Planning",
+            "DP Pick Table",
+        )
+
         return {
             'is_admin': is_admin,
             'allowed_modules': allowed_modules,
@@ -42,6 +49,7 @@ def user_permissions(request):
             # a module page (enforced by ModuleAccessMiddleware) may hold or
             # release lots there; the hold/unhold APIs require authentication.
             'can_hold_release': True,
+            'normal_user_fix_config': normal_user_fix_config,
         }
 
     return {
@@ -49,4 +57,5 @@ def user_permissions(request):
         'allowed_modules': [],
         'session_cookie_age': session_cookie_age,
         'can_hold_release': False,
+        'normal_user_fix_config': {},
     }

@@ -573,6 +573,19 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   background: #fff;
   border-radius: 6px;
 }
+/* This page reuses .is-pick-table-page, which has a rule in
+   ttt-responsive-system.css forcing the Action column (4th column) to
+   275-280px wide — sized for the real Pick Table's Accept/Reject/View
+   buttons. This Accept Table only has a badge + view icon, so that
+   width leaves a large empty gap. Shrink it to fit this page's actual
+   content. Scoped to this file only — the real Pick Table page is
+   untouched. */
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing th:nth-child(4),
+html:not(.ttt-viewport-tablet) .is-pick-table-page #order-listing td:nth-child(4) {
+  width: auto !important;
+  min-width: 150px !important;
+  max-width: 220px !important;
+}
 </style>
 
 <div class="content-wrapper is-pick-table-page">

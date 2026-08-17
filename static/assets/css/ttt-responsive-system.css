@@ -1114,14 +1114,19 @@ html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) 
   transform: none !important;
 }
 
-/* Safety override: DP & Brass QC Completed Tables use the normal .content-wrapper
+/* Safety override: Brass QC Completed Table uses the normal .content-wrapper
    shell (height: auto), not the flex-height shell that .is-completed-table-page
    assumes. That rule set the wrapper to display:flex + overflow:hidden with the
    table area at flex-basis:0, which collapsed the table to 0 height/invisible on
-   these two pages while the pagination (flex:0 0 auto) still rendered fine.
-   Scoped narrowly to these two modules only - does not touch is-completed-table-page
-   itself, so any other page relying on it is unaffected. */
-.dp-completed-table-page.is-completed-table-page,
+   this page while the pagination (flex:0 0 auto) still rendered fine.
+   Scoped narrowly to this module only - does not touch is-completed-table-page
+   itself, so any other page relying on it is unaffected.
+   NOTE: DP Completed Table is intentionally excluded here. It now sets its own
+   explicit height (calc(100vh - 320px)) and flex chain in DP_Completed_Table.html
+   so the pagination sits pinned to the bottom, matching the Pick Table. This
+   double-class override used to beat that page-level CSS on specificity alone
+   and force block/auto-height layout, which is why the pagination was sitting
+   right under the table instead of at the bottom. */
 .brass-completed-table-page.is-completed-table-page {
   display: block !important;
   overflow: visible !important;
@@ -1129,8 +1134,6 @@ html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) 
   flex: none !important;
 }
 
-.dp-completed-table-page.is-completed-table-page .card,
-.dp-completed-table-page.is-completed-table-page .card-body,
 .brass-completed-table-page.is-completed-table-page .card,
 .brass-completed-table-page.is-completed-table-page .card-body {
   display: block !important;
@@ -1138,7 +1141,6 @@ html.ttt-viewport-tablet .is-completed-table-page:not(.dp-completed-table-page) 
   min-height: 0 !important;
 }
 
-.dp-completed-table-page.is-completed-table-page .table-responsive,
 .brass-completed-table-page.is-completed-table-page .table-responsive {
   flex: none !important;
   height: auto !important;

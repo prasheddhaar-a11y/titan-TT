@@ -1193,6 +1193,7 @@
       <!-- Global idle-session expiry guard (shows "Session Expired" alert on 401 / idle timeout) -->
       <meta name="session-expiry-seconds" content="{{ session_cookie_age|default:900 }}">
       <script src="{% static 'js/session_guard.js' %}" nonce="{{ csp_nonce }}"></script>
+      
       <!-- endinject -->
       <link rel="shortcut icon" href="{% static 'assets/images/favicon.png' %}" />
       <link rel="stylesheet" href="{% static 'assets/css/bootstrap-icons.min.css' %}">
@@ -4711,82 +4712,458 @@
 })();
 </script>
 
-<!-- ✅ UNIVERSAL MODAL CLOSE HANDLER: Clear highlights on any modal close -->
+<!-- ✅ UNIVERSAL MODAL CLOSE HANDLER -->
 <script nonce="{{ csp_nonce }}">
-(function() {
+(function () {
   'use strict';
-  
-  // Clear row highlights and sessionStorage when any modal is closed
-  function clearHighlightsOnModalClose() {
-    // Clear global shortcut manager state
-    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
-      window.GlobalShortcutManager.clear();
+
+  /*
+   * UNIVERSAL MODAL CLOSE / CLEANUP
+   *
+   * Purpose:
+   * 1. Restore the parent page after a modal/tray window is closed.
+   * 2. Remove stale overlays/backdrops.
+   * 3. Restore body scrolling and pointer events.
+   * 4. Clear global shortcut/scan state.
+   * 5. Handle Bootstrap modal close, close-button click and ESC.
+   */
+
+  function isActuallyVisible(element) {
+    if (!element) {
+      return false;
     }
-    
-    // Clear global scan context
-    try {
-      sessionStorage.removeItem('globalScanModule');
-      sessionStorage.removeItem('globalScanTrayId');
-      sessionStorage.removeItem('globalScanLotId');
-      sessionStorage.removeItem('globalScanBatchId');
-    } catch(e) {
-      console.warn('[Universal Modal Close] Could not clear scan context:', e);
-    }
-    
-    console.log('[Universal Modal Close] Row highlights and scan context cleared');
-  }
-  
-  // Listen for Bootstrap modal hide events (both Bootstrap 4 & 5)
-  document.addEventListener('hidden.bs.modal', clearHighlightsOnModalClose);
-  document.addEventListener('hide.bs.modal', clearHighlightsOnModalClose);
-  
-  // Listen for jQuery modal hide events (Bootstrap 3)
-  if (typeof jQuery !== 'undefined') {
-    jQuery(document).on('hidden.bs.modal hide.bs.modal', clearHighlightsOnModalClose);
-  }
-  
-  // Listen for manual modal close button clicks (catch-all)
-  document.addEventListener('click', function(event) {
-    var target = event.target;
-    
-    // Check if clicked element is a modal close button
+
+    var style = window.getComputedStyle(element);
+
     if (
-      target.classList.contains('modal-close') ||
-      target.classList.contains('tray-scan-close') ||
-      target.classList.contains('tray-scan-close-readonly') ||
-      target.classList.contains('barcode-modal-close') ||
-      target.classList.contains('close') ||
-      target.classList.contains('btn-close') ||
-      target.getAttribute('data-dismiss') === 'modal' ||
-      target.getAttribute('data-bs-dismiss') === 'modal' ||
-      target.id === 'closeTrayScanModal' ||
-      target.id === 'closeTrayScanModal_DayPlanning' ||
-      target.id === 'closeNewPopupModal'
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      style.opacity === '0'
     ) {
-      // Delay slightly to allow modal close animation
-      setTimeout(clearHighlightsOnModalClose, 100);
+      return false;
     }
-  }, true);
-  
-  // Clear on page visibility change (tab switch or window minimize)
-  document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-      // Check if any modal is still open when returning to page
-      var hasActiveModal = !!(
-        document.querySelector('.modal.show') ||
-        document.querySelector('.modal[style*="display: block"]') ||
-        document.querySelector('.tray-scan-modal.open') ||
-        document.querySelector('[role="dialog"][style*="display: block"]')
+
+    return element.getClientRects().length > 0;
+  }
+
+
+  /*
+   * Check whether a REAL visible modal is currently open.
+   *
+   * Keep this selector list limited to actual modal/dialog elements.
+   */
+  function hasActiveModal() {
+
+    var modalSelectors = [
+      '.modal.show',
+      '.modal[aria-modal="true"]',
+      '.modal-backdrop.show',
+      '.tray-scan-modal.open',
+      '.tray-scan-modal-DayPlanning.open',
+      '#trayScanModal.open',
+      '#trayScanModal_DayPlanning.open',
+      '.overlay-modal',
+      '.barcode-modal',
+      '.swal2-container'
+    ];
+
+    for (var i = 0; i < modalSelectors.length; i++) {
+
+      var elements = document.querySelectorAll(
+        modalSelectors[i]
       );
-      
-      // If no modal is open, clear stale highlights
-      if (!hasActiveModal) {
-        clearHighlightsOnModalClose();
+
+      for (var j = 0; j < elements.length; j++) {
+
+        if (isActuallyVisible(elements[j])) {
+          return true;
+        }
       }
     }
-  });
-  
-  console.log('[Universal Modal Close Handler] Initialized');
+
+    return false;
+  }
+
+
+  /*
+   * Force-close only stale modal UI.
+   *
+   * This is intentionally conservative.
+   *
+   * We do NOT remove arbitrary dialogs that are currently open.
+   * We only clean modal classes/styles/backdrops when the modal
+   * has already been requested to close.
+   */
+  function cleanupStaleModalUI() {
+
+    /*
+     * Remove stale Bootstrap backdrops.
+     */
+    document.querySelectorAll('.modal-backdrop').forEach(
+      function (backdrop) {
+
+        if (backdrop && backdrop.parentNode) {
+          backdrop.parentNode.removeChild(backdrop);
+        }
+
+      }
+    );
+
+
+    /*
+     * Restore body state.
+     */
+    if (document.body) {
+
+      document.body.classList.remove('modal-open');
+
+      document.body.style.removeProperty('overflow');
+
+      document.body.style.removeProperty('padding-right');
+
+      document.body.style.removeProperty('pointer-events');
+    }
+
+
+    /*
+     * Remove stale lock overlay used by Completed Table.
+     */
+    document.querySelectorAll(
+      '#parent-action-lock-overlay'
+    ).forEach(function (overlay) {
+
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+
+    });
+
+
+    /*
+     * Restore elements locked by Completed Table.
+     *
+     * Only restore the exact style combination used by
+     * lockParentActions().
+     */
+    document.querySelectorAll('*').forEach(
+      function (element) {
+
+        var style = element.style;
+
+        if (
+          style.pointerEvents === 'none' &&
+          (
+            style.opacity === '0.4' ||
+            style.opacity === '0.5'
+          ) &&
+          style.cursor === 'not-allowed'
+        ) {
+
+          style.pointerEvents = '';
+
+          style.opacity = '';
+
+          style.filter = '';
+
+          style.cursor = '';
+        }
+
+      }
+    );
+
+
+    /*
+     * Restore sidebar if it was locked.
+     */
+    var sidebar = document.querySelector('.sidebar');
+
+    if (sidebar) {
+
+      sidebar.style.pointerEvents = '';
+
+      sidebar.style.opacity = '';
+
+      sidebar.style.filter = '';
+
+      sidebar.style.cursor = '';
+    }
+  }
+
+
+  /*
+   * Restore parent page after modal/tray close.
+   */
+  function unlockCompletedTableParent() {
+
+    console.log(
+      '[GLOBAL MODAL CLOSE] Restoring parent UI'
+    );
+
+
+    cleanupStaleModalUI();
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Do not leave the page in a locked state just because
+     * a stale modal element remains in the DOM.
+     *
+     * At this point the close operation has already happened.
+     */
+    console.log(
+      '[GLOBAL MODAL CLOSE] Parent UI restored'
+    );
+  }
+
+
+  /*
+   * Clear global shortcut and scan state.
+   */
+  function clearHighlightsOnModalClose() {
+
+    /*
+     * Restore parent page.
+     */
+    unlockCompletedTableParent();
+
+
+    /*
+     * Clear global shortcut manager state.
+     */
+    if (
+      window.GlobalShortcutManager &&
+      typeof window.GlobalShortcutManager.clear === 'function'
+    ) {
+
+      window.GlobalShortcutManager.clear();
+    }
+
+
+    /*
+     * Clear global scan context.
+     */
+    try {
+
+      sessionStorage.removeItem(
+        'globalScanModule'
+      );
+
+      sessionStorage.removeItem(
+        'globalScanTrayId'
+      );
+
+      sessionStorage.removeItem(
+        'globalScanLotId'
+      );
+
+      sessionStorage.removeItem(
+        'globalScanBatchId'
+      );
+
+    } catch (error) {
+
+      console.warn(
+        '[Universal Modal Close] Could not clear scan context:',
+        error
+      );
+    }
+
+
+    console.log(
+      '[Universal Modal Close] Row highlights and scan context cleared'
+    );
+  }
+
+
+  /*
+   * Bootstrap 4 / Bootstrap 5 events.
+   */
+  document.addEventListener(
+    'hidden.bs.modal',
+    function () {
+
+      setTimeout(
+        clearHighlightsOnModalClose,
+        100
+      );
+
+    }
+  );
+
+
+  document.addEventListener(
+    'hide.bs.modal',
+    function () {
+
+      setTimeout(
+        clearHighlightsOnModalClose,
+        400
+      );
+
+    }
+  );
+
+
+  /*
+   * Bootstrap 3 / jQuery support.
+   */
+  if (typeof jQuery !== 'undefined') {
+
+    jQuery(document).on(
+      'hidden.bs.modal hide.bs.modal',
+      function () {
+
+        setTimeout(
+          clearHighlightsOnModalClose,
+          100
+        );
+
+      }
+    );
+  }
+
+
+  /*
+   * Manual close buttons.
+   */
+  document.addEventListener(
+    'click',
+    function (event) {
+
+      var target = event.target;
+
+      if (!target) {
+        return;
+      }
+
+
+      /*
+       * Also support clicking an element inside the
+       * actual close button.
+       */
+      var closeElement =
+        target.closest &&
+        target.closest(
+          [
+            '.modal-close',
+            '.tray-scan-close',
+            '.tray-scan-close-readonly',
+            '.barcode-modal-close',
+            '.close',
+            '.btn-close',
+            '[data-dismiss="modal"]',
+            '[data-bs-dismiss="modal"]',
+            '#closeTrayScanModal',
+            '#closeTrayScanModal_DayPlanning',
+            '#closeNewPopupModal'
+          ].join(',')
+        );
+
+
+      if (!closeElement) {
+        return;
+      }
+
+
+      /*
+       * Give the modal close animation a moment to finish.
+       */
+      setTimeout(
+        clearHighlightsOnModalClose,
+        400
+      );
+
+    },
+    true
+  );
+
+
+  /*
+   * GLOBAL ESC RECOVERY
+   *
+   * This is important for the DP Completed Table.
+   *
+   * When the tray window is closed using ESC, restore the
+   * parent page and clear stale modal/shortcut state.
+   */
+  document.addEventListener(
+    'keydown',
+    function (event) {
+
+      if (
+        event.key !== 'Escape' &&
+        event.keyCode !== 27
+      ) {
+        return;
+      }
+
+
+      /*
+       * Allow the module-specific ESC handler to close its
+       * own modal first.
+       */
+      setTimeout(
+        function () {
+
+          console.log(
+            '[GLOBAL MODAL CLOSE] ESC cleanup triggered'
+          );
+
+
+          /*
+           * Restore parent UI.
+           *
+           * The cleanup is intentionally performed after
+           * the module-specific modal close has executed.
+           */
+          clearHighlightsOnModalClose();
+
+        },
+        450
+      );
+
+    },
+    true
+  );
+
+
+  /*
+   * Restore stale UI when returning to the browser tab.
+   */
+  document.addEventListener(
+    'visibilitychange',
+    function () {
+
+      if (
+        document.visibilityState === 'visible'
+      ) {
+
+        setTimeout(
+          function () {
+
+            /*
+             * Only perform cleanup when no clearly visible
+             * modal remains.
+             */
+            if (!hasActiveModal()) {
+
+              clearHighlightsOnModalClose();
+            }
+
+          },
+          100
+        );
+      }
+
+    }
+  );
+
+
+  console.log(
+    '[Universal Modal Close Handler] Initialized'
+  );
+
 })();
 </script>
 
@@ -5290,6 +5667,14 @@
   setInterval(checkNetwork, CHECK_INTERVAL_MS);
 })();
 </script>
+{{ normal_user_fix_config|json_script:"normal-user-fix-config" }}
+
+<script nonce="{{ csp_nonce }}">
+    window.NORMAL_USER_FIX_CONFIG = JSON.parse(
+        document.getElementById('normal-user-fix-config').textContent
+    );
+</script>
+<script src="{% static 'assets/js/normal_user.js' %}"></script>
 
    </body>
 </html>

@@ -350,14 +350,6 @@
 
     function installKeyboardHandler() {
         document.addEventListener('keydown', function (event) {
-            // Measured on every keydown, regardless of whether the key maps
-            // to a shortcut, so the page-jump digit buffer can tell a human
-            // typing a page number apart from a barcode scanner "typing" a
-            // tray ID - see handlePageJumpDigit() below.
-            var now = Date.now();
-            var gapFromAnyPreviousKey = now - lastAnyKeyTime;
-            lastAnyKeyTime = now;
-
             var normalizedKey = normalizeEventKey(event);
             if (shouldDeferToInputScreeningScan(event, normalizedKey)) {
                 return;
@@ -379,7 +371,7 @@
                 if (modalOpen && !config.allowInModal) {
                     continue;
                 }
-                if (executeShortcut(config, event, normalizedKey, gapFromAnyPreviousKey)) {
+                if (executeShortcut(config, event, normalizedKey)) {
                     event.preventDefault();
                     event.stopImmediatePropagation();
                     return;
@@ -403,9 +395,9 @@
         return false;
     }
 
-    function executeShortcut(config, event, normalizedKey, gapFromAnyPreviousKey) {
+    function executeShortcut(config, event, normalizedKey) {
         if (config.actionType === 'builtin') {
-            return executeBuiltin(config, event, normalizedKey, gapFromAnyPreviousKey);
+            return executeBuiltin(config, event, normalizedKey);
         }
         if (config.actionType === 'row_action') {
             return executeRowAction(config);
@@ -422,7 +414,7 @@
         return false;
     }
 
-    function executeBuiltin(config, event, normalizedKey, gapFromAnyPreviousKey) {
+    function executeBuiltin(config, event, normalizedKey) {
         if (config.code === 'picktable_scan') {
             if (typeof window._gScanActivate === 'function') {
                 window._gScanActivate();
@@ -459,7 +451,7 @@
             return scrollActiveTable(240);
         }
         if (config.code === 'jump_page') {
-            handlePageJumpDigit(normalizedKey, gapFromAnyPreviousKey);
+            handlePageJumpDigit(normalizedKey);
             return true;
         }
         return false;
@@ -467,30 +459,12 @@
 
     // ─── Page-jump digit buffering ──────────────────────────────────────────
     // Lets a person type a page number (e.g. "1" then "0" for page 10)
-    // without every single digit firing its own instant, wrong jump - while
-    // staying safe next to barcode scanning. A scanner "types" a tray ID
-    // (e.g. JL-A00176) as fast raw keystrokes; only the digit characters in
-    // that string reach this handler (letters aren't bound to any shortcut),
-    // but the *gap* used to judge typing speed is measured against the very
-    // last keydown of ANY kind (see installKeyboardHandler), not just the
-    // last digit. That matters: the first digit in a scanned code is usually
-    // preceded by a letter typed a few milliseconds earlier, and without
-    // this it would look like a fresh, "slow" first keystroke and slip
-    // through. So:
-    //   1. Digits are buffered instead of acting immediately.
-    //   2. If a digit arrives less than PAGE_JUMP_MAX_GAP_MS after literally
-    //      any previous keystroke, it's dropped and the buffer is cleared -
-    //      that speed is a scanner, not a person typing.
-    //   3. The buffer only commits (jumps) after a short pause with no more
-    //      digits, and goToPage() only ever clicks a page number that is
-    //      actually present in the pagination control, so a stray scanned
-    //      number that somehow survives has nowhere valid to jump to.
-    var PAGE_JUMP_COMMIT_DELAY_MS = 650;
-    var PAGE_JUMP_MAX_GAP_MS = 45;
+    // without every single digit firing its own instant, wrong jump.
+    // Barcode scan flows are handled separately by scan-specific code.
+    var PAGE_JUMP_COMMIT_DELAY_MS = 900;
     var PAGE_JUMP_MAX_DIGITS = 4;
     var pageJumpDigits = '';
     var pageJumpTimer = null;
-    var lastAnyKeyTime = 0;
 
     function resetPageJumpBuffer() {
         pageJumpDigits = '';
@@ -509,16 +483,7 @@
         goToPage(Number(digits));
     }
 
-    function handlePageJumpDigit(digitChar, gapFromAnyPreviousKey) {
-        if (gapFromAnyPreviousKey < PAGE_JUMP_MAX_GAP_MS) {
-            // Too fast after ANY previous keystroke to be a person typing -
-            // almost certainly a barcode scanner mid-scan. Drop everything
-            // buffered so far and ignore this digit; don't start a new
-            // buffer with it either.
-            resetPageJumpBuffer();
-            return;
-        }
-
+    function handlePageJumpDigit(digitChar) {
         pageJumpDigits += digitChar;
         if (pageJumpDigits.length > PAGE_JUMP_MAX_DIGITS) {
             // Way more digits in a row than any real page number would need.
@@ -667,33 +632,73 @@
     }
 
     function goToPage(pageNumber) {
-        if (!pageNumber || pageNumber < 1) {
+        var targetPage = Number(pageNumber);
+
+        if (!Number.isInteger(targetPage) || targetPage < 1) {
             return false;
         }
+
+        /* Prefer DataTables when the table is actually using DataTables. */
         if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.dataTable) {
             try {
                 var dataTablesApi = jQuery.fn.dataTable.tables({ visible: true, api: true });
                 if (dataTablesApi && dataTablesApi.length) {
                     var pageInfo = dataTablesApi.page.info();
-                    if (pageNumber <= pageInfo.pages) {
-                        dataTablesApi.page(pageNumber - 1).draw('page');
+                    if (pageInfo && targetPage <= pageInfo.pages) {
+                        dataTablesApi.page(targetPage - 1).draw('page');
                         return true;
                     }
                 }
             } catch (error) {
-                return false;
+                console.warn('[GLOBAL SHORTCUT] DataTables page navigation unavailable:', error);
             }
         }
-        // Support both Bootstrap 4 (.page-item .page-link) and simple (<li><a>) pagination structures
-        var pageLinks = Array.from(document.querySelectorAll('.pagination .page-item:not(.disabled) .page-link, .pagination li:not(.disabled):not(.active) a'));
-        var pageLink = pageLinks.find(function (linkElement) {
-            return linkElement.textContent.trim() === String(pageNumber) && isVisibleElement(linkElement);
+
+        /*
+         * If the requested page is currently visible, preserve the existing
+         * pagination click behavior. Hidden pages (for example 11 when the
+         * control shows 1 2 3 ... 15) are handled by the URL fallback below.
+         */
+        var pageLinks = Array.from(document.querySelectorAll(
+            '.pagination .page-item:not(.disabled) .page-link, ' +
+            '.pagination li:not(.disabled):not(.active) a'
+        ));
+
+        var visiblePageLink = pageLinks.find(function (linkElement) {
+            return (
+                linkElement.textContent.trim() === String(targetPage) &&
+                isVisibleElement(linkElement)
+            );
         });
-        if (!pageLink) {
-            return false;
+
+        if (visiblePageLink) {
+            visiblePageLink.click();
+            return true;
         }
-        pageLink.click();
+
+        /*
+         * Server-side pagination: navigate directly to any page number,
+         * even when that number is hidden behind an ellipsis. Existing
+         * filters/search/date parameters are preserved.
+         */
+        var targetUrl = new URL(window.location.href);
+        targetUrl.searchParams.set('page', String(targetPage));
+
+        console.log('[GLOBAL SHORTCUT] Direct page navigation:', targetUrl.toString());
+
+        window.location.assign(targetUrl.toString());
         return true;
+    }
+
+    function getMaxPaginationPageNumber() {
+        var pageLinks = Array.from(document.querySelectorAll('.pagination a, .pagination span'));
+        return pageLinks.reduce(function (maxPage, element) {
+            var pageNumber = Number((element.textContent || '').trim());
+            if (Number.isInteger(pageNumber) && pageNumber > maxPage) {
+                return pageNumber;
+            }
+            return maxPage;
+        }, 0);
     }
 
     function closeActiveSurface() {
