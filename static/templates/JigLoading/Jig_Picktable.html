@@ -2781,13 +2781,45 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===== GLOBAL ALLOCATION TRACKER (survives re-renders) =====
     // Tracks which trays have been allocated as top_tray / excess / delink
     if (!window._trayAllocations) window._trayAllocations = {};
+    // Keep confirmed Delink scans independent from the shared allocation map so
+    // an Excess/Top-Tray allocation can never erase a completed Delink row.
+    if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
+    Object.keys(window._trayAllocations).forEach(function(tid) {
+      var alloc = window._trayAllocations[tid];
+      if (alloc && alloc.type === 'delink') {
+        window._confirmedDelinkTrayValues[String(tid).trim().toUpperCase()] = true;
+      }
+    });
 
     var delinkPanel = panel.delink_panel || {};
     var excessPanel = panel.excess_panel || {};
-    var delinkTrays = delinkPanel.trays || [];
+    var delinkTrays = Array.isArray(delinkPanel.trays) ? delinkPanel.trays : [];
     var excessExists = excessPanel.exists || false;
-    var excessTrays = excessPanel.trays || [];
+    var excessTrays = Array.isArray(excessPanel.trays) ? excessPanel.trays : [];
     var topTray = excessPanel.top_tray || null;
+
+    // ===== EXACT DRAFT SIDE MEMBERSHIP =====
+    // A saved draft contains two independent visual lists.  Never infer an
+    // Excess row from delink_panel.trays when an exact draft snapshot exists.
+    // Doing that makes a tray move between panels after reopen and can also
+    // create/drop a row when the backend allocation has changed since Draft.
+    // The saved excess_panel.trays list is the only authority for the Excess box.
+    var _hasExactDraftSides = !!(
+      panel && (
+        panel.__draft_exact_side_snapshot === true ||
+        panel.__draft_exact_snapshot === true
+      )
+    );
+    var _exactExcessByTray = {};
+    if (_hasExactDraftSides) {
+      excessTrays.forEach(function(exRow) {
+        if (!exRow || !exRow.tray_id) return;
+        _exactExcessByTray[String(exRow.tray_id).trim().toUpperCase()] = exRow;
+      });
+      if (topTray && topTray.tray_id) {
+        _exactExcessByTray[String(topTray.tray_id).trim().toUpperCase()] = topTray;
+      }
+    }
 
     var lotQty = parseInt(data.lot_qty || data.total_qty || 0) || 0;
     var effectiveCap = parseInt(data.effective_capacity || 0) || 0;
@@ -2812,10 +2844,41 @@ document.addEventListener('DOMContentLoaded', function () {
     // Delink and Excess Scan cells now live in the same table/tbody, so one query
     // covers all three categories (delink / excess / excess_top).
     var previousValidated = {};
-    document.querySelectorAll('#splitPanelContainer .split-scan-input.validated').forEach(function(inp) {
+    var previousValidatedByPosition = {};
+    // IMPORTANT: a successful Delink scan is authoritative in
+    // window._confirmedDelinkTrayValues, not merely in the transient DOM
+    // `.validated` class. Auto-allocation and multi-model re-renders can leave a
+    // confirmed value visible in its original box for a moment while the class is
+    // temporarily absent. If we only capture `.validated` inputs here, that value
+    // disappears on the next render and the row comes back as Pending.
+    // Capture confirmed Delink values from the actual box as well, preserving the
+    // physical tray in the exact box where it was successfully scanned.
+    var confirmedDelinkForRender = window._confirmedDelinkTrayValues || {};
+    document.querySelectorAll('#splitPanelContainer .split-scan-input').forEach(function(inp) {
       var panel = inp.dataset.panel || '';
+      var value = (inp.value || '').trim();
+      if (!value) return;
+
+      var isValidated = inp.classList.contains('validated');
+      var valueKey = value.toUpperCase();
+      var isConfirmedDelink = panel === 'delink' && !!confirmedDelinkForRender[valueKey];
+      // Excess/Top-Tray values still use the original validated-class rule.
+      // Delink values additionally use the authoritative confirmed-ID set.
+      if (!isValidated && !isConfirmedDelink) return;
+
       var k = (inp.dataset.autoTrayId || '') + '|' + panel;
-      if (inp.value) previousValidated[k] = inp.value;
+      previousValidated[k] = value;
+      var prevRow = inp.closest('tr[data-row-type]');
+      if (prevRow) {
+        var rowsForPanel = Array.from(document.querySelectorAll(
+          '#splitPanelContainer tr[data-row-type="' + (prevRow.dataset.rowType || '') + '"]'
+        ));
+        var posKey = (prevRow.dataset.rowType || '') + '|' + (inp.dataset.panel || '') + '|' + rowsForPanel.indexOf(prevRow);
+        previousValidatedByPosition[posKey] = {
+          value: value,
+          lastValidatedId: inp.dataset.lastValidatedId || value
+        };
+      }
     });
 
     // ===== Capture currently focused element to restore after re-render =====
@@ -2867,6 +2930,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // underlying business logic changes.
         var excessCardsQueue = [];
         var excessSlotCounter = 0;
+        var delinkSlotCounter = 0;
 
         delinkTrays.forEach(function(row, idx) {
           // Skip the delink card entirely when this tray has nothing to delink
@@ -2876,6 +2940,7 @@ document.addEventListener('DOMContentLoaded', function () {
           // step in this same loop iteration, so the tray still gets its Excess
           // Tray card and remains fully scannable there.
           if (row.delink_qty > 0) {
+          var delinkSlotIndex = delinkSlotCounter++;
           var tr = document.createElement('tr');
           tr.className = 'slot-card slot-card-delink';
           if (row.state === 'scanned') tr.classList.add('delink-row-scanned');
@@ -2942,8 +3007,16 @@ document.addEventListener('DOMContentLoaded', function () {
             // snapshot above used — restores whatever was typed back into the exact same
             // box, regardless of which physical tray it actually is.
             var restoreKey = (row.scan_tray_id || '') + '|delink';
-            if (previousValidated[restoreKey]) {
-              inp.value = previousValidated[restoreKey];
+            var restoreValue = previousValidated[restoreKey];
+            if (!restoreValue) {
+              var positionRestore = previousValidatedByPosition['delink|delink|' + delinkSlotIndex];
+              if (positionRestore) restoreValue = positionRestore.value;
+            }
+            if (restoreValue) {
+              inp.value = restoreValue;
+              // Preserve the physical tray that this validated box contains so an
+              // edit/delete after a re-render removes only that tray's confirmation.
+              inp.dataset.lastValidatedId = String(restoreValue).trim().toUpperCase();
               inp.classList.add('validated');
               inp.readOnly = true;
               inp.style.background = '#d4edda';
@@ -3012,6 +3085,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var selfInp = tr.querySelector('.split-scan-input[data-panel="delink"]');
             if (selfInp && !selfInp.value) {
               selfInp.value = row.tray_id;
+              selfInp.dataset.lastValidatedId = String(row.tray_id || '').trim().toUpperCase();
               selfInp.classList.add('validated');
               selfInp.readOnly = true;
               selfInp.style.background = '#d4edda';
@@ -3025,25 +3099,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
           // ===== Queue this row's Excess Tray card (built after all Original Tray
           // cards, appended below the section divider) =====
-          if (row.excess_qty > 0) {
+          // For an exact draft reopen, Excess membership/order comes ONLY from the
+          // saved excess_panel.trays list.  The delink row is never allowed to
+          // manufacture an Excess card merely because its parent row happens to
+          // contain excess_qty.  This keeps the two visual sides immutable.
+          var _rowTrayKey = String(row.tray_id || '').trim().toUpperCase();
+          var _exactExcessRow = _hasExactDraftSides ? _exactExcessByTray[_rowTrayKey] : null;
+          var _shouldRenderExcess = _hasExactDraftSides
+            ? !!_exactExcessRow
+            : (parseInt(row.excess_qty || 0, 10) > 0);
+          if (_shouldRenderExcess) {
+            var _exRow = _exactExcessRow || row;
+            var _exQty = parseInt(_exRow.excess_qty || _exRow.qty || row.excess_qty || 0, 10) || 0;
+            if (_exQty <= 0) _exQty = parseInt(row.excess_qty || 0, 10) || 0;
             excessSlotCounter++;
             var etr = document.createElement('tr');
             etr.className = 'slot-card slot-card-excess';
             etr.dataset.rowType = 'excess';
-            etr.dataset.trayId = row.tray_id || '';
+            etr.dataset.trayId = _exRow.tray_id || row.tray_id || '';
             // Pure-excess trays (delink_qty <= 0) never get a paired "delink" card
             // above, so this Excess card is this tray's ONLY row — it must carry
             // original_qty itself or the submit-time snapshot merge undercounts
             // original_qty while still counting excess_qty, causing a false
             // "sum(delink)+sum(excess) != sum(original)" integrity-mismatch error.
-            etr.dataset.originalQty = row.delink_qty > 0 ? 0 : (row.original_qty != null ? row.original_qty : 0);
+            etr.dataset.originalQty = (_exRow.original_qty != null ? _exRow.original_qty : (row.delink_qty > 0 ? 0 : (row.original_qty != null ? row.original_qty : 0)));
             etr.dataset.delinkQty = 0;
-            etr.dataset.excessQty = row.excess_qty != null ? row.excess_qty : 0;
-            etr.dataset.modelCode = row.model_code || '';
-            etr.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
-            etr.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
-            etr.dataset.topTray = row.is_top_tray ? 'true' : 'false';
-            if (row.color_class) etr.classList.add(row.color_class);
+            etr.dataset.excessQty = _exQty;
+            etr.dataset.modelCode = _exRow.model_code || row.model_code || '';
+            etr.dataset.lotId = _exRow.lot_id || row.lot_id || window.CURRENT_LOT_ID || '';
+            etr.dataset.batchId = _exRow.batch_id || row.batch_id || window.CURRENT_BATCH_ID || '';
+            etr.dataset.topTray = (_exRow.is_top_tray || row.is_top_tray) ? 'true' : 'false';
+            if (_exRow.color_class || row.color_class) etr.classList.add(_exRow.color_class || row.color_class);
 
             var etd1 = document.createElement('td');
             var esnoBadge = document.createElement('span');
@@ -3054,30 +3140,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var etd2 = document.createElement('td');
             etd2.className = 'slot-card-qty';
-            etd2.innerHTML = 'Qty <b>' + (row.excess_qty != null ? row.excess_qty : 0) + '</b>';
+            etd2.innerHTML = 'Qty <b>' + _exQty + '</b>';
             etr.appendChild(etd2);
 
             var etd3 = document.createElement('td');
             etd3.className = 'slot-card-input';
-            var excPanelType = row.is_partial ? 'excess_top' : 'excess';
+            var excPanelType = (_exRow.is_top_tray || _exRow.is_partial || row.is_top_tray && _exRow === row) ? 'excess_top' : 'excess';
             var excInp = document.createElement('input');
             excInp.type = 'text';
             excInp.className = 'split-scan-input excess-scan-cell';
             excInp.maxLength = 9;
-            excInp.dataset.expectedQty = row.excess_qty || 0;
+            excInp.dataset.expectedQty = _exQty;
             excInp.dataset.rowIndex = idx;
             excInp.dataset.panel = excPanelType;
-            excInp.dataset.autoTrayId = row.tray_id || row.scan_tray_id || '';
-            excInp.dataset.lotId = row.lot_id || window.CURRENT_LOT_ID || '';
-            excInp.dataset.batchId = row.batch_id || window.CURRENT_BATCH_ID || '';
+            excInp.dataset.autoTrayId = _exRow.tray_id || _exRow.scan_tray_id || row.tray_id || row.scan_tray_id || '';
+            excInp.dataset.lotId = _exRow.lot_id || row.lot_id || window.CURRENT_LOT_ID || '';
+            excInp.dataset.batchId = _exRow.batch_id || row.batch_id || window.CURRENT_BATCH_ID || '';
             excInp.style.cursor = 'pointer';
-            var excRestoreKey = (row.tray_id || row.scan_tray_id || '') + '|' + excPanelType;
+            var excRestoreKey = (_exRow.tray_id || _exRow.scan_tray_id || row.tray_id || row.scan_tray_id || '') + '|' + excPanelType;
             var excRestored = false;
             if (excPanelType === 'excess_top') {
               excInp.id = 'excessTopTrayScanInput';
               excInp.placeholder = 'Scan / Type Top Tray ID';
-              if (previousValidated[excRestoreKey]) {
-                excInp.value = previousValidated[excRestoreKey];
+              var excTopRestore = previousValidated[excRestoreKey];
+              if (!excTopRestore) {
+                var excTopPositionRestore = previousValidatedByPosition['excess|excess_top|' + (excessSlotCounter - 1)];
+                if (excTopPositionRestore) excTopRestore = excTopPositionRestore.value;
+              }
+              if (excTopRestore) {
+                excInp.value = excTopRestore;
+                excInp.dataset.lastValidatedId = String(excTopRestore).trim().toUpperCase();
                 excInp.classList.add('validated');
                 excInp.readOnly = true;
                 excInp.style.background = '#d0f0f2';
@@ -3101,8 +3193,14 @@ document.addEventListener('DOMContentLoaded', function () {
               etd3.appendChild(topStatusCompat);
             } else {
               excInp.placeholder = 'Scan Excess';
-              if (previousValidated[excRestoreKey]) {
-                excInp.value = previousValidated[excRestoreKey];
+              var excRestore = previousValidated[excRestoreKey];
+              if (!excRestore) {
+                var excPositionRestore = previousValidatedByPosition['excess|excess|' + (excessSlotCounter - 1)];
+                if (excPositionRestore) excRestore = excPositionRestore.value;
+              }
+              if (excRestore) {
+                excInp.value = excRestore;
+                excInp.dataset.lastValidatedId = String(excRestore).trim().toUpperCase();
                 excInp.classList.add('validated');
                 excInp.readOnly = true;
                 excInp.style.background = '#d0f0f2';
@@ -3485,6 +3583,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Delink + Excess Scan (incl. top tray) cells all live in the same tbody now.
     collect('#splitPanelContainer .split-scan-input.validated');
+
+    // A confirmed Delink scan must remain part of the backend duplicate/loaded-state
+    // payload even if its input temporarily lost `.validated` during a re-render.
+    // The confirmation set is written only after a successful backend validation and
+    // is cleared only when that physical tray is explicitly edited/unscanned, so it
+    // is safe to use as the authoritative fallback here.
+    var confirmedDelink = window._confirmedDelinkTrayValues || {};
+    Object.keys(confirmedDelink).forEach(function(key) {
+      if (!confirmedDelink[key]) return;
+      var normalized = String(key || '').trim().toUpperCase();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      var sourceInput = document.querySelector(
+        '#splitPanelContainer .split-scan-input[data-panel="delink"][value="' + normalized.replace(/"/g, '\\"') + '"]'
+      );
+      // CSS [value] is not reliable after programmatic `.value` assignment, so fall
+      // back to a direct value comparison when locating the box/expected quantity.
+      if (!sourceInput) {
+        var delinkInputs = document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="delink"]');
+        for (var di = 0; di < delinkInputs.length; di++) {
+          if ((delinkInputs[di].value || '').trim().toUpperCase() === normalized) {
+            sourceInput = delinkInputs[di];
+            break;
+          }
+        }
+      }
+      scans.push({
+        tray_id: normalized,
+        qty: sourceInput ? (parseInt(sourceInput.dataset.expectedQty || 0) || 0) : 0
+      });
+    });
+
     // Legacy compat
     collect('#unifiedTrayTableBody .unified-scan-input.validated');
     collect('#excessTrayContainer .tray-id-input.validated');
@@ -3607,19 +3737,62 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Remove the OLD (pre-edit) tray id from the allocation tracker — captured at validation time.
     var prevId = inputEl.dataset.lastValidatedId;
+    var editedPanel = inputEl.dataset.panel || (inputEl.id === 'excessTopTrayScanInput' ? 'excess_top' : '');
     if (prevId && window._trayAllocations) {
-      delete window._trayAllocations[prevId];
+      var prevAlloc = window._trayAllocations[prevId];
+      if (editedPanel === 'delink' || !prevAlloc || prevAlloc.type !== 'delink') {
+        delete window._trayAllocations[prevId];
+      }
+    }
+    // Remove ONLY the physical tray that was edited/removed from the confirmed
+    // Delink set. Other completed rows must remain Delinked and counted.
+    if (editedPanel === 'delink' && prevId && window._confirmedDelinkTrayValues) {
+      delete window._confirmedDelinkTrayValues[String(prevId).trim().toUpperCase()];
+    }
+    // If this Delink box was filled by the auto-allocator and the operator is
+    // now editing it, release ONLY that tray's auto-allocation marker. Do not
+    // touch any other auto-allocated Delink rows.
+    var prevIdUpper = prevId ? String(prevId).trim().toUpperCase() : '';
+    if (editedPanel === 'delink' && prevIdUpper && window._autoAllocatedTrayValues && window._autoAllocatedTrayValues[prevIdUpper]) {
+      delete window._autoAllocatedTrayValues[prevIdUpper];
     }
     delete inputEl.dataset.lastValidatedId;
     console.log('[EDIT_UNLOCK] Row unlocked for editing (value preserved), previous id:', prevId);
 
-    // Editing/deleting an Excess or Excess Top Tray scan changes which physical
-    // trays are actually "leftover" — any Delink box the auto-allocator already
-    // filled by elimination is now based on stale leftover data and must be
-    // cleared. Manual delink scans the user typed themselves are untouched;
-    // only re-running _autoAllocateRemainingDelinkTrays (once excess is
-    // completed again) may refill the Delink side, and only with the true leftover.
-    var editedPanel = inputEl.dataset.panel || (inputEl.id === 'excessTopTrayScanInput' ? 'excess_top' : '');
+    // The moment a validated scan is edited or emptied, its quantity is no longer
+    // completed. Refresh all live quantity/status/readiness indicators immediately
+    // from the current DOM so deleting a tray subtracts its quantity at once.
+    if (typeof window._updateDelinkTotalBar === 'function') {
+      try { window._updateDelinkTotalBar(); } catch (e) {}
+    }
+    if (typeof window._updateDelinkStatsBadge === 'function') {
+      try { window._updateDelinkStatsBadge(); } catch (e) {}
+    }
+    if (typeof window.updateLoadedDisplay === 'function') {
+      try { window.updateLoadedDisplay(); } catch (e) {}
+    }
+    if (typeof window._checkSubmitReadiness === 'function') {
+      try { window._checkSubmitReadiness(); } catch (e) {}
+    }
+
+    // IMPORTANT: If the operator manually deletes/empties a previously validated
+    // tray-id field, the tray is no longer occupied by that row.  Refresh the chip
+    // state immediately so its tray-id chip becomes selectable again.  The chip
+    // state is value-based (_getValidatedScannedTrayIdSet), so no tray ordering or
+    // panel assignment is changed here.
+    if (typeof window._renderDelinkTrayChipStrip === 'function') {
+      try {
+        var chipBody = document.getElementById('delinkPanelTableBody');
+        window._renderDelinkTrayChipStrip(chipBody);
+      } catch (e) {
+        console.warn('[CHIP_REENABLE] Failed to refresh tray chip state:', e);
+      }
+    }
+
+    // Editing/deleting an Excess or Excess Top Tray scan must preserve already
+    // confirmed Delink boxes. Once the Excess section is complete again,
+    // _autoAllocateRemainingDelinkTrays() will consider only trays that are still
+    // genuinely unallocated, without resetting existing Delink confirmations.
     if (editedPanel === 'excess' || editedPanel === 'excess_top') {
       _clearAutoAllocatedDelinkTrays();
     }
@@ -3711,6 +3884,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (scanPanel === 'delink') {
           // ===== DELINK SCAN: lock the row, green status =====
           window._trayAllocations[trayId.toUpperCase()] = { type: 'delink' };
+          if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
+          window._confirmedDelinkTrayValues[trayId.toUpperCase()] = true;
           inputEl.readOnly = true;
           inputEl.style.background = '#d4edda';
           inputEl.style.borderColor = '#28a745';
@@ -3886,6 +4061,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (window._trayAllocations) delete window._trayAllocations[normalized];
+    if (window._confirmedDelinkTrayValues) delete window._confirmedDelinkTrayValues[normalized];
     if (!dBody) return;
     dBody.querySelectorAll('.delink-row-checkbox').forEach(function(cb) {
       if ((cb.dataset.trayId || '').trim().toUpperCase() === normalized) {
@@ -4023,13 +4199,30 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!nextTrayId) break;
         nextBox.value = nextTrayId;
         await _validateSplitScan(nextTrayId, nextBox, false);
-        if (!nextBox.classList.contains('validated')) {
+
+        // The successful scan can trigger the debounced panel re-render while the
+        // await above is yielding.  Therefore never rely on the old DOM node
+        // (nextBox) to decide whether the auto-allocation succeeded.  Re-find the
+        // current Delink input by the value that was just validated.
+        var normalizedNextTrayId = String(nextTrayId).trim().toUpperCase();
+        var currentAutoBox = null;
+        var currentDelinkInputs = document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="delink"]');
+        for (var ai = 0; ai < currentDelinkInputs.length; ai++) {
+          var candidate = currentDelinkInputs[ai];
+          if ((candidate.value || '').trim().toUpperCase() === normalizedNextTrayId) {
+            currentAutoBox = candidate;
+            break;
+          }
+        }
+
+        if (!currentAutoBox || !currentAutoBox.classList.contains('validated')) {
           // Auto-scan failed (e.g. tray rejected by backend) — stop here and
           // leave any remaining boxes for manual entry rather than retrying
           // the same failing tray forever.
           console.warn('[AUTO_ALLOCATE_DELINK] Stopped — auto-scan failed for', nextTrayId);
           break;
         }
+
         // UI STATUS FIX: record this physical tray_id as auto-allocated (persists
         // across re-renders, keyed by value — same pattern as _trayAllocations).
         // _syncDelinkRowStatuses uses this to show "Delinked" for the row that
@@ -4037,7 +4230,17 @@ document.addEventListener('DOMContentLoaded', function () {
         // "own tray in own box" (any physical tray fills any open box by design —
         // see the box/value-identity notes throughout this file).
         if (!window._autoAllocatedTrayValues) window._autoAllocatedTrayValues = {};
-        window._autoAllocatedTrayValues[String(nextTrayId).trim().toUpperCase()] = true;
+        window._autoAllocatedTrayValues[normalizedNextTrayId] = true;
+        if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
+        window._confirmedDelinkTrayValues[normalizedNextTrayId] = true;
+
+        // The allocation marker is intentionally written only after backend success.
+        // Reconcile immediately so a re-render cannot leave this successfully
+        // restored tray showing Pending or omit its quantity from the live total.
+        _syncDelinkRowStatuses();
+        _renderDelinkTrayChipStrip(document.getElementById('delinkPanelTableBody'));
+        _updateDelinkTotalBar();
+        _updateDelinkStatsBadge();
       }
       console.log('[AUTO_ALLOCATE_DELINK] Completed after', guard - 1, 'iteration(s)');
     } finally {
@@ -4046,46 +4249,38 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   window._autoAllocateRemainingDelinkTrays = _autoAllocateRemainingDelinkTrays;
 
-  // ===== CLEAR AUTO-ALLOCATED DELINK TRAYS (excess scan edited/removed) =====
-  // Only reverts boxes THIS auto-allocator itself filled (tracked in
-  // window._autoAllocatedTrayValues) — manual delink scans stay locked/intact.
-  // Re-fill only happens via a fresh _autoAllocateRemainingDelinkTrays() run,
-  // once excess is completed again, so the Delink side always reflects the
-  // current true leftover, never a stale pre-edit allocation.
+  // ===== PRESERVE AUTO-ALLOCATED DELINK TRAYS WHEN EXCESS IS EDITED =====
+  // IMPORTANT: Editing/removing an Excess scan must NOT clear Delink boxes that
+  // were already confirmed by the auto-allocator. Those boxes represent real
+  // successful Delink scans and remain valid when another Excess row is edited.
+  //
+  // The previous implementation treated every Excess edit as a reason to wipe
+  // ALL auto-allocated Delink values. That made already completed Delink rows
+  // (for example rows 6 and 7) jump back to Pending even though their scans had
+  // succeeded. It also deleted their confirmed values from the authoritative
+  // _confirmedDelinkTrayValues set and their allocation records from
+  // _trayAllocations.
+  //
+  // Keep this function (and its existing call site) for compatibility, but make
+  // it reconciliation-only: preserve confirmed Delink scans and refresh the UI.
+  // If the edited Excess row changes which trays remain for automatic allocation,
+  // _unlockDelinkPanel() will call _autoAllocateRemainingDelinkTrays() after the
+  // Excess section becomes complete again. The allocator already skips confirmed
+  // tray ids, so existing Delink rows remain locked while only genuinely remaining
+  // trays are considered for new boxes.
   function _clearAutoAllocatedDelinkTrays() {
-    var autoValues = window._autoAllocatedTrayValues;
-    if (!autoValues || !Object.keys(autoValues).length) return;
     var dBody = document.getElementById('delinkPanelTableBody');
-    if (dBody) {
-      dBody.querySelectorAll('.split-scan-input[data-panel="delink"].validated').forEach(function(inp) {
-        var val = (inp.value || '').trim().toUpperCase();
-        if (!val || !autoValues[val]) return;
-        inp.classList.remove('validated', 'error-input');
-        inp.readOnly = false;
-        inp.value = '';
-        inp.style.background = '';
-        inp.style.borderColor = '';
-        delete inp.dataset.lastValidatedId;
-        var tr = inp.closest('tr');
-        if (tr) {
-          var cb = tr.querySelector('.delink-row-checkbox');
-          if (cb) { cb.checked = false; cb.disabled = false; cb.classList.remove('locked'); }
-          tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
-          delete tr.dataset.allocLocked;
-          var lastCell = tr.cells[tr.cells.length - 1];
-          if (lastCell) lastCell.innerHTML = '';
-        }
-        if (window._trayAllocations) delete window._trayAllocations[val];
-      });
-    }
-    window._autoAllocatedTrayValues = {};
+
+    // Do NOT remove any validated Delink input, allocation, or confirmed tray id.
+    // A successful Delink scan is independent of an Excess-row edit.
     if (typeof _syncDelinkRowStatuses === 'function') _syncDelinkRowStatuses();
     if (typeof _renderDelinkTrayChipStrip === 'function') _renderDelinkTrayChipStrip(dBody);
     if (typeof _updateDelinkTotalBar === 'function') _updateDelinkTotalBar();
     if (typeof _updateDelinkStatsBadge === 'function') _updateDelinkStatsBadge();
     if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
     if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
-    console.log('[AUTO_ALLOCATE_DELINK] Cleared — excess scan was edited/removed, chips unstruck, will recompute leftover once excess completes again');
+
+    console.log('[AUTO_ALLOCATE_DELINK] Preserved confirmed Delink scans — Excess edit/removal must not reset existing auto-allocated rows');
   }
   window._clearAutoAllocatedDelinkTrays = _clearAutoAllocatedDelinkTrays;
 
@@ -4178,6 +4373,27 @@ document.addEventListener('DOMContentLoaded', function () {
       var val = (inp.value || '').trim().toUpperCase();
       if (val) set[val] = true;
     });
+
+    // Keep the confirmed physical-tray set authoritative across DOM rebuilds.
+    // `.validated` is a presentation/interaction flag; a successful Delink scan is
+    // recorded in _confirmedDelinkTrayValues and must not disappear merely because
+    // a multi-model render recreated the input element.
+    var confirmed = window._confirmedDelinkTrayValues || {};
+    Object.keys(confirmed).forEach(function(tid) {
+      if (confirmed[tid]) set[String(tid).trim().toUpperCase()] = true;
+    });
+    return set;
+  }
+
+  // A confirmed Delink scan stays authoritative across UI re-renders even when
+  // the rebuilt input temporarily loses its .validated class. This is separate
+  // from _trayAllocations because Excess/Top-Tray scans are panel-independent.
+  function _getConfirmedDelinkTrayIdSet() {
+    var set = _getValidatedDelinkOnlyTrayIdSet();
+    var confirmed = window._confirmedDelinkTrayValues || {};
+    Object.keys(confirmed).forEach(function(tid) {
+      if (confirmed[tid]) set[String(tid).trim().toUpperCase()] = true;
+    });
     return set;
   }
 
@@ -4189,7 +4405,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // page reload, BH change), so status can never silently desync from what's
   // actually stored/counted — and never leak in from the Excess panel.
   function _syncDelinkRowStatuses(scannedSet) {
-    var set = scannedSet || _getValidatedDelinkOnlyTrayIdSet();
+    var set = scannedSet || _getConfirmedDelinkTrayIdSet();
     document.querySelectorAll('#splitPanelContainer tr[data-tray-id]').forEach(function(row) {
       // Scoped to Delink-type cards only — an Excess Tray card's own status is
       // written directly by the excess/excess_top branches in _validateSplitScan.
@@ -4389,11 +4605,34 @@ document.addEventListener('DOMContentLoaded', function () {
   // build_split_panel_data / build_split_panel_data_multi_model).
   function _getCompletedDelinkQty() {
     var totalQty = 0;
+
+    // IMPORTANT: count the CURRENT DELINK ROW STATE, not the row position and not
+    // the planned lot quantity. A row is counted only when it is actually marked
+    // as scanned/Delinked (delink-row-scanned), or when its own Delink input is
+    // currently validated. Do NOT count delink-row-disabled because that class is
+    // also used for allocation/restore states where no current scan exists.
+    //
+    // The renderer/reconciliation logic is responsible for putting
+    // delink-row-scanned on the correct physical tray row after a validated scan.
+    // Therefore the quantity calculation must trust that reconciled row state
+    // instead of requiring the scanned value to equal the row's original tray_id.
+    // This is important when a physical tray is scanned into a different open row.
+    var scannedDelinkIds = (typeof _getConfirmedDelinkTrayIdSet === 'function')
+      ? _getConfirmedDelinkTrayIdSet()
+      : {};
+
     document.querySelectorAll('#splitPanelContainer tr[data-row-type="delink"]').forEach(function(tr) {
-      var inp = tr.querySelector('.split-scan-input.validated');
-      var isAutoVerifiedPartial = tr.dataset.autoVerify === 'true' && tr.classList.contains('delink-row-scanned');
-      var isAllocated = tr.classList.contains('delink-row-disabled') || tr.classList.contains('delink-row-scanned');
-      if (!inp && !isAllocated && !isAutoVerifiedPartial) return;
+      var isAutoVerifiedPartial = tr.dataset.autoVerify === 'true' &&
+        tr.classList.contains('delink-row-scanned');
+      var isRowScanned = tr.classList.contains('delink-row-scanned');
+      var trayId = (tr.dataset.trayId || '').trim().toUpperCase();
+      var hasValidatedOwnInput = !!(trayId && scannedDelinkIds[trayId]);
+
+      // A normal Delink row counts when the row is reconciled to a scanned state
+      // OR its own Delink input is presently validated. Partial rows count only
+      // after their paired Excess Top verification marks them scanned.
+      if (!isRowScanned && !hasValidatedOwnInput && !isAutoVerifiedPartial) return;
+
       var delinkQty = parseInt(tr.dataset.delinkQty || 0) || 0;
       if (delinkQty > 0) totalQty += delinkQty;
     });
@@ -4408,19 +4647,24 @@ document.addEventListener('DOMContentLoaded', function () {
     var fullyDelinked = 0;
     var partialDelinked = 0;
     var totalDelinkQty = 0;
-    document.querySelectorAll('#splitPanelContainer tr').forEach(function(tr) {
-      var inp = tr.querySelector('.split-scan-input.validated');
-      // A row can be marked Delinked via a matching tray_id scanned into a
-      // DIFFERENT row's box (see DELINK_LOCK above) — it carries the
-      // 'delink-row-scanned' class but has no validated input of its own.
-      var isAllocated = tr.classList.contains('delink-row-disabled') || tr.classList.contains('delink-row-scanned');
-      // Count rows that are either validated (delinked) or allocated (excess/top/matched)
-      if (!inp && !isAllocated) return;
-      // Read from row dataset (set at render time) rather than a fixed cell index —
-      // robust against column layout changes (e.g. Tray ID column removed).
+    var scannedDelinkIds = (typeof _getConfirmedDelinkTrayIdSet === 'function')
+      ? _getConfirmedDelinkTrayIdSet()
+      : {};
+
+    document.querySelectorAll('#splitPanelContainer tr[data-row-type="delink"]').forEach(function(tr) {
+      var isAutoVerifiedPartial = tr.dataset.autoVerify === 'true' &&
+        tr.classList.contains('delink-row-scanned');
+      var trayId = (tr.dataset.trayId || '').trim().toUpperCase();
+      var wasScanned = !!(trayId && scannedDelinkIds[trayId]);
+
+      // Count ONLY trays that have actually been validated/scanned. Do not use
+      // allocation/status classes alone because they can exist before the current
+      // scan input has been validated.
+      if (!wasScanned && !isAutoVerifiedPartial) return;
+
       var origQty = parseInt(tr.dataset.originalQty || 0) || 0;
       var delinkQty = parseInt(tr.dataset.delinkQty || 0) || 0;
-      if (delinkQty <= 0) return; // Skip rows with 0 delink qty (pure excess)
+      if (delinkQty <= 0) return;
       totalDelinkQty += delinkQty;
       if (delinkQty < origQty) {
         partialDelinked++;
@@ -4824,6 +5068,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window._lastHalfFilledTrayInfo = {};
   window._lastInitData = null;
   window._trayAllocations = {};
+  window._confirmedDelinkTrayValues = {};
   window._autoAllocatedTrayValues = {};
   window._PLANNED_EMPTY_HOOKS = 0;
   window.isModelSelectionComplete = false;
@@ -4998,24 +5243,15 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
           const el = idMap.loadedCasesInput;
           if (!el) return;
-          // Compute loaded from DOM: sum delink_qty of all validated + allocated rows,
-          // including the auto-verified partial-delink row (see _getCompletedDelinkQty).
-          // This handles race conditions from parallel scan API calls (Select All).
-          // Backend decides each row's delink_qty; frontend sums the displayed values.
+          // Loaded/Delink quantity is scan-based. Never let a planned/backend lot
+          // quantity make the UI appear fully loaded before those trays are scanned.
           var domLoaded = (typeof _getCompletedDelinkQty === 'function') ? _getCompletedDelinkQty() : 0;
-          // Use max of DOM-computed and backend value (backend may be ahead during init)
-          const loaded = Math.max(domLoaded, parseInt(window.BACKEND_LOADED_CASES || 0));
+          const loaded = domLoaded;
           const cap = parseInt(window.BACKEND_EFFECTIVE_CAPACITY || 0);
 
-          // Sync BACKEND globals when DOM reflects higher (correct) state.
-          // This handles race conditions from parallel scan API responses where
-          // each response has stale loaded_cases_qty from before the batch.
-          // Submit will enable only when BACKEND_LOADED_CASES >= BACKEND_EFFECTIVE_CAPACITY
-          // and empty_hooks is correctly derived from actual scanned state.
-          if (domLoaded > parseInt(window.BACKEND_LOADED_CASES || 0)) {
-            window.BACKEND_LOADED_CASES = domLoaded;
-            window.BACKEND_EMPTY_HOOKS = Math.max(0, cap - domLoaded);
-          }
+          // Keep shared globals synchronized with the actual scan-based UI state.
+          window.BACKEND_LOADED_CASES = domLoaded;
+          window.BACKEND_EMPTY_HOOKS = Math.max(0, cap - domLoaded);
 
           const text = `${loaded}/${cap}`;
           if (el.tagName === 'SPAN' || el.tagName === 'DIV') el.innerText = text;
@@ -6152,9 +6388,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return false;
       }
       
-      // ? Use ONLY backend-provided authoritative values (NO calculations)
-      const loadedQty = parseInt(window.BACKEND_LOADED_CASES || 0);
+      // Render the scan-based loaded quantity. Draft/init responses can contain the
+      // full planned allocation before every tray has actually been scanned.
+      const loadedQty = (typeof window._getCompletedDelinkQty === 'function')
+        ? window._getCompletedDelinkQty()
+        : 0;
       const finalCapacity = parseInt(window.BACKEND_EFFECTIVE_CAPACITY || 0);
+      window.BACKEND_LOADED_CASES = loadedQty;
+      window.BACKEND_EMPTY_HOOKS = Math.max(0, finalCapacity - loadedQty);
       const newDisplay = `${loadedQty}/${finalCapacity}`;
       console.log('[LCQ_RENDER] Displaying:', { loadedQty, finalCapacity });
       
@@ -6708,6 +6949,7 @@ function resetJigModalState() {
   window._lastHalfFilledTrayInfo = {};
   window._lastInitData = null;
   window._trayAllocations = {};
+  window._confirmedDelinkTrayValues = {};
   window._autoAllocatedTrayValues = {};
   window._PLANNED_EMPTY_HOOKS = 0;
 
@@ -9232,6 +9474,268 @@ if (!formatResult.valid) {
     return scanned;
   }
 
+  // ===== Capture the EXACT visible split-panel state for Draft =====
+  // IMPORTANT: window._lastSplitPanelData is the backend allocation baseline. It can
+  // be different from what the operator is actually seeing after scans/routing.
+  // In particular, a physical tray can be routed from the backend's original
+  // allocation into the Excess box. Saving only _lastSplitPanelData therefore
+  // causes Draft -> Reopen to resurrect a different tray (for example A00044)
+  // even though the operator had A00040 in the Excess box when Draft was clicked.
+  //
+  // The DOM is the authoritative source at the instant Draft is clicked. We keep
+  // all backend metadata, but replace the row collections with the exact rows that
+  // are visibly present in their respective boxes, including their tray IDs,
+  // quantities, panel, order, and top-tray state.
+  function collectExactSplitPanelSnapshotFromDOM() {
+    try {
+      var base = window._lastSplitPanelData
+        ? JSON.parse(JSON.stringify(window._lastSplitPanelData))
+        : {};
+      base = base || {};
+      base.delink_panel = base.delink_panel || {};
+      base.excess_panel = base.excess_panel || {};
+
+      function upper(v) { return String(v || '').trim().toUpperCase(); }
+      function clone(v) {
+        try { return JSON.parse(JSON.stringify(v)); } catch (e) { return {}; }
+      }
+      function findTemplate(id, rows) {
+        var key = upper(id);
+        for (var i = 0; i < rows.length; i++) {
+          if (upper(rows[i] && rows[i].tray_id) === key) return clone(rows[i]);
+        }
+        return {};
+      }
+      function domRowToSnapshot(row, templates, rowType) {
+        var id = (row.dataset.trayId || '').trim();
+        if (!id) return null;
+        var item = findTemplate(id, templates);
+        var originalQty = parseInt(row.dataset.originalQty || 0, 10) || 0;
+        var delinkQty = parseInt(row.dataset.delinkQty || 0, 10) || 0;
+        var excessQty = parseInt(row.dataset.excessQty || 0, 10) || 0;
+        var input = row.querySelector('.split-scan-input');
+
+        item.tray_id = id;
+        item.original_qty = originalQty;
+        item.delink_qty = rowType === 'delink' ? delinkQty : 0;
+        item.excess_qty = rowType === 'excess' ? excessQty : 0;
+        item.model_code = row.dataset.modelCode || item.model_code || '';
+        item.lot_id = row.dataset.lotId || item.lot_id || window.CURRENT_LOT_ID || '';
+        item.batch_id = row.dataset.batchId || item.batch_id || window.CURRENT_BATCH_ID || '';
+        item.is_top_tray = row.dataset.topTray === 'true' || !!item.is_top_tray;
+        item.is_partial = !!item.is_partial || (delinkQty > 0 && excessQty > 0);
+        item.color_class = item.color_class || (function() {
+          var m = (row.className || '').match(/model-bg-\d+/);
+          return m ? m[0] : '';
+        })();
+
+        if (input) {
+          // IMPORTANT: preserve the EXACT value that was visible in this physical
+          // row at Draft time.  scan_tray_id is the row/template identity; it is
+          // NOT necessarily the value the operator typed/scanned into the box.
+          // Without saving input.value separately, a Draft -> Reopen could render
+          // the correct row but leave its scan box empty.
+          item.scan_tray_id = input.dataset.autoTrayId || item.scan_tray_id || id;
+          item.scan_input_key = input.dataset.autoTrayId || input.dataset.trayId || id;
+          item.scan_panel = input.dataset.panel || (rowType === 'excess' ? 'excess' : 'delink');
+          item.scan_value = (input.value || '').trim();
+          item.scan_validated = input.classList.contains('validated') || !!item.scan_value;
+          item.scan_disabled = !!input.disabled;
+          item.is_scannable = !input.disabled;
+          item.state = input.classList.contains('validated') ? 'scanned' : 'default';
+        } else {
+          item.scan_tray_id = item.scan_tray_id || id;
+          item.scan_input_key = id;
+          item.scan_panel = rowType === 'excess' ? 'excess' : 'delink';
+          item.scan_value = '';
+          item.scan_validated = false;
+          item.scan_disabled = false;
+        }
+
+        if (rowType === 'excess') {
+          item.qty = excessQty;
+          item.row_type = 'excess';
+          item.original_tray_id = item.original_tray_id || id;
+        }
+        return item;
+      }
+
+      var templateRows = [];
+      templateRows = templateRows.concat(Array.isArray(base.delink_panel.trays) ? base.delink_panel.trays : []);
+      templateRows = templateRows.concat(Array.isArray(base.excess_panel.trays) ? base.excess_panel.trays : []);
+      if (base.excess_panel.top_tray) templateRows.push(base.excess_panel.top_tray);
+
+      var delinkBody = document.getElementById('delinkPanelTableBody');
+      var excessBody = document.getElementById('excessPanelTableBody');
+      var delinkRows = [];
+      var excessRows = [];
+
+      if (delinkBody) {
+        delinkBody.querySelectorAll('tr[data-tray-id]').forEach(function(row, idx) {
+          var snap = domRowToSnapshot(row, templateRows, 'delink');
+          if (!snap) return;
+          snap.sno = idx + 1;
+          delinkRows.push(snap);
+        });
+      }
+
+      if (excessBody) {
+        excessBody.querySelectorAll('tr[data-tray-id]').forEach(function(row, idx) {
+          var snap = domRowToSnapshot(row, templateRows, 'excess');
+          if (!snap) return;
+          snap.sno = idx + 1;
+          excessRows.push(snap);
+        });
+      }
+
+      // Keep an independent, immutable copy of the two actual DOM row lists.
+      // base.delink_panel.trays is normalized below for compatibility with the
+      // backend contract, so it must NOT be the only place where we keep the
+      // Draft-time row/input state.  In particular, the exact scan value entered
+      // into a row belongs to that visual row and must survive reopen verbatim.
+      base.__draft_ui_rows = {
+        delink: delinkRows.map(function(r) { return clone(r); }),
+        excess: excessRows.map(function(r) { return clone(r); })
+      };
+
+      // IMPORTANT: renderSplitPanels derives the visible Excess cards from
+      // delink_panel.trays[].excess_qty.  Therefore the saved delink snapshot
+      // MUST contain the excess quantity belonging to the same physical tray.
+      // Previously the Delink DOM row deliberately had data-excess-qty=0 because
+      // Excess was rendered as a separate visual card. That was correct for the
+      // DOM, but incorrect for the persisted snapshot: on reopen renderSplitPanels
+      // looked only at delink_panel.trays and consequently had no Excess card to
+      // render. Merge the separate Excess DOM rows back into their parent tray here.
+      var mergedByTray = {};
+      var mergedOrder = [];
+
+      delinkRows.forEach(function(row) {
+        var key = upper(row.tray_id);
+        if (!key) return;
+        if (!mergedByTray[key]) {
+          mergedByTray[key] = row;
+          mergedOrder.push(key);
+        }
+      });
+
+      excessRows.forEach(function(row) {
+        var key = upper(row.tray_id);
+        if (!key) return;
+        if (!mergedByTray[key]) {
+          // Pure-excess tray: keep it in delink_panel as a zero-delink slot so
+          // renderSplitPanels can create its separate Excess card from excess_qty.
+          var pure = clone(row);
+          pure.delink_qty = 0;
+          pure.original_qty = parseInt(row.original_qty || row.excess_qty || row.qty || 0, 10) || 0;
+          pure.excess_qty = parseInt(row.excess_qty || row.qty || 0, 10) || 0;
+          pure.row_type = 'delink';
+          mergedByTray[key] = pure;
+          mergedOrder.push(key);
+        } else {
+          var parent = mergedByTray[key];
+          parent.excess_qty = parseInt(row.excess_qty || row.qty || 0, 10) || 0;
+          if (!parent.original_qty) {
+            parent.original_qty = parseInt(row.original_qty || parent.delink_qty || parent.excess_qty || 0, 10) || 0;
+          }
+          if (row.is_top_tray) parent.is_top_tray = true;
+          if (row.is_partial) parent.is_partial = true;
+        }
+      });
+
+      var mergedDelinkRows = mergedOrder.map(function(key, idx) {
+        var row = mergedByTray[key];
+        row.sno = idx + 1;
+        return row;
+      });
+
+      base.delink_panel.trays = mergedDelinkRows;
+      base.delink_panel.tray_count = mergedDelinkRows.filter(function(r) {
+        return parseInt(r.delink_qty || 0, 10) > 0;
+      }).length;
+      base.delink_panel.total_delink_qty = mergedDelinkRows.reduce(function(sum, r) {
+        return sum + (parseInt(r.delink_qty || 0, 10) || 0);
+      }, 0);
+      base.delink_panel.total_excess_qty = mergedDelinkRows.reduce(function(sum, r) {
+        return sum + (parseInt(r.excess_qty || 0, 10) || 0);
+      }, 0);
+
+      // Preserve the separate Excess panel as a true visual snapshot as well.
+      // It is used for compatibility/diagnostics, while renderSplitPanels uses
+      // the merged delink rows above to recreate the actual Excess cards.
+      if (excessRows.length > 0) {
+        base.excess_panel.trays = excessRows;
+        base.excess_panel.excess_tray_count = excessRows.length;
+        base.excess_panel.total_excess_qty = excessRows.reduce(function(sum, r) {
+          return sum + (parseInt(r.excess_qty || r.qty || 0, 10) || 0);
+        }, 0);
+      } else {
+        base.excess_panel.trays = [];
+        base.excess_panel.excess_tray_count = 0;
+        base.excess_panel.total_excess_qty = 0;
+      }
+
+      // Preserve the exact top-tray row from the visible Excess box.
+      var topRow = null;
+      if (excessBody) {
+        var topInput = excessBody.querySelector('.split-scan-input[data-panel="excess_top"]');
+        if (topInput) topRow = topInput.closest('tr[data-tray-id]');
+      }
+      if (topRow) {
+        var topSnap = domRowToSnapshot(topRow, templateRows, 'excess');
+        if (topSnap) {
+          topSnap.qty = parseInt(topSnap.excess_qty || topSnap.qty || 0, 10) || 0;
+          topSnap.is_top_tray = true;
+          topSnap.is_mandate_scan = true;
+          topSnap.is_editable = true;
+          topSnap.scan_tray_id = topSnap.scan_tray_id || topSnap.tray_id;
+          topSnap.verified = !!topInput.classList.contains('validated');
+          base.excess_panel.top_tray = topSnap;
+
+          // Keep the parent delink snapshot in sync with the top-tray excess qty.
+          var topKey = upper(topSnap.tray_id);
+          if (mergedByTray[topKey]) {
+            mergedByTray[topKey].excess_qty = topSnap.qty;
+            mergedByTray[topKey].is_top_tray = true;
+            mergedByTray[topKey].is_partial = true;
+          }
+        }
+      } else {
+        base.excess_panel.top_tray = null;
+      }
+
+      base.excess_panel.exists = !!(
+        (base.excess_panel.trays || []).length || base.excess_panel.top_tray
+      );
+
+      // Rebuild once more after top-tray synchronization so the parent rows contain
+      // the final exact excess quantity.
+      base.delink_panel.trays = mergedOrder.map(function(key, idx) {
+        var row = mergedByTray[key];
+        row.sno = idx + 1;
+        return row;
+      });
+      base.delink_panel.total_excess_qty = base.delink_panel.trays.reduce(function(sum, r) {
+        return sum + (parseInt(r.excess_qty || 0, 10) || 0);
+      }, 0);
+
+      // Explicit marker: this panel came from the actual Draft-time DOM and its
+      // Delink/Excess membership must not be inferred again on reopen.
+      base.__draft_exact_side_snapshot = true;
+      base.__draft_exact_snapshot = true;
+
+      return base;
+    } catch (e) {
+      console.warn('[DRAFT] Exact DOM split-panel snapshot failed; falling back to backend snapshot:', e);
+      try {
+        return window._lastSplitPanelData
+          ? JSON.parse(JSON.stringify(window._lastSplitPanelData))
+          : null;
+      } catch (ignore) {
+        return null;
+      }
+    }
+  }
+
   // ===== Build full payload from current UI state =====
   function buildFullPayload() {
     var trayData = collectTrayDataSnapshot();
@@ -9307,6 +9811,18 @@ if (!formatResult.valid) {
       scanned_trays: scannedTrays,
       multi_model_allocation: multiModelAllocation,
       half_filled_tray_info: halfFilledInfo,
+      // IMPORTANT: A draft must preserve the exact tray allocation/order that was
+      // visible when Draft was clicked.  The INIT API is allowed to recalculate a
+      // fresh allocation, but that recalculation must NEVER replace tray IDs that
+      // already belong to a saved draft.  Store the complete split-panel response
+      // as an immutable-at-save UI snapshot so draft re-open can render the exact
+      // same rows instead of asking the backend to allocate them again.
+      // IMPORTANT: capture the ACTUAL visible split-panel DOM, not merely the
+      // backend's last allocation response. Scans/routing can move a physical tray
+      // (for example A00040) into the Excess box while _lastSplitPanelData still
+      // describes the original allocation (for example A00044). Draft must save
+      // exactly what the operator sees at the moment Draft is clicked.
+      split_panel_snapshot: collectExactSplitPanelSnapshotFromDOM(),
     };
   }
 
@@ -9399,12 +9915,6 @@ if (!formatResult.valid) {
   window.checkAndRestoreDraft = function(lotId, batchId) {
     if (!lotId || !batchId) return;
 
-    // GUARD: If we're in a multi-model merge flow (secondary lots active),
-    // only restore Jig ID and scanned trays — do NOT overwrite BACKEND_ globals
-    // with stale single-model draft values.
-    var isMultiModelActive = !!(window._currentSecondaryLots && window._currentSecondaryLots.length > 0) ||
-                             !!(window._lastMultiModelAllocation && window._lastMultiModelAllocation.length > 1);
-
     fetch('/jig_loading/api/jig/save/?lot_id=' + encodeURIComponent(lotId) + '&batch_id=' + encodeURIComponent(batchId), {
       method: 'GET',
       credentials: 'same-origin',
@@ -9421,80 +9931,307 @@ if (!formatResult.valid) {
       }
       console.log('[DRAFT_RESTORE] Found draft, record_id:', data.record_id, 'updated:', data.updated_at);
 
+      // The GET endpoint returns both compatibility fields and the complete
+      // save-time snapshot. Merge the snapshot over the compatibility fields
+      // so any future draft fields are also restored without another code path.
+      if (data.draft_snapshot && typeof data.draft_snapshot === 'object') {
+        data = Object.assign({}, data, data.draft_snapshot);
+      }
+
+      // ===== DRAFT TRAY ALLOCATION IS IMMUTABLE =====
+      // Never let the fresh INIT allocation silently replace tray IDs that were
+      // already saved in this draft.  The split-panel snapshot is captured at the
+      // exact moment Draft is clicked and is therefore the authoritative row/order
+      // definition for a draft re-open.
+      // Keep the exact INIT response that opened the modal before the draft GET
+      // overlays it.  This is critical for + Add Model: a single-model draft is
+      // still the saved state for model 1, while the current INIT response contains
+      // the newly selected model(s).  The two states must be merged, not replaced.
+      var _preDraftInitData = null;
+      try {
+        if (window._lastInitData && typeof window._lastInitData === 'object') {
+          _preDraftInitData = JSON.parse(JSON.stringify(window._lastInitData));
+        }
+      } catch (e) {
+        _preDraftInitData = window._lastInitData || null;
+      }
+
+      var _savedDraftSplitPanel = null;
+      try {
+        // IMPORTANT: split_panel_snapshot is the exact UI structure captured at
+        // the moment Draft was clicked.  It contains BOTH independent panels:
+        //   - delink_panel.trays
+        //   - excess_panel.trays / excess_panel.top_tray
+        // Therefore it MUST be preferred over tray_data when it exists.  Rebuilding
+        // the panel from tray_data loses panel-specific information (especially the
+        // separate Excess/Top-Tray rows) and can make a draft reopen with the Delink
+        // box populated while the Excess box is empty.
+        //
+        // tray_data remains the fallback for older drafts that were saved before
+        // split_panel_snapshot was introduced.  In that legacy path, tray IDs are
+        // still preserved exactly from the saved tray_data.
+        if (data.split_panel_snapshot && typeof data.split_panel_snapshot === 'object') {
+          _savedDraftSplitPanel = JSON.parse(JSON.stringify(data.split_panel_snapshot));
+          _savedDraftSplitPanel.__draft_exact_side_snapshot = true;
+          _savedDraftSplitPanel.__draft_exact_snapshot = true;
+          console.log('[DRAFT_RESTORE] Using exact saved split-panel snapshot:', {
+            delink_rows: ((_savedDraftSplitPanel.delink_panel || {}).trays || []).length,
+            excess_rows: ((_savedDraftSplitPanel.excess_panel || {}).trays || []).length,
+            has_top_tray: !!((_savedDraftSplitPanel.excess_panel || {}).top_tray)
+          });
+        } else if (data.split_panel && typeof data.split_panel === 'object') {
+          // Compatibility fallback for a response that exposes split_panel directly
+          // but does not include the nested draft snapshot field.
+          _savedDraftSplitPanel = JSON.parse(JSON.stringify(data.split_panel));
+          _savedDraftSplitPanel.__draft_exact_side_snapshot = true;
+          _savedDraftSplitPanel.__draft_exact_snapshot = true;
+          console.log('[DRAFT_RESTORE] Using exact saved split_panel response:', {
+            delink_rows: ((_savedDraftSplitPanel.delink_panel || {}).trays || []).length,
+            excess_rows: ((_savedDraftSplitPanel.excess_panel || {}).trays || []).length,
+            has_top_tray: !!((_savedDraftSplitPanel.excess_panel || {}).top_tray)
+          });
+        } else if (Array.isArray(data.tray_data) && data.tray_data.length > 0) {
+          _savedDraftSplitPanel = _buildDraftPanelFromTraySnapshot(
+            data.tray_data,
+            {},
+            data.scanned_trays || []
+          );
+
+          console.log('[DRAFT_RESTORE] Rebuilt immutable split-panel from legacy tray_data:',
+            data.tray_data.length, 'trays; saved tray IDs are authoritative');
+        }
+
+        if (_savedDraftSplitPanel) {
+          data.split_panel = _savedDraftSplitPanel;
+          data.split_panel_snapshot = _savedDraftSplitPanel;
+          window._draftSplitPanelSnapshot = _savedDraftSplitPanel;
+        } else {
+          window._draftSplitPanelSnapshot = null;
+        }
+      } catch (e) {
+        window._draftSplitPanelSnapshot = null;
+        console.warn('[DRAFT_RESTORE] Failed to load immutable tray snapshot:', e);
+      }
+
+      // Capture an explicit + Add Model selection before any draft restoration
+      // overwrites the pending-secondary state.  These are the NEW models selected
+      // by the operator on the filter page; the saved draft's secondary models are
+      // a different concept and must not hide them.
+      var _explicitAddModelLots = [];
+      var _hasExplicitAddModelSelection = !!window._addModelSelectionOverride && Array.isArray(window._pendingSecondaryLots);
+      if (_hasExplicitAddModelSelection) {
+        try {
+          _explicitAddModelLots = JSON.parse(JSON.stringify(window._pendingSecondaryLots));
+        } catch (e) {
+          _explicitAddModelLots = window._pendingSecondaryLots.slice();
+        }
+      }
+
       // ===== Restore Jig ID =====
-      if (data.jig_id) {
+      if (Object.prototype.hasOwnProperty.call(data, 'jig_id')) {
         var jigInput = document.getElementById('jigIdInput');
-        if (jigInput && !jigInput.value) {
+        if (jigInput && data.jig_id) {
           jigInput.value = data.jig_id;
           jigInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }
 
-      if (window._addModelSelectionOverride) {
-        console.log('[DRAFT_RESTORE] Add Model selection override active — keeping current model composition');
-        window._isDraftRestoring = false;
-        if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
-        return;
-      }
+      // A saved draft is the exact UI snapshot.  The normal INIT response is
+      // only the fresh backend baseline; once a draft is found, the saved
+      // values must win over that baseline.  The one exception is an explicit
+      // "+ Add Model" round-trip where a single-model draft must not replace
+      // the model composition the user has just selected.
+      var preserveCurrentModelComposition = _hasExplicitAddModelSelection && !data.is_multi_model;
 
       // ===== Restore form fields from draft snapshot =====
-      // GUARD: When multi-model is active and draft is single-model, skip field overwrite
-      if (!isMultiModelActive || data.is_multi_model) {
+      if (!preserveCurrentModelComposition) {
         var fieldsToRestore = {
-          'nickelBathTypeInput': data.nickel_bath_type || '',
-          'trayTypeInput': data.tray_type || '',
-          'reallotQty': data.lot_qty || '',
-          'jigCapacityInput': data.jig_capacity || '',
-          'emptyHooksInput': data.empty_hooks || '',
+          'nickelBathTypeInput': data.nickel_bath_type,
+          'trayTypeInput': data.tray_type,
+          'reallotQty': data.lot_qty,
+          'jigCapacityInput': data.jig_capacity,
+          'emptyHooksInput': data.empty_hooks,
         };
         for (var fieldId in fieldsToRestore) {
+          if (!Object.prototype.hasOwnProperty.call(fieldsToRestore, fieldId)) continue;
           var el = document.getElementById(fieldId);
-          if (el && !el.value && fieldsToRestore[fieldId]) {
-            el.value = fieldsToRestore[fieldId];
+          var value = fieldsToRestore[fieldId];
+          if (el && value !== undefined && value !== null) {
+            el.value = value;
           }
         }
       }
 
-      // Restore global BACKEND_ variables from draft
-      // GUARD: Skip when multi-model is active but draft is single-model (stale values)
-      if (!isMultiModelActive || data.is_multi_model) {
-        if (data.loaded_cases_qty) window.BACKEND_LOADED_CASES = parseInt(data.loaded_cases_qty) || 0;
-        if (data.effective_capacity) window.BACKEND_EFFECTIVE_CAPACITY = parseInt(data.effective_capacity) || 0;
-        if (data.jig_capacity) window.BACKEND_ORIGINAL_CAPACITY = parseInt(data.jig_capacity) || 0;
-        if (data.broken_hooks) window.BACKEND_BROKEN_HOOKS = parseInt(data.broken_hooks) || 0;
-        if (data.empty_hooks) window.BACKEND_EMPTY_HOOKS = parseInt(data.empty_hooks) || 0;
-        if (data.tray_capacity) window.BACKEND_TRAY_CAPACITY = parseInt(data.tray_capacity) || 12;
-        if (data.plating_stock_num) window.CURRENT_MODEL_NO = data.plating_stock_num;
+      // Restore global BACKEND_ variables from the exact draft snapshot.
+      // Do not use truthiness checks: 0 is a valid drafted value.
+      if (!preserveCurrentModelComposition) {
+        if (Object.prototype.hasOwnProperty.call(data, 'loaded_cases_qty')) {
+          window.BACKEND_LOADED_CASES = parseInt(data.loaded_cases_qty || 0) || 0;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'effective_capacity')) {
+          window.BACKEND_EFFECTIVE_CAPACITY = parseInt(data.effective_capacity || 0) || 0;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'jig_capacity')) {
+          window.BACKEND_ORIGINAL_CAPACITY = parseInt(data.jig_capacity || 0) || 0;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'broken_hooks')) {
+          window.BACKEND_BROKEN_HOOKS = parseInt(data.broken_hooks || 0) || 0;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'empty_hooks')) {
+          window.BACKEND_EMPTY_HOOKS = parseInt(data.empty_hooks || 0) || 0;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'tray_capacity')) {
+          window.BACKEND_TRAY_CAPACITY = parseInt(data.tray_capacity || 12) || 12;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'plating_stock_num')) {
+          window.CURRENT_MODEL_NO = data.plating_stock_num || '';
+        }
 
-        // Restore loaded cases display
         var lcDisplay = document.getElementById('loadedCasesQtyDisplay');
-        if (lcDisplay && data.loaded_cases_qty) {
+        if (lcDisplay && Object.prototype.hasOwnProperty.call(data, 'loaded_cases_qty')) {
           lcDisplay.innerText = data.loaded_cases_qty;
         }
 
-        // Restore broken hooks select
-        if (data.broken_hooks) {
-          var bhSelect = document.getElementById('brokenBuildupHooksInput');
-          if (bhSelect) {
-            bhSelect.value = String(data.broken_hooks);
-            window.currentBrokenHooks = parseInt(data.broken_hooks) || 0;
-          }
+        var bhSelect = document.getElementById('brokenBuildupHooksInput');
+        if (bhSelect && Object.prototype.hasOwnProperty.call(data, 'broken_hooks')) {
+          bhSelect.value = String(parseInt(data.broken_hooks || 0) || 0);
+          window.currentBrokenHooks = parseInt(data.broken_hooks || 0) || 0;
         }
       } else {
-        console.log('[DRAFT_RESTORE] Skipping BACKEND_ overwrite — multi-model active, draft is single-model');
+        console.log('[DRAFT_RESTORE] Add Model selection override active — preserving current model composition');
       }
 
-      // Restore multi-model allocation
-      if (data.multi_model_allocation && data.multi_model_allocation.length > 0) {
+      // Restore the exact saved multi-model allocation when it belongs to this
+      // draft.  Do not replace an explicit live Add-Model composition with a
+      // stale single-model draft allocation.
+      if (!preserveCurrentModelComposition &&
+          Array.isArray(data.multi_model_allocation) &&
+          data.multi_model_allocation.length > 0) {
         window._lastMultiModelAllocation = data.multi_model_allocation;
         window._currentSecondaryLots = data.multi_model_allocation;
       }
 
+      // Normalize the saved split-panel for renderSplitPanels. Its renderer derives
+      // Excess cards from delink_panel.trays[].excess_qty, while the saved snapshot
+      // also keeps a separate excess_panel.trays list. Older/previously saved drafts
+      // can therefore contain the Excess row in excess_panel without the matching
+      // excess_qty on the parent delink row. Merge that value before any render.
+      if (window._draftSplitPanelSnapshot &&
+          window._draftSplitPanelSnapshot.delink_panel &&
+          window._draftSplitPanelSnapshot.excess_panel) {
+        try {
+          var _dp = window._draftSplitPanelSnapshot.delink_panel;
+          var _ep = window._draftSplitPanelSnapshot.excess_panel;
+          var _byId = {};
+          (_dp.trays || []).forEach(function(r) {
+            if (r && r.tray_id) _byId[String(r.tray_id).trim().toUpperCase()] = r;
+          });
+          (_ep.trays || []).forEach(function(r) {
+            if (!r || !r.tray_id) return;
+            var _k = String(r.tray_id).trim().toUpperCase();
+            if (!_byId[_k]) {
+              var _clone = JSON.parse(JSON.stringify(r));
+              _clone.delink_qty = 0;
+              _clone.excess_qty = parseInt(r.excess_qty || r.qty || 0) || 0;
+              _clone.original_qty = parseInt(r.original_qty || _clone.excess_qty || 0) || 0;
+              _dp.trays = _dp.trays || [];
+              _dp.trays.push(_clone);
+              _byId[_k] = _clone;
+            } else {
+              _byId[_k].excess_qty = parseInt(r.excess_qty || r.qty || 0) || 0;
+              if (r.is_top_tray) {
+                _byId[_k].is_top_tray = true;
+                _byId[_k].is_partial = true;
+              }
+            }
+          });
+          if (_ep.top_tray && _ep.top_tray.tray_id) {
+            var _tk = String(_ep.top_tray.tray_id).trim().toUpperCase();
+            if (_byId[_tk]) {
+              _byId[_tk].excess_qty = parseInt(_ep.top_tray.qty || _ep.top_tray.excess_qty || 0) || 0;
+              _byId[_tk].is_top_tray = true;
+              _byId[_tk].is_partial = true;
+            }
+          }
+          _dp.trays.forEach(function(r, idx) { r.sno = idx + 1; });
+          _dp.total_excess_qty = _dp.trays.reduce(function(sum, r) {
+            return sum + (parseInt(r.excess_qty || 0) || 0);
+          }, 0);
+          window._draftSplitPanelSnapshot.delink_panel = _dp;
+          data.split_panel = window._draftSplitPanelSnapshot;
+          data.split_panel_snapshot = window._draftSplitPanelSnapshot;
+        } catch (_normErr) {
+          console.warn('[DRAFT_RESTORE] Split-panel excess normalization failed:', _normErr);
+        }
+      }
+
+      // Keep the complete saved snapshot available to later re-renders.
+      window._draftSnapshot = data;
+      if (Array.isArray(data.tray_data)) {
+        _applyDraftTraySnapshotToRenderedRows(data.tray_data);
+      }
+
+      // ===== + Add Model from a SINGLE-MODEL DRAFT =====
+      // The draft belongs to model 1, but the current INIT response already contains
+      // the newly selected model(s).  Never render the old single-model split panel by
+      // itself here — that would make the first model disappear from the modal.
+      if (_hasExplicitAddModelSelection && !data.is_multi_model && _preDraftInitData) {
+        try {
+          var _mergedSingleDraftInit = _mergeDraftPanelWithNewModels(
+            data,
+            JSON.parse(JSON.stringify(_preDraftInitData)),
+            _explicitAddModelLots
+          );
+
+          // Preserve the saved model-1 values while keeping the fresh model metadata
+          // for the newly selected model(s).
+          if (_mergedSingleDraftInit && Array.isArray(_mergedSingleDraftInit.multi_model_allocation)) {
+            window._lastMultiModelAllocation = _mergedSingleDraftInit.multi_model_allocation;
+            window._currentSecondaryLots = _mergedSingleDraftInit.multi_model_allocation.slice(1);
+          }
+          if (_mergedSingleDraftInit && _mergedSingleDraftInit.split_panel) {
+            window._draftSplitPanelSnapshot = JSON.parse(JSON.stringify(_mergedSingleDraftInit.split_panel));
+            window._lastSplitPanelData = JSON.parse(JSON.stringify(_mergedSingleDraftInit.split_panel));
+            window.applyResponseToUI(_mergedSingleDraftInit);
+          }
+
+          // The saved model-1 scan state is immutable; restore it after the merged
+          // panel has been rendered.  Newly-added model rows remain empty/pending.
+          if (Array.isArray(data.tray_data)) {
+            _applyDraftTraySnapshotToRenderedRows(data.tray_data);
+          }
+          setTimeout(function() {
+            _restoreExactDraftInputValues(window._draftSplitPanelSnapshot);
+            _restoreScannedTraysFromDraft(
+              Array.isArray(data.scanned_trays) ? data.scanned_trays : [],
+              Array.isArray(data.half_filled_tray_info) ? data.half_filled_tray_info : []
+            );
+          }, 100);
+
+          console.log('[DRAFT_RESTORE] Single-model draft + Add Model merged without replacing model-1 rows');
+        } catch (e) {
+          console.warn('[DRAFT_RESTORE] Single-model Add Model merge failed:', e);
+        }
+        return;
+      }
+
       // ===== Multi-model draft: re-trigger init to restore full tray table =====
       if (data.is_multi_model && data.multi_model_allocation && data.multi_model_allocation.length > 1) {
-        var secondaryLots = data.multi_model_allocation.slice(1).map(function(m) {
-          return { lot_id: m.lot_id, batch_id: m.batch_id || '', qty: parseInt(m.requested_qty || m.qty || 0) || 0 };
-        });
+        var secondaryLots;
+        if (_hasExplicitAddModelSelection && _explicitAddModelLots.length > 0) {
+          // + Add Model round-trip: init with the operator's current selection, not
+          // the stale secondary list stored in the old draft.  The merge helper below
+          // will preserve every existing drafted row and append only these new models.
+          secondaryLots = _explicitAddModelLots.map(function(m) {
+            return { lot_id: m.lot_id, batch_id: m.batch_id || '', qty: parseInt(m.qty || 0) || 0 };
+          });
+          console.log('[DRAFT_RESTORE] Add Model round-trip — init with explicit NEW models:', secondaryLots.length);
+        } else {
+          secondaryLots = data.multi_model_allocation.slice(1).map(function(m) {
+            return { lot_id: m.lot_id, batch_id: m.batch_id || '', qty: parseInt(m.requested_qty || m.qty || 0) || 0 };
+          });
+          console.log('[DRAFT_RESTORE] Multi-model draft reopen — restoring saved secondary models:', secondaryLots.length);
+        }
         window._currentSecondaryLots = secondaryLots;
         window._pendingSecondaryLots = secondaryLots;
         try { sessionStorage.setItem('secondary_lots', JSON.stringify(secondaryLots)); } catch(e) {}
@@ -9513,12 +10250,36 @@ if (!formatResult.valid) {
             secondary_lots: secondaryLots,
           }, function(initData) {
             if (initData && typeof window.applyResponseToUI === 'function') {
+              // A normal init may return a different allocation because source trays
+              // can have changed since the draft was created.  For an ordinary draft
+              // reopen, the saved split-panel is authoritative and must be rendered
+              // verbatim.  For an explicit Add Model round-trip, merge only the newly
+              // selected model into the saved snapshot (see helper below).
+              if (_hasExplicitAddModelSelection && data.is_multi_model) {
+                initData = _mergeDraftPanelWithNewModels(data, initData, _explicitAddModelLots);
+              } else if (window._draftSplitPanelSnapshot) {
+                initData.split_panel = JSON.parse(JSON.stringify(window._draftSplitPanelSnapshot));
+              }
               window.applyResponseToUI(initData);
-              console.log('[DRAFT_RESTORE] Multi-model tray table re-rendered');
+              console.log('[DRAFT_RESTORE] Multi-model tray table re-rendered from exact draft snapshot');
             }
-            // ? CRITICAL FIX: Restore scanned trays AFTER table re-render completes
+            // Restore the exact draft state after the table re-render.
+            if (_hasExplicitAddModelSelection && data.is_multi_model && initData && Array.isArray(initData.multi_model_allocation)) {
+              // Keep the merged saved+new allocation produced above.
+              window._lastMultiModelAllocation = initData.multi_model_allocation;
+              window._currentSecondaryLots = initData.multi_model_allocation.slice(1);
+            } else if (Array.isArray(data.multi_model_allocation) && data.multi_model_allocation.length > 0) {
+              window._lastMultiModelAllocation = data.multi_model_allocation;
+            }
+            if (Array.isArray(data.tray_data)) {
+              _applyDraftTraySnapshotToRenderedRows(data.tray_data);
+            }
             setTimeout(function() {
-              _restoreScannedTraysFromDraft(data.scanned_trays);
+              _restoreExactDraftInputValues(window._draftSplitPanelSnapshot);
+              _restoreScannedTraysFromDraft(
+                Array.isArray(data.scanned_trays) ? data.scanned_trays : [],
+                Array.isArray(data.half_filled_tray_info) ? data.half_filled_tray_info : []
+              );
             }, 100);
           });
         }
@@ -9527,26 +10288,567 @@ if (!formatResult.valid) {
       }
 
       // ===== Restore scanned tray values into split panel inputs (single-model path) =====
+      // The initial INIT render may have used the current allocation. Replace it with
+      // the exact saved panel before restoring scans, so no tray row can disappear or
+      // be substituted during draft re-open.
+      if (window._draftSplitPanelSnapshot && typeof window.renderSplitPanels === 'function') {
+        try {
+          var _exactDraftRenderData = Object.assign({}, data, {
+            split_panel: JSON.parse(JSON.stringify(window._draftSplitPanelSnapshot))
+          });
+          window.renderSplitPanels(_exactDraftRenderData);
+          console.log('[DRAFT_RESTORE] Single-model exact split-panel snapshot rendered');
+        } catch (e) {
+          console.warn('[DRAFT_RESTORE] Exact split-panel render failed:', e);
+        }
+      }
       window._isDraftRestoring = true;  // Block renderSplitPanels RESTORE FOCUS during draft restore
-      _restoreScannedTraysFromDraft(data.scanned_trays);
+      _restoreExactDraftInputValues(window._draftSplitPanelSnapshot);
+      _restoreScannedTraysFromDraft(
+        Array.isArray(data.scanned_trays) ? data.scanned_trays : [],
+        Array.isArray(data.half_filled_tray_info) ? data.half_filled_tray_info : []
+      );
 
-      console.log('[DRAFT_RESTORE] Complete — form fields, BACKEND vars, and scanned trays restored');
+      console.log('[DRAFT_RESTORE] Complete — form fields, BACKEND vars, multi-model state, and scanned trays restored');
       // Re-check submit readiness after draft restore
       if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
     })
     .catch(function(err) {
+      window._isDraftRestoring = false;
       console.warn('[DRAFT_RESTORE] Failed:', err);
     });
   };
 
+  // ===== Backward-compatible exact panel reconstruction =====
+  // Older drafts do not contain split_panel_snapshot, but they DO contain tray_data
+  // captured from the visible UI. Reconstruct the split panel from that saved list
+  // so existing drafts receive the same immutable tray-ID behavior as new drafts.
+  function _buildDraftPanelFromTraySnapshot(trayData, freshPanel, scannedTrays) {
+    try {
+      trayData = Array.isArray(trayData) ? trayData : [];
+      freshPanel = freshPanel || {};
+      scannedTrays = Array.isArray(scannedTrays) ? scannedTrays : [];
+
+      var freshDelink = freshPanel.delink_panel || {};
+      var freshExcess = freshPanel.excess_panel || {};
+      var freshRows = Array.isArray(freshDelink.trays) ? freshDelink.trays : [];
+      var freshExRows = Array.isArray(freshExcess.trays) ? freshExcess.trays : [];
+
+      function upper(v) { return String(v || '').trim().toUpperCase(); }
+      function findTemplate(t) {
+        var tid = upper(t.tray_id);
+        var lot = String(t.source_lot_id || t.lot_id || '').trim();
+        var model = String(t.model_code || '').trim();
+        var found = freshRows.find(function(r) { return upper(r.tray_id) === tid; });
+        if (found) return found;
+        found = freshExRows.find(function(r) { return upper(r.tray_id) === tid; });
+        if (found) return found;
+        found = freshRows.find(function(r) {
+          return lot && String(r.lot_id || '').trim() === lot &&
+            (!model || String(r.model_code || '').trim() === model);
+        });
+        return found || null;
+      }
+      function isScanned(id) {
+        var key = upper(id);
+        return scannedTrays.some(function(s) { return upper(s && s.tray_id) === key; });
+      }
+
+      var delinkRows = [];
+      var excessRows = [];
+      var topTray = null;
+      var delinkTotal = 0;
+      var excessTotal = 0;
+      var sno = 1;
+      var excessSno = 1;
+
+      trayData.forEach(function(t) {
+        if (!t || !t.tray_id) return;
+        var tid = String(t.tray_id).trim();
+        var originalQty = parseInt(t.original_qty || 0) || 0;
+        var delinkQty = parseInt(t.delink_qty || 0) || 0;
+        var excessQty = parseInt(t.excess_qty || 0) || 0;
+        var tpl = findTemplate(t) || {};
+        var modelCode = t.model_code || tpl.model_code || '';
+        var lotId = t.source_lot_id || tpl.lot_id || window.CURRENT_LOT_ID || '';
+        var batchId = t.batch_id || tpl.batch_id || window.CURRENT_BATCH_ID || '';
+        var partial = delinkQty > 0 && excessQty > 0;
+        var scanned = isScanned(tid);
+
+        if (delinkQty > 0) {
+          var row = JSON.parse(JSON.stringify(tpl));
+          row.sno = sno++;
+          row.model_code = modelCode;
+          row.lot_id = lotId;
+          row.batch_id = batchId;
+          row.tray_id = tid;
+          row.original_qty = originalQty;
+          row.delink_qty = delinkQty;
+          row.excess_qty = excessQty;
+          row.scan_tray_id = tid;
+          row.is_scannable = !partial;
+          row.is_checkbox_enabled = !partial;
+          row.is_top_tray = !!t.top_tray;
+          row.is_partial = partial;
+          row.state = scanned ? 'scanned' : 'default';
+
+          if (partial) {
+            row.auto_verify = true;
+            row.verified = scanned;
+            row.status = scanned ? 'Verified' : 'Awaiting Excess Top Tray Scan';
+            row.verify_message = scanned
+              ? 'Delink (' + delinkQty + ') + Excess Top (' + excessQty + ') = Verified'
+              : 'Awaiting Top Tray (Qty ' + excessQty + ')';
+          }
+          delinkRows.push(row);
+        }
+
+        if (excessQty > 0) {
+          excessTotal += excessQty;
+          if (partial) {
+            if (!topTray) {
+              topTray = {
+                tray_id: tid,
+                qty: excessQty,
+                is_mandate_scan: true,
+                is_top_tray: true,
+                is_editable: true,
+                scan_tray_id: tid,
+                model_code: modelCode,
+                original_tray_id: tid,
+                verified: scanned
+              };
+            }
+          } else {
+            var er = JSON.parse(JSON.stringify(tpl));
+            er.sno = excessSno++;
+            er.tray_id = tid;
+            er.original_tray_id = tid;
+            er.model_code = modelCode;
+            er.lot_id = lotId;
+            er.batch_id = batchId;
+            er.qty = excessQty;
+            er.scan_tray_id = tid;
+            er.row_type = 'excess';
+            er.is_top_tray = false;
+            er.is_mandate_scan = false;
+            er.is_editable = false;
+            er.is_auto = true;
+            er.is_checkbox_enabled = true;
+            er.state = scanned ? 'scanned' : 'default';
+            excessRows.push(er);
+          }
+        }
+
+        delinkTotal += delinkQty;
+      });
+
+      var freshSelectionLimit = parseInt(freshDelink.selection_limit || 0) || 0;
+      var panel = {
+        meta: freshPanel.meta || {},
+        delink_panel: {
+          mode: freshDelink.mode || 'inactive',
+          trays: delinkRows,
+          total_delink_qty: delinkTotal,
+          total_excess_qty: excessTotal,
+          tray_count: delinkRows.length,
+          selection_limit: freshSelectionLimit,
+          selected_count: 0
+        },
+        excess_panel: {
+          exists: excessTotal > 0,
+          total_excess_qty: excessTotal,
+          excess_tray_count: excessRows.length,
+          top_tray: topTray,
+          trays: excessRows,
+          partial_tray: topTray ? {
+            tray_id: topTray.tray_id,
+            delink_qty: (delinkRows.find(function(r) { return upper(r.tray_id) === upper(topTray.tray_id); }) || {}).delink_qty || 0,
+            excess_qty: topTray.qty,
+            original_qty: (delinkRows.find(function(r) { return upper(r.tray_id) === upper(topTray.tray_id); }) || {}).original_qty || topTray.qty
+          } : null
+        }
+      };
+      return panel;
+    } catch (e) {
+      console.warn('[DRAFT_RESTORE] Legacy panel reconstruction failed:', e);
+      return freshPanel || null;
+    }
+  }
+
+  // ===== Merge a drafted panel with an explicit Add-Model selection =====
+  // Existing drafted rows are immutable.  When the user uses + Add Model from a
+  // draft, the fresh INIT response is used only to discover rows belonging to the
+  // newly selected lot(s).  Rows belonging to models already present in the draft
+  // are copied from the saved snapshot byte-for-byte, including tray IDs, order,
+  // quantities and excess allocation.
+  function _mergeDraftPanelWithNewModels(draftData, freshData, explicitNewLots) {
+    try {
+      var savedPanel = draftData && draftData.split_panel_snapshot
+        ? JSON.parse(JSON.stringify(draftData.split_panel_snapshot))
+        : null;
+      if (!savedPanel) return freshData;
+
+      var pendingLots = Array.isArray(explicitNewLots)
+        ? explicitNewLots
+        : (Array.isArray(window._pendingSecondaryLots) ? window._pendingSecondaryLots : []);
+      var newLotIds = {};
+      pendingLots.forEach(function(l) {
+        if (l && l.lot_id) newLotIds[String(l.lot_id).trim()] = true;
+      });
+
+      // If the pending list contains only models already present in the draft,
+      // there is nothing new to merge; preserve the draft exactly.
+      var savedAlloc = Array.isArray(draftData.multi_model_allocation)
+        ? JSON.parse(JSON.stringify(draftData.multi_model_allocation)) : [];
+
+      // A draft created before + Add Model is necessarily single-model, so its
+      // multi_model_allocation is empty.  Reconstruct model 1's allocation metadata
+      // from the saved immutable panel and the fresh INIT metadata.  The tray IDs
+      // themselves still come only from the saved panel below.
+      if (savedAlloc.length === 0 && draftData && draftData.lot_id) {
+        var freshPrimaryAlloc = (Array.isArray(freshData.multi_model_allocation)
+          ? freshData.multi_model_allocation : []).find(function(m) {
+            return m && String(m.lot_id || '').trim() === String(draftData.lot_id || '').trim();
+          });
+        if (freshPrimaryAlloc) {
+          var savedPrimaryAlloc = JSON.parse(JSON.stringify(freshPrimaryAlloc));
+          var savedPrimaryRows = ((savedPanel.delink_panel && savedPanel.delink_panel.trays) || []).filter(function(t) {
+            return !t.lot_id || String(t.lot_id).trim() === String(draftData.lot_id || '').trim();
+          });
+          savedPrimaryAlloc.tray_info = savedPrimaryRows.map(function(t) {
+            return {
+              tray_id: t.tray_id,
+              qty: (parseInt(t.delink_qty || 0) || 0) + (parseInt(t.excess_qty || 0) || 0),
+              top_tray: !!t.is_top_tray,
+              is_partial: !!t.is_partial
+            };
+          });
+          savedPrimaryAlloc.allocated_qty = savedPrimaryAlloc.tray_info.reduce(function(sum, t) {
+            return sum + (parseInt(t.qty || 0) || 0);
+          }, 0);
+          savedPrimaryAlloc.model_role = 'primary';
+          savedPrimaryAlloc.role = 'primary';
+          savedPrimaryAlloc.status = 'draft';
+          savedAlloc = [savedPrimaryAlloc];
+        }
+      }
+
+      var savedLotIds = {};
+      savedAlloc.forEach(function(m) {
+        if (m && m.lot_id) savedLotIds[String(m.lot_id).trim()] = true;
+      });
+      Object.keys(newLotIds).forEach(function(id) {
+        if (savedLotIds[id]) delete newLotIds[id];
+      });
+
+      if (!Object.keys(newLotIds).length) {
+        freshData.split_panel = savedPanel;
+        freshData.multi_model_allocation = savedAlloc;
+        return freshData;
+      }
+
+      // Preserve saved model allocation entries exactly, then append only the
+      // genuinely new model entries returned by the fresh INIT call.  This keeps
+      // the model cards and subsequent Draft payload consistent with the immutable
+      // tray rows above.
+      var freshAlloc = Array.isArray(freshData.multi_model_allocation)
+        ? freshData.multi_model_allocation : [];
+      var newAllocEntries = freshAlloc.filter(function(m) {
+        var lot = String(m && m.lot_id || '').trim();
+        return lot && newLotIds[lot];
+      });
+      freshData.multi_model_allocation = savedAlloc.concat(newAllocEntries);
+      freshData.is_multi_model = true;
+
+      var savedDelink = savedPanel.delink_panel || {};
+      var savedExcess = savedPanel.excess_panel || {};
+      var freshPanel = freshData.split_panel || {};
+      var freshDelink = freshPanel.delink_panel || {};
+      var freshExcess = freshPanel.excess_panel || {};
+
+      // Preserve every saved row. Only append fresh rows whose source lot is one of
+      // the genuinely new selected models. Never replace a saved tray by matching
+      // position, quantity, or model index.
+      var existingTrayIds = {};
+      (savedDelink.trays || []).forEach(function(t) {
+        if (t && t.tray_id) existingTrayIds[String(t.tray_id).trim().toUpperCase()] = true;
+      });
+
+      var addedRows = (freshDelink.trays || []).filter(function(t) {
+        var lot = String(t && t.lot_id || '').trim();
+        var tid = String(t && t.tray_id || '').trim().toUpperCase();
+        return lot && newLotIds[lot] && tid && !existingTrayIds[tid];
+      });
+
+      savedDelink.trays = (savedDelink.trays || []).concat(addedRows);
+      savedDelink.total_delink_qty = (savedDelink.trays || []).reduce(function(sum, t) {
+        return sum + (parseInt(t.delink_qty || 0) || 0);
+      }, 0);
+      savedDelink.selection_limit = Math.max(
+        parseInt(savedDelink.selection_limit || 0) || 0,
+        parseInt(freshDelink.selection_limit || 0) || 0
+      );
+
+      // Append only genuinely new excess rows. Existing excess IDs remain untouched.
+      var existingExcessIds = {};
+      (savedExcess.trays || []).forEach(function(t) {
+        if (t && t.tray_id) existingExcessIds[String(t.tray_id).trim().toUpperCase()] = true;
+      });
+      var addedExcess = (freshExcess.trays || []).filter(function(t) {
+        var lot = String(t && t.lot_id || '').trim();
+        var tid = String(t && t.tray_id || '').trim().toUpperCase();
+        return lot && newLotIds[lot] && tid && !existingExcessIds[tid];
+      });
+      savedExcess.trays = (savedExcess.trays || []).concat(addedExcess);
+
+      // Do not replace an already-saved top tray. A top tray is an explicit physical
+      // tray choice and must remain immutable after Draft. Only use the fresh top tray
+      // when the draft had none and the newly-added model actually supplies one.
+      if (!savedExcess.top_tray && freshExcess.top_tray) {
+        var topLot = String(freshExcess.top_tray.lot_id || '').trim();
+        if (newLotIds[topLot]) savedExcess.top_tray = freshExcess.top_tray;
+      }
+
+      savedExcess.exists = !!(savedExcess.top_tray || (savedExcess.trays || []).length);
+      savedExcess.total_excess_qty = (savedExcess.trays || []).reduce(function(sum, t) {
+        return sum + (parseInt(t.excess_qty || t.qty || 0) || 0);
+      }, 0);
+
+      // Re-number merged rows only after preserving their order.  This prevents
+      // duplicate row numbers when fresh rows are appended to an immutable draft.
+      (savedDelink.trays || []).forEach(function(t, idx) { t.sno = idx + 1; });
+      (savedExcess.trays || []).forEach(function(t, idx) { t.sno = idx + 1; });
+
+      savedPanel.delink_panel = savedDelink;
+      savedPanel.excess_panel = savedExcess;
+      freshData.split_panel = savedPanel;
+
+      console.log('[DRAFT_ADD_MODEL] Preserved', (savedDelink.trays || []).length,
+        'existing rows; appended', addedRows.length, 'new-model rows');
+      return freshData;
+    } catch (e) {
+      console.warn('[DRAFT_ADD_MODEL] Panel merge failed; preserving saved panel:', e);
+      if (draftData && draftData.split_panel_snapshot) {
+        freshData.split_panel = JSON.parse(JSON.stringify(draftData.split_panel_snapshot));
+      }
+      return freshData;
+    }
+  }
+
+  // ===== Apply exact drafted tray quantities to the rendered snapshot =====
+  // The INIT API renders the current master allocation.  For a resumed draft,
+  // the saved tray_data is authoritative, so update the already-rendered rows
+  // with the exact drafted quantities before scan-state restoration.
+  function _applyDraftTraySnapshotToRenderedRows(trayData) {
+    if (!Array.isArray(trayData) || trayData.length === 0) return;
+
+    var byTray = {};
+    trayData.forEach(function(t) {
+      var id = String(t && t.tray_id || '').trim().toUpperCase();
+      if (id) byTray[id] = t;
+    });
+
+    document.querySelectorAll('#splitPanelContainer tr[data-tray-id]').forEach(function(row) {
+      var id = String(row.dataset.trayId || '').trim().toUpperCase();
+      var snap = byTray[id];
+      if (!snap) return;
+
+      var originalQty = parseInt(snap.original_qty || 0) || 0;
+      var delinkQty = parseInt(snap.delink_qty || 0) || 0;
+      var excessQty = parseInt(snap.excess_qty || 0) || 0;
+
+      row.dataset.originalQty = String(originalQty);
+      row.dataset.delinkQty = String(delinkQty);
+      row.dataset.excessQty = String(excessQty);
+      if (snap.model_code != null) row.dataset.modelCode = snap.model_code || '';
+      if (snap.source_lot_id != null) row.dataset.lotId = snap.source_lot_id || row.dataset.lotId || '';
+
+      var qtyCell = row.querySelector('.slot-card-qty');
+      if (qtyCell) {
+        var shownQty = row.dataset.rowType === 'excess' ? excessQty : delinkQty;
+        var bold = qtyCell.querySelector('b');
+        if (bold) {
+          bold.textContent = shownQty;
+        } else {
+          qtyCell.textContent = 'Qty ' + shownQty;
+        }
+      }
+
+      var scanInput = row.querySelector('.split-scan-input');
+      if (scanInput) {
+        scanInput.dataset.expectedQty = String(
+          row.dataset.rowType === 'excess' ? excessQty : delinkQty
+        );
+      }
+    });
+
+    console.log('[DRAFT_RESTORE] Applied exact tray_data snapshot:', trayData.length, 'trays');
+  }
+
+  // ===== Restore the EXACT Draft-time input values into the SAME visual rows =====
+  // This is intentionally separate from scanned_trays restoration.  scanned_trays
+  // identifies physical trays that were scanned, while this snapshot identifies
+  // which value was visibly present in which row.  The latter is what guarantees
+  // that a filled row does not become empty after Draft -> Reopen and that a scan
+  // cannot jump from Delink to Excess (or vice versa).
+  function _restoreExactDraftInputValues(splitPanelSnapshot) {
+    try {
+      var rows = splitPanelSnapshot && splitPanelSnapshot.__draft_ui_rows;
+      if (!rows || typeof rows !== 'object') return;
+
+      function restoreRows(list, bodyId, rowType) {
+        if (!Array.isArray(list)) return;
+        var body = document.getElementById(bodyId);
+        if (!body) return;
+
+        var rendered = body.querySelectorAll('tr[data-tray-id]');
+        var byKey = {};
+        var byTray = {};
+        for (var i = 0; i < rendered.length; i++) {
+          var tr = rendered[i];
+          var trayKey = String(tr.dataset.trayId || '').trim().toUpperCase();
+          if (!trayKey) continue;
+          byTray[trayKey] = tr;
+          var inp = tr.querySelector('.split-scan-input');
+          if (inp) {
+            var inputKey = String(inp.dataset.autoTrayId || inp.dataset.trayId || trayKey).trim().toUpperCase();
+            byKey[inputKey] = tr;
+          }
+        }
+
+        list.forEach(function(saved) {
+          if (!saved) return;
+          var trayKey = String(saved.tray_id || '').trim().toUpperCase();
+          var inputKey = String(saved.scan_input_key || saved.scan_tray_id || saved.tray_id || '').trim().toUpperCase();
+          var tr = byKey[inputKey] || byTray[trayKey];
+          if (!tr) return;
+
+          var inp = tr.querySelector('.split-scan-input');
+          if (!inp) return;
+
+          // Only restore the saved value for the same panel. Never copy a Delink
+          // value into an Excess row or an Excess value into a Delink row.
+          var savedPanel = String(saved.scan_panel || (rowType === 'excess' ? 'excess' : 'delink')).toLowerCase();
+          var actualPanel = String(inp.dataset.panel || '').toLowerCase();
+          var panelCompatible = savedPanel === actualPanel ||
+            (savedPanel === 'excess_top' && actualPanel === 'excess_top');
+          if (!panelCompatible) return;
+
+          var value = String(saved.scan_value || '').trim();
+          if (!value) return;
+
+          inp.value = value;
+          inp.dataset.lastValidatedId = value.toUpperCase();
+          inp.classList.add('validated');
+          inp.readOnly = true;
+          if (savedPanel === 'excess_top') {
+            inp.style.background = '#d0f0f2';
+            inp.style.borderColor = '#028084';
+          } else if (savedPanel === 'excess') {
+            inp.style.background = '#fff4e6';
+            inp.style.borderColor = '#e67e22';
+          } else {
+            inp.style.background = '#d4edda';
+            inp.style.borderColor = '#28a745';
+          }
+
+          var allocKey = value.toUpperCase();
+          if (!window._trayAllocations) window._trayAllocations = {};
+          window._trayAllocations[allocKey] = {
+            type: savedPanel === 'excess_top' ? 'top_tray' : savedPanel
+          };
+
+          // A saved Delink scan is authoritative even after the DOM is rebuilt.
+          // Do not recreate it later by matching the physical tray id to a row:
+          // the operator may have scanned that physical tray into a different
+          // Delink slot.  The exact Draft-time row snapshot is the authority.
+          if (savedPanel === 'delink') {
+            if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
+            window._confirmedDelinkTrayValues[allocKey] = true;
+          }
+
+          tr.classList.add(savedPanel === 'excess' || savedPanel === 'excess_top'
+            ? 'excess-row-scanned' : 'delink-row-scanned');
+
+          var lastCell = tr.cells[tr.cells.length - 1];
+          if (lastCell) {
+            if (savedPanel === 'excess_top') {
+              lastCell.innerHTML = '<span class="unified-status-badge status-top-tray" style="background:#d0f0f2;color:#014d4e;border:1px solid #028084;">Top Tray Verified</span>';
+            } else if (savedPanel === 'excess') {
+              lastCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#fff4e6;color:#8a4b08;border:1px solid #e67e22;">Delinked</span>';
+            } else {
+              lastCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#d4edda;color:#155724;border:1px solid #28a745;">Delinked</span>';
+            }
+          }
+        });
+      }
+
+      restoreRows(rows.delink, 'delinkPanelTableBody', 'delink');
+      restoreRows(rows.excess, 'excessPanelTableBody', 'excess');
+
+      // Restore top-tray input even when it is represented as a special Excess row.
+      var topRows = Array.isArray(rows.excess) ? rows.excess : [];
+      topRows.forEach(function(saved) {
+        if (!saved || String(saved.scan_panel || '').toLowerCase() !== 'excess_top') return;
+        var topInp = document.getElementById('excessTopTrayScanInput');
+        if (!topInp) return;
+        var value = String(saved.scan_value || '').trim();
+        if (!value) return;
+        topInp.value = value;
+        topInp.classList.add('validated');
+        topInp.readOnly = true;
+        topInp.style.background = '#d0f0f2';
+        topInp.style.borderColor = '#028084';
+        if (!window._trayAllocations) window._trayAllocations = {};
+        window._trayAllocations[value.toUpperCase()] = { type: 'top_tray' };
+      });
+
+      console.log('[DRAFT_RESTORE] Exact Draft-time row values restored without panel reassignment');
+    } catch (e) {
+      console.warn('[DRAFT_RESTORE] Exact row input restore failed:', e);
+    }
+  }
+
   // ===== EXTRACTED FUNCTION: Restore scanned trays (used by both single + multi-model paths) =====
-  function _restoreScannedTraysFromDraft(scannedTrays) {
-    if (!scannedTrays || scannedTrays.length === 0) return;
-    
+  function _restoreScannedTraysFromDraft(scannedTrays, halfFilledTrayInfo) {
+    scannedTrays = Array.isArray(scannedTrays) ? scannedTrays : [];
+    halfFilledTrayInfo = Array.isArray(halfFilledTrayInfo) ? halfFilledTrayInfo : [];
+
     console.log('[DRAFT_RESTORE] Restoring', scannedTrays.length, 'scanned trays');
     if (!window._trayAllocations) window._trayAllocations = {};
 
-    // Restore delink panel scans (match by tray_id, NOT by array index)
+    // IMPORTANT: When an exact Draft-time split-panel snapshot exists, the
+    // physical scan value AND the exact visual row it occupied have already
+    // been restored by _restoreExactDraftInputValues().  Do NOT run the legacy
+    // scanned_trays restore below, because it matches by physical tray_id and
+    // can move a scan into a different row on reopen.  Example: A00040 was
+    // scanned into the A00044 Delink slot; matching scanned_trays by tray_id
+    // would incorrectly place A00040 into the A00040 row after the exact
+    // snapshot had correctly restored it into A00044.
+    var hasExactDraftRows = !!(
+      window._draftSplitPanelSnapshot &&
+      window._draftSplitPanelSnapshot.__draft_ui_rows &&
+      typeof window._draftSplitPanelSnapshot.__draft_ui_rows === 'object'
+    );
+
+    if (hasExactDraftRows) {
+      console.log('[DRAFT_RESTORE] Exact UI snapshot present — skipping legacy tray_id/index restore to prevent row reassignment');
+      if (halfFilledTrayInfo.length > 0) {
+        window._lastHalfFilledTrayInfo = halfFilledTrayInfo;
+      }
+      if (typeof window._renderDelinkTrayChipStrip === 'function') {
+        window._renderDelinkTrayChipStrip(document.getElementById('delinkPanelTableBody'));
+      }
+      if (typeof window._syncDelinkRowStatuses === 'function') window._syncDelinkRowStatuses();
+      if (typeof window._updateDelinkTotalBar === 'function') window._updateDelinkTotalBar();
+      if (typeof window._updateDelinkStatsBadge === 'function') window._updateDelinkStatsBadge();
+      if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
+      if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
+    } else {
+
+    // Legacy restore path: older drafts without an exact UI snapshot.
+    // Restore delink panel scans by physical tray id as before.
     var delinkScans = scannedTrays.filter(function(s) { return s.panel === 'delink'; });
     delinkScans.forEach(function(scan) {
           // Find the row with matching tray_id in the delink panel
@@ -9565,11 +10867,14 @@ if (!formatResult.valid) {
             var inp = matchingRow.querySelector('.split-scan-input');
             if (inp && !inp.value) {
               inp.value = scan.tray_id;
+              inp.dataset.lastValidatedId = String(scan.tray_id || '').trim().toUpperCase();
               inp.classList.add('validated');
               inp.readOnly = true;
               inp.style.background = '#d4edda';
               inp.style.borderColor = '#28a745';
               window._trayAllocations[scan.tray_id.toUpperCase()] = { type: 'delink' };
+              if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
+              window._confirmedDelinkTrayValues[scan.tray_id.toUpperCase()] = true;
               // Lock checkbox + set status on delink row
               matchingRow.classList.add('delink-row-scanned');
               var cb = matchingRow.querySelector('.delink-row-checkbox');
@@ -9583,9 +10888,22 @@ if (!formatResult.valid) {
           }
         });
 
-    // Restore top tray
+    // Restore top tray. Older drafts may not have stored the top tray in
+    // scanned_trays, but half_filled_tray_info is also part of the exact
+    // snapshot, so use it as a fallback.
     var topScans = scannedTrays.filter(function(s) { return s.panel === 'excess_top'; });
-        if (topScans.length > 0) {
+    if (topScans.length === 0) {
+      topScans = halfFilledTrayInfo.filter(function(s) {
+        return s && s.is_top_half_filled && s.tray_id;
+      }).map(function(s) {
+        return {
+          tray_id: s.tray_id,
+          qty: parseInt(s.qty || 0) || 0,
+          panel: 'excess_top'
+        };
+      });
+    }
+    if (topScans.length > 0) {
           var topInp = document.getElementById('excessTopTrayScanInput');
           if (topInp && !topInp.value) {
             topInp.value = topScans[0].tray_id;
@@ -9605,6 +10923,11 @@ if (!formatResult.valid) {
             }
           }
       }
+
+    // Preserve the exact half-filled/excess snapshot for subsequent re-renders.
+    if (halfFilledTrayInfo.length > 0) {
+      window._lastHalfFilledTrayInfo = halfFilledTrayInfo;
+    }
 
     // Restore excess panel scans
     var excessInputs = document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="excess"]');
@@ -9629,6 +10952,7 @@ if (!formatResult.valid) {
             }
           }
       });
+    }
 
     // Update UI elements after full restore
     if (typeof window._renderDelinkTrayChipStrip === 'function') {
@@ -9774,7 +11098,7 @@ if (!formatResult.valid) {
     // (see _getCompletedDelinkQty) — must be included, or the partial's qty never
     // reaches effective_capacity and Submit stays disabled even when fully loaded.
     var completedDelinkQty = (typeof window._getCompletedDelinkQty === 'function') ? window._getCompletedDelinkQty() : 0;
-    var backendLoaded = Math.max(parseInt(window.BACKEND_LOADED_CASES || 0), completedDelinkQty);
+    var backendLoaded = completedDelinkQty;
     var backendEffCap = parseInt(window.BACKEND_EFFECTIVE_CAPACITY || 0);
     if (backendEffCap > 0 && backendLoaded < backendEffCap) { ready = false; }
 

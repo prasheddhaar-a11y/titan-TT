@@ -1703,7 +1703,7 @@ html.ttt-viewport-tablet .is-pick-table-page #order-listing th.is-vertical-stick
 
         <!-- Header -->
         <div style="padding:18px 24px 12px; border-bottom:1px solid #e8edf2;">
-          <span id="brassRejectModalClose" style="position:absolute; top:10px; right:18px; font-size:22px; font-weight:bold; color:#d9534f; cursor:pointer;">&times;</span>
+          <span id="brassRejectModalClose" class="modal-close" style="position:absolute; top:10px; right:18px; font-size:22px; font-weight:bold; color:#d9534f; cursor:pointer;">&times;</span>
           <h5 style="margin:0 0 8px; color:#028084; font-weight:700;">Brass QC - Rejection Window</h5>
           <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:13px;">
             <span>Plating Stk No: <strong id="rejectModalPlatingStk" style="color:#028084;"></strong></span>
@@ -1819,7 +1819,15 @@ html.ttt-viewport-tablet .is-pick-table-page #order-listing th.is-vertical-stick
 
 <!-- Active table row highlight -->
 <script nonce="{{ csp_nonce }}">
-// Row highlight & position swap for Accept, Reject, and View actions (DP_PickTable style)
+// Row highlight & move-to-top for Accept, Reject, View, and Checkbox actions (BrassQC Pick Table)
+//
+// Behaviour required:
+//  - When a row is highlighted (checkbox verify, Accept, Reject, or View), that row physically
+//    moves to the very top of the table, keeping its own original S.No label unchanged.
+//    e.g. highlighting row 6 makes the visible S.No order read: 6, 1, 2, 3, 4, 5, 7, 8, 9, 10
+//  - Only one row is ever "moved" at a time. If a different row is accessed, the previously
+//    moved row returns to its original position and the newly accessed row moves to top.
+//  - On page refresh, order is naturally reset (fresh server render).
 document.addEventListener("DOMContentLoaded", function() {
   document.addEventListener('keydown', function(event) {
     if (event.key !== 'x' && event.key !== 'X') return;
@@ -1850,7 +1858,7 @@ document.addEventListener("DOMContentLoaded", function() {
         50% { background-color: #fff9c4; box-shadow: 0 0 12px rgba(255, 193, 7, 0.8); }
         100% { background-color: #fff5bd; box-shadow: 0 0 8px rgba(255, 193, 7, 0.5); }
       }
-      
+
       .dp-row-action-highlight {
         transition: all 0.3s ease;
         background-color: #fff5bd !important;
@@ -1858,7 +1866,7 @@ document.addEventListener("DOMContentLoaded", function() {
         box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
         border-left: 4px solid #f39c12 !important;
       }
-      
+
       .dp-row-action-highlight td {
         background-color: #fff5bd !important;
       }
@@ -1866,10 +1874,144 @@ document.addEventListener("DOMContentLoaded", function() {
     document.head.appendChild(style);
   }
 
-  let originalRowIndex = null;
-  let movedRow = null;
-  let placeholderRow = null;
-  let isCheckboxMove = false; // Track if row was moved by checkbox (persistent) vs button (temporary)
+  // ── Record each row's ORIGINAL position once, up front. This is the source of truth
+  //    used to put a row back where it belongs — it never changes, and doesn't rely on
+  //    fragile placeholder elements that can get out of sync.
+  (function stampOriginalIndexes() {
+    var tbody = document.querySelector('#order-listing tbody');
+    if (!tbody) return;
+    Array.prototype.forEach.call(tbody.children, function(row, idx) {
+      if (row && row.dataset) {
+        row.dataset.bqOriginalIndex = String(idx);
+      }
+    });
+  })();
+
+  let movedRow = null;         // The row currently relocated to the top (if any)
+  let isCheckboxMove = false;  // true = persistent move (checkbox), false = temporary move (button)
+
+  // Put a row back to the position it originally occupied, relative to whatever
+  // rows currently remain in the table (robust even if some rows were removed).
+  function reinsertAtOriginalPosition(row) {
+    if (!row || !row.parentNode) return;
+    var tbody = row.parentNode;
+    var targetIndex = parseInt(row.dataset.bqOriginalIndex, 10);
+    if (isNaN(targetIndex)) {
+      tbody.appendChild(row);
+      return;
+    }
+    var siblings = Array.prototype.filter.call(tbody.children, function(r) { return r !== row; });
+    var placedBefore = null;
+    for (var i = 0; i < siblings.length; i++) {
+      var siblingIndex = parseInt(siblings[i].dataset.bqOriginalIndex, 10);
+      if (!isNaN(siblingIndex) && siblingIndex > targetIndex) {
+        placedBefore = siblings[i];
+        break;
+      }
+    }
+    if (placedBefore) {
+      tbody.insertBefore(row, placedBefore);
+    } else {
+      tbody.appendChild(row);
+    }
+  }
+
+  // Restore the currently-moved row to its original position and remove its highlight.
+  function restoreRowPosition() {
+    // ✅ Do NOT restore if row was moved by checkbox (persistent behavior) —
+    // it should stay at top until a different row is accessed or the page refreshes.
+    if (isCheckboxMove) {
+      console.log('[BrassQC] Row stays at top (moved by checkbox verification)');
+      return;
+    }
+
+    if (movedRow) {
+      reinsertAtOriginalPosition(movedRow);
+      movedRow.classList.remove('dp-row-action-highlight');
+      movedRow = null;
+    }
+    document.querySelectorAll('#order-listing tbody tr').forEach(function(row) {
+      row.classList.remove('dp-row-action-highlight');
+    });
+
+    // ✅ Clear global shortcut manager highlight state and sessionStorage
+    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
+      window.GlobalShortcutManager.clear();
+    }
+
+    // ✅ Clear global scan context to prevent stale highlights
+    try {
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+    } catch(e) {
+      console.warn('[BrassQC] Could not clear scan context:', e);
+    }
+
+    console.log('[BrassQC] Row position restored to original index');
+  }
+
+  // Force-restore whatever row is currently moved, regardless of persistent/temporary state.
+  // Used when a DIFFERENT row is about to be highlighted — the old one must always go back.
+  function forceRestorePreviousRow() {
+    if (!movedRow) return;
+    reinsertAtOriginalPosition(movedRow);
+    movedRow.classList.remove('dp-row-action-highlight');
+    movedRow = null;
+    isCheckboxMove = false;
+  }
+
+  // ✅ Expose global function to move any row to top with highlight
+  window.bqMoveRowToTop = function(row, isCheckboxTriggered) {
+    if (!row || !row.parentNode) return;
+    var tbody = row.parentNode;
+
+    // If a different row is already moved/highlighted, always send it back first.
+    if (movedRow && movedRow !== row) {
+      forceRestorePreviousRow();
+    }
+
+    // Clear any stray highlight classes (defensive)
+    document.querySelectorAll('#order-listing tbody tr').forEach(function(r) {
+      if (r !== row) r.classList.remove('dp-row-action-highlight');
+    });
+
+    // Make sure this row has a recorded original index (covers rows added after page load)
+    if (row.dataset.bqOriginalIndex === undefined) {
+      row.dataset.bqOriginalIndex = String(Array.prototype.indexOf.call(tbody.children, row));
+    }
+
+    // Move to top if not already there
+    if (tbody.firstElementChild !== row) {
+      tbody.insertBefore(row, tbody.firstElementChild);
+      console.log('[BrassQC] Row moved to top | Original Index:', row.dataset.bqOriginalIndex, '| Checkbox move:', !!isCheckboxTriggered);
+    }
+
+    movedRow = row;
+    isCheckboxMove = !!isCheckboxTriggered;
+
+    // Apply highlight to moved row
+    row.classList.add('dp-row-action-highlight');
+    console.log('[BrassQC] Row highlighted');
+  };
+
+  // Attach highlight/move for Accept, Reject, and View actions
+  function attachRowHighlight(selector) {
+    document.querySelectorAll(selector).forEach(function(btn) {
+      btn.addEventListener('click', function(event) {
+        var button = event.currentTarget;
+        var row = button.closest('tr');
+
+        // Use the global function for consistency (temporary move - will restore on modal close)
+        if (row && typeof window.bqMoveRowToTop === 'function') {
+          window.bqMoveRowToTop(row, false); // false = button move (temporary)
+        }
+      });
+    });
+  }
+
+  // Accept, Reject, View (tray-scan-btn, tray-scan-btn-Jig, btn-twitter, tray-scan-btn-BQ-view)
+  attachRowHighlight('.tray-scan-btn, .tray-scan-btn-Jig, .btn-twitter, .tray-scan-btn-BQ-view');
 
   // --- Accept Alert Integration: Restore row position when alert closes ---
   document.querySelectorAll('.btn-twitter').forEach(function(acceptBtn) {
@@ -1890,115 +2032,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-  // Restore row to original position and remove highlight
-  function restoreRowPosition() {
-    // ✅ FIX: Do NOT restore if row was moved by checkbox (persistent behavior)
-    if (isCheckboxMove) {
-      console.log('[BrassQC] Row stays at top (moved by checkbox verification)');
-      return;
-    }
-    
-    if (movedRow && placeholderRow && placeholderRow.parentNode) {
-      placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-      placeholderRow.parentNode.removeChild(placeholderRow);
-      movedRow.classList.remove('dp-row-action-highlight');
-      movedRow = null;
-      placeholderRow = null;
-      originalRowIndex = null;
-    }
-    document.querySelectorAll('tbody tr').forEach(function(row) {
-      row.classList.remove('dp-row-action-highlight');
-    });
-    
-    // ✅ NEW: Clear global shortcut manager highlight state and sessionStorage
-    if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
-      window.GlobalShortcutManager.clear();
-    }
-    
-    // ✅ NEW: Clear global scan context to prevent stale highlights
-    try {
-      sessionStorage.removeItem('globalScanModule');
-      sessionStorage.removeItem('globalScanTrayId');
-      sessionStorage.removeItem('globalScanLotId');
-    } catch(e) {
-      console.warn('[BrassQC] Could not clear scan context:', e);
-    }
-    
-    console.log('[BrassQC] Row position restored to original index');
-  }
-
-  // ✅ NEW: Expose global function to move any row to top with highlight
-  window.bqMoveRowToTop = function(row, isCheckboxTriggered) {
-    if (!row || !row.parentNode) return;
-    
-    // Clear all previous highlights first
-    document.querySelectorAll('tbody tr').forEach(function(r) {
-      r.classList.remove('dp-row-action-highlight');
-    });
-    
-    const tbody = row.parentNode;
-    const currentFirstChild = tbody.firstElementChild;
-    
-    // Only move if row is not already at top
-    if (currentFirstChild !== row) {
-      // If there's a previously moved row, restore it first (unless it was a checkbox move)
-      if (movedRow && movedRow !== row && placeholderRow && placeholderRow.parentNode) {
-        if (!isCheckboxMove) {
-          // Previous move was temporary (button), safe to restore
-          placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-          placeholderRow.parentNode.removeChild(placeholderRow);
-          movedRow.classList.remove('dp-row-action-highlight');
-        } else {
-          // Previous move was by checkbox, force restore when accessing different row
-          placeholderRow.parentNode.insertBefore(movedRow, placeholderRow);
-          placeholderRow.parentNode.removeChild(placeholderRow);
-          movedRow.classList.remove('dp-row-action-highlight');
-          isCheckboxMove = false; // Reset flag
-        }
-      }
-      
-      // Store the original index and create placeholder
-      originalRowIndex = Array.from(tbody.children).indexOf(row);
-      movedRow = row;
-      placeholderRow = document.createElement('tr');
-      placeholderRow.style.display = 'none';
-      for (let i = 0; i < row.children.length; i++) {
-        placeholderRow.appendChild(document.createElement('td'));
-      }
-      
-      // Insert placeholder at original position and move row to top
-      tbody.insertBefore(placeholderRow, tbody.children[originalRowIndex]);
-      tbody.insertBefore(row, tbody.firstElementChild);
-      
-      // Set the move type flag
-      isCheckboxMove = isCheckboxTriggered || false;
-      
-      console.log('[BrassQC] Row moved to top | Original Index:', originalRowIndex, '| Checkbox move:', isCheckboxMove);
-    }
-    
-    // Apply highlight to moved row
-    row.classList.add('dp-row-action-highlight');
-    console.log('[BrassQC] Row highlighted');
-  };
-
-  // Attach highlight/move for Accept, Reject, and View actions
-  function attachRowHighlight(selector) {
-    document.querySelectorAll(selector).forEach(function(btn) {
-      btn.addEventListener('click', function(event) {
-        var button = event.currentTarget;
-        var row = button.closest('tr');
-        
-        // Use the global function for consistency (temporary move - will restore on modal close)
-        if (row && typeof window.bqMoveRowToTop === 'function') {
-          window.bqMoveRowToTop(row, false); // false = button move (temporary)
-        }
-      });
-    });
-  }
-
-  // Accept, Reject, View (tray-scan-btn, tray-scan-btn-Jig, btn-twitter, tray-scan-btn-BQ-view)
-  attachRowHighlight('.tray-scan-btn, .tray-scan-btn-Jig, .btn-twitter, .tray-scan-btn-BQ-view');
-
   // Restore on all modal closes (tray scan, day planning, new popup, etc)
   [
     'closeTrayScanModal',
@@ -2009,12 +2042,12 @@ document.addEventListener("DOMContentLoaded", function() {
     if (btn) {
       btn.addEventListener('click', function() {
         restoreRowPosition();
-        
+
         // ✅ Clear global shortcut manager state
         if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
           window.GlobalShortcutManager.clear();
         }
-        
+
         // ✅ Clear global scan context
         try {
           sessionStorage.removeItem('globalScanModule');
@@ -2038,12 +2071,12 @@ document.addEventListener("DOMContentLoaded", function() {
       modal.addEventListener('click', function(event) {
         if (event.target === modal) {
           restoreRowPosition();
-          
+
           // ✅ Clear global shortcut manager state
           if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
             window.GlobalShortcutManager.clear();
           }
-          
+
           // ✅ Clear global scan context
           try {
             sessionStorage.removeItem('globalScanModule');
@@ -2064,12 +2097,12 @@ document.addEventListener("DOMContentLoaded", function() {
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
       restoreRowPosition();
-      
+
       // ✅ Clear global shortcut manager state
       if (window.GlobalShortcutManager && typeof window.GlobalShortcutManager.clear === 'function') {
         window.GlobalShortcutManager.clear();
       }
-      
+
       // ✅ Clear global scan context
       try {
         sessionStorage.removeItem('globalScanModule');
@@ -2095,6 +2128,194 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
+});
+</script>
+
+<!-- ✅ Brass QC ONLY: catch row highlighting no matter which script triggers it -->
+<!-- (checkbox verify, Accept/Reject/View, the shared shortcut manager's row-click -->
+<!-- highlighting, or the global "Scan or Type Tray ID" find-and-highlight flow in -->
+<!-- base.html — which intentionally does NOT move rows, since that used to break -->
+<!-- other pages like the DP Completed Table). This watcher lives ONLY in this file, -->
+<!-- so it only ever affects the Brass QC Pick Table; every other page is untouched. -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+  var tbody = document.querySelector('#order-listing tbody');
+  if (!tbody || !window.MutationObserver) return;
+
+  // Any of these classes can be added by this page's own script OR by the
+  // shared global_shortcut_manager.js / base.html scan-and-find flow.
+  var HIGHLIGHT_CLASSES = ['dp-row-action-highlight', 'gkb-row-focus', 'gs-active-scan'];
+
+  function isHighlighted(row) {
+    return HIGHLIGHT_CLASSES.some(function(c) { return row.classList.contains(c); });
+  }
+
+  // Stamp each row's original position once, so we always know where "home" is.
+  Array.prototype.forEach.call(tbody.children, function(row, idx) {
+    if (row && row.dataset && row.dataset.bqAutoTopOriginalIndex === undefined) {
+      row.dataset.bqAutoTopOriginalIndex = String(idx);
+    }
+  });
+
+  var currentTopRow = null;
+
+  function reinsertAtOriginalPosition(row) {
+    if (!row || !row.parentNode) return;
+    var body = row.parentNode;
+    var targetIndex = parseInt(row.dataset.bqAutoTopOriginalIndex, 10);
+    if (isNaN(targetIndex)) { body.appendChild(row); return; }
+    var siblings = Array.prototype.filter.call(body.children, function(r) { return r !== row; });
+    var placedBefore = null;
+    for (var i = 0; i < siblings.length; i++) {
+      var siblingIndex = parseInt(siblings[i].dataset.bqAutoTopOriginalIndex, 10);
+      if (!isNaN(siblingIndex) && siblingIndex > targetIndex) { placedBefore = siblings[i]; break; }
+    }
+    if (placedBefore) body.insertBefore(row, placedBefore);
+    else body.appendChild(row);
+  }
+
+  function moveToTop(row) {
+    if (currentTopRow && currentTopRow !== row) {
+      reinsertAtOriginalPosition(currentTopRow);
+    }
+    if (row.dataset.bqAutoTopOriginalIndex === undefined) {
+      row.dataset.bqAutoTopOriginalIndex = String(Array.prototype.indexOf.call(tbody.children, row));
+    }
+    if (tbody.firstElementChild !== row) {
+      tbody.insertBefore(row, tbody.firstElementChild);
+      console.log('[BrassQC] (auto-top watcher) Row moved to top | Original Index:', row.dataset.bqAutoTopOriginalIndex);
+    }
+    currentTopRow = row;
+  }
+
+  function handleRowLostHighlight(row) {
+    if (row === currentTopRow) {
+      reinsertAtOriginalPosition(row);
+      currentTopRow = null;
+      console.log('[BrassQC] (auto-top watcher) Row restored to original position');
+    }
+  }
+
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      if (m.type !== 'attributes' || m.attributeName !== 'class') return;
+      var row = m.target;
+      if (!row || row.tagName !== 'TR' || row.parentNode !== tbody) return;
+
+      var oldClasses = (m.oldValue || '').split(/\s+/);
+      var hadHighlight = HIGHLIGHT_CLASSES.some(function(c) { return oldClasses.indexOf(c) !== -1; });
+      var hasHighlight = isHighlighted(row);
+
+      if (hasHighlight && (!hadHighlight || row !== currentTopRow)) {
+        moveToTop(row);
+      } else if (hadHighlight && !hasHighlight) {
+        handleRowLostHighlight(row);
+      }
+    });
+  });
+
+  observer.observe(tbody, {
+    attributes: true,
+    attributeFilter: ['class'],
+    attributeOldValue: true,
+    subtree: true
+  });
+});
+</script>
+
+<!-- ✅ Brass QC ONLY: highlight + move the row to top when this page was opened via a -->
+<!-- cross-module tray scan (e.g. scanning a tray from the Day Planning Pick Table, which -->
+<!-- finds the tray belongs to Brass QC and navigates here). base.html already has a -->
+<!-- generic "AUTO-HIGHLIGHT ROW" script that reads the same ?highlight=&lot=&batch= URL -->
+<!-- params, but it's shared by every module, only draws a thin border (not our yellow -->
+<!-- highlight), and can miss rows depending on pagination timing. This block reads the -->
+<!-- exact same signals independently and finds/highlights/moves the row itself, so Brass -->
+<!-- QC gets a reliable result without changing that shared file or any other page. -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+  function getParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name) || ''; } catch(e) { return ''; }
+  }
+  function getSession(key) {
+    try { return sessionStorage.getItem(key) || ''; } catch(e) { return ''; }
+  }
+
+  // base.html's navigateToTrayModule() sets both the URL params AND these sessionStorage
+  // keys before redirecting here, so we check both (URL first, session as a fallback).
+  var scanTrayId  = getParam('highlight') || getSession('globalScanTrayId');
+  var scanLotId   = getParam('lot')       || getSession('globalScanLotId');
+  var scanBatchId = getParam('batch')     || getSession('globalScanBatchId');
+
+  if (!scanTrayId && !scanLotId && !scanBatchId) return; // this page load wasn't a scan landing
+
+  function findMatchingRow() {
+    var rows = document.querySelectorAll('#order-listing tbody tr[data-stock-lot-id]');
+    if (!rows.length) return null;
+
+    // 1) Match by lot id — most reliable identifier
+    if (scanLotId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-stock-lot-id')) === String(scanLotId)) return rows[i];
+      }
+    }
+    // 2) Match by batch id
+    if (scanBatchId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-batch-id')) === String(scanBatchId)) return rows[i];
+      }
+    }
+    // 3) Fallback: match by tray id text appearing anywhere in the row
+    if (scanTrayId) {
+      for (var i = 0; i < rows.length; i++) {
+        var cells = rows[i].querySelectorAll('td');
+        for (var j = 0; j < cells.length; j++) {
+          if (cells[j].textContent.trim() === scanTrayId) return rows[i];
+        }
+      }
+    }
+    return null;
+  }
+
+  function scrollRowIntoView(row) {
+    var navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
+    var rect = row.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + rect.top - navH - 20, behavior: 'smooth' });
+  }
+
+  function cleanUp() {
+    try {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+      sessionStorage.removeItem('globalScanBatchId');
+    } catch(e) {}
+  }
+
+  var attempts = 0;
+  function tryHighlight() {
+    attempts++;
+    var row = findMatchingRow();
+    if (row) {
+      if (typeof window.bqMoveRowToTop === 'function') {
+        window.bqMoveRowToTop(row, true); // persistent — same treatment as checkbox verify
+      } else {
+        row.classList.add('dp-row-action-highlight');
+      }
+      window.requestAnimationFrame(function() { scrollRowIntoView(row); });
+      console.log('[BrassQC] (cross-module scan) Row highlighted and moved to top:', scanTrayId || scanLotId || scanBatchId);
+      cleanUp();
+      return;
+    }
+    if (attempts < 6) {
+      setTimeout(tryHighlight, 300); // table may still be rendering on first paint
+    } else {
+      console.log('[BrassQC] (cross-module scan) Row not found on this page for:', scanTrayId || scanLotId || scanBatchId);
+      cleanUp();
+    }
+  }
+
+  setTimeout(tryHighlight, 250);
 });
 </script>
 
@@ -2757,6 +2978,22 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
     });
+
+    // ✅ FIX: Close this modal on ESC key press — intercepted at the WINDOW
+    // capture phase, which always runs before ANY capture-phase listener
+    // registered on `document` (e.g. global_shortcut_manager.js's DB-driven
+    // "close_active" shortcut), regardless of script load order or how that
+    // shortcut is currently configured. We stop the event here so it can
+    // never reach — and be silently swallowed by — that other handler.
+    window.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      if (overlay.style.display === 'none') return;
+      if (document.querySelector('.swal2-container')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+      closeModal();
+    }, true);
 
     // ── Open modal from reject button ──
     document.querySelectorAll('.tray-scan-btn').forEach(function(btn) {
@@ -4188,20 +4425,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      console.log('[Brass QC] ✓ Valid scan with enabled reject button - auto-opening rejection modal');
-      
-      // Programmatically click the reject button to open the modal
-      rejectButton.click();
-      
-      // Dispatch custom event for tracking
-      const openEvent = new CustomEvent('brassQC:autoOpenRejectModal', {
-        detail: {
-          tray_id: trayId,
-          lot_id: highlightedRow.getAttribute('data-stock-lot-id'),
-          triggered_by: 'global_scan'
-        }
-      });
-      document.dispatchEvent(openEvent);
+      console.log('[Brass QC] ✓ Valid scan with enabled reject button.');
+
+      // ✅ FIX (per user request, 19-Aug-2026): Scanning a tray should ONLY
+      // highlight/move the matching row to the top — it must NOT auto-open
+      // the rejection dialog anymore. The auto-open behavior below is now
+      // disabled. The row highlight itself is handled by the shared global
+      // scan listener elsewhere and is unaffected by this change.
+      //
+      // Previously this block did:
+      //   rejectButton.click();
+      //   document.dispatchEvent(new CustomEvent('brassQC:autoOpenRejectModal', {...}));
+      //
+      // That auto-click has been intentionally removed. If you ever want the
+      // old auto-open-on-scan behavior back, re-add the two lines above.
+      return;
       
     }, 300); // 300ms delay to let the highlight animation complete
   });

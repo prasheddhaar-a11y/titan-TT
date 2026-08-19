@@ -346,6 +346,8 @@
 
 })();
 
+
+
 /*
  * FIX 2: Type of Input should be visible for normal DP users.
  *
@@ -846,7 +848,37 @@ window.fixDPPickTableHoldToggle =
  * No changes are required in the DP Completed HTML.
  */
 
+/*
+ * FIX 4: DP Completed Table
+ *
+ * Normal User:
+ *   - Edit   -> REMOVE
+ *   - Delete -> REMOVE
+ *   - View   -> KEEP
+ *
+ * Admin / Super Admin:
+ *   - Delete -> KEEP
+ *   - Existing actions remain unchanged
+ *
+ * This fix is global and is handled only from normal_user.js.
+ */
+
 function fixDPCompletedTableActions() {
+
+    const config = window.NORMAL_USER_FIX_CONFIG || {};
+
+    /*
+     * IMPORTANT:
+     *
+     * This file is global, so do NOT remove Delete
+     * unless this is actually a Normal User.
+     *
+     * The normal-user configuration must be enabled.
+     */
+    if (config.edit !== true) {
+        return;
+    }
+
 
     /*
      * Identify the DP Completed page.
@@ -857,8 +889,9 @@ function fixDPCompletedTableActions() {
         return;
     }
 
+
     /*
-     * Find the DP table.
+     * Find the DP Completed table.
      */
     const table = document.querySelector('#order-listing');
 
@@ -866,10 +899,9 @@ function fixDPCompletedTableActions() {
         return;
     }
 
+
     /*
      * Find the Action column dynamically.
-     *
-     * This avoids depending on a fixed column number.
      */
     const headers = Array.from(
         table.querySelectorAll('thead th')
@@ -889,7 +921,7 @@ function fixDPCompletedTableActions() {
 
 
     /*
-     * Process every row in the Completed table.
+     * Process each row.
      */
     table.querySelectorAll('tbody tr').forEach(function (row) {
 
@@ -904,7 +936,8 @@ function fixDPCompletedTableActions() {
 
         /*
          * -----------------------------------------
-         * REMOVE EDIT ICON
+         * NORMAL USER ONLY:
+         * REMOVE EDIT
          * -----------------------------------------
          */
 
@@ -930,7 +963,8 @@ function fixDPCompletedTableActions() {
 
         /*
          * -----------------------------------------
-         * REMOVE DELETE ICON
+         * NORMAL USER ONLY:
+         * REMOVE DELETE
          * -----------------------------------------
          *
          * Actual DP Completed HTML:
@@ -938,8 +972,6 @@ function fixDPCompletedTableActions() {
          * <span>
          *     <img alt="Delete Disabled">
          * </span>
-         *
-         * Therefore remove the complete wrapper span.
          */
 
         actionCell.querySelectorAll(
@@ -950,21 +982,17 @@ function fixDPCompletedTableActions() {
                 deleteIcon.closest('span');
 
             if (deleteWrapper) {
-
                 deleteWrapper.remove();
-
             } else {
-
                 deleteIcon.remove();
-
             }
 
         });
 
 
         /*
-         * Also handle any normal Delete icon
-         * if it is rendered dynamically.
+         * Remove an active Delete button as well,
+         * if one is dynamically rendered for Normal User.
          */
         actionCell.querySelectorAll(
             'img[alt="Delete"], ' +
@@ -980,13 +1008,9 @@ function fixDPCompletedTableActions() {
                 element.closest('a, button');
 
             if (deleteButton) {
-
                 deleteButton.remove();
-
             } else {
-
                 element.remove();
-
             }
 
         });
@@ -1005,9 +1029,6 @@ function initDPCompletedTableActionsFix() {
 }
 
 
-/*
- * Run after DOM is ready.
- */
 if (document.readyState === 'loading') {
 
     document.addEventListener(
@@ -1023,8 +1044,7 @@ if (document.readyState === 'loading') {
 
 
 /*
- * Expose globally so the fix can be
- * re-applied after table refresh/rebuild.
+ * Expose globally for table refreshes.
  */
 window.fixDPCompletedTableActions =
     fixDPCompletedTableActions;

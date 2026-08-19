@@ -220,7 +220,22 @@
             type scale as their submenu links. */
          @media (min-width: 768px) and (max-width: 1024px) {
          .sidebar .nav:not(.sub-menu) > .nav-item > .nav-link .menu-title {
-         font-size: var(--titan-ui-font-size, 16px) !important;
+         font-size: 22px !important;
+         }
+         /* Tablet-only: bump the sidebar circle-badge letters (D, DP, IS, BQ...)
+            a little larger for readability. Base is 8.5px; +2px here.
+            Desktop is untouched since this lives inside the 768-1024px query. */
+         .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
+         font-size: 10.5px !important;
+         height: 30px !important;
+         min-width: 30px !important;
+         }
+         body.sidebar-icon-only .sidebar .nav .nav-item .menu-icon.menu-icon-circle {
+         font-size: 10.5px !important;
+         width: 30px !important;
+         min-width: 30px !important;
+         max-width: 30px !important;
+         height: 30px !important;
          }
          }
 

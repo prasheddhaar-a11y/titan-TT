@@ -2475,6 +2475,54 @@ class InprocessInspectionCompleteView(TemplateView):
         # Add indicators for template logic
         jig_detail.has_multiple_lots = bool(jig_detail.lot_plating_stk_nos)
         jig_detail.has_multiple_models = bool(model_cases_data['model_plating_stk_nos'])
+
+        # Model Presents (circles) - SAME LOGIC AS Pick Table's create_enhanced_jig_detail.
+        # Without this, the template's is_multi_model branch never fires here because
+        # no_of_model_cases_str / enriched_multi_model_allocation were never set, so
+        # multi-model jigs fell back to the single overlapping-circle rendering.
+        models_data = model_cases_data.get('models_data', [])
+        if models_data:
+            def _circle_identity(m):
+                psn = m.get('plating_stk_no')
+                if psn and psn != 'No Plating Stock No':
+                    return psn
+                return m.get('model_name', '')
+
+            try:
+                mm = getattr(jig_detail, 'multi_model_allocation', None)
+                if mm and isinstance(mm, list):
+                    mm_parts = []
+                    for _m in mm:
+                        if isinstance(_m, dict):
+                            _name = _m.get('model_name', _m.get('model', ''))
+                            _qty = _m.get('allocated_qty', 0)
+                            if _name:
+                                mm_parts.append(f"{_name}:{_qty}")
+                    jig_detail.no_of_model_cases_str = ','.join(mm_parts) if mm_parts else ','.join([_circle_identity(m) for m in models_data if _circle_identity(m)])
+                else:
+                    jig_detail.no_of_model_cases_str = ','.join([_circle_identity(m) for m in models_data if _circle_identity(m)])
+            except Exception:
+                jig_detail.no_of_model_cases_str = ''
+        else:
+            jig_detail.no_of_model_cases_str = ''
+
+        # Enrich multi_model_allocation with plating_stk_no from ModelMasterCreation
+        try:
+            _mm = getattr(jig_detail, 'multi_model_allocation', None)
+            if _mm and isinstance(_mm, list):
+                _mm_batch_ids = [m.get('batch_id') for m in _mm if m.get('batch_id')]
+                _mmc_plating = {
+                    m.batch_id: (m.plating_stk_no or '')
+                    for m in ModelMasterCreation.objects.filter(batch_id__in=_mm_batch_ids).only('batch_id', 'plating_stk_no')
+                }
+                jig_detail.enriched_multi_model_allocation = [
+                    dict(m, plating_stk_no=_mmc_plating.get(m.get('batch_id'), ''))
+                    for m in _mm
+                ]
+            else:
+                jig_detail.enriched_multi_model_allocation = _mm or []
+        except Exception:
+            jig_detail.enriched_multi_model_allocation = getattr(jig_detail, 'multi_model_allocation', []) or []
         
         
         # Set template attributes for Inprocess Inspection table

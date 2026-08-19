@@ -3984,6 +3984,11 @@ class JigSaveAPI(APIView):
 				if draft_with_remark:
 					remarks = draft_with_remark.remarks
 
+		# Keep the exact preserved remark inside draft_data as well as the
+		# dedicated model column.  Otherwise GET rehydration sees payload['remarks']
+		# as an empty string and can hide a remark that was already saved.
+		payload['remarks'] = remarks
+
 		# === SUBMIT-SPECIFIC VALIDATIONS ===
 		if action == 'submit':
 			if not jig_id:
@@ -4492,6 +4497,10 @@ class JigSaveAPI(APIView):
 			'scanned_trays': draft_data.get('scanned_trays', record.scanned_trays or []),
 			'multi_model_allocation': draft_data.get('multi_model_allocation', record.multi_model_allocation or []),
 			'half_filled_tray_info': draft_data.get('half_filled_tray_info', record.half_filled_tray_info or []),
+			# Full immutable-at-save UI snapshot.  The frontend uses the
+			# individual fields above for compatibility and this complete object
+			# for exact draft rehydration.
+			'draft_snapshot': draft_data,
 			'updated_at': record.updated_at.isoformat() if record.updated_at else None,
 		})
 

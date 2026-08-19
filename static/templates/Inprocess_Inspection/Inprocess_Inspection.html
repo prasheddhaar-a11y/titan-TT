@@ -137,7 +137,8 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.18s ease;
-    top: calc(100% + 8px);
+    bottom: calc(100% + 8px);
+    top: auto;
     left: 50%;
     transform: translateX(-50%);
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
@@ -1377,7 +1378,7 @@
                                         {{ forloop.counter }}
                                       </div>
                                       <div class="multi-model-tooltip"
-                                           style="position:absolute;background:linear-gradient(135deg,#1e293b,#334155);color:white;padding:6px 10px;border-radius:6px;font-size:10px;white-space:nowrap;z-index:99999;opacity:0;pointer-events:none;transition:opacity 0.18s ease;top:calc(100% + 6px);left:50%;transform:translateX(-50%);box-shadow:0 4px 12px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);">
+                                           style="position:absolute;background:linear-gradient(135deg,#1e293b,#334155);color:white;padding:6px 10px;border-radius:6px;font-size:10px;white-space:nowrap;z-index:99999;opacity:0;pointer-events:none;transition:opacity 0.18s ease;bottom:calc(100% + 6px);top:auto;left:50%;transform:translateX(-50%);box-shadow:0 4px 12px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);">
                                         <div style="font-size:8px;color:#94a3b8;margin-bottom:2px;">M{{ forloop.counter }}</div>
                                         <strong style="font-size:11px;">{{ model_name|safe }}</strong><br>
                                         <span style="font-size:9px;color:#7dd3d8;">Qty: {{ model_qty }}</span>
@@ -3166,20 +3167,22 @@ document.addEventListener("DOMContentLoaded", function () {
      updateAllModelCircles();
    }
    
-   // Function to update all model circles with consistent colors.
-   // Backend-persisted colors (data-model-colors) take precedence; only
-   // fall back to the global palette when no backend color is available.
+   // Function to update model circles in the PICK TABLE only.
+   // Backend colors are intentionally ignored here because the backend may
+   // assign the same color to different models.
    function updateAllModelCircles() {
      document.querySelectorAll('.model-stock-no-cell').forEach(function(cell) {
        try {
          const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
-         const backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
          const circles = cell.querySelectorAll('.model-circle');
 
          circles.forEach(function(circle, index) {
            if (modelList[index]) {
-             const model = modelList[index];
-             const color = backendColors[model] || getGlobalModelColor(model);
+             const model = String(modelList[index]).trim();
+
+             // Use the FULL model name so models such as 1805WAK02 and
+             // 1805QCL02/GUN receive different colors.
+             const color = getGlobalModelColor(model);
              circle.style.backgroundColor = color;
            }
          });
@@ -4230,27 +4233,23 @@ document.addEventListener('DOMContentLoaded', function() {
   function resolveMultiModelColor(circle, container) {
     var displayModel = circle.getAttribute('data-model') || '';
     var modelNoPrefix = extractModelNoPrefix(displayModel);
-    var backendColors = {};
-    var cell = container && container.closest('.model-stock-no-cell');
-    if (cell) {
-      try {
-        backendColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
-      } catch (e) {
-        backendColors = {};
-      }
-    }
 
-    var color = backendColors[displayModel] ||
-                backendColors[modelNoPrefix] ||
-                (window.globalModelColors && window.globalModelColors[modelNoPrefix]) ||
-                (window.globalModelColors && window.globalModelColors[displayModel]);
-
-    if (!color && typeof getGlobalModelColor === 'function') {
-      color = getGlobalModelColor(modelNoPrefix);
-    }
-    if (!color && typeof getGlobalModelColor === 'function') {
+    // PICK TABLE ONLY:
+    // Resolve by the complete model name. Do not use the numeric prefix
+    // because different models can share the same prefix (for example 1805).
+    // Do not use backend colors here because duplicate backend colors can
+    // make two different models appear with the same color.
+    var color = '';
+    if (typeof getGlobalModelColor === 'function' && displayModel) {
       color = getGlobalModelColor(displayModel);
     }
+
+    // Safe fallback.
+    if (!color && window.globalModelColors) {
+      color = window.globalModelColors[displayModel] ||
+              window.globalModelColors[modelNoPrefix];
+    }
+
     return color || '#cccccc';
   }
 

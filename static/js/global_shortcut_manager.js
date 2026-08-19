@@ -22,7 +22,11 @@
         '#trayScanModal.open',
         '#trayScanModal_DayPlanning.open',
         '[role="dialog"]',
-        '.barcode-modal'
+        '.barcode-modal',
+        // ✅ FIX: Brass QC rejection modal wasn't recognised as a modal root,
+        // so the Escape ("close_active") shortcut swallowed the keystroke
+        // (stopImmediatePropagation) without ever closing it.
+        '#brassRejectModalOverlay'
     ].join(', ');
 
     var shortcutConfigs = [];
