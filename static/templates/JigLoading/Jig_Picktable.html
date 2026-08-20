@@ -3789,10 +3789,13 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    // Editing/deleting an Excess or Excess Top Tray scan must preserve already
-    // confirmed Delink boxes. Once the Excess section is complete again,
-    // _autoAllocateRemainingDelinkTrays() will consider only trays that are still
-    // genuinely unallocated, without resetting existing Delink confirmations.
+    // Editing/deleting an Excess or Excess Top Tray scan changes which physical
+    // trays are actually "leftover" — any Delink box the auto-allocator already
+    // filled by elimination is now based on stale leftover data and must be
+    // cleared. Manual delink scans the user typed themselves are untouched;
+    // only re-running _autoAllocateRemainingDelinkTrays (once excess is
+    // completed again) may refill the Delink side, and only with the true leftover.
+    var editedPanel = inputEl.dataset.panel || (inputEl.id === 'excessTopTrayScanInput' ? 'excess_top' : '');
     if (editedPanel === 'excess' || editedPanel === 'excess_top') {
       _clearAutoAllocatedDelinkTrays();
     }
@@ -4405,35 +4408,36 @@ document.addEventListener('DOMContentLoaded', function () {
   // page reload, BH change), so status can never silently desync from what's
   // actually stored/counted — and never leak in from the Excess panel.
   function _syncDelinkRowStatuses(scannedSet) {
-    var set = scannedSet || _getConfirmedDelinkTrayIdSet();
+    // IMPORTANT: for a NORMAL Delink row, the actual Delink scan input is the
+    // only source of truth for the current scanned/Delinked state.
+    //
+    // data-tray-id, row.state, delink-row-scanned and the validated tray-id set
+    // can represent an allocation/template/restored state. They must NEVER make
+    // an empty normal Delink input appear scanned. A different valid tray may
+    // also be scanned into the same Pending row after deletion, so we must use
+    // the current input value + its existing .validated flag.
     document.querySelectorAll('#splitPanelContainer tr[data-tray-id]').forEach(function(row) {
-      // Scoped to Delink-type cards only — an Excess Tray card's own status is
-      // written directly by the excess/excess_top branches in _validateSplitScan.
+      // Excess cards manage their own status through _validateSplitScan.
       if (row.dataset.rowType === 'excess') return;
-      // Partial-delink row has no delink-panel scan box of its own — its
-      // Verified/Awaiting state is set entirely at render time from the backend's
-      // row.verified flag (see renderSplitPanels), never from this delink-only set.
+
+      // Partial/auto-verified rows have no normal Delink input. Their state is
+      // controlled by the existing Excess Top verification path and must remain
+      // untouched here.
       if (row.dataset.autoVerify === 'true') return;
-      var tid = (row.dataset.trayId || '').trim().toUpperCase();
-      if (!tid) return;
+
       var lastCell = row.cells[row.cells.length - 1];
       if (!lastCell) return;
-      // UI STATUS FIX: a row also counts as Delinked if its OWN delink box is
-      // confirmed-filled with a value the auto-allocator placed there — even
-      // though that value doesn't equal this row's own placeholder tray_id
-      // (the auto-allocator deliberately pairs "next open box" with "next
-      // un-struck tray", not "own tray in own box"). Scoped strictly to values
-      // recorded in window._autoAllocatedTrayValues (see
-      // _autoAllocateRemainingDelinkTrays), so manual scans keep the existing
-      // strict value-match behavior unchanged (the exact-value rule this
-      // function exists for — see the block comment above).
+
       var ownDelinkInput = row.querySelector('.split-scan-input[data-panel="delink"]');
-      var ownVal = ownDelinkInput ? (ownDelinkInput.value || '').trim().toUpperCase() : '';
-      var ownBoxAutoAllocated = !!(
-        ownDelinkInput && ownDelinkInput.classList.contains('validated') &&
-        ownVal && (window._autoAllocatedTrayValues || {})[ownVal]
+      var ownVal = ownDelinkInput ? (ownDelinkInput.value || '').trim() : '';
+      var isValidated = !!(
+        ownDelinkInput &&
+        ownVal &&
+        ownDelinkInput.classList.contains('validated')
       );
-      if (set[tid] || ownBoxAutoAllocated) {
+
+      if (isValidated) {
+        // Successful scan in THIS row -> Delinked.
         row.classList.remove('delink-row-disabled');
         row.classList.add('delink-row-scanned');
         var cb = row.querySelector('.delink-row-checkbox');
@@ -4441,11 +4445,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!lastCell.querySelector('.status-delinked')) {
           lastCell.innerHTML = '<span class="unified-status-badge status-delinked" style="background:#d4edda;color:#155724;border:1px solid #28a745;">Delinked</span>';
         }
-      } else if (!row.classList.contains('delink-row-disabled')) {
-        if (lastCell.querySelector('.status-delinked')) lastCell.innerHTML = '';
+      } else {
+        // Empty/unvalidated normal row -> ALWAYS Pending.
+        // Do not let an allocation/render class or data-tray-id make it Delinked.
         row.classList.remove('delink-row-scanned');
+        if (lastCell.querySelector('.status-delinked')) lastCell.innerHTML = '';
         var cb2 = row.querySelector('.delink-row-checkbox');
-        if (cb2 && !cb2.classList.contains('locked')) { cb2.checked = false; cb2.disabled = false; }
+        if (cb2 && !cb2.classList.contains('locked')) {
+          cb2.checked = false;
+          cb2.disabled = false;
+        }
       }
     });
   }
@@ -4606,38 +4615,40 @@ document.addEventListener('DOMContentLoaded', function () {
   function _getCompletedDelinkQty() {
     var totalQty = 0;
 
-    // IMPORTANT: count the CURRENT DELINK ROW STATE, not the row position and not
-    // the planned lot quantity. A row is counted only when it is actually marked
-    // as scanned/Delinked (delink-row-scanned), or when its own Delink input is
-    // currently validated. Do NOT count delink-row-disabled because that class is
-    // also used for allocation/restore states where no current scan exists.
-    //
-    // The renderer/reconciliation logic is responsible for putting
-    // delink-row-scanned on the correct physical tray row after a validated scan.
-    // Therefore the quantity calculation must trust that reconciled row state
-    // instead of requiring the scanned value to equal the row's original tray_id.
-    // This is important when a physical tray is scanned into a different open row.
-    var scannedDelinkIds = (typeof _getConfirmedDelinkTrayIdSet === 'function')
-      ? _getConfirmedDelinkTrayIdSet()
-      : {};
-
     document.querySelectorAll('#splitPanelContainer tr[data-row-type="delink"]').forEach(function(tr) {
+      // Special partial row: it has no normal Delink scan input. Preserve the
+      // existing auto-verify business rule: count only after its required
+      // Excess Top verification marks the row as scanned.
       var isAutoVerifiedPartial = tr.dataset.autoVerify === 'true' &&
         tr.classList.contains('delink-row-scanned');
-      var isRowScanned = tr.classList.contains('delink-row-scanned');
-      var trayId = (tr.dataset.trayId || '').trim().toUpperCase();
-      var hasValidatedOwnInput = !!(trayId && scannedDelinkIds[trayId]);
 
-      // A normal Delink row counts when the row is reconciled to a scanned state
-      // OR its own Delink input is presently validated. Partial rows count only
-      // after their paired Excess Top verification marks them scanned.
-      if (!isRowScanned && !hasValidatedOwnInput && !isAutoVerifiedPartial) return;
+      if (isAutoVerifiedPartial) {
+        var partialQty = parseInt(tr.dataset.delinkQty || 0) || 0;
+        if (partialQty > 0) totalQty += partialQty;
+        return;
+      }
+
+      // NORMAL Delink row: quantity is counted ONLY when this row's own scan
+      // input contains a non-empty value AND that value passed the application's
+      // existing validation (.validated). Allocation state, data-tray-id,
+      // delink-row-scanned, or a stale rendered class must not count the row.
+      var delinkInput = tr.querySelector('.split-scan-input[data-panel="delink"]');
+      var inputValue = delinkInput ? (delinkInput.value || '').trim() : '';
+      var isValidated = !!(
+        delinkInput &&
+        inputValue &&
+        delinkInput.classList.contains('validated')
+      );
+
+      if (!isValidated) return;
 
       var delinkQty = parseInt(tr.dataset.delinkQty || 0) || 0;
       if (delinkQty > 0) totalQty += delinkQty;
     });
+
     return totalQty;
   }
+
   window._getCompletedDelinkQty = _getCompletedDelinkQty;
 
   // ===== UPDATE DELINK STATS BADGE =====
@@ -4647,19 +4658,24 @@ document.addEventListener('DOMContentLoaded', function () {
     var fullyDelinked = 0;
     var partialDelinked = 0;
     var totalDelinkQty = 0;
-    var scannedDelinkIds = (typeof _getConfirmedDelinkTrayIdSet === 'function')
-      ? _getConfirmedDelinkTrayIdSet()
+    var scannedDelinkIds = (typeof _getValidatedDelinkOnlyTrayIdSet === 'function')
+      ? _getValidatedDelinkOnlyTrayIdSet()
       : {};
 
     document.querySelectorAll('#splitPanelContainer tr[data-row-type="delink"]').forEach(function(tr) {
       var isAutoVerifiedPartial = tr.dataset.autoVerify === 'true' &&
         tr.classList.contains('delink-row-scanned');
-      var trayId = (tr.dataset.trayId || '').trim().toUpperCase();
-      var wasScanned = !!(trayId && scannedDelinkIds[trayId]);
 
-      // Count ONLY trays that have actually been validated/scanned. Do not use
-      // allocation/status classes alone because they can exist before the current
-      // scan input has been validated.
+      var delinkInput = tr.querySelector('.split-scan-input[data-panel="delink"]');
+      var inputValue = delinkInput ? (delinkInput.value || '').trim() : '';
+      var wasScanned = !!(
+        delinkInput &&
+        inputValue &&
+        delinkInput.classList.contains('validated')
+      );
+
+      // Normal rows count only from their current validated Delink input.
+      // Allocation/render state and data-tray-id are deliberately ignored.
       if (!wasScanned && !isAutoVerifiedPartial) return;
 
       var origQty = parseInt(tr.dataset.originalQty || 0) || 0;
@@ -10739,7 +10755,6 @@ if (!formatResult.valid) {
           if (!value) return;
 
           inp.value = value;
-          inp.dataset.lastValidatedId = value.toUpperCase();
           inp.classList.add('validated');
           inp.readOnly = true;
           if (savedPanel === 'excess_top') {
@@ -10758,15 +10773,6 @@ if (!formatResult.valid) {
           window._trayAllocations[allocKey] = {
             type: savedPanel === 'excess_top' ? 'top_tray' : savedPanel
           };
-
-          // A saved Delink scan is authoritative even after the DOM is rebuilt.
-          // Do not recreate it later by matching the physical tray id to a row:
-          // the operator may have scanned that physical tray into a different
-          // Delink slot.  The exact Draft-time row snapshot is the authority.
-          if (savedPanel === 'delink') {
-            if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
-            window._confirmedDelinkTrayValues[allocKey] = true;
-          }
 
           tr.classList.add(savedPanel === 'excess' || savedPanel === 'excess_top'
             ? 'excess-row-scanned' : 'delink-row-scanned');
@@ -10818,37 +10824,8 @@ if (!formatResult.valid) {
     console.log('[DRAFT_RESTORE] Restoring', scannedTrays.length, 'scanned trays');
     if (!window._trayAllocations) window._trayAllocations = {};
 
-    // IMPORTANT: When an exact Draft-time split-panel snapshot exists, the
-    // physical scan value AND the exact visual row it occupied have already
-    // been restored by _restoreExactDraftInputValues().  Do NOT run the legacy
-    // scanned_trays restore below, because it matches by physical tray_id and
-    // can move a scan into a different row on reopen.  Example: A00040 was
-    // scanned into the A00044 Delink slot; matching scanned_trays by tray_id
-    // would incorrectly place A00040 into the A00040 row after the exact
-    // snapshot had correctly restored it into A00044.
-    var hasExactDraftRows = !!(
-      window._draftSplitPanelSnapshot &&
-      window._draftSplitPanelSnapshot.__draft_ui_rows &&
-      typeof window._draftSplitPanelSnapshot.__draft_ui_rows === 'object'
-    );
 
-    if (hasExactDraftRows) {
-      console.log('[DRAFT_RESTORE] Exact UI snapshot present — skipping legacy tray_id/index restore to prevent row reassignment');
-      if (halfFilledTrayInfo.length > 0) {
-        window._lastHalfFilledTrayInfo = halfFilledTrayInfo;
-      }
-      if (typeof window._renderDelinkTrayChipStrip === 'function') {
-        window._renderDelinkTrayChipStrip(document.getElementById('delinkPanelTableBody'));
-      }
-      if (typeof window._syncDelinkRowStatuses === 'function') window._syncDelinkRowStatuses();
-      if (typeof window._updateDelinkTotalBar === 'function') window._updateDelinkTotalBar();
-      if (typeof window._updateDelinkStatsBadge === 'function') window._updateDelinkStatsBadge();
-      if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
-      if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
-    } else {
-
-    // Legacy restore path: older drafts without an exact UI snapshot.
-    // Restore delink panel scans by physical tray id as before.
+    // Restore delink panel scans (match by tray_id, NOT by array index)
     var delinkScans = scannedTrays.filter(function(s) { return s.panel === 'delink'; });
     delinkScans.forEach(function(scan) {
           // Find the row with matching tray_id in the delink panel

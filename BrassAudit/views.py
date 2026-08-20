@@ -1869,6 +1869,144 @@ def _handle_audit_submission(request, action):
         stock.brass_audit_transition_lot_id = t_lot_id
         stock.brass_audit_transition_label = t_label
         logger.info(f"[AUDIT TRANSITION] FULL_REJECT lot_id={lot_id} → transition_lot_id={t_lot_id}")
+
+        # ═══ BQC RE-ENTRY LOT — Preserve the completed BQC cycle ═══
+        # A Brass Audit FULL_REJECT is a new Brass QC processing cycle.
+        # Do NOT reuse the original TotalStockModel row: that row already
+        # represents the earlier BQC submission and must remain immutable
+        # for the Brass QC Completed Table.
+        #
+        # Create a new TotalStockModel row under the transition lot ID and
+        # copy the rejected tray snapshot into BrassTrayId for the new BQC
+        # cycle. The original parent is then closed from pick-table routing
+        # with remove_lot=True while retaining all historical BQC/BA flags.
+        with transaction.atomic():
+            bqc_reentry_child = TotalStockModel.objects.get(pk=stock.pk)
+            bqc_reentry_child.pk = None
+            bqc_reentry_child.id = None
+            bqc_reentry_child.lot_id = t_lot_id
+
+            # New BQC cycle quantity is exactly the Brass Audit rejected qty.
+            bqc_reentry_child.total_stock = rejected_qty
+            bqc_reentry_child.total_IP_accpeted_quantity = rejected_qty
+            bqc_reentry_child.brass_physical_qty = rejected_qty
+            bqc_reentry_child.brass_physical_qty_edited = False
+            bqc_reentry_child.brass_qc_accepted_qty = 0
+            bqc_reentry_child.brass_qc_after_rejection_qty = 0
+
+            # Fresh Brass QC cycle — clear all previous BQC result state.
+            bqc_reentry_child.brass_qc_accptance = False
+            bqc_reentry_child.brass_qc_rejection = False
+            bqc_reentry_child.brass_qc_few_cases_accptance = False
+            bqc_reentry_child.brass_qc_accepted_qty_verified = False
+            bqc_reentry_child.brass_accepted_tray_scan_status = False
+            bqc_reentry_child.brass_rejection_tray_scan_status = False
+            bqc_reentry_child.brass_onhold_picking = False
+            bqc_reentry_child.brass_draft = False
+
+            # The child belongs to the new BQC cycle, not the completed
+            # Brass Audit rejection cycle.
+            bqc_reentry_child.brass_audit_accptance = False
+            bqc_reentry_child.brass_audit_rejection = False
+            bqc_reentry_child.brass_audit_few_cases_accptance = False
+            bqc_reentry_child.brass_audit_physical_qty = 0
+            bqc_reentry_child.brass_audit_accepted_qty = 0
+            bqc_reentry_child.brass_audit_accepted_qty_verified = False
+            bqc_reentry_child.brass_audit_accepted_tray_scan_status = False
+            bqc_reentry_child.brass_audit_onhold_picking = False
+            bqc_reentry_child.brass_audit_draft = False
+
+            # Route the new child into Brass QC as an Audit return.
+            bqc_reentry_child.last_process_module = 'Brass Audit'
+            bqc_reentry_child.next_process_module = 'Brass QC'
+            bqc_reentry_child.current_stage = 'Brass Audit'
+            bqc_reentry_child.send_brass_audit_to_qc = True
+            bqc_reentry_child.send_brass_qc = False
+            bqc_reentry_child.send_brass_audit_to_iqf = False
+
+            # Transition IDs belong to the submission that created this child;
+            # the child itself starts a fresh BQC cycle.
+            bqc_reentry_child.brass_qc_transition_lot_id = None
+            bqc_reentry_child.brass_qc_transition_accept_lot_id = None
+            bqc_reentry_child.brass_qc_transition_reject_lot_id = None
+            bqc_reentry_child.brass_qc_transition_label = None
+            bqc_reentry_child.brass_audit_transition_lot_id = None
+            bqc_reentry_child.brass_audit_transition_accept_lot_id = None
+            bqc_reentry_child.brass_audit_transition_reject_lot_id = None
+            bqc_reentry_child.brass_audit_transition_label = None
+
+            # The new row is an independent active lot, not a consumed split
+            # parent and not a historical child that has already been processed.
+            bqc_reentry_child.is_split = False
+            bqc_reentry_child.remove_lot = False
+            bqc_reentry_child.save()
+
+            # Preserve the M2M locations on the new lot.
+            bqc_reentry_child.location.set(stock.location.all())
+
+            # Re-create the active Brass QC tray records under the new lot ID.
+            # Use the submission snapshot as the authoritative tray/qty data.
+            parent_brass_trays = {
+                t.tray_id: t
+                for t in BrassTrayId.objects.filter(lot_id=lot_id)
+            }
+            BrassTrayId.objects.bulk_create([
+                BrassTrayId(
+                    lot_id=t_lot_id,
+                    tray_id=t.get("tray_id", ""),
+                    tray_quantity=int(t.get("qty") or 0),
+                    batch_id=stock.batch_id,
+                    user=request.user,
+                    top_tray=bool(t.get("is_top", False)),
+                    delink_tray=False,
+                    delink_tray_qty=None,
+                    IP_tray_verified=False,
+                    rejected_tray=False,
+                    new_tray=False,
+                    tray_type=(
+                        parent_brass_trays[t["tray_id"]].tray_type
+                        if t.get("tray_id") in parent_brass_trays else None
+                    ),
+                    tray_capacity=(
+                        parent_brass_trays[t["tray_id"]].tray_capacity
+                        if t.get("tray_id") in parent_brass_trays else None
+                    ),
+                )
+                for t in rejected_trays
+                if t.get("tray_id") and int(t.get("qty") or 0) > 0
+            ])
+
+            # Keep the original BQC/BA row as historical completed data, but
+            # prevent it from being picked again. Only the new child is active.
+            stock.send_brass_audit_to_qc = False
+            stock.send_brass_qc = False
+            stock.send_brass_audit_to_iqf = False
+            stock.next_process_module = 'Split Completed'
+            stock.last_process_module = 'Brass Audit'
+            stock.remove_lot = True
+            stock.current_stage = 'Brass Audit'
+            stock.save(update_fields=[
+                'send_brass_audit_to_qc',
+                'send_brass_qc',
+                'send_brass_audit_to_iqf',
+                'next_process_module',
+                'last_process_module',
+                'remove_lot',
+                'current_stage',
+                'brass_audit_transition_lot_id',
+                'brass_audit_transition_label',
+            ])
+
+            # The same physical tray IDs are now represented by the new BQC
+            # lot. Delink the parent records so the old lot cannot be scanned
+            # or resolved as an active BQC lot.
+            BrassTrayId.objects.filter(lot_id=lot_id).update(delink_tray=True)
+
+            logger.info(
+                f"[AUDIT REENTRY] Parent={lot_id} preserved as historical BQC/BA cycle → "
+                f"new Brass QC lot={t_lot_id}, qty={rejected_qty}, "
+                f"trays={len([t for t in rejected_trays if t.get('tray_id') and int(t.get('qty') or 0) > 0])}"
+            )
     elif submission_type == "PARTIAL":
         # ✅ FIX: Use UUID-based lot_id generation to prevent race conditions
         # Old format: LID30042026055925829A/R (vulnerable to collision)

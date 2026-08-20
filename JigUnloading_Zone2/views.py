@@ -1807,6 +1807,30 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                     all_submitted_lot_ids.add(submission.lot_id)
 
         print(f"[ZONE2 FILTER] Submitted source lot_ids to hide: {len(all_submitted_lot_ids)}")
+
+        # ------------------------------------------------------------------
+        # DRAFT VISIBILITY OVERRIDE (DISPLAY ONLY)
+        # ------------------------------------------------------------------
+        # Zone 2 filters this queryset BEFORE check_draft_status_for_jigs()
+        # runs.  Therefore a jig that still has an active unload draft can be
+        # removed by the normal "fully unloaded" checks before the UI gets
+        # a chance to mark it as Draft.
+        #
+        # Keep the existing loaded/already-loaded/submission concepts intact.
+        # This set is used ONLY to prevent an active draft row from disappearing
+        # from the Zone 2 pick table.  Final-completed lots are still handled by
+        # the existing completion checks below.
+        draft_jig_completed_ids = set(
+            JUSubmittedZ1.objects.filter(is_draft=True)
+            .values_list('jig_completed_id', flat=True)
+        )
+        draft_lot_ids = set(
+            JigUnloadDraft.objects.values_list('main_lot_id', flat=True)
+        )
+        print(
+            f"[ZONE2 FILTER] Active draft JigCompleted IDs: {len(draft_jig_completed_ids)}; "
+            f"legacy draft lot_ids: {len(draft_lot_ids)}"
+        )
         
         # Also check direct unloads
         direct_unloads = set(JigUnload_TrayId.objects.values_list('lot_id', flat=True))
@@ -1866,11 +1890,36 @@ class JU_Zone_MainTable(LoginRequiredMixin, TemplateView):
                 print(f"🚫 [ZONE2 FAST PATH] Hiding - all lot_ids unloaded: {jig.lot_id}")
                 continue
 
-            # Fallback: combine_lot_ids scan
+            # IMPORTANT: the row is already past the final-completion checks.
+            # If an unload draft belongs to this JigCompleted (or to one of the
+            # lot_ids represented by this row), keep the row visible so the user
+            # can resume it.  This does NOT change is_already_loaded_z1,
+            # is_merged_additional, Add Model, or any final-submission behavior.
+            has_active_draft = (
+                getattr(jig, 'id', None) in draft_jig_completed_ids
+                or bool(jig_lot_ids & draft_lot_ids)
+            )
+            if has_active_draft:
+                print(
+                    f"✅ [ZONE2 DRAFT VISIBILITY] Keeping jig visible for active draft: "
+                    f"jig_id={getattr(jig, 'jig_id', '')}, lot_ids={sorted(jig_lot_ids)}"
+                )
+                filtered_jigs.append(jig)
+                continue
+
+            # Fallback: use only records that represent an actual/final unload.
+            # A JUSubmittedZ1 record with is_draft=False is the model-level
+            # "Save & Back" state used by the working Zone 1 flow.  It must NOT
+            # by itself remove the JIG from the Zone 2 pick table.  The JIG is
+            # hidden only when the final-completion state is reached
+            # (last_process_module='Jig Unloading') or an actual unload record
+            # exists in JigUnloadAfterTable/JigUnload_TrayId.
+            #
+            # This is intentionally NOT an Already Loaded change.
+            # is_merged_additional / is_already_loaded_z1 remain untouched.
             unloaded_lot_ids = (
                 unload_map.get(jig.jig_id, set())
                 | (jig_lot_ids & bare_unloaded_lot_ids)
-                | (jig_lot_ids & all_submitted_lot_ids)
             )
             
             # Keep jig if ANY lot_id is NOT unloaded

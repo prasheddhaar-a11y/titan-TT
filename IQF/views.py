@@ -340,6 +340,12 @@ class IQFPickTableView(APIView):
             )
             batch_ids = list(batch_reentry.values_list('lot_id', flat=True))
             if batch_ids:
+                # IMPORTANT:
+                # This is a NEW IQF processing cycle. Do not carry the previous
+                # IQF Accept/Reject quantities into the new IQF stage.
+                # The Brass Audit rejection quantity is only the INPUT to IQF;
+                # it is NOT an IQF rejection until IQF processing is completed.
+                # Also do not touch total_stock / batch quantity here.
                 batch_reentry.update(
                     send_brass_audit_to_iqf=True,
                     iqf_acceptance=False,
@@ -347,6 +353,9 @@ class IQFPickTableView(APIView):
                     iqf_few_cases_acceptance=False,
                     iqf_accepted_qty_verified=False,
                     iqf_onhold_picking=False,
+                    iqf_accepted_qty=0,
+                    iqf_rejection_qty=0,
+                    iqf_after_rejection_qty=0,
                     brass_audit_rejection=False,
                     send_brass_audit_to_qc=False,
                 )
@@ -380,6 +389,13 @@ class IQFPickTableView(APIView):
                 )
                 partial_ids = list(partial_reentry.values_list('lot_id', flat=True))
                 if partial_ids:
+                    # IMPORTANT:
+                    # Brass Audit PARTIAL rejection only moves the rejected
+                    # quantity INTO IQF. It must not become an IQF Accept or
+                    # IQF Reject result automatically.
+                    #
+                    # Start the new IQF cycle with both result quantities = 0.
+                    # Do NOT modify total_stock / batch quantity.
                     partial_reentry.update(
                         send_brass_audit_to_iqf=True,
                         iqf_acceptance=False,
@@ -387,7 +403,11 @@ class IQFPickTableView(APIView):
                         iqf_few_cases_acceptance=False,
                         iqf_accepted_qty_verified=False,
                         iqf_onhold_picking=False,
+                        iqf_accepted_qty=0,
+                        iqf_rejection_qty=0,
+                        iqf_after_rejection_qty=0,
                     )
+                    
                     # Clean stale IQF data so lot gets fresh processing
                     for lid in partial_ids:
                         IQF_Submitted.objects.filter(lot_id=lid).delete()
@@ -492,8 +512,21 @@ class IQFPickTableView(APIView):
                 'iqf_physical_qty': stock_obj.iqf_physical_qty,
                 'iqf_physical_qty_edited': stock_obj.iqf_physical_qty_edited,
                 'accepted_tray_scan_status': stock_obj.accepted_tray_scan_status,
-                'iqf_rejection_qty': stock_obj.iqf_rejection_qty,
-                'iqf_accepted_qty': stock_obj.iqf_accepted_qty,
+                # IMPORTANT: A lot entering IQF from Brass Audit starts a NEW IQF
+                # processing cycle. Any old IQF Accept/Reject quantity must NOT
+                # appear in the Pick Table until IQF actually verifies/processes it.
+                # The Brass Audit rejected quantity is only the incoming quantity
+                # for IQF; it is not an IQF Accept or IQF Reject result.
+                # Once iqf_accepted_qty_verified becomes True, show the real IQF
+                # result quantities.
+                'iqf_rejection_qty': (
+                    0 if (stock_obj.send_brass_audit_to_iqf and not stock_obj.iqf_accepted_qty_verified)
+                    else (stock_obj.iqf_rejection_qty or 0)
+                ),
+                'iqf_accepted_qty': (
+                    0 if (stock_obj.send_brass_audit_to_iqf and not stock_obj.iqf_accepted_qty_verified)
+                    else (stock_obj.iqf_accepted_qty or 0)
+                ),
                 'IQF_pick_remarks': stock_obj.IQF_pick_remarks,
                 'Bq_pick_remarks': stock_obj.Bq_pick_remarks,
                 'BA_pick_remarks': stock_obj.BA_pick_remarks,

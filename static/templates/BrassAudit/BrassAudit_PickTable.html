@@ -952,13 +952,13 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           {% if data.brass_audit_hold_lot or data.brass_audit_release_lot or data.brass_audit_holding_reason or data.brass_audit_release_reason %}
                             <span class="hold-remark-icon"
                                   style="display:inline-block; cursor:pointer;"
-                                    data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="{% if data.brass_audit_holding_reason %}Holding Reason: {{ data.brass_audit_holding_reason }} (by {{ data.brass_audit_hold_by }} on {{ data.brass_audit_hold_at }}){% endif %}{% if data.brass_audit_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }} (by {{ data.brass_audit_release_by }} on {{ data.brass_audit_release_at }}){% endif %}">
+                                    data-placement="right" data-bs-original-title="{% if data.brass_audit_holding_reason %}Holding Reason: {{ data.brass_audit_holding_reason }} (by {{ data.brass_audit_hold_by }} on {{ data.brass_audit_hold_at }}){% endif %}{% if data.brass_audit_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }} (by {{ data.brass_audit_release_by }} on {{ data.brass_audit_release_at }}){% endif %}">
                               <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:14px; height:14px;" />
                             </span>
                           {% endif %}
                         </span>
                         {% if data.send_brass_audit_to_qc %}
-                          <i class="fa fa-info-circle" style="color: #f39c12; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="Audit"></i>
+                          <i class="fa fa-info-circle" style="color: #f39c12; font-size:13px;" data-placement="right" data-bs-original-title="Audit"></i>
                         {% endif %}
                     </td>                     
                     <td {% if data.brass_audit_hold_lot %} class="row-inactive-blur" {% endif %} style="white-space:normal;word-break:break-all;">
@@ -1354,12 +1354,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                               </div>
                           </a>
                           {% if data.IP_pick_remarks %}
-                            <a href="#" title="IS Remark: {{ data.IP_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;" data-bs-toggle="tooltip" data-placement="top" data-bs-original-title="IS Remark: {{ data.IP_pick_remarks }}">
+                            <a href="#" title="IS Remark: {{ data.IP_pick_remarks }}" style="margin-left: 5px;">
                               <i class="fa fa-info-circle" style="color: #007bff; font-size: 16px;"></i>
                             </a>
                           {% endif %}
                           {% if data.Bq_pick_remarks %}
-                            <a href="#" title="BQ Remark: {{ data.Bq_pick_remarks }}" class="prev-remark-tooltip-trigger" style="margin-left: 5px;">
+                            <a href="#" title="BQ Remark: {{ data.Bq_pick_remarks }}" style="margin-left: 5px;">
                               <i class="fa fa-info-circle" style="color: #28a745; font-size: 16px;"></i>
                             </a>
                           {% endif %}

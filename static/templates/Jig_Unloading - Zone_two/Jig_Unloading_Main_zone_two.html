@@ -1940,7 +1940,7 @@ body.add-model-mode #selectAllCheckbox {
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                       <div>
                         <div style="font-size:13px; font-weight:600; color:#1a2e3b; letter-spacing:0.2px;">
-                          <i class="fa fa-cubes" style="color:#00897B; margin-right:6px;"></i>Jig Unloading &mdash; Zone 1
+                          <i class="fa fa-cubes" style="color:#00897B; margin-right:6px;"></i>Jig Unloading &mdash; Zone 2
                         </div>
                         <div style="font-size:11px; color:#78909c; margin-top:3px;">
                           JIG ID: <span id="z1ModalJigId" style="color:#00897B; font-weight:500;"></span>
@@ -2165,9 +2165,10 @@ body.add-model-mode #selectAllCheckbox {
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   // ===================================================================
-  // Z1 UNLOAD MODAL — Pure fetch + render (backend decides everything)
+  // Zone 2 Unload Modal — Uses the shared Z1 unload persistence APIs; Zone 2 table remains the owner of row visibility.
   // ===================================================================
-  const API_BASE = '/jig_unloading/api';
+  const API_BASE = "{% url 'get_unload_models_z1' %}".replace(/get_unload_models_z1\/?$/, '').replace(/\/$/, '');
+  const TRAY_VALIDATE_URL = "{% url 'validate_tray_occupancy_z1' %}";
   const modal = document.getElementById('z1UnloadModal');
   const layerModelList = document.getElementById('z1LayerModelList');
   const layerTrayScan  = document.getElementById('z1LayerTrayScan');
@@ -2376,6 +2377,9 @@ document.addEventListener('DOMContentLoaded', function() {
           body: JSON.stringify({
             removed_jig_completed_id: ml.jig_completed_id,
             removed_lot_id: ml.lot_id,
+            primary_jig_completed_id: currentJigCompletedId,
+            primary_lot_id: m.lot_id,
+            model_no: m.model_no,
           }),
         }).catch(function(err) { console.error('remove_merged_model_z1 failed:', err); });
       });
@@ -2864,7 +2868,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const trayInput = this;
           const currentLotId = (currentModelsData && currentModelsData.models && currentModelsData.models[currentModelIndex])
             ? (currentModelsData.models[currentModelIndex].lot_id || '') : '';
-          fetch('/jig_unloading/api/validate_tray_occupancy_z1/?tray_id=' + encodeURIComponent(currentVal) + '&lot_id=' + encodeURIComponent(currentLotId))
+          fetch(TRAY_VALIDATE_URL + '?tray_id=' + encodeURIComponent(currentVal) + '&lot_id=' + encodeURIComponent(currentLotId))
             .then(function(r) { return r.json(); })
             .then(function(data) {
               if (!data.success) {
@@ -3144,6 +3148,9 @@ document.addEventListener('DOMContentLoaded', function() {
       tray_capacity: m.tray_capacity,
       tray_code: m.tray_code,
       tray_color: m.tray_color,
+      // Save & Back follows the working Zone 1 behavior: persist this model
+      // as an unload-complete record, but do NOT finalize the JIG itself.
+      // Submit / Submit All remains the explicit final JIG-level action.
       is_draft: false,
       merged_lots: m.merged_lots || [],
       lot_qty_edited: lotQtyEdited,
@@ -4056,4 +4063,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% endblock %}
 {% endblock content %}
-

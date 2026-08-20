@@ -419,6 +419,32 @@ def handle_submission(request, action):
                 user=request.user,
             )
 
+            # ── Propagate the Brass QC Pick Table remark to BOTH child lots ──
+            # A BQC PARTIAL split creates:
+            #   accepted child -> Brass Audit PT
+            #   rejected child -> IQF PT
+            #
+            # The source remark belongs to the BQC step, so keep it in
+            # Bq_pick_remarks on both child lots.  The BA/IQF templates can
+            # then display the same inherited remark with their information
+            # icon without treating it as a new remark entered at that stage.
+            #
+            # Use the submitted remark when present; fall back to the source
+            # stock value because SAVE_REMARK may have populated Bq_pick_remarks
+            # before the partial-rejection action.
+            inherited_bqc_remark = (remarks or getattr(stock, 'Bq_pick_remarks', '') or '').strip()[:100]
+
+            if inherited_bqc_remark:
+                TotalStockModel.objects.filter(
+                    lot_id__in=[t_accept_lot_id, t_reject_lot_id]
+                ).update(
+                    Bq_pick_remarks=inherited_bqc_remark
+                )
+                logger.info(
+                    f"[submission_service] Propagated BQC remark to BA child={t_accept_lot_id} "
+                    f"and IQF child={t_reject_lot_id}"
+                )
+
             BrassTrayId.objects.filter(lot_id=lot_id).update(delink_tray=True)
 
             logger.info(

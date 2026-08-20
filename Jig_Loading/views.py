@@ -4049,12 +4049,69 @@ class JigSaveAPI(APIView):
 				return Response({'status': 'error', 'message': 'Cannot submit: no cases loaded on jig.'}, status=status.HTTP_400_BAD_REQUEST)
 
 			# Sum validation (strict for submit)
+			# IMPORTANT: `original_qty` is the physical tray capacity/quantity and is
+			# NOT the authoritative requested quantity in multi-model loading. A set
+			# of physical trays can total more than the cases requested by the model
+			# lots (for example, 156 physical tray capacity for 120 requested cases).
+			#
+			# For multi-model submissions, the backend allocation already carries
+			# `requested_qty` for every model. That is the correct invariant:
+			#       delink_qty + excess_qty == total requested model quantity
+			#
+			# For single-model submissions, the authoritative requested quantity is
+			# `lot_qty`. Do NOT validate against sum(original_qty).
 			validation_errors = []
 			sum_orig = sum(int(t.get('original_qty', 0) or 0) for t in tray_data)
 			sum_delink = sum(int(t.get('delink_qty', 0) or 0) for t in tray_data)
 			sum_excess = sum(int(t.get('excess_qty', 0) or 0) for t in tray_data)
-			if sum_orig > 0 and (sum_delink + sum_excess) != sum_orig:
-				validation_errors.append(f'sum(delink_qty)+sum(excess_qty)={sum_delink + sum_excess} != sum(original_qty)={sum_orig}')
+
+			if is_multi_model and multi_model_allocation:
+				# `requested_qty` is produced by the backend multi-model allocator
+				# before the UI is rendered. `allocated_qty` is intentionally NOT
+				# used here because it is capped to jig capacity (e.g. 98) and
+				# therefore excludes overflow that belongs in the excess lot (e.g. 22).
+				requested_model_qty = 0
+				requested_model_qty_by_lot = []
+				for model_alloc in multi_model_allocation:
+					if not isinstance(model_alloc, dict):
+						continue
+					requested_qty = model_alloc.get('requested_qty', None)
+					if requested_qty is None:
+						# Compatibility with older saved allocations. Prefer an explicit
+						# requested/model-lot field over allocated_qty because allocated
+						# quantity may be capacity-capped.
+						requested_qty = model_alloc.get('model_lot_qty', model_alloc.get('qty', 0))
+					requested_qty = max(0, int(requested_qty or 0))
+					requested_model_qty += requested_qty
+					requested_model_qty_by_lot.append({
+						'lot_id': model_alloc.get('lot_id', ''),
+						'requested_qty': requested_qty,
+						'allocated_qty': int(model_alloc.get('allocated_qty', 0) or 0),
+					})
+
+				expected_requested_qty = requested_model_qty
+				logging.info(json.dumps({
+					'event': 'JIG_SUBMIT_MULTI_MODEL_QUANTITY_VALIDATION',
+					'expected_requested_qty': expected_requested_qty,
+					'sum_delink': sum_delink,
+					'sum_excess': sum_excess,
+					'physical_tray_original_qty': sum_orig,
+					'models': requested_model_qty_by_lot,
+				}))
+			else:
+				expected_requested_qty = max(0, int(lot_qty or 0))
+
+			if expected_requested_qty > 0 and (sum_delink + sum_excess) != expected_requested_qty:
+				if is_multi_model and multi_model_allocation:
+					validation_errors.append(
+						f'sum(delink_qty)+sum(excess_qty)={sum_delink + sum_excess} '
+						f'!= requested_multi_model_qty={expected_requested_qty}'
+					)
+				else:
+					validation_errors.append(
+						f'sum(delink_qty)+sum(excess_qty)={sum_delink + sum_excess} '
+						f'!= lot_qty={expected_requested_qty}'
+					)
 			if sum_delink != total_delink_qty:
 				validation_errors.append(f'sum(delink_qty)={sum_delink} != total_delink_qty={total_delink_qty}')
 			if sum_excess != total_excess_qty:
