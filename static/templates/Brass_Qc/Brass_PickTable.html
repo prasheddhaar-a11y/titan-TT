@@ -2640,6 +2640,171 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ── View icon: tray fetch & modal render ──
+  // The eye-icon modal must show the Model Master IV (Inside View) image.
+  // Do not rely on data-model-image/model_images.0 because that list is sorted
+  // for general display and its first image may be a side/front view.
+  function normalizeBrassQcModalImageUrl(rawUrl) {
+    const value = String(rawUrl || '').trim();
+    if (!value) return '';
+
+    const normalize = window.normalizeStockImageUrl;
+    if (typeof normalize === 'function') {
+      return normalize(value);
+    }
+
+    try {
+      const parsed = new URL(value, window.location.origin);
+      const hostname = String(parsed.hostname || '').toLowerCase();
+      const isLoopbackHost =
+        hostname === '127.0.0.1' ||
+        hostname === 'localhost' ||
+        hostname === '::1' ||
+        hostname === '[::1]';
+      const isApplicationAsset =
+        parsed.pathname.startsWith('/media/') ||
+        parsed.pathname.startsWith('/static/');
+
+      if (parsed.origin === window.location.origin || (isLoopbackHost && isApplicationAsset)) {
+        return parsed.pathname + parsed.search + parsed.hash;
+      }
+
+      return parsed.href;
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function getBrassQcImageUrlFromEntry(entry) {
+    if (!entry) return '';
+
+    if (typeof entry === 'string') {
+      return normalizeBrassQcModalImageUrl(entry);
+    }
+
+    return normalizeBrassQcModalImageUrl(
+      entry.preview_image ||
+      entry.image_url ||
+      entry.url ||
+      entry.src ||
+      entry.image ||
+      ''
+    );
+  }
+
+  function resolveBrassQcIVImage(payload) {
+    const images = Array.isArray(payload && payload.images) ? payload.images : [];
+
+    // IMPORTANT: IV is selected by view_code, never by array position.
+    const insideView = images.find(function(entry) {
+      return String(entry && entry.view_code || '').trim().toUpperCase() === 'IV';
+    });
+
+    const insideViewUrl = getBrassQcImageUrlFromEntry(insideView);
+    if (insideViewUrl) {
+      return {
+        url: insideViewUrl,
+        alt: 'Model IV preview'
+      };
+    }
+
+    // Some versions of the preview API return preview_image directly.
+    // Use it only after explicitly checking for an IV entry above.
+    const previewImage = normalizeBrassQcModalImageUrl(payload && payload.preview_image);
+    if (previewImage) {
+      return {
+        url: previewImage,
+        alt: payload && payload.preview_view ? payload.preview_view : 'Model IV preview'
+      };
+    }
+
+    // Placeholder fallback if the API explicitly provides one.
+    const noImage = images.find(function(entry) {
+      const viewCode = String(entry && entry.view_code || '').trim().toUpperCase();
+      return viewCode === 'NO_IMAGE' || (entry && entry.is_placeholder === true);
+    });
+
+    const noImageUrl = getBrassQcImageUrlFromEntry(noImage);
+    if (noImageUrl) {
+      return {
+        url: noImageUrl,
+        alt: 'No image available'
+      };
+    }
+
+    return null;
+  }
+
+  async function setBrassQcEyeModalIVImage(modal, stockNo, legacyImageUrl) {
+    const modalUserImg = modal ? modal.querySelector('.user-profile img') : null;
+    const previewStockNo = String(stockNo || '').trim();
+
+    if (!modalUserImg) return;
+
+    modalUserImg.style.objectFit = 'contain';
+    modalUserImg.style.objectPosition = 'center';
+    modalUserImg.alt = 'Loading model IV image';
+
+    const fallbackUrl = normalizeBrassQcModalImageUrl(legacyImageUrl);
+    modalUserImg.src = fallbackUrl || '/static/assets/images/imagePlaceholder.jpg';
+
+    if (!previewStockNo) {
+      modalUserImg.alt = fallbackUrl ? 'Model image' : 'No image available';
+      return;
+    }
+
+    try {
+      const previewResp = await fetch(
+        '/adminportal/api/model-hover-preview/?stock_no=' +
+        encodeURIComponent(previewStockNo) +
+        '&_ts=' + Date.now(),
+        {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        }
+      );
+
+      if (!previewResp.ok) {
+        throw new Error('Preview request failed: HTTP ' + previewResp.status);
+      }
+
+      const previewPayload = await previewResp.json();
+      const resolvedImage = resolveBrassQcIVImage(previewPayload);
+
+      if (resolvedImage && resolvedImage.url) {
+        modalUserImg.onerror = function() {
+          modalUserImg.onerror = null;
+          if (fallbackUrl && modalUserImg.src !== fallbackUrl) {
+            modalUserImg.src = fallbackUrl;
+            modalUserImg.alt = 'Model image';
+          } else {
+            modalUserImg.src = '/static/assets/images/imagePlaceholder.jpg';
+            modalUserImg.alt = 'No image available';
+          }
+        };
+
+        modalUserImg.src = resolvedImage.url;
+        modalUserImg.alt = resolvedImage.alt || 'Model IV preview';
+      }
+    } catch (previewError) {
+      console.error('[BrassQC] Unable to load model IV preview:', previewError);
+
+      // Keep the existing row image as a fallback so this fix never breaks
+      // the modal itself when the preview endpoint is temporarily unavailable.
+      if (fallbackUrl) {
+        modalUserImg.src = fallbackUrl;
+        modalUserImg.alt = 'Model image';
+      } else {
+        modalUserImg.src = '/static/assets/images/imagePlaceholder.jpg';
+        modalUserImg.alt = 'No image available';
+      }
+    }
+  }
+
   const viewBtns = document.querySelectorAll('.tray-scan-btn-BQ-view');
   console.log(`[BrassQC] Found ${viewBtns.length} view icon buttons`);
 
@@ -2673,26 +2838,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (modalLotQty) modalLotQty.textContent = totalBatchQty;
       if (modalMissingQty) modalMissingQty.textContent = brassMissingQty;
 
-      // Clear any previously-loaded row's image before showing this row's image,
-      // and normalize IIS/loopback URLs (127.0.0.1/localhost/::1) to relative paths.
-      if (modelImg) {
-        if (!modelImg.dataset.defaultSrc) {
-          modelImg.dataset.defaultSrc = modelImg.getAttribute('src') || '';
-        }
-        modelImg.onerror = null;
-        modelImg.src = modelImg.dataset.defaultSrc;
-
-        const normalize = window.normalizeStockImageUrl || function (u) { return u || ''; };
-        const normalizedImageUrl = normalize(modelImage);
-
-        if (normalizedImageUrl) {
-          modelImg.onerror = function () {
-            modelImg.onerror = null;
-            modelImg.src = modelImg.dataset.defaultSrc;
-          };
-          modelImg.src = normalizedImageUrl;
-        }
-      }
+      // Load the IV (Inside View) image from Model Master.
+      // The old implementation displayed data-model-image/model_images.0,
+      // which can be the side/front image instead of the IV image.
+      setBrassQcEyeModalIVImage(modal, modelNo, modelImage);
 
       // Hide validate/redo buttons (view-only mode)
       const validateBtn = document.getElementById('trayValidateBtn');
@@ -3233,9 +3382,15 @@ document.addEventListener('DOMContentLoaded', function() {
         _delinkSlots = [];
 
         // Apply pending draft tray IDs (restoring from saved draft)
+        // Keep a local flag so the UI can be rebuilt from the exact saved phase
+        // after the allocation response finishes. Previously the code restored
+        // _delinkSlots correctly, but the unconditional display reset below
+        // immediately hid the Delinked Trays section again.
+        var draftWasRestored = false;
         if (_pendingDraftRestore) {
           var draft = _pendingDraftRestore;
           _pendingDraftRestore = null;
+          draftWasRestored = true;
           // Map reject tray IDs by slot index
           if (draft.reject_slots) {
             draft.reject_slots.forEach(function(ds, idx) {
@@ -3274,10 +3429,20 @@ document.addEventListener('DOMContentLoaded', function() {
         renderOriginalTrays();
         renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
         renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
-        // Gray out accept until reject + delink phases complete
-        setAcceptSectionEnabled(false);
-        delinkSection.style.display = 'none';
-        updateSummary();
+
+        if (draftWasRestored) {
+          // Re-run the normal phase calculation using the restored reject,
+          // delink and accept slot state. This restores the same visual state
+          // the user had immediately before saving the draft, including the
+          // Delinked Trays section and its assigned tray IDs.
+          checkPhaseTransition();
+        } else {
+          // New allocation: accept stays disabled until reject + delink phases
+          // are completed by the user.
+          setAcceptSectionEnabled(false);
+          delinkSection.style.display = 'none';
+          updateSummary();
+        }
         allocationSection.style.display = '';
         // Auto-focus first reject tray scan input so the scanner can type straight
         // into it without the user needing to click the field first.
@@ -3486,7 +3651,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return a.tray_id.localeCompare(b.tray_id);
       });
 
-      // Skip the top tray (already assigned by user), fill the rest
+      // Skip the top tray (already assigned by user), fill only the non-top
+      // slots that are still in automatic mode.  A non-top slot that the user
+      // explicitly cleared/overrode must stay manually editable and must NOT
+      // be immediately filled back by this function.
       var nonTopAvailable = availableForAccept.filter(function(t) {
         // Exclude the tray already used as the top accept slot
         var topTrayId = null;
@@ -3496,7 +3664,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       var autoIdx = 0;
       _acceptSlots.forEach(function(s) {
-        if (!s.is_top) {
+        if (!s.is_top && !s.manual_entry) {
           s.tray_id = (autoIdx < nonTopAvailable.length) ? nonTopAvailable[autoIdx].tray_id : null;
           autoIdx++;
         }
@@ -3537,11 +3705,26 @@ document.addEventListener('DOMContentLoaded', function() {
       delinkListContainer.querySelectorAll('.delink-clear-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
           var idx = parseInt(this.getAttribute('data-idx'), 10);
+          // Clear the delinked tray and immediately recreate an editable
+          // manual-entry field in the same delink slot.
           _delinkSlots[idx].tray_id = null;
           _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+          errorDiv.textContent = '';
           renderDelinkSlots();
           renderOriginalTrays();
           checkPhaseTransition();
+
+          // The clear operation must make the slot manually editable again.
+          var replacementDelinkInput = delinkListContainer.querySelector(
+            '.delink-scan-input[data-idx="' + idx + '"]'
+          );
+          if (replacementDelinkInput) {
+            replacementDelinkInput.disabled = false;
+            replacementDelinkInput.readOnly = false;
+            replacementDelinkInput.style.pointerEvents = 'auto';
+            replacementDelinkInput.value = '';
+            focusTrayInput(replacementDelinkInput);
+          }
         });
       });
 
@@ -3607,11 +3790,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Tray ID column
         if (slot.tray_id) {
-          if (type === 'accept' && !slot.is_top) {
-            // Accept non-top: auto-filled, render read-only
+          if (type === 'accept' && !slot.is_top && !slot.manual_entry) {
+            // Accept non-top: auto-filled.  Keep the clear/remove button so the
+            // user can cancel this assignment and convert this exact row into
+            // a normal manual-entry slot.
             html += '<td style="padding:5px 8px; border:1px solid ' + borderClr + ';">' +
-              '<span style="color:#2e7d32; font-size:12px;">' + escHtml(slot.tray_id) + '</span>' +
-              ' <span style="background:#e8f5e9; color:#388e3c; padding:1px 6px; border-radius:8px; font-size:10px;">Auto</span></td>';
+              '<div style="display:flex; align-items:center; gap:4px;">' +
+              '<span style="color:#2e7d32; font-size:12px; flex:1;">' + escHtml(slot.tray_id) + '</span>' +
+              ' <span style="background:#e8f5e9; color:#388e3c; padding:1px 6px; border-radius:8px; font-size:10px; flex-shrink:0;">Auto</span>' +
+              '<button type="button" class="slot-clear-btn" data-idx="' + idx + '" data-type="' + type + '" style="background:none; border:none; color:#d32f2f; cursor:pointer; font-size:13px; padding:0 3px; flex-shrink:0;" title="Remove auto-filled tray and enter manually">&times;</button>' +
+              '</div></td>';
           } else {
           // Render as editable input so user can correct/re-scan
           var isCurrentLotTray = !!originalIds[normalizeTrayId(slot.tray_id)];
@@ -3648,20 +3836,63 @@ document.addEventListener('DOMContentLoaded', function() {
           var slotType = this.getAttribute('data-type');
           var targetSlots = slotType === 'accept' ? _acceptSlots : _rejectSlots;
           var targetContainer = slotType === 'accept' ? acceptSlotsContainer : rejectSlotsContainer;
+          // Clearing is intentionally the same state transition as manually
+          // editing a filled slot down to an empty value: the assignment is
+          // removed from the data model, the original tray becomes available
+          // again, and the SAME row is recreated as an editable scan field.
           targetSlots[idx].tray_id = null;
+
+          if (slotType === 'accept') {
+            if (targetSlots[idx].is_top) {
+              // Removing the top accept tray resets all auto-filled non-top
+              // rows, exactly as changing/clearing the top tray manually does.
+              _acceptSlots.forEach(function(s) {
+                if (!s.is_top) {
+                  s.tray_id = null;
+                  s.manual_entry = false;
+                }
+              });
+            } else {
+              // This exact auto row is now under manual control.  Do NOT let
+              // checkPhaseTransition/autoFillAcceptNonTop immediately put the
+              // old automatic tray back into it.
+              targetSlots[idx].manual_entry = true;
+            }
+          }
+
           if (slotType === 'reject') {
             _delinkSlots = [];
-            _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+            _acceptSlots.forEach(function(s) {
+              if (!s.is_top) {
+                s.tray_id = null;
+                s.manual_entry = false;
+              }
+            });
           }
-          if (slotType === 'accept' && targetSlots[idx].is_top) {
-            _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
-          }
+
           renderSlots(targetContainer, targetSlots, slotType);
           renderOriginalTrays();
-          if (slotType === 'reject') {
+
+          // Re-run the same phase transition used by manual editing so the
+          // accept/delink/reject sections have exactly the same enabled state.
+          if (slotType === 'reject' || (slotType === 'accept' && targetSlots[idx].is_top)) {
             checkPhaseTransition();
           } else {
             updateSummary();
+          }
+
+          // After removing a tray, immediately restore keyboard/manual entry
+          // for that exact slot instead of leaving the old value/state behind.
+          var replacementInput = targetContainer.querySelector(
+            '.slot-scan-input[data-idx="' + idx + '"][data-type="' + slotType + '"], ' +
+            '.slot-edit-input[data-idx="' + idx + '"][data-type="' + slotType + '"]'
+          );
+          if (replacementInput) {
+            replacementInput.disabled = false;
+            replacementInput.readOnly = false;
+            replacementInput.style.pointerEvents = 'auto';
+            replacementInput.value = '';
+            focusTrayInput(replacementInput);
           }
         });
       });
@@ -3743,6 +3974,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (errSpan) errSpan.style.display = 'none';
           targetSlots[idx].tray_id = scannedId;
+          if (slotType === 'accept' && !targetSlots[idx].is_top) {
+            targetSlots[idx].manual_entry = true;
+          }
           // Invalidate any in-flight fetchAllocation so it won't wipe this scan
           _allocationGeneration++;
           if (slotType === 'accept' && targetSlots[idx].is_top) {
@@ -3781,6 +4015,71 @@ document.addEventListener('DOMContentLoaded', function() {
         inp.addEventListener('input', function() {
           var val = this.value.trim().toUpperCase();
           if (this.value !== val) { var pos = this.selectionStart; this.value = val; this.setSelectionRange(pos, pos); }
+
+          // IMPORTANT: clearing a filled tray by manually deleting its value
+          // must have the EXACT same effect as clicking the tray's X/Cancel.
+          // Previously the edit handler only committed when the new value was
+          // 9 characters long, so deleting the value left the old assignment
+          // in the data model and the dependent tray/chips stayed disabled.
+          if (!val) {
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            var slotType = this.getAttribute('data-type');
+            var targetSlots = slotType === 'accept' ? _acceptSlots : _rejectSlots;
+            var targetContainer = slotType === 'accept' ? acceptSlotsContainer : rejectSlotsContainer;
+
+            if (!targetSlots[idx]) return;
+
+            targetSlots[idx].tray_id = null;
+
+            if (slotType === 'accept') {
+              if (targetSlots[idx].is_top) {
+                // Clearing the Top Accept tray manually resets all automatic
+                // non-top Accept rows, exactly like clicking X on the Top row.
+                _acceptSlots.forEach(function(s) {
+                  if (!s.is_top) {
+                    s.tray_id = null;
+                    s.manual_entry = false;
+                  }
+                });
+              } else {
+                // A manually cleared non-top Accept row stays available for
+                // manual replacement and must not be auto-filled again.
+                targetSlots[idx].manual_entry = true;
+              }
+            }
+
+            if (slotType === 'reject') {
+              _delinkSlots = [];
+              _acceptSlots.forEach(function(s) {
+                if (!s.is_top) {
+                  s.tray_id = null;
+                  s.manual_entry = false;
+                }
+              });
+            }
+
+            // Invalidate any in-flight allocation response so it cannot put
+            // the removed tray back after this manual clear.
+            _allocationGeneration++;
+
+            renderSlots(targetContainer, targetSlots, slotType);
+            renderOriginalTrays();
+
+            if (slotType === 'reject' || (slotType === 'accept' && targetSlots[idx].is_top)) {
+              checkPhaseTransition();
+            } else {
+              updateSummary();
+            }
+
+            var replacementInput = targetContainer.querySelector(
+              '.slot-scan-input[data-idx="' + idx + '"][data-type="' + slotType + '"], ' +
+              '.slot-edit-input[data-idx="' + idx + '"][data-type="' + slotType + '"]'
+            );
+            if (replacementInput) focusTrayInput(replacementInput);
+            return;
+          }
+
+          // Scanner input should still commit automatically at 9 characters.
           if (val.length === 9) {
             this.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: false }));
           }
@@ -3804,20 +4103,37 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!newVal) {
             // Empty → clear the slot
             targetSlots[idx].tray_id = null;
+            if (slotType === 'accept' && !targetSlots[idx].is_top) {
+              targetSlots[idx].manual_entry = true;
+            }
             if (slotType === 'reject') {
               _delinkSlots = [];
-              _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+              _acceptSlots.forEach(function(s) {
+                if (!s.is_top) {
+                  s.tray_id = null;
+                  s.manual_entry = false;
+                }
+              });
             }
             if (slotType === 'accept' && targetSlots[idx].is_top) {
-              _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+              _acceptSlots.forEach(function(s) {
+                if (!s.is_top) {
+                  s.tray_id = null;
+                  s.manual_entry = false;
+                }
+              });
             }
             renderSlots(targetContainer, targetSlots, slotType);
             renderOriginalTrays();
-            if (slotType === 'reject') {
+            if (slotType === 'reject' || (slotType === 'accept' && targetSlots[idx].is_top)) {
               checkPhaseTransition();
             } else {
               updateSummary();
             }
+            var emptyReplacementInput = targetContainer.querySelector(
+              '.slot-scan-input[data-idx="' + idx + '"][data-type="' + slotType + '"]'
+            );
+            if (emptyReplacementInput) focusTrayInput(emptyReplacementInput);
             return;
           }
 
@@ -3864,6 +4180,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (errSpan) errSpan.style.display = 'none';
           targetSlots[idx].tray_id = newVal;
+          if (slotType === 'accept' && !targetSlots[idx].is_top) {
+            targetSlots[idx].manual_entry = true;
+          }
           if (slotType === 'reject') {
             _delinkSlots = [];
             _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });

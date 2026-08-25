@@ -349,6 +349,14 @@ def _na_list(value):
     return value if isinstance(value, list) else []
 
 
+def _na_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+    return bool(value)
+
+
 def _na_draft_zone_label(request):
     return 'Zone 2' if 'zone_two' in (request.path or '').lower() else 'Zone 1'
 
@@ -363,6 +371,14 @@ def _na_build_draft_snapshot(raw_draft_data, juat, request):
     accept_trays = _na_list(draft_data.get('accept_trays'))
     delink_trays = _na_list(draft_data.get('delink_trays'))
     original_trays = _na_list(draft_data.get('original_trays'))
+    full_lot_rejection = _na_bool(draft_data.get('full_lot_rejection'))
+
+    if full_lot_rejection:
+        rejected_qty = total_qty
+        accepted_qty = 0
+        reject_trays = []
+        accept_trays = []
+        delink_trays = []
 
     draft_data.update({
         'isDraft': True,
@@ -377,6 +393,7 @@ def _na_build_draft_snapshot(raw_draft_data, juat, request):
         'total_qty': total_qty,
         'rejected_qty': rejected_qty,
         'accepted_qty': accepted_qty,
+        'full_lot_rejection': full_lot_rejection,
         'remaining_qty': max(total_qty - rejected_qty, 0),
         'reason_qtys': reason_qtys,
         'reject_trays': reject_trays,
@@ -1532,6 +1549,7 @@ def _na_do_submit_reject(request, lot_id, juat):
     from django.db import transaction
     data = request.data
     reason_ids = data.get('reason_ids', [])
+    full_lot_rejection = _na_bool(data.get('full_lot_rejection'))
     try:
         rejected_qty = int(data.get('rejected_qty', 0))
     except (TypeError, ValueError):
@@ -1540,9 +1558,19 @@ def _na_do_submit_reject(request, lot_id, juat):
     accept_trays = data.get('accept_trays', [])
     submitted_delink_trays = data.get('delink_trays', [])
     remarks = (data.get('remarks', '') or '').strip()
-    if not reason_ids or rejected_qty <= 0:
-        return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
     total_qty = juat.nq_qc_accepted_qty or juat.total_case_qty or 0
+    if not reason_ids:
+        return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
+    if full_lot_rejection:
+        if total_qty <= 0:
+            return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
+        rejected_qty = total_qty
+        reject_trays = []
+        accept_trays = []
+        submitted_delink_trays = []
+        return _na_do_submit_full_reject(request, lot_id, juat, reason_ids, rejected_qty, total_qty, remarks)
+    if rejected_qty <= 0:
+        return Response({'success': False, 'error': 'reason_ids and rejected_qty required'}, status=400)
     if rejected_qty > total_qty:
         return Response({'success': False, 'error': 'Rejected qty cannot exceed total qty'}, status=400)
     accepted_qty = total_qty - rejected_qty

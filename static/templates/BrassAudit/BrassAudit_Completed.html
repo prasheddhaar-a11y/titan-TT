@@ -1676,7 +1676,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <!--Update the tray list fetching endpoint in the modal script -->
 <script nonce="{{ csp_nonce }}">
     document.addEventListener("DOMContentLoaded", function () {
-      document.querySelectorAll('.tray-scan-btn-Jig').forEach(function(link) {
+      document.querySelectorAll('.tray-scan-btn-Jig:not(.tray-scan-btn-BQ-view)').forEach(function(link) {
         link.addEventListener('click', async function (e) {
           e.preventDefault();
     
@@ -1929,52 +1929,51 @@ document.addEventListener("DOMContentLoaded", function () {
               }
           
               // ✅ SECTION 3: DELINKED TRAYS
+              // Render as normal tray rows like Input Screening.
+              // No separate DELINKED section header and no colspan row.
               const delinkedTrays = traysData
                 .filter(tray => tray.delink_tray)
                 .sort((a, b) => {
-                  // Use ip_top_tray_qty if present, else tray_quantity
-                  const qtyA = a.ip_top_tray && a.ip_top_tray_qty !== null ? a.ip_top_tray_qty : a.tray_quantity;
-                  const qtyB = b.ip_top_tray && b.ip_top_tray_qty !== null ? b.ip_top_tray_qty : b.tray_quantity;
-                  return (qtyA || 0) - (qtyB || 0);
+                  const trayIdA = a.tray_id || '';
+                  const trayIdB = b.tray_id || '';
+                  return trayIdA.localeCompare(trayIdB);
                 });
-              
+
               if (delinkedTrays.length > 0) {
-                html += `
-                  <tr style="background-color: #f8f9fa; font-weight: bold;">
-                    <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #6c757d; padding: 8px;">
-                      🔗 DELINKED TRAYS
-                    </td>
-                  </tr>
-                `;
-          
                 delinkedTrays.forEach((tray) => {
-                  let statusTag = '<span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">DELINKED</span>';
-                  
                   html += `
                     <tr>
                       <td>${rowCounter}</td>
-                      <td colspan="2">
-                        <span>${tray.tray_id || ''}</span>
-                        ${statusTag}
+                      <td>
+                        <div style="display:flex; align-items:center; gap:8px; width:100%;">
+                          <input
+                            type="text"
+                            class="form-control"
+                            value="${tray.tray_id || ''}"
+                            readonly
+                            style="flex:1; min-width:0;"
+                          />
+                          <span style="white-space:nowrap; color:#6c757d; font-size:12px; font-weight:600;">
+                            (Delinked)
+                          </span>
+                        </div>
                       </td>
-                      ${showValidationColumn ? `
-                        <td>
-                          <div class="validation-status">
-                            <div class="status-icon fail">
-                              <img src="{% static 'assets/icons/fail.png' %}" alt="Fail" title="Fail" style="width:18px; height:18px;" />
-                            </div>
-                            <div class="status-icon pass">
-                              <img src="{% static 'assets/icons/pass.png' %}" alt="Pass" title="Pass" style="width:18px; height:18px;" />
-                            </div>
-                          </div>
-                        </td>
-                      ` : ''}
+                      <td>
+                        <input
+                          type="number"
+                          class="form-control"
+                          value="0"
+                          readonly
+                          style="width:100%;"
+                        />
+                      </td>
+                      ${showValidationColumn ? `<td></td>` : ''}
                     </tr>
                   `;
                   rowCounter++;
                 });
               }
-          
+
               // ✅ Handle SHORTAGE entries (if any)
               const hasShortage = rejectionSummary.shortage_rejections > 0;
               if (hasShortage) {
@@ -2078,6 +2077,413 @@ document.addEventListener("DOMContentLoaded", function () {
             modal.style.display = "none";
           }
         });
+      }
+    });
+    </script>
+
+    <script nonce="{{ csp_nonce }}">
+    let brassAuditCompletedImageRequestId = 0;
+
+    function resetBrassAuditCompletedModalImage(modal) {
+      const image = modal ? modal.querySelector('.user-profile img') : null;
+      brassAuditCompletedImageRequestId += 1;
+      if (!image) return;
+      image.onload = null;
+      image.onerror = null;
+      image.style.visibility = 'hidden';
+      image.removeAttribute('src');
+      image.alt = 'Loading model image';
+      if (modal) {
+        modal.dataset.currentImageStockNo = '';
+      }
+    }
+
+    async function loadBrassAuditCompletedIvImage(modal, stockNo) {
+      const image = modal ? modal.querySelector('.user-profile img') : null;
+      if (!image || !stockNo) return;
+      const requestId = ++brassAuditCompletedImageRequestId;
+
+      function normalizeBrassAuditCompletedImageUrl(rawUrl) {
+        if (typeof window.normalizeStockImageUrl === "function") {
+          return window.normalizeStockImageUrl(rawUrl);
+        }
+        const value = String(rawUrl || "").trim();
+        if (!value) return "";
+        try {
+          const parsed = new URL(value, window.location.origin);
+          const hostname = String(parsed.hostname || "").toLowerCase();
+          const isLoopbackHost = hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]";
+          const isApplicationAsset = parsed.pathname.startsWith("/media/") || parsed.pathname.startsWith("/static/");
+          if (parsed.origin === window.location.origin || (isLoopbackHost && isApplicationAsset)) {
+            return parsed.pathname + parsed.search + parsed.hash;
+          }
+          return parsed.href;
+        } catch (error) {
+          return value;
+        }
+      }
+
+      function getImageUrlFromEntry(entry) {
+        if (!entry) return "";
+        return entry.preview_image || entry.image_url || entry.url || entry.src || entry.image || "";
+      }
+
+      function resolveBrassAuditCompletedImage(payload) {
+        const images = Array.isArray(payload && payload.images) ? payload.images : [];
+        const insideView = images.find(function (entry) {
+          return String(entry && entry.view_code || "").toUpperCase() === "IV";
+        });
+        const insideViewUrl = normalizeBrassAuditCompletedImageUrl(getImageUrlFromEntry(insideView));
+        if (insideViewUrl) {
+          return { url: insideViewUrl, alt: "Inside View" };
+        }
+
+        const previewView = String(payload && payload.preview_view || "").toUpperCase();
+        const previewImageUrl = normalizeBrassAuditCompletedImageUrl(payload && payload.preview_image);
+        if (previewImageUrl && (previewView === "IV" || previewView === "INSIDE VIEW")) {
+          return { url: previewImageUrl, alt: payload && payload.preview_view ? payload.preview_view : "Inside View" };
+        }
+
+        const noImage = images.find(function (entry) {
+          const viewCode = String(entry && entry.view_code || "").toUpperCase();
+          return viewCode === "NO_IMAGE" || entry && entry.is_placeholder === true;
+        });
+        const noImageUrl = normalizeBrassAuditCompletedImageUrl(getImageUrlFromEntry(noImage));
+        if (noImageUrl) {
+          return { url: noImageUrl, alt: "No Image" };
+        }
+
+        return null;
+      }
+
+      image.onload = null;
+      image.onerror = null;
+      image.style.visibility = 'hidden';
+      image.removeAttribute('src');
+      image.alt = 'Loading model image';
+      image.style.objectFit = 'contain';
+      image.style.objectPosition = 'center';
+      image.style.boxShadow = 'none';
+      image.style.filter = 'none';
+      image.style.background = 'transparent';
+
+      try {
+        const response = await fetch(
+          '/adminportal/api/model-hover-preview/?stock_no=' +
+          encodeURIComponent(stockNo) +
+          '&_ts=' + Date.now(),
+          {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+
+        const payload = await response.json();
+        if (requestId !== brassAuditCompletedImageRequestId) {
+          return;
+        }
+        const resolvedImage = resolveBrassAuditCompletedImage(payload);
+        const previewUrl = resolvedImage ? resolvedImage.url : '';
+
+        if (!previewUrl) {
+          throw new Error('No preview image returned');
+        }
+
+        image.alt = resolvedImage.alt || 'Model IV preview';
+        await new Promise(function(resolve, reject) {
+          image.onload = function() {
+            if (requestId !== brassAuditCompletedImageRequestId) {
+              resolve();
+              return;
+            }
+            image.style.visibility = 'visible';
+            if (modal) {
+              modal.dataset.currentImageStockNo = stockNo;
+            }
+            resolve();
+          };
+          image.onerror = function() {
+            if (requestId !== brassAuditCompletedImageRequestId) {
+              resolve();
+              return;
+            }
+            image.style.visibility = 'hidden';
+            image.removeAttribute('src');
+            reject(new Error('Image failed to load'));
+          };
+          image.src = previewUrl;
+        });
+      } catch (error) {
+        if (requestId !== brassAuditCompletedImageRequestId) {
+          return;
+        }
+        console.error('Unable to load Brass Audit IV model preview:', error);
+        image.onload = null;
+        image.onerror = null;
+        image.style.visibility = 'hidden';
+        image.removeAttribute('src');
+        image.alt = 'Model image unavailable';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.tray-scan-btn-BQ-view').forEach(function(viewBtn) {
+        viewBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+
+          const lotId = this.getAttribute('data-stock-lot-id');
+          const batchId = this.getAttribute('data-batch-id');
+          const modelNo = this.getAttribute('data-model-no');
+          const platingStockNo = this.getAttribute('data-plating-stk-no') || modelNo || '';
+          const lotQty = this.getAttribute('data-lot-qty') || '0';
+          const acceptedQty = this.getAttribute('data-accepted-qty') || '0';
+          const rejectedQty = this.getAttribute('data-rejected-qty') || '0';
+
+          if (!lotId) {
+            console.error('[BRASS_AUDIT_VIEW] Missing lot_id');
+            return;
+          }
+
+          const modal = document.getElementById('trayScanModal_DayPlanning');
+          const trayDetailsDiv = document.getElementById('trayScanDetails_DayPlanning');
+          if (!modal || !trayDetailsDiv) return;
+
+          resetBrassAuditCompletedModalImage(modal);
+          modal.dataset.batchId = batchId || '';
+          modal.completedHistoryLotId = '';
+          modal.completedHistoryData = null;
+          modal.buildTableHTML = null;
+          modal.traysData = null;
+          modal.rejectionSummary = null;
+
+          const modalModelNoEl = document.getElementById('modalModelNo_DayPlanning');
+          const modalLotQtyEl = document.getElementById('modalLotQty_DayPlanning');
+          const modalAcceptedQtyEl = document.getElementById('modalAcceptedQty_DayPlanning');
+          const modalRejectedQtyEl = document.getElementById('modalRejectedQty_DayPlanning');
+          if (modalModelNoEl) modalModelNoEl.textContent = platingStockNo || modelNo || '-';
+          if (modalLotQtyEl) modalLotQtyEl.textContent = lotQty;
+          if (modalAcceptedQtyEl) modalAcceptedQtyEl.textContent = acceptedQty;
+          if (modalRejectedQtyEl) modalRejectedQtyEl.textContent = rejectedQty;
+
+          const trayValidateBtn = document.getElementById('trayValidateBtn');
+          const trayValidateInput = document.getElementById('trayValidateInput');
+          const trayScanRedoBtn = document.getElementById('trayScanRedoBtn');
+          const trayErrorMessage = document.getElementById('trayErrorMessage');
+          if (trayValidateBtn) trayValidateBtn.style.display = 'none';
+          if (trayValidateInput) trayValidateInput.style.display = 'none';
+          if (trayScanRedoBtn) trayScanRedoBtn.style.display = 'none';
+          if (trayErrorMessage) trayErrorMessage.style.display = 'none';
+
+          await loadBrassAuditCompletedIvImage(modal, platingStockNo);
+          fetchBrassAuditCompletedHistory(lotId, trayDetailsDiv, 0, platingStockNo);
+
+          modal.style.display = 'block';
+          modal.classList.add('open');
+        });
+      });
+
+      const closeBtn = document.getElementById('closeTrayScanModal_DayPlanning');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+          const modal = document.getElementById('trayScanModal_DayPlanning');
+          if (modal) {
+            resetBrassAuditCompletedModalImage(modal);
+            modal.classList.remove('open');
+            modal.style.display = 'none';
+          }
+        });
+      }
+
+      function escapeBrassAuditCompletedHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+        });
+      }
+
+      function renderBrassAuditTraySnapshot(trays) {
+        if (!trays || !trays.length) {
+          return '<div style="color:#888;font-size:12px;padding:6px;">No trays</div>';
+        }
+        const rows = trays.map(function(tray, index) {
+          const qty = Number(tray.qty || 0);
+          const top = tray.top_tray
+            ? '<span style="background:#0288d1;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:6px;">TOP</span>'
+            : '';
+          const delink = qty === 0 && (tray.source === 'delinked' || tray.source === 'reused')
+            ? '<span style="color:#666;font-size:10px;margin-left:6px;">(Delinked)</span>'
+            : '';
+          return `<tr>
+            <td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:center;">${index + 1}</td>
+            <td style="padding:4px 8px;border:1px solid #e0e0e0;font-family:monospace;">${escapeBrassAuditCompletedHtml(tray.tray_id)}${top}${delink}</td>
+            <td style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;">${escapeBrassAuditCompletedHtml(qty)}</td>
+          </tr>`;
+        }).join('');
+        return `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;background:#fff;">
+          <thead>
+            <tr style="background:#f5f5f5;">
+              <th style="padding:4px 8px;border:1px solid #e0e0e0;width:40px;">#</th>
+              <th style="padding:4px 8px;border:1px solid #e0e0e0;text-align:left;">Tray ID</th>
+              <th style="padding:4px 8px;border:1px solid #e0e0e0;text-align:right;width:80px;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      function renderBrassAuditAcceptPanel(acceptLot, isFullAccept) {
+        const typeLabel = isFullAccept ? 'FULL ACCEPT' : 'PARTIAL ACCEPT';
+        const typeBg = isFullAccept ? '#1b5e20' : '#2e7d32';
+        return `<div style="border:1px solid #c8e6c9;background:#f1f8e9;border-radius:6px;padding:10px;margin-bottom:10px;font-weight:300;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;">${typeLabel}</span>
+              <span style="font-family:monospace;color:#00695c;font-weight:400;">${escapeBrassAuditCompletedHtml(acceptLot.new_lot_id || '')}</span>
+            </div>
+            <div style="font-size:11px;color:#888;">${escapeBrassAuditCompletedHtml(acceptLot.created_at || '')}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
+            <div><span style="font-weight:500;color:#666;">Accepted Qty:</span> <span style="color:#2e7d32;font-weight:600;">${escapeBrassAuditCompletedHtml(acceptLot.accepted_qty)}</span></div>
+            <div><span style="font-weight:500;color:#666;">Accept Trays Count:</span> ${escapeBrassAuditCompletedHtml(acceptLot.accept_trays_count)}</div>
+          </div>
+          <div style="margin-top:6px;"><span style="font-size:12px;font-weight:500;color:#666;">Trays Snapshot:</span>${renderBrassAuditTraySnapshot(acceptLot.trays || [])}</div>
+        </div>`;
+      }
+
+      function renderBrassAuditRejectPanel(rejectLot, isFullReject) {
+        const typeLabel = isFullReject ? 'FULL REJECT' : 'PARTIAL REJECT';
+        const typeBg = isFullReject ? '#b71c1c' : '#c62828';
+        const reasons = rejectLot.rejection_reasons || {};
+        const reasonChips = Object.keys(reasons).map(function(key) {
+          const reason = reasons[key] || {};
+          return `<span style="background:#ffcdd2;color:#b71c1c;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;font-weight:400;">${escapeBrassAuditCompletedHtml(reason.reason || key)}: ${escapeBrassAuditCompletedHtml(reason.qty)}</span>`;
+        }).join('') || '<span style="color:#999;font-size:11px;font-weight:300;">None</span>';
+        const delinkList = (rejectLot.delinked_tray_ids || []).map(function(trayId) {
+          return `<span style="font-family:monospace;background:#eceff1;padding:1px 6px;border-radius:6px;margin-right:4px;font-size:11px;font-weight:400;">${escapeBrassAuditCompletedHtml(trayId)}</span>`;
+        }).join('') || '<span style="color:#999;font-size:11px;font-weight:300;">None</span>';
+        return `<div style="border:1px solid #ffcdd2;background:#ffebee;border-radius:6px;padding:10px;margin-bottom:10px;font-weight:300;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="background:${typeBg};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;">${typeLabel}</span>
+              <span style="font-family:monospace;color:#b71c1c;font-weight:400;">${escapeBrassAuditCompletedHtml(rejectLot.new_lot_id || '')}</span>
+            </div>
+            <div style="font-size:11px;color:#888;">${escapeBrassAuditCompletedHtml(rejectLot.created_at || '')}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
+            <div><span style="font-weight:500;color:#666;">Rejected Qty:</span> <span style="color:#c62828;font-weight:600;">${escapeBrassAuditCompletedHtml(rejectLot.rejected_qty)}</span></div>
+            <div><span style="font-weight:500;color:#666;">Reject Trays Count:</span> ${escapeBrassAuditCompletedHtml(rejectLot.reject_trays_count)}</div>
+            <div><span style="font-weight:500;color:#666;">Delink Count:</span> ${escapeBrassAuditCompletedHtml(rejectLot.delink_count)}</div>
+            <div style="grid-column:1/-1;"><span style="font-weight:500;color:#666;">Reasons:</span> ${reasonChips}</div>
+          </div>
+          <div style="margin-top:6px;font-size:12px;"><span style="font-weight:500;color:#666;">Delinked Trays:</span> ${delinkList}</div>
+          <div style="margin-top:6px;"><span style="font-size:12px;font-weight:500;color:#666;">Trays Snapshot:</span>${renderBrassAuditTraySnapshot(rejectLot.trays || [])}</div>
+          ${rejectLot.remarks ? `<div style="margin-top:6px;font-size:12px;"><span style="font-weight:500;color:#666;">Remarks:</span> ${escapeBrassAuditCompletedHtml(rejectLot.remarks)}</div>` : ''}
+        </div>`;
+      }
+
+      function buildBrassAuditCompletedHistoryHTML(data) {
+        if (!data || !data.success) {
+          return '<div style="padding:20px;text-align:center;color:#c62828;font-size:13px;">No completed Brass Audit history available for this lot.</div>';
+        }
+        let html = '<div style="padding:8px;">';
+        (data.accept_lots || []).forEach(function(acceptLot) {
+          html += renderBrassAuditAcceptPanel(acceptLot, !!data.is_full_accept);
+        });
+        (data.reject_lots || []).forEach(function(rejectLot) {
+          html += renderBrassAuditRejectPanel(rejectLot, !!data.is_full_reject);
+        });
+        if ((!data.accept_lots || !data.accept_lots.length) && (!data.reject_lots || !data.reject_lots.length)) {
+          html += '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">No lot data found.</div>';
+        }
+        html += '</div>';
+        return html;
+      }
+
+      function fetchBrassAuditCompletedHistory(lotId, trayDetailsDiv, retryCount = 0, rowPlatingStockNo = '') {
+        trayDetailsDiv.classList.remove('table-grid');
+        trayDetailsDiv.classList.add('panel-mode');
+        trayDetailsDiv.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: #666;">
+            <i class="fa fa-spinner fa-spin"></i> Loading completed history...
+          </div>
+        `;
+
+        const modal = document.getElementById('trayScanModal_DayPlanning');
+        if (modal && modal.completedHistoryLotId === lotId && modal.completedHistoryData) {
+          trayDetailsDiv.innerHTML = buildBrassAuditCompletedHistoryHTML(modal.completedHistoryData);
+          return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(function() { controller.abort(); }, 10000);
+
+        fetch('/brass_audit/api/submitted-detail/?lot_id=' + encodeURIComponent(lotId), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          signal: controller.signal
+        })
+          .then(function(response) {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+              throw new Error('HTTP error: ' + response.status);
+            }
+            return response.json();
+          })
+          .then(function(data) {
+            const lotQtyEl = document.getElementById('modalLotQty_DayPlanning');
+            const modelNoEl = document.getElementById('modalModelNo_DayPlanning');
+            const acceptedQtyEl = document.getElementById('modalAcceptedQty_DayPlanning');
+            const rejectedQtyEl = document.getElementById('modalRejectedQty_DayPlanning');
+            if (lotQtyEl && data.original_lot_qty !== undefined) lotQtyEl.textContent = data.original_lot_qty;
+            if (modelNoEl && data.model_no) modelNoEl.textContent = data.model_no;
+            if (acceptedQtyEl) {
+              acceptedQtyEl.textContent = (data.accept_lots || []).reduce(function(total, lot) {
+                return total + Number(lot.accepted_qty || 0);
+              }, 0);
+            }
+            if (rejectedQtyEl) {
+              rejectedQtyEl.textContent = (data.reject_lots || []).reduce(function(total, lot) {
+                return total + Number(lot.rejected_qty || 0);
+              }, 0);
+            }
+            const resolvedStockNo = data.plating_stock_no || rowPlatingStockNo;
+            if (resolvedStockNo && (!modal || modal.dataset.currentImageStockNo !== resolvedStockNo)) {
+              loadBrassAuditCompletedIvImage(modal, resolvedStockNo);
+            }
+
+            if (!data.success) {
+              trayDetailsDiv.innerHTML = buildBrassAuditCompletedHistoryHTML(data);
+              return;
+            }
+
+            if (modal) {
+              modal.completedHistoryLotId = lotId;
+              modal.completedHistoryData = data;
+            }
+            trayDetailsDiv.innerHTML = buildBrassAuditCompletedHistoryHTML(data);
+          })
+          .catch(function(error) {
+            clearTimeout(timeoutId);
+            console.error('[BRASS_AUDIT_VIEW] Completed history fetch failed:', error);
+            if (retryCount < 2) {
+              setTimeout(function() {
+                fetchBrassAuditCompletedHistory(lotId, trayDetailsDiv, retryCount + 1, rowPlatingStockNo);
+              }, 1000);
+              return;
+            }
+            trayDetailsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#c62828;font-size:13px;">Failed to load completed history. Please try again.</div>';
+          });
       }
     });
     </script>

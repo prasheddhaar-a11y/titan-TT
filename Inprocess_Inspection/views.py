@@ -29,6 +29,43 @@ from Jig_Unloading.tray_utils import normalize_combine_lot_id
 from modelmasterapp.color_service import get_model_colors_by_model_no, get_or_assign_plating_color
 from modelmasterapp.type_of_input import get_type_of_input_for_batch, get_type_of_input_map
 
+
+def get_jig_source_lot_ids(jig_detail):
+    """Return primary and Add Model lot IDs represented by a JigCompleted row."""
+    lot_ids = []
+    seen = set()
+
+    def add_lot_id(value):
+        lot_id = str(value or '').strip()
+        if lot_id and lot_id not in seen:
+            seen.add(lot_id)
+            lot_ids.append(lot_id)
+
+    add_lot_id(getattr(jig_detail, 'lot_id', None))
+
+    allocation = getattr(jig_detail, 'multi_model_allocation', None) or []
+    if isinstance(allocation, str):
+        try:
+            allocation = json.loads(allocation)
+        except (TypeError, ValueError):
+            allocation = []
+
+    if isinstance(allocation, list):
+        for item in allocation:
+            if isinstance(item, dict):
+                add_lot_id(item.get('lot_id'))
+
+    return lot_ids
+
+
+def update_inprocess_stage_for_jig_lots(jig_detail):
+    """Advance every explicit source lot on a jig to Inprocess Inspection."""
+    from modelmasterapp.stage_service import update_stock_stage
+
+    for lot_id in get_jig_source_lot_ids(jig_detail):
+        update_stock_stage(lot_id, 'Inprocess Inspection')
+
+
 # Inprocess Inspection View
 class InprocessInspectionView(TemplateView):
     template_name = "Inprocess_Inspection/Inprocess_Inspection.html"
@@ -1506,11 +1543,9 @@ class SaveBathNumberAPIView(APIView):
                 'bath_numbers', 'last_process_module', 'IP_loaded_date_time'
             ])
 
-            # Saving the bath number is the first real IP Inspection action.
-            # Update the shared stage so prior completed tables, including Jig
-            # Loading, show Inprocess Inspection and Released.
-            from modelmasterapp.stage_service import update_stock_stage
-            update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
+            # Saving the bath number is the first real IP action; advance each
+            # explicit Add Model lot without treating the jig as one identity.
+            update_inprocess_stage_for_jig_lots(jig_detail)
             
             return Response({
                 'success': True,
@@ -1579,10 +1614,9 @@ def save_bath_number(request):
         jig_detail.save(update_fields=['bath_numbers', 'last_process_module', 'IP_loaded_date_time'])
 
         # This URL is registered first in urls.py, so it is normally the
-        # endpoint called by the page. Keep TotalStockModel.current_stage in
-        # sync with the real IP Inspection action.
-        from modelmasterapp.stage_service import update_stock_stage
-        update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
+        # endpoint called by the page. Keep each source lot's stage in sync
+        # with the real IP Inspection action.
+        update_inprocess_stage_for_jig_lots(jig_detail)
 
         return JsonResponse({
             'success': True, 
@@ -1657,15 +1691,12 @@ def save_jig_remarks(request):
         jig_detail.remarks = remarks  # Can be empty string
         jig_detail.save(update_fields=['jig_position', 'remarks', 'IP_loaded_date_time', 'last_process_module'])
 
-        # Real processing activity — advance the shared current_stage SSOT so
-        # the previous module (Jig Loading) shows "Inprocess Inspection" as
-        # the Current Location instead of a stale value.
-        if jig_detail.lot_id:
-            try:
-                from modelmasterapp.stage_service import update_stock_stage
-                update_stock_stage(jig_detail.lot_id, 'Inprocess Inspection')
-            except Exception:
-                logging.exception('save_jig_remarks: current_stage update failed')
+        # Real processing activity: advance each source lot, not just the
+        # primary lot stored on the shared JigCompleted row.
+        try:
+            update_inprocess_stage_for_jig_lots(jig_detail)
+        except Exception:
+            logging.exception('save_jig_remarks: current_stage update failed')
 
         return JsonResponse({
             'success': True, 

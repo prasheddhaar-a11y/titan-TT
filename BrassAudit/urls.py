@@ -9,6 +9,7 @@ urlpatterns = [
 
     # Unified API
     path('api/action/', brass_audit_action, name='brass_audit_action'),
+    path('api/submitted-detail/', BrassAuditSubmittedDetailAPI.as_view(), name='brass_audit_submitted_detail'),
     path('api/submission/', brass_audit_raw_submission, name='brass_audit_raw_submission'),
 
     # Legacy / Direct endpoints

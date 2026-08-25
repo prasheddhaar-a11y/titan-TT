@@ -32,11 +32,182 @@ import datetime
 import pytz
 import logging
 from django.db import transaction
-from .selectors import get_picktable_base_queryset
+from .selectors import get_brass_audit_submitted_detail, get_picktable_base_queryset
 from watchcase_tracker.perf_logger import time_stage
 from modelmasterapp.type_of_input import get_type_of_input_for_batch
 
 logger = logging.getLogger(__name__)
+
+
+def _norm_audit_tray_id(tray_id):
+    return str(tray_id or "").strip().upper()
+
+
+def _draft_data_has_tray(draft_data, tray_ids):
+    if not tray_ids or not isinstance(draft_data, dict):
+        return False
+    for slot_key in ('reject_slots', 'accept_slots', 'delink_slots'):
+        for slot in draft_data.get(slot_key) or []:
+            if not isinstance(slot, dict):
+                continue
+            if _norm_audit_tray_id(slot.get('tray_id')) in tray_ids:
+                return True
+    return False
+
+
+def _collect_brass_audit_draft_hits(lot_id, tray_ids):
+    normalized_ids = {
+        _norm_audit_tray_id(tray_id)
+        for tray_id in tray_ids
+        if _norm_audit_tray_id(tray_id)
+    }
+    hits = []
+    if not normalized_ids:
+        return hits
+
+    drafts = Brass_Audit_Draft_Store.objects.filter(lot_id=lot_id).only(
+        'id', 'lot_id', 'draft_type', 'draft_data'
+    )
+    for draft in drafts:
+        draft_data = draft.draft_data or {}
+        if _draft_data_has_tray(draft_data, normalized_ids):
+            hits.append({
+                'id': draft.id,
+                'lot_id': draft.lot_id,
+                'draft_type': draft.draft_type,
+            })
+    return hits
+
+
+def _collect_stale_brass_audit_draft_ids(tray_id):
+    tid = _norm_audit_tray_id(tray_id)
+    if not tid:
+        return []
+
+    matching_ids = []
+    drafts = Brass_Audit_Draft_Store.objects.filter(
+        draft_type='rejection_draft'
+    ).only('id', 'draft_data')
+    for draft in drafts:
+        if _draft_data_has_tray(draft.draft_data or {}, {tid}):
+            matching_ids.append(draft.id)
+    return matching_ids
+
+
+def _log_delink_master_state(tray_id):
+    tray_obj = TrayId.objects.filter(tray_id__iexact=tray_id).first()
+    if not tray_obj:
+        logger.info(
+            "[BRA_AUDIT_DELINK] MASTER STATE tray_id=%s missing=True",
+            tray_id,
+        )
+        return
+    logger.info(
+        "[BRA_AUDIT_DELINK] MASTER STATE tray_id=%s lot_id=%s batch_id=%s "
+        "scanned=%s delink_tray=%s",
+        tray_id,
+        tray_obj.lot_id,
+        tray_obj.batch_id_id,
+        tray_obj.scanned,
+        tray_obj.delink_tray,
+    )
+
+
+def _finalize_submitted_brass_audit_drafts(lot_id, delinked_tray_ids):
+    """Release submitted delinks and remove this lot's completed BA drafts."""
+    unique_delinked_ids = [
+        tray_id for tray_id in dict.fromkeys(
+            _norm_audit_tray_id(tray_id) for tray_id in delinked_tray_ids
+        ) if tray_id
+    ]
+
+    draft_hits = _collect_brass_audit_draft_hits(lot_id, unique_delinked_ids)
+    logger.info(
+        "[BRA_AUDIT_DELINK] DRAFTS BEFORE CLEANUP lot_id=%s "
+        "delinked_tray_ids=%s hits=%s",
+        lot_id,
+        unique_delinked_ids,
+        draft_hits,
+    )
+
+    with transaction.atomic():
+        deleted_drafts = Brass_Audit_Draft_Store.objects.filter(lot_id=lot_id).delete()[0]
+        deleted_top_drafts = Brass_Audit_TopTray_Draft_Store.objects.filter(
+            lot_id=lot_id
+        ).delete()[0]
+
+        for tray_id in unique_delinked_ids:
+            _release_delinked_tray_globally(tray_id)
+
+    logger.info(
+        "[BRA_AUDIT_DELINK] DRAFT CLEANUP requested_lot_id=%s "
+        "deleted_Brass_Audit_Draft_Store=%s "
+        "deleted_Brass_Audit_TopTray_Draft_Store=%s",
+        lot_id,
+        deleted_drafts,
+        deleted_top_drafts,
+    )
+
+    for tray_id in unique_delinked_ids:
+        _log_delink_master_state(tray_id)
+        logger.info(
+            "[BRA_AUDIT_DELINK] POST-SUBMIT STALE DRAFT CHECK tray_id=%s "
+            "matching_draft_ids=%s",
+            tray_id,
+            _collect_stale_brass_audit_draft_ids(tray_id),
+        )
+
+
+def _release_delinked_tray_globally(tray_id):
+    """Release a physically delinked tray across every tray mirror table.
+
+    Availability checks are tray-id based because a physical tray can move through
+    child lots between modules. A submitted DELINK therefore has to clear the
+    master assignment and mark every active mirror/draft row as delinked.
+    """
+    tray_id = str(tray_id or "").strip().upper()
+    if not tray_id:
+        return
+
+    tray_obj = TrayId.objects.filter(tray_id__iexact=tray_id).first()
+    if tray_obj:
+        tray_obj.delink_tray = True
+        tray_obj.lot_id = None
+        tray_obj.batch_id = None
+        tray_obj.scanned = False
+        tray_obj.top_tray = False
+        tray_obj.rejected_tray = False
+        tray_obj.brass_rejected_tray = False
+        tray_obj.save(update_fields=[
+            'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray',
+            'rejected_tray', 'brass_rejected_tray'
+        ])
+
+    # IMPORTANT: tray_id only. The same physical tray may have different child
+    # lot IDs in different modules, while occupancy validation is tray-id based.
+    DPTrayId_History.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+    IPTrayId.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+    BrassTrayId.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+    BrassAuditTrayId.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+    IQFTrayId.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+
+    # A Day Planning draft is also an active reservation. Mark any stale draft
+    # occurrence as delinked so the same empty tray is not blocked on reuse.
+    DraftTrayId.objects.filter(
+        tray_id__iexact=tray_id, delink_tray=False
+    ).update(delink_tray=True)
+
+    logger.info("[AUDIT DELINK] Released tray globally: %s", tray_id)
 
 
 def _get_sorted_model_images(model_master):
@@ -695,6 +866,33 @@ class BrassAuditCompletedView(APIView):
 # ═══════════════════════════════════════════════════════════════
 # Brass Audit Reject Table View
 # ═══════════════════════════════════════════════════════════════
+class BrassAuditSubmittedDetailAPI(APIView):
+    """GET: Return read-only Brass Audit completed-history detail for a lot."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        lot_id = (request.GET.get("lot_id") or "").strip()
+        if not lot_id:
+            return Response(
+                {"success": False, "error": "lot_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = get_brass_audit_submitted_detail(lot_id)
+        except Exception:
+            logger.exception("[BA][submitted_detail] Unexpected error for lot=%s", lot_id)
+            return Response(
+                {"success": False, "error": "Unable to load Brass Audit completed history."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not payload.get("success"):
+            return Response(payload, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload)
+
+
 @method_decorator(login_required, name='dispatch')
 class BrassAuditRejectTableView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
@@ -1439,15 +1637,32 @@ def brass_audit_action(request):
         
         tray = TrayId.objects.filter(tray_id=tray_id).first()
         if not tray:
-            return JsonResponse({"valid": False, "error": "Tray ID not found in system"})
+            return JsonResponse({"valid": False, "error": "Invalid Tray ID"})
+
+        # ═══ CROSS-MODULE OCCUPANCY CHECK ═══
+        # Check the live module/draft reservation before the generic master lot
+        # assignment so operators see the real reason the tray cannot be used.
+        from Brass_QC.services.validators import (
+            validate_tray_not_rejected_in_brass_qc,
+            validate_tray_cross_module_occupancy,
+        )
+        occupied_module, occupancy_error = validate_tray_cross_module_occupancy(tray_id, lot_id)
+        if occupancy_error:
+            return JsonResponse({
+                "valid": False,
+                "error": occupancy_error,
+                "module": occupied_module,
+            })
+
+        # Keep the legacy lot ownership message only as a final fallback when no
+        # active module/draft occupancy record explains the assignment.
         if tray.lot_id and tray.lot_id != lot_id:
-            return JsonResponse({"valid": False, "error": f"Tray belongs to lot {tray.lot_id}"})
+            return JsonResponse({"valid": False, "error": "Tray is currently occupied in an assigned lot"})
 
         # ═══ BRASS QC REJECTION CHECK ═══
         # A tray rejected during Brass QC must never be scanned/accepted here.
         # Brass QC only records rejected trays inside its submission snapshots
         # (no live rejected_tray flag), so check those snapshots explicitly.
-        from Brass_QC.services.validators import validate_tray_not_rejected_in_brass_qc
         brass_qc_reject_error = validate_tray_not_rejected_in_brass_qc(tray_id)
         if brass_qc_reject_error:
             return JsonResponse({"valid": False, "error": brass_qc_reject_error})
@@ -1616,6 +1831,10 @@ def _handle_audit_submission(request, action):
 
     active_trays = [t for t in tray_data if not t["is_delinked"]]
 
+    # Track DELINK actions separately. Do not release them while merely
+    # parsing the payload; release only after the submission/transition succeeds.
+    delinked_tray_ids = []
+
     if action == "FULL_ACCEPT":
         submission_type = "FULL_ACCEPT"
         accepted_qty = total_qty
@@ -1748,6 +1967,10 @@ def _handle_audit_submission(request, action):
                 if ta_action == "REJECT":
                     if not TrayId.objects.filter(tray_id=tid).exists():
                         return JsonResponse({"success": False, "error": f"Reject tray '{tid}' not found in master tray list"}, status=400)
+                    from Brass_QC.services.validators import validate_tray_cross_module_occupancy
+                    occupied_module, occupancy_error = validate_tray_cross_module_occupancy(tid, lot_id)
+                    if occupancy_error:
+                        return JsonResponse({"success": False, "error": occupancy_error}, status=400)
                     slot_qty = int(ta.get("qty") or 0)
                     if slot_qty <= 0:
                         slot_qty = (stock.batch_id.tray_capacity if stock.batch_id else 0) or 0
@@ -1768,8 +1991,10 @@ def _handle_audit_submission(request, action):
             elif ta_action == "REJECT":
                 rejected_trays.append(tray_entry)
             elif ta_action == "DELINK":
-                BrassAuditTrayId.objects.filter(lot_id=lot_id, tray_id=tid).update(delink_tray=True)
-                TrayId.objects.filter(lot_id=lot_id, tray_id=tid).update(delink_tray=True)
+                # Record the physical tray for release. The actual global release
+                # happens only after the submission has passed every validation and
+                # all transition rows have been created successfully.
+                delinked_tray_ids.append(str(tid or "").strip().upper())
 
         if accepted_trays:
             top_count = sum(1 for t in accepted_trays if t["is_top"])
@@ -1805,6 +2030,17 @@ def _handle_audit_submission(request, action):
             submission_type = "PARTIAL"
         if rejected_qty > 0 and not rejection_reasons:
             return JsonResponse({"success": False, "error": "Rejection reasons required when rejecting trays"}, status=400)
+
+    logger.info(
+        "[BRA_AUDIT_DELINK] PROCESS START request_lot_id=%s batch_id=%s "
+        "action=%s submission_type=%s tray_actions=%s delinked_tray_ids=%s",
+        lot_id,
+        stock.batch_id.batch_id if stock.batch_id else None,
+        action,
+        submission_type,
+        data.get("tray_actions", []),
+        delinked_tray_ids,
+    )
 
     # Store rejection reasons
     if rejection_reasons and action in ("FULL_REJECT", "PARTIAL", "PROCESS"):
@@ -2290,6 +2526,8 @@ def _handle_audit_submission(request, action):
         print(f"  Reject Trays: {_reject_tray_str}")
         print(f"{'='*60}\n")
 
+        _finalize_submitted_brass_audit_drafts(lot_id, delinked_tray_ids)
+
         return JsonResponse({
             "success": True,
             "message": "Partial lot submitted successfully",
@@ -2335,8 +2573,6 @@ def _handle_audit_submission(request, action):
         # - Brass QC Pick table (via send_brass_audit_to_qc=True)
         # This allows reprocessing without losing history
 
-    # Clear draft state
-    Brass_Audit_Draft_Store.objects.filter(lot_id=lot_id, draft_type='rejection_draft').delete()
     stock.brass_audit_draft = False
     stock.brass_audit_onhold_picking = False
 
@@ -2370,6 +2606,8 @@ def _handle_audit_submission(request, action):
             logger.info(f"[AUDIT TRAY SYNC] lot_id={lot_id}, stored {len(accepted_trays)} accepted tray(s) to BrassAuditTrayId")
         except Exception as _e:
             logger.error(f"[AUDIT TRAY SYNC] Failed to sync trays for lot_id={lot_id}: {_e}")
+
+    _finalize_submitted_brass_audit_drafts(lot_id, delinked_tray_ids)
 
     logger.info(f"[AUDIT ACTION] [DONE] type={submission_type}, lot_id={lot_id}, moved_to={stock.next_process_module}")
 
@@ -2424,11 +2662,24 @@ def validate_audit_tray_id(request):
         return JsonResponse({"valid": False, "error": "tray_id is required"}, status=400)
     tray = TrayId.objects.filter(tray_id=tray_id).first()
     if not tray:
-        return JsonResponse({"valid": False, "error": "Tray ID not found in system"})
-    if tray.lot_id and tray.lot_id != lot_id:
-        return JsonResponse({"valid": False, "error": f"Tray belongs to lot {tray.lot_id}"})
+        return JsonResponse({"valid": False, "error": "Invalid Tray ID"})
 
-    from Brass_QC.services.validators import validate_tray_not_rejected_in_brass_qc
+    from Brass_QC.services.validators import (
+        validate_tray_not_rejected_in_brass_qc,
+        validate_tray_cross_module_occupancy,
+    )
+
+    occupied_module, occupancy_error = validate_tray_cross_module_occupancy(tray_id, lot_id)
+    if occupancy_error:
+        return JsonResponse({
+            "valid": False,
+            "error": occupancy_error,
+            "module": occupied_module,
+        })
+
+    if tray.lot_id and tray.lot_id != lot_id:
+        return JsonResponse({"valid": False, "error": "Tray is currently occupied in an assigned lot"})
+
     brass_qc_reject_error = validate_tray_not_rejected_in_brass_qc(tray_id)
     if brass_qc_reject_error:
         return JsonResponse({"valid": False, "error": brass_qc_reject_error})
@@ -2706,7 +2957,48 @@ def get_brass_audit_tray_details_for_modal(request):
                                 })
                                 total_accepted_qty += qty
 
-        # Sort: top tray first, then by qty
+        # Include physically delinked trays in Completed history.
+        #
+        # Submission snapshots contain the accepted/rejected quantity allocation,
+        # but DELINK actions release the physical tray and are persisted on the
+        # tray mirror rows instead.  Merge those explicit delink rows here so the
+        # Completed eye-icon modal can render them exactly like Input Screening.
+        #
+        # Keep Qty = 0 because a submitted DELINK means the tray is empty/reusable.
+        consumed_tray_ids = {
+            str(t.get('tray_id') or '').strip().upper()
+            for t in accepted_trays + rejected_trays
+            if t.get('tray_id')
+        }
+        seen_delink_ids = set()
+
+        def _append_completed_delink(tray_id):
+            tid = str(tray_id or '').strip().upper()
+            if not tid or tid in consumed_tray_ids or tid in seen_delink_ids:
+                return
+            seen_delink_ids.add(tid)
+            accepted_trays.append({
+                'tray_id': tid,
+                'tray_quantity': 0,
+                'top_tray': False,
+                'delink_tray': True,
+            })
+
+        for tray in BrassAuditTrayId.objects.filter(
+            lot_id=lot_id,
+            delink_tray=True,
+        ).order_by('id'):
+            _append_completed_delink(tray.tray_id)
+
+        # BQ mirror is a safe fallback for lots handed from Brass QC to Audit.
+        for tray in BrassTrayId.objects.filter(
+            lot_id=lot_id,
+            delink_tray=True,
+        ).order_by('id'):
+            _append_completed_delink(tray.tray_id)
+
+        # Sort: top tray first, then by qty. Delinked rows naturally remain
+        # non-top rows and are separated by the existing Completed template.
         accepted_trays.sort(key=lambda x: (not x.get('top_tray', False), x.get('tray_quantity', 0)))
 
         for idx, tray in enumerate(accepted_trays, 1):
@@ -2801,6 +3093,40 @@ class RejectTableTrayIdListAPIView(APIView):
                             "source": "brass_audit_table",
                         }
                         all_trays.append(tray_data)
+
+            # Include trays explicitly DELINKED during Brass Audit/QC history.
+            # This belongs in the tray-list API where ``all_trays`` is defined,
+            # not in BrassAuditRejectTableView.get() (which caused the 500).
+            existing_tray_ids = {
+                str(t.get('tray_id') or '').strip().upper()
+                for t in all_trays
+                if t.get('tray_id')
+            }
+
+            def _append_reject_table_delink(tray_id, source):
+                tid = str(tray_id or '').strip().upper()
+                if not tid or tid in existing_tray_ids:
+                    return
+                existing_tray_ids.add(tid)
+                all_trays.append({
+                    "tray_id": tid,
+                    "tray_quantity": 0,
+                    "rejected_tray": False,
+                    "delink_tray": True,
+                    "source": source,
+                })
+
+            for tray in BrassAuditTrayId.objects.filter(
+                lot_id=lot_id,
+                delink_tray=True,
+            ).order_by('id'):
+                _append_reject_table_delink(tray.tray_id, "brass_audit_delink_history")
+
+            for tray in BrassTrayId.objects.filter(
+                lot_id=lot_id,
+                delink_tray=True,
+            ).order_by('id'):
+                _append_reject_table_delink(tray.tray_id, "brass_qc_delink_history")
 
             # Fetch rejection reasons and remarks
             reason_store = Brass_Audit_Rejection_ReasonStore.objects.filter(lot_id=lot_id).order_by('-id').first()

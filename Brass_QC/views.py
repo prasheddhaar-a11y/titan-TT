@@ -46,6 +46,7 @@ from .services.selectors import (
     get_rejection_reasons_qs,
     get_completed_submission,
     get_submission_by_child_lot,
+    get_brass_qc_submitted_detail,
 )
 from .services.tray_service import (
     resolve_lot_trays,
@@ -610,6 +611,33 @@ class BrassCompletedView(APIView):
         return Response(context, template_name=self.template_name)
 
 
+class BrassQCSubmittedDetailAPI(APIView):
+    """GET: Return read-only Brass QC completed-history detail for a lot."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        lot_id = (request.GET.get("lot_id") or "").strip()
+        if not lot_id:
+            return Response(
+                {"success": False, "error": "lot_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = get_brass_qc_submitted_detail(lot_id)
+        except Exception:
+            logger.exception("[BQC][submitted_detail] Unexpected error for lot=%s", lot_id)
+            return Response(
+                {"success": False, "error": "Unable to load Brass QC completed history."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not payload.get("success"):
+            return Response(payload, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload)
+
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1059,9 +1087,15 @@ def brass_qc_action(request):
             if tid:
                 reject_qty_map[tid] = int(t.get("qty") or 0)
 
-        # Build delinked trays only from explicit Brass QC delink state.
-        # Do not infer delinks from "original minus accepted/rejected" because that can
-        # pull Input Screening history into the Brass QC completed view.
+        # Build completed-table delink history from the immutable submission
+        # snapshot first. submission_service.handle_submission() stores the exact
+        # physical tray IDs selected with PROCESS -> DELINK in
+        # snapshot_data["delinked"] before those trays are released for reuse.
+        #
+        # This is intentionally preferred over the live TrayId/BrassTrayId tables:
+        # once a tray is released its lot_id can be cleared and the same physical
+        # tray can later be reused by another lot, so live occupancy is not a
+        # reliable historical source for the Completed eye-icon modal.
         parent_lot_id = submission.lot_id if (is_child_accept or is_child_reject) else lot_id
         consumed_tray_ids = {
             str(tid or "").strip().upper()
@@ -1088,19 +1122,31 @@ def brass_qc_action(request):
                 "is_top_tray": False,
             })
 
-        for bt in BrassTrayId.objects.filter(
-            lot_id=parent_lot_id,
-            delink_tray=True,
-            rejected_tray=False,
-        ).order_by('id'):
-            _add_delink_tray(bt.tray_id, bt.tray_quantity)
+        # Authoritative history for new submissions.
+        _snapshot_data = submission.snapshot_data or {}
+        _snapshot_delinked = (
+            _snapshot_data.get("delinked", [])
+            if isinstance(_snapshot_data, dict)
+            else []
+        )
+        for _tid in (_snapshot_delinked or []):
+            # A submitted DELINK means the physical tray became empty/reusable.
+            _add_delink_tray(_tid, 0)
 
-        for ti in TrayId.objects.filter(
-            lot_id=parent_lot_id,
-            delink_tray=True,
-            rejected_tray=False,
-        ).order_by('id'):
-            _add_delink_tray(ti.tray_id, ti.tray_quantity)
+        # Legacy fallback only: older submissions may predate snapshot_data["delinked"].
+        # Do not run this fallback when the snapshot already contains delink history.
+        if not _snapshot_delinked:
+            for bt in BrassTrayId.objects.filter(
+                lot_id=parent_lot_id,
+                delink_tray=True,
+            ).order_by('id'):
+                _add_delink_tray(bt.tray_id, 0)
+
+            for ti in TrayId.objects.filter(
+                lot_id=parent_lot_id,
+                delink_tray=True,
+            ).order_by('id'):
+                _add_delink_tray(ti.tray_id, 0)
 
         for tid, qty in accept_qty_map.items():
             trays.append({

@@ -6,6 +6,7 @@ urlpatterns = [
     path('brass_completed/', BrassCompletedView.as_view(), name='BrassCompletedView'),
     # ── Unified API — single entry point ──
     path('api/action/', brass_qc_action, name='brass_qc_action'),
+    path('api/submitted-detail/', BrassQCSubmittedDetailAPI.as_view(), name='brass_qc_submitted_detail'),
     # ── Raw Submission API — stores exact payload ──
     path('api/submission/', brass_qc_raw_submission, name='brass_qc_raw_submission'),
     # ── Legacy endpoints (kept for backward compat, delegate to same logic) ──

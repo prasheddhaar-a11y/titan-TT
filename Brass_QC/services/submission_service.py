@@ -15,7 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse
 
-from modelmasterapp.models import TotalStockModel
+from modelmasterapp.models import TotalStockModel, TrayId
 from InputScreening.models import IP_Rejection_ReasonStore
 
 from .tray_service import resolve_lot_trays, adjust_total_qty_for_is_partial, segregate_trays_for_partial
@@ -56,6 +56,13 @@ def handle_submission(request, action):
     # Normalize tray IDs to uppercase
     accepted_tray_ids = [tid.strip().upper() for tid in accepted_tray_ids if tid and tid.strip()]
     rejected_tray_ids = [tid.strip().upper() for tid in rejected_tray_ids if tid and tid.strip()]
+
+    # Delinked trays are the original physical trays intentionally left out of
+    # both the accepted and rejected tray allocations.  The frontend may send
+    # them explicitly; when it does not, derive them from the original active
+    # trays after resolution below.
+    delinked_tray_ids = data.get("delinked_tray_ids", [])
+    delinked_tray_ids = [tid.strip().upper() for tid in delinked_tray_ids if tid and tid.strip()]
 
     logger.info(f"[submission_service] [INPUT] lot_id={lot_id}, action={action}, user={request.user}")
 
@@ -144,6 +151,46 @@ def handle_submission(request, action):
         t for t in tray_data
         if not t["is_delinked"] and not t.get("is_rejected")
     ]
+
+    # ── Resolve the original trays that must be physically released ──
+    # A tray is delinked when it was part of this lot originally but is no
+    # longer present in either the accepted or rejected allocation.  Prefer
+    # the explicit frontend list when supplied; otherwise derive it from the
+    # submitted tray IDs.  This is intentionally tray-id based, not lot-id
+    # based, because the same physical tray can have records across multiple
+    # module lots.
+    original_active_ids = {
+        str(t["tray_id"]).strip().upper()
+        for t in active_trays
+        if t.get("tray_id")
+    }
+    if action == "PROCESS":
+        # PROCESS is the actual Brass QC modal submit path.  The UI sends
+        # ACCEPT/REJECT/DELINK actions in tray_actions, so use those actions as
+        # the authoritative delink selection.
+        process_delink_ids = [
+            str(ta.get("tray_id", "")).strip().upper()
+            for ta in data.get("tray_actions", [])
+            if str(ta.get("action", "")).upper() == "DELINK"
+            and ta.get("tray_id")
+        ]
+        if process_delink_ids:
+            delinked_tray_ids = process_delink_ids
+
+    if not delinked_tray_ids and action != "PROCESS":
+        used_tray_ids = set(accepted_tray_ids) | set(rejected_tray_ids)
+        delinked_tray_ids = sorted(original_active_ids - used_tray_ids)
+
+    # Never release a tray that was not an original active tray for this lot.
+    delinked_tray_ids = [tid for tid in delinked_tray_ids if tid in original_active_ids]
+
+    if delinked_tray_ids:
+        logger.info(
+            f"[submission_service] Delink candidates lot_id={lot_id}: "
+            f"{delinked_tray_ids}"
+        )
+
+    delink_propagated = False
 
     # ── Action-specific logic ──
     if action == "FULL_ACCEPT":
@@ -315,6 +362,7 @@ def handle_submission(request, action):
             "lot_qty": total_qty,
             "accepted": accepted_trays,
             "rejected": rejected_trays,
+            "delinked": delinked_tray_ids,
             "rejection_reasons": rejection_reasons if rejection_reasons else [],
             "remarks": remarks,
         },
@@ -366,8 +414,10 @@ def handle_submission(request, action):
                 user=request.user,
             )
 
-            # Delink parent BrassTrayId records — they belong to the closed parent
-            BrassTrayId.objects.filter(lot_id=lot_id).update(delink_tray=True)
+            # Release only the original physical trays that were intentionally
+            # left out of the submitted accept/reject allocations.
+            _propagate_delinked_trays(delinked_tray_ids, lot_id)
+            delink_propagated = True
 
             logger.info(
                 f"[submission_service] Parent={lot_id} closed → reject child={t_lot_id} (IQF)"
@@ -445,12 +495,24 @@ def handle_submission(request, action):
                     f"and IQF child={t_reject_lot_id}"
                 )
 
-            BrassTrayId.objects.filter(lot_id=lot_id).update(delink_tray=True)
+            # Release intentionally delinked physical trays across the shared
+            # master and every module mirror so they can be scanned again in Day
+            # Planning (same lifecycle used by Jig Loading).
+            _propagate_delinked_trays(delinked_tray_ids, lot_id)
+            delink_propagated = True
 
             logger.info(
                 f"[submission_service] Parent={lot_id} closed → "
                 f"accept={t_accept_lot_id} (BA), reject={t_reject_lot_id} (IQF)"
             )
+
+    # PROCESS can legitimately resolve to FULL_ACCEPT. If the UI supplied a
+    # DELINK action in that case, release those physical trays after the action
+    # has been validated.  FULL_REJECT/PARTIAL already propagate inside their
+    # child-lot transaction above.
+    if delinked_tray_ids and not delink_propagated:
+        with transaction.atomic():
+            _propagate_delinked_trays(delinked_tray_ids, lot_id)
 
     # ── Apply stage flags to stock ──
     flag_updates = get_stock_flag_updates(
@@ -558,6 +620,69 @@ def handle_submission(request, action):
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _propagate_delinked_trays(tray_ids, lot_id=None):
+    """
+    Release physical trays that were explicitly/implicitly delinked in Brass QC.
+
+    This mirrors the working Jig Loading delink lifecycle: clear the shared
+    TrayId occupancy fields and mark every module-specific mirror as delinked.
+    All mirror updates are intentionally scoped by tray_id only, never by the
+    old lot_id, because a physical tray can have moved through several child
+    lots before reaching Brass QC.
+    """
+    tray_ids = [str(tid).strip().upper() for tid in (tray_ids or []) if tid and str(tid).strip()]
+    if not tray_ids:
+        return
+
+    try:
+        from DayPlanning.models import DPTrayId_History
+        from InputScreening.models import IPTrayId
+        from BrassAudit.models import BrassAuditTrayId
+        from IQF.models import IQFTrayId
+
+        for tray_id in dict.fromkeys(tray_ids):
+            tray_obj = TrayId.objects.filter(tray_id=tray_id).first()
+            if tray_obj:
+                tray_obj.delink_tray = True
+                tray_obj.lot_id = None
+                tray_obj.batch_id = None
+                tray_obj.scanned = False
+                tray_obj.top_tray = False
+                tray_obj.save(update_fields=[
+                    'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray'
+                ])
+
+            # Use tray_id only. Do not scope these updates to the closed BQC lot.
+            DPTrayId_History.objects.filter(
+                tray_id=tray_id, delink_tray=False
+            ).update(delink_tray=True)
+            IPTrayId.objects.filter(
+                tray_id=tray_id, delink_tray=False
+            ).update(delink_tray=True)
+            BrassTrayId.objects.filter(
+                tray_id=tray_id, delink_tray=False
+            ).update(delink_tray=True)
+            BrassAuditTrayId.objects.filter(
+                tray_id=tray_id, delink_tray=False
+            ).update(delink_tray=True)
+            IQFTrayId.objects.filter(
+                tray_id=tray_id, delink_tray=False
+            ).update(delink_tray=True)
+
+            logger.info(
+                f"[submission_service] Released delinked physical tray "
+                f"tray_id={tray_id}, source_lot_id={lot_id}"
+            )
+    except Exception:
+        # The submission transaction should not silently commit a partial
+        # delink state. Re-raise so the surrounding atomic block can roll back.
+        logger.exception(
+            f"[submission_service] Delink propagation failed for "
+            f"lot_id={lot_id}, tray_ids={tray_ids}"
+        )
+        raise
 
 def _store_rejection_reasons(lot_id, rejection_reasons, rejected_qty, action, remarks, user):
     """

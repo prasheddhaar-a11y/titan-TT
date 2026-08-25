@@ -2892,10 +2892,12 @@ document.addEventListener('DOMContentLoaded', function() {
         renderOriginalTrays();
         renderSlots(rejectSlotsContainer, _rejectSlots, 'reject');
         renderSlots(acceptSlotsContainer, _acceptSlots, 'accept');
-        // Gray out accept until reject + delink phases complete
-        acceptSlotsContainer.parentElement.style.opacity = '0.3';
-        acceptSlotsContainer.parentElement.style.pointerEvents = 'none';
-        delinkSection.style.display = 'none';
+
+        // Restore the exact tray-allocation phase after reopening a saved draft.
+        // checkPhaseTransition() preserves restored delink slots when their count
+        // matches the required delink count, renders them again, and enables or
+        // disables Accept Trays exactly as it was before Draft was saved.
+        checkPhaseTransition();
         updateSummary();
         allocationSection.style.display = '';
       })
@@ -3486,10 +3488,10 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!getOriginalIds()[val]) {
             errSpan.textContent = 'Checking\u2026';
             errSpan.style.display = 'block'; errSpan.style.color = '#888';
-            var ok = await validateTrayIdDB(val, null);
+            var ok = await validateTrayIdDB(val, errSpan);
             if (!ok) {
-              errSpan.textContent = 'Invalid tray ID';
-              errSpan.style.display = 'block'; errSpan.style.color = '#c62828';
+              // validateTrayIdDB already renders the precise backend reason
+              // (e.g. occupied in Brass QC / IQF / Brass Audit Draft).
               selectInvalidTrayInput(this);
             } else {
               isValid = true;

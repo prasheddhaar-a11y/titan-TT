@@ -1073,8 +1073,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
           </div>
           <p>
-              RW Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span>
+              RW Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
           </p>
         </div>
       </div>
@@ -1787,10 +1786,10 @@ document.addEventListener("DOMContentLoaded", function () {
             sorted.forEach(function(t){
               row++;
               let sno = t.top_tray ? row + ' (Top Tray)' : String(row);
-              let badge = '<span style="background:'+badgeBg+';color:white;padding:2px 6px;border-radius:10px;font-size:10px;margin-left:5px;">'+badgeLabel+'</span>';
+              let badge = '<span style="background:'+badgeBg+';color:white;padding:2px 6px;border-radius:10px;font-size:10px;margin-left:5px;flex:0 0 auto;white-space:nowrap;">'+badgeLabel+'</span>';
               h += '<tr'+(t.top_tray?' class="top-tray-row" style="background:#e3f2fd;"':'')+'>';
               h += '<td>'+sno+'</td>';
-              h += '<td><input type="text" class="form-control" value="'+esc(t.tray_id)+'" readonly style="width:100%;" />'+badge+'</td>';
+              h += '<td><div style="display:flex;align-items:center;gap:8px;width:100%;"><input type="text" class="form-control" value="'+esc(t.tray_id)+'" readonly style="flex:1 1 auto;min-width:0;" />'+badge+'</div></td>';
               if (hideQty || t.qty === '' || t.qty === null || t.qty === undefined) {
                 h += '<td style="text-align:center;color:#bbb;">—</td>';
               } else {

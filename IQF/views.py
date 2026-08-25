@@ -139,6 +139,31 @@ def _resolve_tray_type_capacity_from_trays(tray_ids, lot_ids=None, fallback_type
     return fallback_type, fallback_capacity
 
 
+def _release_iqf_delinked_physical_trays(tray_ids):
+    """Release explicitly delinked physical trays while preserving IQF history."""
+    clean_tray_ids = [str(tid or '').strip().upper() for tid in tray_ids if str(tid or '').strip()]
+    if not clean_tray_ids:
+        return 0
+
+    freed = TrayId.objects.filter(tray_id__in=clean_tray_ids).update(
+        delink_tray=True,
+        lot_id=None,
+        batch_id=None,
+        scanned=False,
+        IP_tray_verified=False,
+        rejected_tray=False,
+        brass_rejected_tray=False,
+        top_tray=False,
+        new_tray=True,
+    )
+
+    BrassTrayId.objects.filter(tray_id__in=clean_tray_ids).update(delink_tray=True)
+    BrassAuditTrayId.objects.filter(tray_id__in=clean_tray_ids).update(delink_tray=True)
+    IPTrayId.objects.filter(tray_id__in=clean_tray_ids).update(delink_tray=True)
+
+    return freed
+
+
 def _build_iqf_rejection_details(raw_items, fallback_lot_id=None, fallback_total=None):
     """Build stored IQF rejection detail rows from submitted/draft reason quantities."""
     source_items = raw_items or []
@@ -3877,6 +3902,8 @@ def iqf_accept_delink_modal(request):
 
                         # Mark ALL parent trays as delinked — parent is consumed by child lots
                         IQFTrayId.objects.filter(lot_id=lot_id).update(delink_tray=True)
+                        released_count = _release_iqf_delinked_physical_trays(delinked_set)
+                        print(f'[DELINK CONFIRM NEW] Released {released_count} selected physical tray(s): {sorted(delinked_set)}')
 
                         # Update parent TotalStockModel — consumed, children carry the work
                         ts.iqf_few_cases_acceptance = True
@@ -3927,7 +3954,11 @@ def iqf_accept_delink_modal(request):
                         IQFTrayId.objects.filter(lot_id=lot_id, tray_id__in=delinked_set).update(
                             delink_tray=True
                         )
-                        print(f'[DELINK CONFIRM] Marked {len(delinked_set)} trays as delinked in IQFTrayId')
+                        released_count = _release_iqf_delinked_physical_trays(delinked_set)
+                        print(
+                            f'[DELINK CONFIRM] Marked {len(delinked_set)} trays as delinked in IQFTrayId; '
+                            f'released {released_count} selected physical tray(s)'
+                        )
 
                     # Finalize TotalStockModel flags (same as iqf_verify_trays_confirm POST)
                     ts.iqf_few_cases_acceptance = True

@@ -359,7 +359,11 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
     """
     from ..models import BrassTrayId
     from IQF.models import IQFTrayId
-    from BrassAudit.models import BrassAuditTrayId
+    from BrassAudit.models import (
+        BrassAuditTrayId,
+        Brass_Audit_Draft_Store,
+        Brass_Audit_Submission,
+    )
 
     checks = [
         (
@@ -371,21 +375,21 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
         ),
         (
             BrassTrayId.objects.filter(
-                tray_id=tray_id, rejected_tray=False,
+                tray_id=tray_id,
                 delink_tray=False, lot_id__isnull=False,
             ).exclude(lot_id=lot_id),
             "Brass QC",
         ),
         (
             BrassAuditTrayId.objects.filter(
-                tray_id=tray_id, rejected_tray=False,
+                tray_id=tray_id,
                 delink_tray=False, lot_id__isnull=False,
             ).exclude(lot_id=lot_id),
             "Brass Audit",
         ),
         (
             IQFTrayId.objects.filter(
-                tray_id=tray_id, rejected_tray=False,
+                tray_id=tray_id,
                 delink_tray=False, lot_id__isnull=False,
             ).exclude(lot_id=lot_id),
             "IQF",
@@ -395,5 +399,68 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
     for qs, module_name in checks:
         if qs.exists():
             return module_name, f"Tray is currently occupied in {module_name}"
+
+    # Brass Audit drafts reserve tray IDs even before live BrassAuditTrayId rows
+    # are created. Exclude the current lot so reopening/editing its own draft
+    # does not block its already assigned trays.
+    tid = _norm_tray_id(tray_id)
+    draft_qs = Brass_Audit_Draft_Store.objects.filter(
+        draft_type='rejection_draft'
+    ).exclude(lot_id=lot_id).only('lot_id', 'draft_data')
+    completed_draft_lot_ids = set(
+        Brass_Audit_Submission.objects.filter(
+            lot_id__in=draft_qs.values('lot_id'),
+            is_completed=True,
+        ).values_list('lot_id', flat=True)
+    )
+
+    for draft in draft_qs:
+        if draft.lot_id in completed_draft_lot_ids:
+            logger.info(
+                "[BRA_AUDIT_DELINK] Ignoring completed Brass Audit draft "
+                "reservation during occupancy check tray_id=%s draft_id=%s "
+                "draft_lot_id=%s",
+                tid,
+                draft.id,
+                draft.lot_id,
+            )
+            continue
+        draft_data = draft.draft_data or {}
+        if not isinstance(draft_data, dict):
+            continue
+        for slot_key in ('reject_slots', 'accept_slots', 'delink_slots'):
+            for slot in draft_data.get(slot_key) or []:
+                if not isinstance(slot, dict):
+                    continue
+                if _norm_tray_id(slot.get('tray_id')) == tid:
+                    return (
+                        "Brass Audit Draft",
+                        "Tray is currently reserved in Brass Audit Draft",
+                    )
+
+    # Final ownership fallback: the master TrayId can still be assigned to a lot
+    # even when that module's mirror row has already been cleaned up. Resolve the
+    # owning lot's current stage so the operator sees WHERE the tray is occupied
+    # instead of the generic "occupied in another lot" message.
+    master_tray = TrayId.objects.filter(
+        tray_id=tid, delink_tray=False, lot_id__isnull=False
+    ).exclude(lot_id=lot_id).first()
+    if master_tray:
+        from modelmasterapp.models import TotalStockModel
+
+        owner_stock = TotalStockModel.objects.filter(lot_id=master_tray.lot_id).first()
+        if owner_stock:
+            module_name = (
+                getattr(owner_stock, 'current_stage', None)
+                or getattr(owner_stock, 'next_process_module', None)
+                or getattr(owner_stock, 'last_process_module', None)
+            )
+            if module_name:
+                module_name = str(module_name).strip()
+                return module_name, f"Tray is currently occupied in {module_name}"
+
+        # If the owning lot no longer has a resolvable stage, keep a clear
+        # occupancy message without exposing an unrelated lot ID.
+        return "Assigned Lot", "Tray is currently occupied in an assigned lot"
 
     return None, None

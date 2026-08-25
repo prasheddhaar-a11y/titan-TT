@@ -54,6 +54,26 @@ def _dp_completed_lot_status_for_stage(stage_name):
     return 'Yet to Release' if stage == 'day planning' else 'Released'
 
 
+def _iter_dp_completed_allocation_lot_batch_ids(allocation):
+    """Yield explicit Add Model lot/batch pairs from JigCompleted allocation."""
+    if isinstance(allocation, str):
+        try:
+            allocation = json.loads(allocation)
+        except (TypeError, ValueError):
+            allocation = []
+
+    if not isinstance(allocation, list):
+        return
+
+    for item in allocation:
+        if not isinstance(item, dict):
+            continue
+        lot_id = _extract_dp_completed_lot_id(item.get('lot_id'))
+        batch_id = str(item.get('batch_id') or '').strip()
+        if lot_id or batch_id:
+            yield lot_id, batch_id
+
+
 def _enrich_dp_completed_status_fields(master_data):
     """
     Add backend-owned current_stage_display and lot_status to DP Completed rows.
@@ -103,6 +123,10 @@ def _enrich_dp_completed_status_fields(master_data):
     jig_completed_filter = Q(batch_id__in=batch_id_set)
     if source_lot_ids:
         jig_completed_filter |= Q(lot_id__in=source_lot_ids)
+    for source_lot_id in source_lot_ids:
+        jig_completed_filter |= Q(multi_model_allocation__contains=[{'lot_id': source_lot_id}])
+    for batch_id in batch_id_set:
+        jig_completed_filter |= Q(multi_model_allocation__contains=[{'batch_id': batch_id}])
 
     jig_ids = set()
     jig_id_to_batch_ids = defaultdict(set)
@@ -113,25 +137,40 @@ def _enrich_dp_completed_status_fields(master_data):
             'lot_id',
             'jig_id',
             'last_process_module',
+            'multi_model_allocation',
         )
     )
     for jig in jig_rows:
-        related_batch_ids = set()
+        stage_related_batch_ids = set()
+        relationship_batch_ids = set()
         batch_id = jig.get('batch_id')
         if batch_id in batch_id_set:
-            related_batch_ids.add(batch_id)
+            stage_related_batch_ids.add(batch_id)
 
         lot_id = _extract_dp_completed_lot_id(jig.get('lot_id'))
-        related_batch_ids.update(lot_id_to_batch_ids.get(lot_id, set()))
+        stage_related_batch_ids.update(lot_id_to_batch_ids.get(lot_id, set()))
+        relationship_batch_ids.update(stage_related_batch_ids)
+
+        for allocation_lot_id, allocation_batch_id in _iter_dp_completed_allocation_lot_batch_ids(
+            jig.get('multi_model_allocation')
+        ):
+            if allocation_batch_id in batch_id_set:
+                relationship_batch_ids.add(allocation_batch_id)
+                if allocation_lot_id:
+                    lot_id_to_batch_ids[allocation_lot_id].add(allocation_batch_id)
+                    source_lot_ids.add(allocation_lot_id)
+            if allocation_lot_id:
+                relationship_batch_ids.update(lot_id_to_batch_ids.get(allocation_lot_id, set()))
 
         stage = jig.get('last_process_module')
-        for related_batch_id in related_batch_ids:
+        for related_batch_id in stage_related_batch_ids:
             if stage:
                 batch_to_stage_candidates[related_batch_id].append(stage)
-            jig_id = str(jig.get('jig_id') or '').strip()
-            if jig_id:
-                jig_ids.add(jig_id)
-                jig_id_to_batch_ids[jig_id].add(related_batch_id)
+
+        jig_id = str(jig.get('jig_id') or '').strip()
+        if jig_id and relationship_batch_ids:
+            jig_ids.add(jig_id)
+            jig_id_to_batch_ids[jig_id].update(relationship_batch_ids)
 
     juat_filter = Q()
     if source_lot_ids:
@@ -150,13 +189,14 @@ def _enrich_dp_completed_status_fields(master_data):
 
     for juat in juat_rows:
         related_batch_ids = set()
-        jig_qr_id = str(juat.get('jig_qr_id') or '').strip()
-        if jig_qr_id:
-            related_batch_ids.update(jig_id_to_batch_ids.get(jig_qr_id, set()))
-
         for raw_lot_id in juat.get('combine_lot_ids') or []:
             lot_id = _extract_dp_completed_lot_id(raw_lot_id)
             related_batch_ids.update(lot_id_to_batch_ids.get(lot_id, set()))
+
+        if not related_batch_ids:
+            jig_qr_id = str(juat.get('jig_qr_id') or '').strip()
+            if jig_qr_id:
+                related_batch_ids.update(jig_id_to_batch_ids.get(jig_qr_id, set()))
 
         stage = juat.get('current_stage') or juat.get('last_process_module')
         for related_batch_id in related_batch_ids:
