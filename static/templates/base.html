@@ -282,7 +282,7 @@
          /* Remove sub-menu dot icon */
          /* Style for sub-menu dot icon: grey and move a little down */
          /* .sidebar .nav .sub-menu .nav-link:before {
-         content: "•";
+         content: "Ã¢â‚¬Â¢";
          color: #bbb;
          display: inline-block;
          margin-right: 7px;
@@ -821,14 +821,14 @@
          @media (max-width: 991.98px) {
          .barcode-modal-content {
          max-width: 95vw;
-         padding: 14px 8px 8px 8px; /* ✅ Reduced padding */
+         padding: 14px 8px 8px 8px; /* Ã¢Å“â€¦ Reduced padding */
          border-radius: 0;
          }
          }
          @media (max-width: 575.98px) {
          .barcode-modal-content {
          max-width: 100vw;
-         padding: 10px 2vw 10px 2vw; /* ✅ Reduced padding */
+         padding: 10px 2vw 10px 2vw; /* Ã¢Å“â€¦ Reduced padding */
          border-radius: 0;
          min-height: 120px;
          }
@@ -1117,14 +1117,14 @@
          @media (max-width: 991.98px) {
          .barcode-modal-content {
          max-width: 95vw;
-         padding: 14px 8px 8px 8px; /* ✅ Reduced padding */
+         padding: 14px 8px 8px 8px; /* Ã¢Å“â€¦ Reduced padding */
          border-radius: 0;
          }
          }
          @media (max-width: 575.98px) {
          .barcode-modal-content {
          max-width: 100vw;
-         padding: 10px 2vw 10px 2vw; /* ✅ Reduced padding */
+         padding: 10px 2vw 10px 2vw; /* Ã¢Å“â€¦ Reduced padding */
          border-radius: 0;
          min-height: 120px;
          }
@@ -1444,7 +1444,7 @@
                  .nb-btn:active{transform:scale(.97)!important;}
                </style>
 
-               <!-- ✅ GLOBAL SCAN BUTTON -->
+               <!-- Ã¢Å“â€¦ GLOBAL SCAN BUTTON -->
                <li class="nav-item position-relative">
                   <button id="globalScanBtn" class="nav-link btn nb-btn nb-btn-teal"
                       title="Global Tray Scan"
@@ -1469,7 +1469,7 @@
                                     border:none;font-size:20px;color:#999;cursor:pointer;
                                     padding:0;width:24px;height:24px;line-height:1;
                                     transition:color 0.2s;">
-                        ×
+                        Ãƒâ€”
                      </button>
                      <div id="scanStatusMessage" style="font-weight:600;color:#333;margin-bottom:4px;margin-top:4px;"></div>
                     <input type="text" id="globalScanInput" 
@@ -1482,15 +1482,15 @@
                   </div>
                </li>
                
-               <!-- ✅ SHORTCUTS BUTTON -->
+               <!-- Ã¢Å“â€¦ SHORTCUTS BUTTON -->
                <li class="nav-item">
-                  <button id="shortcutsBtn" class="nav-link btn nb-btn nb-btn-warm" title="Keyboard Shortcuts (⌨️)">
+                  <button id="shortcutsBtn" class="nav-link btn nb-btn nb-btn-warm" title="Keyboard Shortcuts (Ã¢Å’Â¨Ã¯Â¸Â)">
                      <img src="{% static 'assets/icons/6.png' %}" class="nb-icon" alt="Shortcuts Icon" />
                      <small>Shortcuts</small>
                   </button>
                </li>
                
-               <!-- ✅ TRAY SCAN BUTTON -->
+               <!-- Ã¢Å“â€¦ TRAY SCAN BUTTON -->
                <li class="nav-item">
                   <a class="nav-link btn nb-btn nb-btn-teal" id="barcodeStatus" href="#">
                      <img src="{% static 'assets/icons/50.png' %}" alt="Barcode"
@@ -1499,7 +1499,7 @@
                   </a>
                </li>
                
-               <!-- ✅ SOP (STANDARD OPERATING PROCEDURE) VIEWER BUTTON -->
+               <!-- Ã¢Å“â€¦ SOP (STANDARD OPERATING PROCEDURE) VIEWER BUTTON -->
                <li class="nav-item">
                   <button id="sopViewerBtn" class="nav-link btn nb-btn nb-btn-teal" type="button" title="SOP Documents">
                      <svg class="nb-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1511,7 +1511,7 @@
                   </button>
                </li>
 
-               <!-- ✅ SETTINGS DROPDOWN (Admin Only) -->
+               <!-- Ã¢Å“â€¦ SETTINGS DROPDOWN (Admin Only) -->
                {% if is_admin %}
                <li class="nav-item dropdown">
                   <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" id="settingsDropdown"
@@ -1544,7 +1544,7 @@
                </li>
                {% endif %}
 
-               <!-- ✅ PROFILE DROPDOWN -->
+               <!-- Ã¢Å“â€¦ PROFILE DROPDOWN -->
                <li class="nav-item nav-profile dropdown">
                   <a class="nav-link btn nb-btn nb-btn-teal dropdown-toggle" href="#"
                      data-bs-toggle="dropdown" id="profileDropdown" aria-expanded="false">
@@ -1811,11 +1811,11 @@
                
                <div class="flag-modal-header">
                   <div>
-                     <div id="flagGalleryTitle" class="flag-modal-title">✨ Team Gallery</div>
-                     <div class="flag-modal-subtitle">— Meet the Team Members —</div>
+                     <div id="flagGalleryTitle" class="flag-modal-title">Ã¢Å“Â¨ Team Gallery</div>
+                     <div class="flag-modal-subtitle">Ã¢â‚¬â€ Meet the Team Members Ã¢â‚¬â€</div>
                   </div>
                   <div>
-                     <button id="flagModalClose" class="flag-modal-close">✕ Close</button>
+                     <button id="flagModalClose" class="flag-modal-close">Ã¢Å“â€¢ Close</button>
                   </div>
                </div>
                <div class="flag-modal-body" id="flagModalBody">
@@ -1889,7 +1889,7 @@
                      const li = document.createElement('li');
                      li.className = 'group-item';
                      if(it.label && it.label.length){
-                        li.innerHTML = '<strong>' + it.label + '</strong>' + (it.name? ' – ' + it.name : '');
+                        li.innerHTML = '<strong>' + it.label + '</strong>' + (it.name? ' Ã¢â‚¬â€œ ' + it.name : '');
                      } else {
                         li.textContent = it.name;
                      }
@@ -1906,7 +1906,7 @@
                // listener (global spinner script) fires showGlobalSpinner() for that click BEFORE
                // this bubble-phase handler's e.preventDefault() can stop it. Since no real
                // navigation happens, the spinner is never auto-hidden and stays stuck behind this
-               // modal — surfacing as "stuck loading" once the modal is closed.
+               // modal Ã¢â‚¬â€ surfacing as "stuck loading" once the modal is closed.
                if (typeof hideGlobalSpinner === 'function') hideGlobalSpinner();
                buildGrid();
                backdrop.style.display = 'flex';
@@ -2520,7 +2520,7 @@
          });
       </script>
       <script nonce="{{ csp_nonce }}">
-         // ✅ NEW: Create error banner function
+         // Ã¢Å“â€¦ NEW: Create error banner function
          function showErrorBanner(message) {
            // Remove any existing error banner
            const existingError = document.getElementById('barcodeErrorBanner');
@@ -2580,7 +2580,7 @@
              }
            }, 5000);
            
-           // ✅ IMPORTANT: Keep focus on hidden input
+           // Ã¢Å“â€¦ IMPORTANT: Keep focus on hidden input
            setTimeout(() => {
              const trayInput = document.getElementById("trayHiddenInput");
              if (trayInput) {
@@ -2589,7 +2589,7 @@
            }, 100);
          }
          
-         // ✅ NEW: Clear error banner function
+         // Ã¢Å“â€¦ NEW: Clear error banner function
          function clearErrorBanner() {
            const existingError = document.getElementById('barcodeErrorBanner');
            if (existingError) {
@@ -2633,7 +2633,7 @@
            }
          };
          
-         // ✅ ENHANCED: Always keep focus on the hidden input
+         // Ã¢Å“â€¦ ENHANCED: Always keep focus on the hidden input
          const trayInput = document.getElementById("trayHiddenInput");
          
          // Focus on modal click
@@ -2659,7 +2659,7 @@
            }
          });
          
-         // ✅ UPDATED: Debounce logic with banner error
+         // Ã¢Å“â€¦ UPDATED: Debounce logic with banner error
          let debounceTimer = null;
          trayInput.addEventListener("input", function() {
            if (debounceTimer) clearTimeout(debounceTimer);
@@ -2710,7 +2710,7 @@
                    }
                    
                  } else {
-                   // ✅ UPDATED: Clear fields and show banner error
+                   // Ã¢Å“â€¦ UPDATED: Clear fields and show banner error
                    document.getElementById("modelNo").value = "";
                    document.getElementById("version").value = "";
                    document.getElementById("polishFinish").value = "";
@@ -2726,18 +2726,18 @@
                    const imageSection = document.querySelector('.barcode-image-section');
                    if (imageSection) imageSection.innerHTML = '';
          
-                   // ✅ REPLACED: alert() with banner error (like your image)
+                   // Ã¢Å“â€¦ REPLACED: alert() with banner error (like your image)
                    const errorMessage = `Tray ID '${trayId}' not found in table.`;
                    showErrorBanner(errorMessage);
                  }
                  
-                 // ✅ IMPORTANT: Clear input and keep focus
+                 // Ã¢Å“â€¦ IMPORTANT: Clear input and keep focus
                  trayInput.value = ""; // Clear input after processing
                  setTimeout(() => trayInput.focus(), 100); // Keep focus on hidden input
                  
                })
                .catch(err => {
-                 // ✅ REPLACED: alert() with banner error for network errors
+                 // Ã¢Å“â€¦ REPLACED: alert() with banner error for network errors
                  showErrorBanner("Error fetching tray details");
                  trayInput.value = "";
                  setTimeout(() => trayInput.focus(), 100);
@@ -2811,7 +2811,7 @@
            if (e.target === this) this.style.display = 'none';
          };
       </script>
-      <!-- ✅ SHORTCUTS BUTTON HANDLER -->
+      <!-- Ã¢Å“â€¦ SHORTCUTS BUTTON HANDLER -->
       <script nonce="{{ csp_nonce }}">
          document.addEventListener('DOMContentLoaded', function() {
             const shortcutsBtn = document.getElementById('shortcutsBtn');
@@ -3804,6 +3804,22 @@
     return false;
   }
 
+  function isValidTrayIdFormat(trayId) {
+    return /^JB-[A-Z]\d{5}$/.test(trayId);
+  }
+
+  function isValidJigIdFormat(jigId) {
+    // Accepts formats like JL-A00028 or J070-0020
+    return /^JL-[A-Z]\d{5}$/.test(jigId) || /^J\d{3}-\d{4}$/.test(jigId);
+  }
+
+  function handleInvalidTrayFormat() {
+    setInfo('!', 'Invalid format', '#dc3545');
+    setScanMessage('Invalid format', '#dc3545');
+    scanInput.disabled = false;
+    focusScanInput(true);
+  }
+
   function runScanFlow(rawValue, source) {
     const trayId = normalizeTrayId(rawValue);
     logScan('[SCAN_INPUT]', { source: source || 'unknown', raw_value: rawValue, table_id: getCurrentTableId() });
@@ -3813,6 +3829,13 @@
       handleEmptyInput();
       return;
     }
+
+    // Check ID format - accept Tray ID (JB-A00038) or Jig ID (JL-A00028 / J070-0020) regardless of current page context
+    if (!isValidTrayIdFormat(trayId) && !isValidJigIdFormat(trayId)) {
+      handleInvalidTrayFormat();
+      return;
+    }
+
     if (isDuplicateScan(trayId)) return;
 
     const scanSequence = ++activeScanSequence;
@@ -4561,17 +4584,15 @@
 
   function handleTrayFound(match, responseData, trayId) {
     const row = match.row;
-    // NOTE: intentionally NOT calling moveHighlightedRowToTop(row) here.
-    // That function physically relocated the matched <tr> to be the first
-    // row in <tbody>, which visually reordered tables (e.g. DP Completed
-    // Table) so the scanned row jumped above unrelated rows. Jig Loading
-    // never showed this problem only because its matches happened to
-    // already be the first row. We now leave the row exactly where it
-    // naturally sits and just scroll+highlight it in place (applyFoundHighlight
-    // already does both), which matches the Jig Loading behavior everywhere.
+    const jigUnloadingScan = isJigUnloadingResult(responseData);
+    if (jigUnloadingScan) {
+      moveHighlightedRowToTop(row);
+    }
     applyFoundHighlight(row);
-    const openedJigUnload = maybeOpenJigUnloadingTrayScan(row, responseData, trayId);
-    const openedDraft = openedJigUnload ? true : openDraftRowModal(row, responseData, trayId);
+    // Jig Unloading Zone 1/2 F2 scan must stop at validate + highlight + row-to-top.
+    // Keep normal click/save modal workflows unchanged.
+    const openedJigUnload = false;
+    const openedDraft = jigUnloadingScan ? false : openDraftRowModal(row, responseData, trayId);
     let openedInputVerification = false;
     if (!openedDraft) {
       openedInputVerification = maybeOpenInputScreeningVerifiedTrayModal(row, responseData, trayId);
@@ -4683,7 +4704,7 @@
 })();
 </script>
 
-<!-- ✅ CSP-COMPLIANT EVENT HANDLERS: Replace inline handlers with addEventListener -->
+<!-- Ã¢Å“â€¦ CSP-COMPLIANT EVENT HANDLERS: Replace inline handlers with addEventListener -->
 <script nonce="{{ csp_nonce }}">
 (function() {
   'use strict';
@@ -4727,7 +4748,7 @@
 })();
 </script>
 
-<!-- ✅ UNIVERSAL MODAL CLOSE HANDLER -->
+<!-- Ã¢Å“â€¦ UNIVERSAL MODAL CLOSE HANDLER -->
 <script nonce="{{ csp_nonce }}">
 (function () {
   'use strict';
@@ -5182,7 +5203,7 @@
 })();
 </script>
 
-<!-- ✅ AUTO-HIGHLIGHT ROW: page-hunt + sticky-safe highlight -->
+<!-- Ã¢Å“â€¦ AUTO-HIGHLIGHT ROW: page-hunt + sticky-safe highlight -->
 <script nonce="{{ csp_nonce }}">
 (function() {
   'use strict';
@@ -5196,12 +5217,12 @@
 
   function setInfo(icon, text, color) {
     if (scanInfoIcon) {
-      if (icon === '📡') {
+      if (icon === 'Ã°Å¸â€œÂ¡') {
         var src = scanInfoIcon.getAttribute('data-scanner-src');
         if (src) {
           scanInfoIcon.innerHTML = '<img src="' + src + '" style="height:18px;width:18px;object-fit:contain;vertical-align:middle;" alt="scan"/>';
         } else {
-          scanInfoIcon.textContent = '📡';
+          scanInfoIcon.textContent = 'Ã°Å¸â€œÂ¡';
         }
       } else {
         scanInfoIcon.textContent = icon;
@@ -5212,11 +5233,15 @@
 
   if (!highlightTrayId && !highlightLotId) {
     // Idle state (no scan in progress)
-    setInfo('📡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
+    setInfo('Ã°Å¸â€œÂ¡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
     return;
   }
 
-  // ── Read context stored before navigation ────────────────────────────────
+  if (isJigUnloadingContext()) {
+    return;
+  }
+
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Read context stored before navigation Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const scanModule = sessionStorage.getItem('globalScanModule') || '';
   const scanTrayId = sessionStorage.getItem('globalScanTrayId') || highlightTrayId;
   const scanLotId = sessionStorage.getItem('globalScanLotId') || highlightLotId;
@@ -5230,12 +5255,12 @@
 
   // Show immediately: "JB-A00071 found in Brass QC"
   if (isValidScan) {
-    setInfo('✅', scanTrayId + ' found in ' + shortMod, '#28a745');
+    setInfo('Ã¢Å“â€¦', scanTrayId + ' found in ' + shortMod, '#28a745');
   } else {
-    setInfo('🔍', scanTrayId + (shortMod ? ' — ' + shortMod : '') + ' · locating…', '#028084');
+    setInfo('Ã°Å¸â€Â', scanTrayId + (shortMod ? ' Ã¢â‚¬â€ ' + shortMod : '') + ' Ã‚Â· locatingÃ¢â‚¬Â¦', '#028084');
   }
 
-  // ── Inject CSS class that overrides sticky-column backgrounds ────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Inject CSS class that overrides sticky-column backgrounds Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const styleEl = document.createElement('style');
   styleEl.id = 'gs-hi-style';
   styleEl.textContent =
@@ -5254,9 +5279,20 @@
     '}';
   document.head.appendChild(styleEl);
 
-  // ── Row finder ───────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Row finder Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   function findRow() {
     console.log('[AUTO-HL] Searching for row... lotId=', highlightLotId, 'batchId=', scanBatchId, 'trayId=', highlightTrayId);
+    
+    if (isJigUnloadingContext() && highlightTrayId) {
+      const normalizedJigId = String(highlightTrayId || '').replace(/\s+/g, '').toUpperCase();
+      for (const row of document.querySelectorAll('#order-listing tbody tr[data-jig-qr-id], table tbody tr[data-jig-qr-id]')) {
+        const rowJigId = String(row.getAttribute('data-jig-qr-id') || '').replace(/\s+/g, '').toUpperCase();
+        if (rowJigId === normalizedJigId) {
+          console.log('[AUTO-HL] Found Jig Unloading direct JIG ID match:', rowJigId);
+          return row;
+        }
+      }
+    }
     
     // PRIMARY: Search by lot_id (the most reliable identifier)
     if (highlightLotId) {
@@ -5267,28 +5303,28 @@
         // Try data-lot-id first (most common)
         const lotId = row.getAttribute('data-lot-id');
         if (lotId === highlightLotId) {
-          console.log('[AUTO-HL] ✓ Found by data-lot-id:', lotId);
+          console.log('[AUTO-HL] Ã¢Å“â€œ Found by data-lot-id:', lotId);
           return row;
         }
         
         // Try data-stock-lot-id (some modules use this)
         const stockLotId = row.getAttribute('data-stock-lot-id');
         if (stockLotId === highlightLotId) {
-          console.log('[AUTO-HL] ✓ Found by data-stock-lot-id:', stockLotId);
+          console.log('[AUTO-HL] Ã¢Å“â€œ Found by data-stock-lot-id:', stockLotId);
           return row;
         }
         
         // Try to find it in child elements
         const lotCell = row.querySelector('[data-lot-id="' + highlightLotId + '"], [data-stock-lot-id="' + highlightLotId + '"]');
         if (lotCell) {
-          console.log('[AUTO-HL] ✓ Found by child element');
+          console.log('[AUTO-HL] Ã¢Å“â€œ Found by child element');
           return row;
         }
       }
-      console.log('[AUTO-HL] ✗ Lot ID not found in any rows');
+      console.log('[AUTO-HL] Ã¢Å“â€” Lot ID not found in any rows');
     }
 
-    // SECONDARY: Search by batch_id — some tables (e.g. DP Completed Table)
+    // SECONDARY: Search by batch_id Ã¢â‚¬â€ some tables (e.g. DP Completed Table)
     // only render data-batch-id on the <tr>, not a lot id, because the row
     // represents a batch/Plating Stk No that can hold many Tray IDs.
     if (scanBatchId) {
@@ -5296,16 +5332,16 @@
       for (const row of allRows) {
         const batchId = row.getAttribute('data-batch-id') || row.getAttribute('data-original-batch-id');
         if (batchId && String(batchId) === String(scanBatchId)) {
-          console.log('[AUTO-HL] ✓ Found by data-batch-id:', batchId);
+          console.log('[AUTO-HL] Ã¢Å“â€œ Found by data-batch-id:', batchId);
           return row;
         }
         const batchCell = row.querySelector('[data-batch-id="' + scanBatchId + '"], [data-original-batch-id="' + scanBatchId + '"]');
         if (batchCell) {
-          console.log('[AUTO-HL] ✓ Found by batch child element');
+          console.log('[AUTO-HL] Ã¢Å“â€œ Found by batch child element');
           return row;
         }
       }
-      console.log('[AUTO-HL] ✗ Batch ID not found in any rows');
+      console.log('[AUTO-HL] Ã¢Å“â€” Batch ID not found in any rows');
     }
     
     // FALLBACK: Search by tray_id text (if lot_id not found)
@@ -5313,28 +5349,39 @@
       console.log('[AUTO-HL] Fallback: searching by tray text...');
       for (const row of document.querySelectorAll('table tbody tr')) {
         for (const td of row.querySelectorAll('td')) {
-          if (td.textContent.trim() === highlightTrayId) {
-            console.log('[AUTO-HL] ✓ Found by tray text');
+          const normalizedCellText = td.textContent.replace(/\s+/g, '').toUpperCase();
+          const normalizedHighlightTrayId = String(highlightTrayId || '').replace(/\s+/g, '').toUpperCase();
+          if (normalizedCellText === normalizedHighlightTrayId) {
+            console.log('[AUTO-HL] Ã¢Å“â€œ Found by tray text');
             return row;
           }
         }
       }
-      console.log('[AUTO-HL] ✗ Tray ID not found in any cell text');
+      console.log('[AUTO-HL] Ã¢Å“â€” Tray ID not found in any cell text');
     }
     
     return null;
   }
 
-  // ── Read current page number from pagination widget ──────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Read current page number from pagination widget Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   function getCurrentPage() {
     const sel = '.pagination .page-item.active .page-link, .pagination .active > a, .dataTables_paginate .current';
     const el = document.querySelector(sel);
     return el ? el.textContent.trim() : '1';
   }
 
-  // ── Highlight and scroll (sticky-header aware) ────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Highlight and scroll (sticky-header aware) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   function highlightRow(row) {
-    if (row && row.parentNode && row.parentNode.firstElementChild !== row) {
+    if (isJigUnloadingContext()) {
+      moveHighlightedRowToTop(row);
+      row.classList.add('gs-active-scan', 'dp-row-action-highlight');
+      row.setAttribute('data-global-scan-active', '1');
+      row.style.outline = '2px solid #d6a300';
+      row.style.outlineOffset = '-2px';
+      row.querySelectorAll('td').forEach(function(cell) {
+        cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
+      });
+    } else if (row && row.parentNode && row.parentNode.firstElementChild !== row) {
       row.parentNode.insertBefore(row, row.parentNode.firstElementChild);
     }
     row.classList.add('gs-hi');
@@ -5342,11 +5389,11 @@
     
     // Show success with full context for valid scans
     if (isValidScan && scanLotId) {
-      setInfo('✅', scanTrayId + ' • Lot ' + scanLotId + ' • ' + shortMod + ' • Page ' + pg, '#28a745');
+      setInfo('Ã¢Å“â€¦', scanTrayId + ' Ã¢â‚¬Â¢ Lot ' + scanLotId + ' Ã¢â‚¬Â¢ ' + shortMod + ' Ã¢â‚¬Â¢ Page ' + pg, '#28a745');
     } else if (scanTrayId && highlightLotId) {
-      setInfo('✅', scanTrayId + ' • Lot ' + highlightLotId + ' • ' + shortMod + ' • Page ' + pg, '#28a745');
+      setInfo('Ã¢Å“â€¦', scanTrayId + ' Ã¢â‚¬Â¢ Lot ' + highlightLotId + ' Ã¢â‚¬Â¢ ' + shortMod + ' Ã¢â‚¬Â¢ Page ' + pg, '#28a745');
     } else {
-      setInfo('✅', (scanTrayId || highlightTrayId) + (shortMod ? ' — ' + shortMod : '') + ' · Page ' + pg, '#28a745');
+      setInfo('Ã¢Å“â€¦', (scanTrayId || highlightTrayId) + (shortMod ? ' Ã¢â‚¬â€ ' + shortMod : '') + ' Ã‚Â· Page ' + pg, '#28a745');
     }
 
     // Scroll: offset by navbar height so row isn't hidden under sticky header
@@ -5356,12 +5403,31 @@
 
     setTimeout(() => {
       row.classList.remove('gs-hi');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      setInfo('📡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
+      if (!isJigUnloadingContext()) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      setInfo('Ã°Å¸â€œÂ¡', window.getGlobalScanPromptText ? window.getGlobalScanPromptText() : 'Scan ready', '#025254');
     }, 12000);
   }
 
-  // ── DataTables next-page ─────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ DataTables next-page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  if (isJigUnloadingContext()) {
+    document.addEventListener('click', function(event) {
+      const clickedRow = event.target.closest('#order-listing tbody tr');
+      if (!clickedRow) return;
+      const activeRow = document.querySelector('#order-listing tbody tr[data-global-scan-active="1"]');
+      if (activeRow && activeRow !== clickedRow) {
+        activeRow.querySelectorAll('td').forEach(function(cell) {
+          cell.style.removeProperty('box-shadow');
+        });
+        activeRow.style.removeProperty('outline');
+        activeRow.style.removeProperty('outline-offset');
+        restorePrioritizedRow();
+        clearScanHighlights();
+      }
+    }, true);
+  }
+
   function dtNextPage() {
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.dataTable) {
       try {
@@ -5376,7 +5442,7 @@
     return null; // DataTables not present
   }
 
-  // ── Generic Bootstrap pagination next button ─────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Generic Bootstrap pagination next button Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   function genericNextPage() {
     const candidates = [
       '.pagination .page-item:not(.disabled) a[aria-label*="Next"]',
@@ -5391,7 +5457,7 @@
     return false;
   }
 
-  // ── Main hunt loop ────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Main hunt loop Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   let huntPage = 1;
   let huntTimer = null;
   const MAX_PAGES = 30;
@@ -5403,7 +5469,7 @@
     if (huntPage >= MAX_PAGES) {
       // For valid global scans, don't show error - the green banner will show valid info
       if (!isValidScan) {
-        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+        setInfo('Ã¢Å¡Â Ã¯Â¸Â', scanTrayId + ' Ã¢â‚¬â€ row not found', '#dc3545');
       }
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
@@ -5412,29 +5478,29 @@
     huntPage++;
     // Only show page-hunting status if not a valid scan
     if (!isValidScan) {
-      setInfo('🔍', scanTrayId + ' · checking page ' + huntPage + '…', '#028084');
+      setInfo('Ã°Å¸â€Â', scanTrayId + ' Ã‚Â· checking page ' + huntPage + 'Ã¢â‚¬Â¦', '#028084');
     }
 
     const dtResult = dtNextPage();
-    if (dtResult === true) return;   // MutationObserver fires → re-hunt
+    if (dtResult === true) return;   // MutationObserver fires Ã¢â€ â€™ re-hunt
     if (dtResult === false) { 
       // For valid scans, silently fail - banner shows the real info
       if (!isValidScan) {
-        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+        setInfo('Ã¢Å¡Â Ã¯Â¸Â', scanTrayId + ' Ã¢â‚¬â€ row not found', '#dc3545');
       }
       return;
     }
-    // DataTables not present — try generic
+    // DataTables not present Ã¢â‚¬â€ try generic
     if (!genericNextPage()) {
       // For valid scans, silently fail - banner shows the real info
       if (!isValidScan) {
-        setInfo('⚠️', scanTrayId + ' — row not found', '#dc3545');
+        setInfo('Ã¢Å¡Â Ã¯Â¸Â', scanTrayId + ' Ã¢â‚¬â€ row not found', '#dc3545');
       }
     }
     // else MutationObserver fires
   }
 
-  // ── Watch for AJAX pagination DOM changes ────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Watch for AJAX pagination DOM changes Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const watchTarget = document.querySelector('#order-listing_wrapper, .dataTables_wrapper, .table-responsive, table');
   if (watchTarget) {
     new MutationObserver(() => {
@@ -5443,7 +5509,7 @@
     }).observe(watchTarget.closest('[id]') || watchTarget, { childList: true, subtree: true });
   }
 
-  // ── Initial search after page load ───────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Initial search after page load Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   huntTimer = setTimeout(hunt, 800);
   
   // Clean up sessionStorage after navigation cycle completes
@@ -5524,7 +5590,7 @@
       .then(function(data) {
         if (data && data.has_modules) { showRefreshAlert(); }
       })
-      .catch(function() { /* transient network error — retry on next tick */ });
+      .catch(function() { /* transient network error Ã¢â‚¬â€ retry on next tick */ });
   }
 
   Swal.fire({
@@ -5541,9 +5607,9 @@
 </script>
 {% endif %}
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SOP (Standard Operating Procedure) Viewer — Module picker + PDF modal
-     ═══════════════════════════════════════════════════════════════════ -->
+<!-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+     SOP (Standard Operating Procedure) Viewer Ã¢â‚¬â€ Module picker + PDF modal
+     Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â -->
 <style nonce="{{ csp_nonce }}">
   .sop-modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
@@ -5599,7 +5665,7 @@
 <div id="sopModuleModal" class="sop-modal-overlay">
   <div class="sop-modal-box sop-modal-small">
     <div class="sop-modal-header">
-      <h5>SOP Documents — Select Module</h5>
+      <h5>SOP Documents Ã¢â‚¬â€ Select Module</h5>
       <button type="button" class="sop-modal-close" id="sopModuleModalClose">&times;</button>
     </div>
     <div class="sop-modal-body">
@@ -5694,3 +5760,4 @@
 
    </body>
 </html>
+

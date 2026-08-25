@@ -2444,3 +2444,179 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   });
 });
+
+// ====== ✅ IS Pick Table ONLY: catch row highlighting no matter which script triggers it ======
+// (the Accept/Reject/View/remark flow above, the shared global_shortcut_manager.js's row-click
+// highlighting, or the global "Scan or Type Tray ID" find-and-highlight flow in base.html —
+// which intentionally does NOT move rows, since that used to break other pages like the DP
+// Completed Table). This watcher lives ONLY in this file (only loaded by IS_PickTable.html),
+// so it only ever affects the Input Screening Pick Table; every other page is untouched.
+document.addEventListener("DOMContentLoaded", function () {
+  var tbody = document.querySelector('#order-listing tbody');
+  if (!tbody || !window.MutationObserver) return;
+
+  var HIGHLIGHT_CLASSES = ['dp-row-action-highlight', 'action-row-highlight', 'gkb-row-focus', 'gs-active-scan'];
+
+  function isHighlighted(row) {
+    return HIGHLIGHT_CLASSES.some(function (c) { return row.classList.contains(c); });
+  }
+
+  Array.prototype.forEach.call(tbody.children, function (row, idx) {
+    if (row && row.dataset && row.dataset.isAutoTopOriginalIndex === undefined) {
+      row.dataset.isAutoTopOriginalIndex = String(idx);
+    }
+  });
+
+  var currentTopRow = null;
+
+  function reinsertAtOriginalPosition(row) {
+    if (!row || !row.parentNode) return;
+    var body = row.parentNode;
+    var targetIndex = parseInt(row.dataset.isAutoTopOriginalIndex, 10);
+    if (isNaN(targetIndex)) { body.appendChild(row); return; }
+    var siblings = Array.prototype.filter.call(body.children, function (r) { return r !== row; });
+    var placedBefore = null;
+    for (var i = 0; i < siblings.length; i++) {
+      var siblingIndex = parseInt(siblings[i].dataset.isAutoTopOriginalIndex, 10);
+      if (!isNaN(siblingIndex) && siblingIndex > targetIndex) { placedBefore = siblings[i]; break; }
+    }
+    if (placedBefore) body.insertBefore(row, placedBefore);
+    else body.appendChild(row);
+  }
+
+  function moveToTop(row) {
+    if (currentTopRow && currentTopRow !== row) {
+      reinsertAtOriginalPosition(currentTopRow);
+    }
+    if (row.dataset.isAutoTopOriginalIndex === undefined) {
+      row.dataset.isAutoTopOriginalIndex = String(Array.prototype.indexOf.call(tbody.children, row));
+    }
+    if (tbody.firstElementChild !== row) {
+      tbody.insertBefore(row, tbody.firstElementChild);
+      console.log('[IS PickTable] (auto-top watcher) Row moved to top | Original Index:', row.dataset.isAutoTopOriginalIndex);
+    }
+    currentTopRow = row;
+  }
+
+  function handleRowLostHighlight(row) {
+    if (row === currentTopRow) {
+      reinsertAtOriginalPosition(row);
+      currentTopRow = null;
+      console.log('[IS PickTable] (auto-top watcher) Row restored to original position');
+    }
+  }
+
+  var observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.type !== 'attributes' || m.attributeName !== 'class') return;
+      var row = m.target;
+      if (!row || row.tagName !== 'TR' || row.parentNode !== tbody) return;
+
+      var oldClasses = (m.oldValue || '').split(/\s+/);
+      var hadHighlight = HIGHLIGHT_CLASSES.some(function (c) { return oldClasses.indexOf(c) !== -1; });
+      var hasHighlight = isHighlighted(row);
+
+      if (hasHighlight && (!hadHighlight || row !== currentTopRow)) {
+        moveToTop(row);
+      } else if (hadHighlight && !hasHighlight) {
+        handleRowLostHighlight(row);
+      }
+    });
+  });
+
+  observer.observe(tbody, {
+    attributes: true,
+    attributeFilter: ['class'],
+    attributeOldValue: true,
+    subtree: true
+  });
+
+  window.isMoveRowToTop = moveToTop;
+});
+
+// ====== ✅ IS Pick Table ONLY: highlight + move row to top on cross-module scan landing ======
+// (e.g. scanning a tray elsewhere that turns out to belong to Input Screening). base.html
+// already has a generic "AUTO-HIGHLIGHT ROW" script that reads the same ?highlight=&lot=&batch=
+// URL params, but it's shared by every module, only draws a thin border (not this page's
+// yellow highlight), and can miss rows depending on pagination timing. This block reads the
+// exact same signals independently and finds/highlights/moves the row itself, so this page
+// gets a reliable result without changing that shared file or any other page.
+document.addEventListener("DOMContentLoaded", function () {
+  function getParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name) || ''; } catch (e) { return ''; }
+  }
+  function getSession(key) {
+    try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; }
+  }
+
+  var scanTrayId = getParam('highlight') || getSession('globalScanTrayId');
+  var scanLotId = getParam('lot') || getSession('globalScanLotId');
+  var scanBatchId = getParam('batch') || getSession('globalScanBatchId');
+
+  if (!scanTrayId && !scanLotId && !scanBatchId) return;
+
+  function findMatchingRow() {
+    var rows = document.querySelectorAll('#order-listing tbody tr[data-stock-lot-id]');
+    if (!rows.length) return null;
+
+    if (scanLotId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-stock-lot-id')) === String(scanLotId)) return rows[i];
+      }
+    }
+    if (scanBatchId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-batch-id')) === String(scanBatchId)) return rows[i];
+      }
+    }
+    if (scanTrayId) {
+      for (var i = 0; i < rows.length; i++) {
+        var cells = rows[i].querySelectorAll('td');
+        for (var j = 0; j < cells.length; j++) {
+          if (cells[j].textContent.trim() === scanTrayId) return rows[i];
+        }
+      }
+    }
+    return null;
+  }
+
+  function scrollRowIntoView(row) {
+    var navH = (document.querySelector('.navbar') || {}).offsetHeight || 60;
+    var rect = row.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + rect.top - navH - 20, behavior: 'smooth' });
+  }
+
+  function cleanUp() {
+    try {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      sessionStorage.removeItem('globalScanModule');
+      sessionStorage.removeItem('globalScanTrayId');
+      sessionStorage.removeItem('globalScanLotId');
+      sessionStorage.removeItem('globalScanBatchId');
+    } catch (e) { }
+  }
+
+  var attempts = 0;
+  function tryHighlight() {
+    attempts++;
+    var row = findMatchingRow();
+    if (row) {
+      row.classList.add('dp-row-action-highlight', 'action-row-highlight');
+      if (typeof window.isMoveRowToTop === 'function') {
+        window.isMoveRowToTop(row);
+      }
+      window.requestAnimationFrame(function () { scrollRowIntoView(row); });
+      console.log('[IS PickTable] (cross-module scan) Row highlighted and moved to top:', scanTrayId || scanLotId || scanBatchId);
+      cleanUp();
+      return;
+    }
+    if (attempts < 6) {
+      setTimeout(tryHighlight, 300);
+    } else {
+      console.log('[IS PickTable] (cross-module scan) Row not found on this page for:', scanTrayId || scanLotId || scanBatchId);
+      cleanUp();
+    }
+  }
+
+  setTimeout(tryHighlight, 250);
+});

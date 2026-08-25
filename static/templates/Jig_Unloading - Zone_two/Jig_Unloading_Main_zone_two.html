@@ -7,7 +7,7 @@
 <style nonce="{{ csp_nonce }}">
 @import url('/static/assets/css/auto-save-sweetalert.css');
 
- /* ========== Tablet override — paste at file end (after other table styles) ========== */
+ /* ========== Tablet override â€” paste at file end (after other table styles) ========== */
 /* --- Tablet: freeze first 3 columns consistently with desktop --- */
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
 
@@ -490,17 +490,28 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     user-select: none;
     cursor: not-allowed;
     background: #f5f5f5 !important;
-    /* ❌ REMOVED pointer-events:none — it blocks action buttons */
+    /* âŒ REMOVED pointer-events:none â€” it blocks action buttons */
   }
   
-  /* ✅ CRITICAL: Force all links and buttons to be clickable */
+  /* âœ… CRITICAL: Force all links and buttons to be clickable */
   a, button, .z1-unload-btn, .z1-view-btn {
     pointer-events: auto !important;
     position: relative;
   }
-  /* Active row highlight — only set by JS on explicit click */
+  /* Active row highlight â€” only set by JS on explicit click */
   #order-listing tbody tr.z1-row-open td {
     background-color: #e8f5e9 !important;
+  }
+  body.ju-unload-modal-open #order-listing thead th:nth-child(4),
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4) {
+    filter: blur(2px) grayscale(0.7);
+    opacity: 0.6;
+    user-select: none;
+    cursor: not-allowed;
+  }
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4),
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4) * {
+    pointer-events: none !important;
   }
     /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
@@ -674,7 +685,7 @@ body.add-model-mode #selectAllCheckbox {
             font-weight: 600;
         }
 
-        /* Model Image Gallery modal — centered overlay with a proper grid */
+        /* Model Image Gallery modal â€” centered overlay with a proper grid */
         #modelRemarkModal {
             display: none;
             position: fixed;
@@ -1678,8 +1689,8 @@ body.add-model-mode #selectAllCheckbox {
                              <span>Unloaded</span>
                           </a>
                         {% else %}
-                          <a href="#" class="text-primary z1-unload-btn{% if jig_detail.jig_unload_draft %} draft-resume-btn{% endif %}" 
-                             style="text-decoration: underline; font-weight:600; pointer-events: auto !important; position: relative;"
+                          <a href="#" class="z1-unload-btn{% if jig_detail.jig_unload_draft %} draft-resume-btn{% endif %}" 
+                             style="color:#6c757d; text-decoration: underline; font-weight:600; pointer-events: auto !important; position: relative;"
                              data-jig-completed-id="{{ jig_detail.id }}"
                              title="Unload jig trays">
                              <span>Unload</span>
@@ -1928,9 +1939,9 @@ body.add-model-mode #selectAllCheckbox {
                 <div id="trayScanModal_DayPlanning" class="tray-scan-modal-DayPlanning" style="display:none"></div>
                </div>
               
-              <!-- Z1 Unload Modal — Two-Layer: Model List → Tray Scan -->
-              <div id="z1UnloadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.45); z-index:19000; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
-                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:700px; max-width:980px; width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B;">
+              <!-- Z1 Unload Modal â€” Two-Layer: Model List â†’ Tray Scan -->
+              <div id="z1UnloadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:transparent; z-index:19000; align-items:center; justify-content:center; pointer-events:none;">
+                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:700px; max-width:980px; width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B; pointer-events:auto;">
                   <!-- Close button -->
                   <span id="z1ModalClose" style="position:absolute; top:11px; right:16px; font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:2;" title="Close">&times;</span>
 
@@ -2022,7 +2033,7 @@ body.add-model-mode #selectAllCheckbox {
                         <i class="fa fa-pencil" style="margin-right:3px; color:#e65100;"></i>
                         Top Tray Remark <span style="color:#c62828;">*</span>
                       </label>
-                      <textarea id="z1TopTrayRemark" maxlength="200" placeholder="Enter remark for top tray qty change…" style="width:100%; height:44px; border:1px solid #cfd8dc; border-radius:6px; padding:7px 10px; font-size:11px; resize:none; outline:none; color:#37474f; box-sizing:border-box;"></textarea>
+                      <textarea id="z1TopTrayRemark" maxlength="200" placeholder="Enter remark for top tray qty changeâ€¦" style="width:100%; height:44px; border:1px solid #cfd8dc; border-radius:6px; padding:7px 10px; font-size:11px; resize:none; outline:none; color:#37474f; box-sizing:border-box;"></textarea>
                     </div>
                     <!-- Action buttons -->
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:14px;">
@@ -2108,7 +2119,7 @@ body.add-model-mode #selectAllCheckbox {
                      {% if jig_details.number > 3 %}
                      <li><a href="?page=1">1</a></li>
                      {% if jig_details.number > 4 %}
-                     <li class="disabled"><span>…</span></li>
+                     <li class="disabled"><span>â€¦</span></li>
                      {% endif %}
                      {% endif %}
                      {# Show pages around current page #}
@@ -2124,7 +2135,7 @@ body.add-model-mode #selectAllCheckbox {
                      {# Show ellipsis and last page if needed #}
                      {% if jig_details.number < jig_details.paginator.num_pages|add:'-2' %}
                      {% if jig_details.number < jig_details.paginator.num_pages|add:'-3' %}
-                     <li class="disabled"><span>…</span></li>
+                     <li class="disabled"><span>â€¦</span></li>
                      {% endif %}
                      <li><a href="?page={{ jig_details.paginator.num_pages }}">{{ jig_details.paginator.num_pages }}</a></li>
                      {% endif %}
@@ -2165,7 +2176,7 @@ body.add-model-mode #selectAllCheckbox {
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   // ===================================================================
-  // Zone 2 Unload Modal — Uses the shared Z1 unload persistence APIs; Zone 2 table remains the owner of row visibility.
+  // Zone 2 Unload Modal â€” Uses the shared Z1 unload persistence APIs; Zone 2 table remains the owner of row visibility.
   // ===================================================================
   const API_BASE = "{% url 'get_unload_models_z1' %}".replace(/get_unload_models_z1\/?$/, '').replace(/\/$/, '');
   const TRAY_VALIDATE_URL = "{% url 'validate_tray_occupancy_z1' %}";
@@ -2177,8 +2188,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let currentJigCompletedId = null;
   let currentModelsData     = null;
   let currentModelIndex     = null;
-  let originalLotQty        = 0;      // ✅ Store original LOT Qty for validation
-  let lotQtyEdited          = false;  // ✅ Track if LOT Qty was edited
+  let originalLotQty        = 0;      // âœ… Store original LOT Qty for validation
+  let lotQtyEdited          = false;  // âœ… Track if LOT Qty was edited
 
   function getCsrfToken() {
     const el = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -2195,10 +2206,24 @@ document.addEventListener('DOMContentLoaded', function() {
     layer.style.display = 'block';
   }
 
+  function setUnloadActionColumnDisabled(disabled) {
+    document.body.classList.toggle('ju-unload-modal-open', !!disabled);
+  }
+
+  function showUnloadModal() {
+    modal.style.display = 'flex';
+    setUnloadActionColumnDisabled(true);
+  }
+
+  function closeUnloadModal() {
+    modal.style.display = 'none';
+    setUnloadActionColumnDisabled(false);
+  }
+
   // --- OPEN MODAL ---
   function openUnloadModal(jigCompletedId) {
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -2223,7 +2248,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- LAYER 1: Model Table ---
   // Combined "JIG: X, Y" label for a model. The backend intentionally leaves
   // m.jig_id as just the base jig(s) when a lot is merged in via Add Model
-  // (STEP 5) — the newly-added jig lives only in merged_lots — so this
+  // (STEP 5) â€” the newly-added jig lives only in merged_lots â€” so this
   // combined display self-reverts to the correct value the moment that merge
   // is undone via Remove, with no separate "un-concatenate" step needed.
   function getDisplayJigId(m) {
@@ -2264,9 +2289,9 @@ document.addEventListener('DOMContentLoaded', function() {
         actionHtml = '<button class="z1-model-unload-btn" data-idx="' + idx + '" style="background:#00897B;color:#fff;border:none;border-radius:16px;padding:4px 14px;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:0.2px;"><i class="fa fa-download"></i> Unload</button>';
       }
 
-      // Newly added via Add Model this session — allow removing any time before
+      // Newly added via Add Model this session â€” allow removing any time before
       // this model is finally submitted (it may already be auto-saved as a
-      // draft — draft is still fully editable, so that must not hide the icon).
+      // draft â€” draft is still fully editable, so that must not hide the icon).
       var removeMode = '';
       if (m.added_jig_completed_id && !m.is_unloaded) {
         removeMode = 'row';
@@ -2287,8 +2312,8 @@ document.addEventListener('DOMContentLoaded', function() {
           escHtml(m.model_no) + removeBtnHtml +
           (m.merged_info ? '<div style="font-size:9px;color:#1565c0;margin-top:2px;font-style:italic;"><i class="fa fa-info-circle" style="margin-right:2px;"></i>' + escHtml(m.merged_info) + '</div>' : '') +
         '</td>' +
-        '<td style="padding:9px 12px;font-size:11px;color:#455a64;vertical-align:middle;">' + escHtml(m.plating_color_name || '—') + '</td>' +
-        '<td style="padding:9px 12px;font-size:11px;color:#78909c;vertical-align:middle;">' + escHtml(getDisplayJigId(m) || '—') + '</td>' +
+        '<td style="padding:9px 12px;font-size:11px;color:#455a64;vertical-align:middle;">' + escHtml(m.plating_color_name || 'â€”') + '</td>' +
+        '<td style="padding:9px 12px;font-size:11px;color:#78909c;vertical-align:middle;">' + escHtml(getDisplayJigId(m) || 'â€”') + '</td>' +
         '<td style="padding:9px 12px;text-align:center;font-size:13px;color:#e65100;font-weight:600;vertical-align:middle;">' + m.qty + '</td>' +
         '<td style="padding:9px 12px;text-align:center;vertical-align:middle;">' +
           '<span style="background:' + trayColorBg(m.tray_color) + ';color:#fff;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:0.3px;">' +
@@ -2326,7 +2351,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'All models submitted successfully!',
         'success',
         function() {
-          modal.style.display = 'none';
+          closeUnloadModal();
           window.location.reload();
         }
       );
@@ -2392,9 +2417,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // pushes the surviving lot's real (already-scanned) slots to the TAIL
       // (see _jul_prepend_new_lot_tray_slots_z1 backend mirror). Reading old
       // slots by front index here was pulling the just-removed lot's blank
-      // slots back in and discarding the surviving lot's real tray IDs —
+      // slots back in and discarding the surviving lot's real tray IDs â€”
       // e.g. lot A=144 (8 slots) + lot B=144 merged (8 blank slots prepended,
-      // 16 total) → removing B must restore A's original 8 slots, which now
+      // 16 total) â†’ removing B must restore A's original 8 slots, which now
       // sit at indices 8-15, not 0-7. Read from the tail instead.
       var oldSlots = m.tray_slots || [];
       var tailStart = Math.max(oldSlots.length - numTrays, 0);
@@ -2416,7 +2441,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ? keep.map(function(ml) { return '+' + ml.qty + ' from ' + ml.lot_id; }).join('; ')
         : '';
 
-      // Persist the corrected total_qty/tray_data/merged_lots immediately —
+      // Persist the corrected total_qty/tray_data/merged_lots immediately â€”
       // without this, the model's JUSubmittedZ1 record still holds the old
       // combined qty and stale source_metadata, so the removal silently
       // reverts the next time this list is reloaded from the server.
@@ -2557,31 +2582,31 @@ document.addEventListener('DOMContentLoaded', function() {
     currentModelIndex = idx;
     const m = currentModelsData.models[idx];
     
-    // ✅ Store original LOT Qty for validation and revert
+    // âœ… Store original LOT Qty for validation and revert
     originalLotQty = m.qty;
     lotQtyEdited = false;
     
     document.getElementById('z1TrayModelNo').textContent = m.model_no;
     document.getElementById('z1TrayJigId').textContent   = getDisplayJigId(m) || '-';
-    document.getElementById('z1TrayQty').value = m.qty;  // ✅ Changed from textContent to value (input)
-    document.getElementById('z1TrayQty').setAttribute('max', originalLotQty); // ✅ Set max constraint
+    document.getElementById('z1TrayQty').value = m.qty;  // âœ… Changed from textContent to value (input)
+    document.getElementById('z1TrayQty').setAttribute('max', originalLotQty); // âœ… Set max constraint
     document.getElementById('z1TrayCode').textContent    = m.tray_code + ' (' + m.tray_type + '-' + m.tray_capacity + ')';
     document.getElementById('z1TrayCount').textContent   = m.num_trays;
     document.getElementById('z1TrayError').style.display = 'none';
     document.getElementById('z1TopTrayRemark').value     = '';
     document.getElementById('z1TopTrayRemarkRow').style.display = 'none';
     
-    // ✅ Hide revert button and error on open
+    // âœ… Hide revert button and error on open
     const revertBtn = document.getElementById('z1RevertQtyBtn');
     const errSpan = document.getElementById('z1LotQtyError');
     if (revertBtn) revertBtn.style.display = 'none';
     if (errSpan) errSpan.style.display = 'none';
 
     // Pre-fill tray IDs from draft/submitted data if available. submitted_data
-    // is the RAW, previously-persisted tray_data — its slot numbers reflect
+    // is the RAW, previously-persisted tray_data â€” its slot numbers reflect
     // whatever order was in effect the last time it was saved. Once an Add
     // Model merge has reordered this model's slots this session (new lot's
-    // trays first, old lot's trays pushed down — flagged via
+    // trays first, old lot's trays pushed down â€” flagged via
     // is_newly_added_slot), the backend has ALREADY resolved every slot's
     // correct tray_id itself (blank for genuinely new slots, carried forward
     // for pre-existing ones). Matching stale submitted_data by slot NUMBER
@@ -2604,8 +2629,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     renderTrayNewModelChips(m, idx);
     showLayer(layerTrayScan);
-    renderTraySlots(m, true); // ✅ Auto-focus on initial modal open only
-    setupLotQtyListener(); // ✅ Attach LOT Qty edit listener
+    renderTraySlots(m, true); // âœ… Auto-focus on initial modal open only
+    setupLotQtyListener(); // âœ… Attach LOT Qty edit listener
   }
 
   // Header chip: shows the model number of anything just brought in via Add
@@ -2638,12 +2663,12 @@ document.addEventListener('DOMContentLoaded', function() {
       showZ1Confirm('Remove this newly added model?', function() {
         removeNewlyAddedModel(idx, removeMode);
         if (removeMode === 'row') {
-          // The whole model row being viewed was just removed — nothing left
+          // The whole model row being viewed was just removed â€” nothing left
           // here to show, so go back to the model list.
           showLayer(layerModelList);
         } else {
           // Merge undone: this model still exists, now reverted to its
-          // original qty/trays — stay on this screen and refresh it in place.
+          // original qty/trays â€” stay on this screen and refresh it in place.
           openTrayScan(idx);
         }
       }, 'Remove', 'fa-trash');
@@ -2707,7 +2732,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -2752,7 +2777,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   function renderTraySlots(modelData, shouldAutoFocus) {
-    if (shouldAutoFocus === undefined) shouldAutoFocus = false; // ✅ Default: no auto-focus
+    if (shouldAutoFocus === undefined) shouldAutoFocus = false; // âœ… Default: no auto-focus
     const container = document.getElementById('z1TraySlotsContainer');
     // Purely visual: when this model combines quantity from more than one lot
     // (via ditto/Add Model merge), tint every row so it's obvious at a glance
@@ -2788,7 +2813,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '" maxlength="9" autocomplete="off" placeholder="Scan tray ID" ' +
         'style="width:100%;padding:5px 9px;border:1px solid #cfd8dc;border-radius:6px;font-size:12px;outline:none;color:#263238;background:#fff;transition:border-color 0.15s,box-shadow 0.15s;box-sizing:border-box;" /></td>';
       html += '<td style="padding:7px 10px;text-align:center;">';
-      // ✅ LOT Qty handles quantity changes - no top tray qty edit needed
+      // âœ… LOT Qty handles quantity changes - no top tray qty edit needed
       html += '<span style="font-size:12px;color:' + (isTop ? '#e65100' : '#37474f') + ';font-weight:' + (isTop ? '600' : '500') + ';">' + slot.qty + '</span>';
       html += '</td></tr>';
     });
@@ -2857,7 +2882,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (isDupe) {
             this.style.borderColor = '#ef5350';
             this.style.boxShadow = '0 0 0 2px rgba(239,83,80,0.15)';
-            showTrayError('Duplicate tray ID: ' + currentVal + ' — each tray must be unique');
+            showTrayError('Duplicate tray ID: ' + currentVal + ' â€” each tray must be unique');
             this.value = '';
             this.style.borderColor = '#cfd8dc';
             this.style.boxShadow = '';
@@ -2910,10 +2935,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     });
-    // ✅ Only auto-focus first tray input on initial modal open, not during redistribution
+    // âœ… Only auto-focus first tray input on initial modal open, not during redistribution
     if (shouldAutoFocus && inputs.length > 0) inputs[0].focus();
 
-    // ✅ Top tray qty is no longer editable - LOT Qty field handles quantity changes
+    // âœ… Top tray qty is no longer editable - LOT Qty field handles quantity changes
   }
 
   // --- LOT Qty Edit Listener & Redistribution ---
@@ -2949,11 +2974,11 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         lotQtyEdited = false;
         if (revertBtn) revertBtn.style.display = 'none';
-        redistributeTrays(newQty); // ✅ FIX: Redistribute even when reverting to original
+        redistributeTrays(newQty); // âœ… FIX: Redistribute even when reverting to original
       }
     });
 
-    // ✅ NEW: Revert button click handler
+    // âœ… NEW: Revert button click handler
     if (revertBtn) {
       revertBtn.addEventListener('click', function() {
         lotQtyInput.value = originalLotQty;
@@ -2997,8 +3022,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update UI
     document.getElementById('z1TrayCount').textContent = totalTrays;
-    renderTraySlots(m, false); // ✅ Don't auto-focus - keep cursor in LOT Qty field
-    // ✅ DON'T re-attach listener here - causes infinite listener multiplication
+    renderTraySlots(m, false); // âœ… Don't auto-focus - keep cursor in LOT Qty field
+    // âœ… DON'T re-attach listener here - causes infinite listener multiplication
   }
 
   // --- Collect tray data from form ---
@@ -3013,20 +3038,20 @@ document.addEventListener('DOMContentLoaded', function() {
       const slotNum = parseInt(inp.dataset.slot);
       const trayId  = inp.value.trim();
       const isTop   = slotNum === 1;
-      let qty = m.tray_slots[slotNum - 1].qty; // ✅ Use qty from model data (LOT Qty edit handles changes)
+      let qty = m.tray_slots[slotNum - 1].qty; // âœ… Use qty from model data (LOT Qty edit handles changes)
       trayData.push({
         slot: slotNum,
         tray_id: trayId,
         qty: qty,
         is_top_tray: isTop,
-        qty_edited: false, // ✅ No longer editable
+        qty_edited: false, // âœ… No longer editable
       });
       if (!trayId) hasError = true;  // will be flagged only for final save
     });
     return { trayData, hasError };
   }
 
-  // --- CLEAR TRAY ID INPUTS (only the tray ID boxes — qty/model/etc untouched) ---
+  // --- CLEAR TRAY ID INPUTS (only the tray ID boxes â€” qty/model/etc untouched) ---
   document.getElementById('z1ClearTrayIdsBtn').addEventListener('click', function() {
     const container = document.getElementById('z1TraySlotsContainer');
     const inputs = container.querySelectorAll('.z1-tray-input');
@@ -3121,7 +3146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const dupes = ids.filter((v, i) => ids.indexOf(v) !== i);
     if (dupes.length > 0) { showTrayError('Duplicate tray IDs: ' + dupes.join(', ')); return; }
 
-    // ✅ Top tray remark validation removed - LOT Qty handles quantity changes
+    // âœ… Top tray remark validation removed - LOT Qty handles quantity changes
 
     const topTrayRemark = document.getElementById('z1TopTrayRemark').value.trim();
     // m.qty is the authoritative total the tray table was built from; only trust
@@ -3227,7 +3252,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          modal.style.display = 'none';
+          closeUnloadModal();
           window.location.reload();
         } else {
           btn.disabled = false;
@@ -3286,10 +3311,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- NAVIGATION ---
-  document.getElementById('z1ModalClose').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
+  document.getElementById('z1ModalClose').addEventListener('click', function() { closeUnloadModal(); window.location.reload(); });
   document.getElementById('z1BackToModels').addEventListener('click', function() { showLayer(layerModelList); });
   document.getElementById('z1ViewBackBtn').addEventListener('click', function() { showLayer(layerModelList); });
-  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
+  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { closeUnloadModal(); window.location.reload(); });
   // Prevent modal from closing when clicking outside (backdrop click disabled)
 
   // --- LAYER 4: Add Model (in-scan, same-model merge) ---
@@ -3321,12 +3346,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const rowPlatingStk = (modelCell.dataset.platingStockNo || '').trim();
       let modelList = [];
       try { modelList = JSON.parse(modelCell.dataset.modelList || '[]'); } catch(e) {}
-      // Only show same-model jigs — check comma-separated plating stock and model list
+      // Only show same-model jigs â€” check comma-separated plating stock and model list
       const platingMatch = rowPlatingStk === currentModel ||
         rowPlatingStk.split(',').some(function(p) { return p.trim() === currentModel; });
       const isSameModel = platingMatch || modelList.indexOf(currentModel) >= 0;
       if (!isSameModel) return;
-      // Qty for THIS model only — a candidate jig may hold multiple models,
+      // Qty for THIS model only â€” a candidate jig may hold multiple models,
       // so summing every lot_id_quantities entry on the row (regardless of
       // model) overstates the qty this Add Model action will actually merge
       // in (the backend only merges the lot(s) matching currentModel). Use
@@ -3388,12 +3413,12 @@ document.addEventListener('DOMContentLoaded', function() {
     showLayer(layerAddModel);
   }
 
-  // Layer 4 — back/cancel: return to tray scan
+  // Layer 4 â€” back/cancel: return to tray scan
   document.getElementById('z1AddModelBackBtn').addEventListener('click', function() { showLayer(layerTrayScan); });
   document.getElementById('z1AddModelCancelBtn').addEventListener('click', function() { showLayer(layerTrayScan); });
 
   // Carry forward whatever tray IDs are currently typed (even partially filled)
-  // across the Add Model merge, entirely client-side — Add Model must never
+  // across the Add Model merge, entirely client-side â€” Add Model must never
   // write to the submitted table on its own; only an explicit Draft/Save/Submit
   // action may create or update a JUSubmittedZ1 row (see Jig Unloading admin
   // "auto processing" fix). Add Model replaces currentModelsData with a fresh
@@ -3406,8 +3431,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Add Model prepends the newly-merged lot's fresh blank slots to the FRONT
-  // and pushes this lot's own (in-progress) slots to the TAIL — mirrors
-  // _jul_prepend_new_lot_tray_slots_z1 / the Remove-merge tail logic above —
+  // and pushes this lot's own (in-progress) slots to the TAIL â€” mirrors
+  // _jul_prepend_new_lot_tray_slots_z1 / the Remove-merge tail logic above â€”
   // so unsaved tray IDs typed before the merge land back on the same slots.
   function _z1ReapplyPendingTrayIds(m, pendingTrayIds) {
     if (!pendingTrayIds || !pendingTrayIds.length || !m || !Array.isArray(m.tray_slots)) return;
@@ -3418,7 +3443,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Layer 4 — confirm: call backend with selected jig IDs, then auto-open tray scan with merged qty
+  // Layer 4 â€” confirm: call backend with selected jig IDs, then auto-open tray scan with merged qty
   document.getElementById('z1AddModelConfirmBtn').addEventListener('click', function() {
     const checked = document.querySelectorAll('.z1-add-model-cb:checked');
     if (checked.length === 0) {
@@ -3432,12 +3457,12 @@ document.addEventListener('DOMContentLoaded', function() {
     openUnloadModalWithAdditional(currentJigCompletedId, additionalIds, savedModelNo, pendingTrayIds);
   });
 
-  // --- Open modal with additional jig IDs — merges same plating_stk_no models ---
+  // --- Open modal with additional jig IDs â€” merges same plating_stk_no models ---
   // autoOpenModelNo: if provided, auto-navigates to tray scan for that model after loading
   // pendingTrayIds: unsaved tray IDs typed before the merge, reapplied client-side only
   function openUnloadModalWithAdditional(jigCompletedId, additionalJigIds, autoOpenModelNo, pendingTrayIds) {
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -3708,6 +3733,105 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
+    let juActiveScanRow = null;
+    let juActiveScanOriginalParent = null;
+    let juActiveScanOriginalNext = null;
+
+    function juRestoreScanRow() {
+      if (!juActiveScanRow || !juActiveScanOriginalParent) return;
+      juActiveScanRow.classList.remove('z1-row-open');
+      juActiveScanRow.removeAttribute('data-ju-scan-active');
+      juActiveScanRow.style.backgroundColor = '';
+      juActiveScanRow.style.outline = '';
+      juActiveScanRow.style.outlineOffset = '';
+      juActiveScanRow.querySelectorAll('td').forEach(function(cell) {
+        cell.style.boxShadow = '';
+      });
+      if (juActiveScanOriginalNext && juActiveScanOriginalNext.parentNode === juActiveScanOriginalParent) {
+        juActiveScanOriginalParent.insertBefore(juActiveScanRow, juActiveScanOriginalNext);
+      } else {
+        juActiveScanOriginalParent.appendChild(juActiveScanRow);
+      }
+      juActiveScanRow = null;
+      juActiveScanOriginalParent = null;
+      juActiveScanOriginalNext = null;
+    }
+
+    function juApplyScanRowHighlight(row) {
+      if (!row) return;
+      if (juActiveScanRow && juActiveScanRow !== row) juRestoreScanRow();
+      document.querySelectorAll('#order-listing tbody tr.z1-row-open, #order-listing tbody tr[data-global-scan-active="1"]').forEach(function(activeRow) {
+        if (activeRow !== row) {
+          activeRow.classList.remove('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+          activeRow.removeAttribute('data-global-scan-active');
+          activeRow.removeAttribute('data-ju-scan-active');
+          activeRow.style.backgroundColor = '';
+          activeRow.style.outline = '';
+          activeRow.style.outlineOffset = '';
+          activeRow.querySelectorAll('td').forEach(function(cell) { cell.style.boxShadow = ''; });
+        }
+      });
+      const tbody = row.closest('tbody');
+      if (!juActiveScanRow) {
+        juActiveScanRow = row;
+        juActiveScanOriginalParent = tbody;
+        juActiveScanOriginalNext = row.nextElementSibling;
+      }
+      if (tbody && tbody.firstElementChild !== row) {
+        tbody.insertBefore(row, tbody.firstElementChild);
+      }
+      row.classList.add('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+      row.setAttribute('data-ju-scan-active', '1');
+      row.setAttribute('data-global-scan-active', '1');
+      row.style.transition = 'background-color 0.3s';
+      row.style.backgroundColor = '#d4edda';
+      row.style.outline = '2px solid #d6a300';
+      row.style.outlineOffset = '-2px';
+      row.querySelectorAll('td').forEach(function(cell) {
+        cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
+      });
+      row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function juNormalizeScanValue(value) {
+      return String(value || '').replace(/\s+/g, '').toUpperCase();
+    }
+
+    function juFindRowFromScanParams() {
+      const params = new URLSearchParams(window.location.search);
+      const highlightJigId = juNormalizeScanValue(params.get('highlight'));
+      const highlightLotId = String(params.get('lot') || '');
+      const highlightCompletedId = String(params.get('highlight_jig') || '');
+      const rows = document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]');
+      for (const row of rows) {
+        if (highlightJigId && juNormalizeScanValue(row.getAttribute('data-jig-qr-id')) === highlightJigId) return row;
+        if (highlightCompletedId && String(row.getAttribute('data-jig-completed-id') || '') === highlightCompletedId) return row;
+        if (highlightLotId && (
+          String(row.getAttribute('data-lot-id') || '') === highlightLotId ||
+          String(row.getAttribute('data-jig-lot-id') || '') === highlightLotId
+        )) return row;
+      }
+      return null;
+    }
+
+    function juApplyUrlScanHighlight() {
+      const row = juFindRowFromScanParams();
+      if (row) juApplyScanRowHighlight(row);
+    }
+
+    document.addEventListener('click', function(e) {
+      const clickedRow = e.target.closest('#order-listing tbody tr');
+      if (clickedRow && juActiveScanRow && clickedRow !== juActiveScanRow) {
+        juRestoreScanRow();
+      }
+    }, true);
+
+    if (new URLSearchParams(window.location.search).get('highlight')) {
+      setTimeout(juApplyUrlScanHighlight, 150);
+      setTimeout(juApplyUrlScanHighlight, 700);
+      setTimeout(juApplyUrlScanHighlight, 1400);
+    }
+
     scanInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -3730,10 +3854,8 @@ document.addEventListener('DOMContentLoaded', function() {
               rows.forEach(function(row) {
                 if (row.getAttribute('data-jig-completed-id') === String(data.jig_completed_id || data.jig_id)) {
                   found = true;
-                  row.style.transition = 'background-color 0.3s';
-                  row.style.backgroundColor = '#d4edda';
-                  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  setTimeout(function() { row.style.backgroundColor = ''; }, 5000);
+                  // Highlight scan result only; do not open unload modal from scan.
+                  juApplyScanRowHighlight(row);
                   scanMsg.style.display = 'block';
                   scanMsg.style.background = '#d4edda';
                   scanMsg.style.color = '#155724';
@@ -3799,10 +3921,7 @@ document.addEventListener('DOMContentLoaded', function() {
       rows.forEach(function(row) {
         if (row.getAttribute('data-jig-completed-id') === highlightJig) {
           found = true;
-          row.style.transition = 'background-color 0.3s';
-          row.style.backgroundColor = '#d4edda';
-          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setTimeout(function() { row.style.backgroundColor = ''; }, 5000);
+          juApplyScanRowHighlight(row);
           if (scanMsg) {
             scanMsg.style.display = 'block';
             scanMsg.style.background = '#d4edda';
@@ -3835,7 +3954,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ===================================================================
-    // MODEL GALLERY CLICK HANDLER — Display images and model details
+    // MODEL GALLERY CLICK HANDLER â€” Display images and model details
     // ===================================================================
     document.addEventListener('click', function(e) {
       const galleryIcon = e.target.closest('.model-gallery-icon');
@@ -3866,7 +3985,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       console.log('[Z2 Gallery] Models:', modelList, 'Images:', modelImages, 'Colors:', modelColors, 'Plating Stock:', platingStockNo);
 
-      // Build gallery HTML — one card per model, laid out in a responsive grid
+      // Build gallery HTML â€” one card per model, laid out in a responsive grid
       let galleryHTML = '';
 
       modelList.forEach(function(modelNo) {
@@ -3935,7 +4054,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   })();
 
-  // ── Hold/Unhold view icon click handler ──
+  // â”€â”€ Hold/Unhold view icon click handler â”€â”€
   document.querySelectorAll('.hold-remark-icon').forEach(function(icon) {
     icon.addEventListener('click', function() {
       const title = this.getAttribute('title') || '';
@@ -3945,7 +4064,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // ── Hold / Unhold Toggle with Remark ──
+  // â”€â”€ Hold / Unhold Toggle with Remark â”€â”€
   (function initHoldToggle() {
     const holdModal = document.getElementById('holdRemarkModal');
     const holdInput = document.getElementById('holdRemarkInput');
@@ -4058,8 +4177,119 @@ document.addEventListener('DOMContentLoaded', function() {
   })();
 });
 </script>
+<script nonce="{{ csp_nonce }}">
+(function() {
+  'use strict';
+
+  function norm(value) {
+    return String(value || '').replace(/\s+/g, '').toUpperCase();
+  }
+
+  function params() {
+    return new URLSearchParams(window.location.search);
+  }
+
+  function findHighlightRow() {
+    const query = params();
+    const highlightJig = norm(query.get('highlight'));
+    const highlightLot = String(query.get('lot') || '');
+    const highlightCompleted = String(query.get('highlight_jig') || '');
+    if (!highlightJig && !highlightLot && !highlightCompleted) return null;
+
+    const rows = document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]');
+    for (const row of rows) {
+      if (highlightJig && norm(row.getAttribute('data-jig-qr-id')) === highlightJig) return row;
+      if (highlightCompleted && String(row.getAttribute('data-jig-completed-id') || '') === highlightCompleted) return row;
+      if (highlightLot && (
+        String(row.getAttribute('data-lot-id') || '') === highlightLot ||
+        String(row.getAttribute('data-jig-lot-id') || '') === highlightLot
+      )) return row;
+    }
+    return null;
+  }
+
+  let activeRow = null;
+  let originalParent = null;
+  let originalNext = null;
+
+  function restoreActiveRow() {
+    if (!activeRow || !originalParent) return;
+    activeRow.classList.remove('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+    activeRow.removeAttribute('data-ju-final-scan-active');
+    activeRow.removeAttribute('data-global-scan-active');
+    activeRow.style.backgroundColor = '';
+    activeRow.style.outline = '';
+    activeRow.style.outlineOffset = '';
+    activeRow.querySelectorAll('td').forEach(function(cell) {
+      cell.style.boxShadow = '';
+      cell.style.backgroundColor = '';
+    });
+    if (originalNext && originalNext.parentNode === originalParent) {
+      originalParent.insertBefore(activeRow, originalNext);
+    } else {
+      originalParent.appendChild(activeRow);
+    }
+    activeRow = null;
+    originalParent = null;
+    originalNext = null;
+  }
+
+  function applyHighlight(row) {
+    if (!row) return false;
+    if (activeRow && activeRow !== row) restoreActiveRow();
+    const tbody = row.closest('tbody');
+    if (!activeRow) {
+      activeRow = row;
+      originalParent = tbody;
+      originalNext = row.nextElementSibling;
+    }
+    if (tbody && tbody.firstElementChild !== row) {
+      tbody.insertBefore(row, tbody.firstElementChild);
+    }
+    row.classList.add('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+    row.setAttribute('data-ju-final-scan-active', '1');
+    row.setAttribute('data-global-scan-active', '1');
+    row.style.backgroundColor = '#d4edda';
+    row.style.outline = '3px solid #d6a300';
+    row.style.outlineOffset = '-3px';
+    row.querySelectorAll('td').forEach(function(cell) {
+      cell.style.backgroundColor = '#d4edda';
+      cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
+    });
+    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
+
+  function retryHighlight() {
+    applyHighlight(findHighlightRow());
+  }
+
+  if (params().get('highlight') || params().get('highlight_jig')) {
+    [100, 500, 1000, 1800, 3000].forEach(function(delay) {
+      window.setTimeout(retryHighlight, delay);
+    });
+    const table = document.querySelector('#order-listing');
+    if (table && window.MutationObserver) {
+      const observer = new MutationObserver(function() {
+        window.clearTimeout(observer._timer);
+        observer._timer = window.setTimeout(retryHighlight, 100);
+      });
+      observer.observe(table, { childList: true, subtree: true });
+      window.setTimeout(function() { observer.disconnect(); }, 6000);
+    }
+  }
+
+  document.addEventListener('click', function(event) {
+    const clickedRow = event.target.closest('#order-listing tbody tr');
+    if (clickedRow && activeRow && clickedRow !== activeRow) {
+      restoreActiveRow();
+    }
+  }, true);
+})();
+</script>
 <script src="{% static 'js/model_image_tooltip.js' %}"></script>
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
 
 {% endblock %}
 {% endblock content %}
+

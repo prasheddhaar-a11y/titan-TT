@@ -4,6 +4,27 @@
 {% load custom_tags %}
 {% block content %}
 
+<script nonce="{{ csp_nonce }}">
+(function () {
+  // Runs immediately (not on DOMContentLoaded) so it captures the scan
+  // identifiers before any redirect (e.g. base.html's pagination-correction
+  // script) has a chance to strip them from the URL. The existing
+  // "cross-module scan" script further down this file already reads these
+  // exact sessionStorage keys as its fallback, so once it runs (after the
+  // page settles on the correct page), it will now actually find the values
+  // and highlight + move the row to top as intended.
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var h = params.get('highlight');
+    var l = params.get('lot');
+    var b = params.get('batch');
+    if (h) sessionStorage.setItem('globalScanTrayId', h);
+    if (l) sessionStorage.setItem('globalScanLotId', l);
+    if (b) sessionStorage.setItem('globalScanBatchId', b);
+  } catch (e) {}
+})();
+</script>
+
 <style nonce="{{ csp_nonce }}">
 
 /* Global Font Stack */
@@ -2773,6 +2794,21 @@ function reattachAllEventListenersAfterRebuild() {
               updateUIElements();
               return;
           }
+
+          // Check tray ID format - must be like NB-A00021/JB-A00038 (prefix + 1 letter + 5 digits)
+          const trayIdFormatRegex = /^(JB|JR|JD|JL|NB|NR|ND|NL)-[A-Za-z]\d{5}$/;
+          if (!trayIdFormatRegex.test(trayId)) {
+              const errorDiv = document.createElement('div');
+              errorDiv.className = 'tray-id-error';
+              errorDiv.style.color = 'red';
+              errorDiv.style.fontSize = '12px';
+              errorDiv.textContent = 'Invalid format';
+              input.parentNode.appendChild(errorDiv);
+              input.focus();
+              input.select();
+              updateUIElements();
+              return;
+          }
   
           // Check for duplicates in modal
           let duplicateInModal = false;
@@ -5368,6 +5404,21 @@ document.addEventListener("click", async function(event) {
                         return;
                     }
 
+                    // Check tray ID format - must be like NB-A00021/JB-A00038 (prefix + 1 letter + 5 digits)
+                    const trayIdFormatRegex = /^(JB|JR|JD|JL|NB|NR|ND|NL)-[A-Za-z]\d{5}$/;
+                    if (!trayIdFormatRegex.test(trayId)) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'tray-id-error';
+                        errorDiv.style.color = 'red';
+                        errorDiv.style.fontSize = '12px';
+                        errorDiv.textContent = 'Invalid format';
+                        input.parentNode.appendChild(errorDiv);
+                        input.focus();
+                        input.select();
+                        updateUIElements();
+                        return;
+                    }
+
                     // Check for duplicates in modal
                     let duplicateInModal = false;
                     allInputs.forEach((otherInput, otherIdx) => {
@@ -6106,6 +6157,16 @@ document.addEventListener("click", async function(event) {
             errorElement.style.color = '';
             
             if (!trayId) {
+                buttonElement.disabled = true;
+                buttonElement.style.opacity = '0.5';
+                return;
+            }
+
+            // Check tray ID format - must be like NB-A00021/JB-A00038 (prefix + 1 letter + 5 digits)
+            const trayIdFormatRegex = /^(JB|JR|JD|JL|NB|NR|ND|NL)-[A-Za-z]\d{5}$/;
+            if (!trayIdFormatRegex.test(trayId)) {
+                errorElement.style.color = 'red';
+                errorElement.textContent = 'Invalid format';
                 buttonElement.disabled = true;
                 buttonElement.style.opacity = '0.5';
                 return;
@@ -8104,6 +8165,111 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
+
+<!-- ✅ DP Pick Table ONLY: fixes highlight + move-to-top when a row is reached via the
+     global "Scan or Type Tray ID" widget (cross-module scan). That widget only knows
+     the Tray ID, not the Lot/Batch ID, so the existing cross-module scan script (which
+     matches by visible cell text) can't find the row, since Tray ID isn't rendered as
+     text in the row. This block ONLY adds a fallback: it resolves the scanned Tray ID
+     to its Batch ID using the same lookup API already used elsewhere on this page,
+     then reuses the page's own existing activateDpActionRow() function -- the exact
+     same function used for Tray Scan clicks, Hold toggles, and Edit/Delete -- so the
+     row is highlighted and moved to the top exactly the same way, and automatically
+     restored to its original position when a different row is activated or on the
+     next page load. This does not modify, replace, or duplicate any other script. -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function () {
+  function getParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name) || ''; } catch (e) { return ''; }
+  }
+  function getSession(key) {
+    try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; }
+  }
+
+  // Capture these synchronously (not inside a later timer) so we read them
+  // before the existing cross-module scan script's own cleanup can clear them.
+  var scanTrayId  = getParam('highlight') || getParam('open_tray')  || getSession('globalScanTrayId');
+  var scanLotId   = getParam('lot')       || getSession('globalScanLotId');
+  var scanBatchId = getParam('batch')     || getParam('open_batch') || getSession('globalScanBatchId');
+
+  if (!scanTrayId && !scanLotId && !scanBatchId) return;
+
+  function findRowByIds(lotId, batchId) {
+    var rows = document.querySelectorAll('#order-listing tbody tr[data-batch-id]');
+    if (lotId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-lot-id')) === String(lotId)) return rows[i];
+      }
+    }
+    if (batchId) {
+      for (var i = 0; i < rows.length; i++) {
+        if (String(rows[i].getAttribute('data-batch-id')) === String(batchId)) return rows[i];
+      }
+    }
+    return null;
+  }
+
+  function highlightAndTop(row) {
+    if (!row) return;
+    if (typeof window.activateDpActionRow === 'function') {
+      window.activateDpActionRow(row);
+    } else {
+      row.classList.add('dp-row-action-highlight');
+    }
+    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  }
+
+  var resolvedOnce = false;
+  var tries = 0;
+
+  function attempt() {
+    tries++;
+
+    var row = findRowByIds(scanLotId, scanBatchId);
+    if (row) {
+      highlightAndTop(row);
+      console.log('[DP PickTable] (tray-scan fallback) Row highlighted and moved to top:', scanBatchId || scanLotId);
+      return;
+    }
+
+    // Only have a Tray ID so far -> resolve it to a Batch ID once, using the
+    // same lookup endpoint this page already calls for its own barcode scanner.
+    if (scanTrayId && !scanBatchId && !scanLotId && !resolvedOnce) {
+      resolvedOnce = true;
+      fetch('/dayplanning/dget_lot_id_for_tray/?tray_id=' + encodeURIComponent(scanTrayId), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success && data.batch_id) {
+            scanBatchId = data.batch_id;
+
+            // If the batch actually lives on a different page than the one we're
+            // on, redirect there with the batch id attached so it can be found.
+            var params = new URLSearchParams(window.location.search);
+            var currentPage = params.get('page') || '1';
+            if (data.page && String(data.page) !== String(currentPage)) {
+              params.set('page', data.page);
+              params.set('batch', scanBatchId);
+              window.location.href = window.location.pathname + '?' + params.toString();
+              return;
+            }
+          }
+          if (tries < 8) setTimeout(attempt, 300);
+        })
+        .catch(function () {
+          if (tries < 8) setTimeout(attempt, 300);
+        });
+      return;
+    }
+
+    if (tries < 8) setTimeout(attempt, 300);
+  }
+
+  setTimeout(attempt, 400);
+});
+</script>
 
   {% endblock %} {% endblock content %}
 </div>

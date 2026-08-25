@@ -2781,15 +2781,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===== GLOBAL ALLOCATION TRACKER (survives re-renders) =====
     // Tracks which trays have been allocated as top_tray / excess / delink
     if (!window._trayAllocations) window._trayAllocations = {};
-    // Keep confirmed Delink scans independent from the shared allocation map so
-    // an Excess/Top-Tray allocation can never erase a completed Delink row.
-    if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
-    Object.keys(window._trayAllocations).forEach(function(tid) {
-      var alloc = window._trayAllocations[tid];
-      if (alloc && alloc.type === 'delink') {
-        window._confirmedDelinkTrayValues[String(tid).trim().toUpperCase()] = true;
-      }
-    });
 
     var delinkPanel = panel.delink_panel || {};
     var excessPanel = panel.excess_panel || {};
@@ -2844,41 +2835,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Delink and Excess Scan cells now live in the same table/tbody, so one query
     // covers all three categories (delink / excess / excess_top).
     var previousValidated = {};
-    var previousValidatedByPosition = {};
-    // IMPORTANT: a successful Delink scan is authoritative in
-    // window._confirmedDelinkTrayValues, not merely in the transient DOM
-    // `.validated` class. Auto-allocation and multi-model re-renders can leave a
-    // confirmed value visible in its original box for a moment while the class is
-    // temporarily absent. If we only capture `.validated` inputs here, that value
-    // disappears on the next render and the row comes back as Pending.
-    // Capture confirmed Delink values from the actual box as well, preserving the
-    // physical tray in the exact box where it was successfully scanned.
-    var confirmedDelinkForRender = window._confirmedDelinkTrayValues || {};
-    document.querySelectorAll('#splitPanelContainer .split-scan-input').forEach(function(inp) {
+    document.querySelectorAll('#splitPanelContainer .split-scan-input.validated').forEach(function(inp) {
       var panel = inp.dataset.panel || '';
-      var value = (inp.value || '').trim();
-      if (!value) return;
-
-      var isValidated = inp.classList.contains('validated');
-      var valueKey = value.toUpperCase();
-      var isConfirmedDelink = panel === 'delink' && !!confirmedDelinkForRender[valueKey];
-      // Excess/Top-Tray values still use the original validated-class rule.
-      // Delink values additionally use the authoritative confirmed-ID set.
-      if (!isValidated && !isConfirmedDelink) return;
-
       var k = (inp.dataset.autoTrayId || '') + '|' + panel;
-      previousValidated[k] = value;
-      var prevRow = inp.closest('tr[data-row-type]');
-      if (prevRow) {
-        var rowsForPanel = Array.from(document.querySelectorAll(
-          '#splitPanelContainer tr[data-row-type="' + (prevRow.dataset.rowType || '') + '"]'
-        ));
-        var posKey = (prevRow.dataset.rowType || '') + '|' + (inp.dataset.panel || '') + '|' + rowsForPanel.indexOf(prevRow);
-        previousValidatedByPosition[posKey] = {
-          value: value,
-          lastValidatedId: inp.dataset.lastValidatedId || value
-        };
-      }
+      if (inp.value) previousValidated[k] = inp.value;
     });
 
     // ===== Capture currently focused element to restore after re-render =====
@@ -2930,7 +2890,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // underlying business logic changes.
         var excessCardsQueue = [];
         var excessSlotCounter = 0;
-        var delinkSlotCounter = 0;
 
         delinkTrays.forEach(function(row, idx) {
           // Skip the delink card entirely when this tray has nothing to delink
@@ -2940,7 +2899,6 @@ document.addEventListener('DOMContentLoaded', function () {
           // step in this same loop iteration, so the tray still gets its Excess
           // Tray card and remains fully scannable there.
           if (row.delink_qty > 0) {
-          var delinkSlotIndex = delinkSlotCounter++;
           var tr = document.createElement('tr');
           tr.className = 'slot-card slot-card-delink';
           if (row.state === 'scanned') tr.classList.add('delink-row-scanned');
@@ -3007,16 +2965,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // snapshot above used — restores whatever was typed back into the exact same
             // box, regardless of which physical tray it actually is.
             var restoreKey = (row.scan_tray_id || '') + '|delink';
-            var restoreValue = previousValidated[restoreKey];
-            if (!restoreValue) {
-              var positionRestore = previousValidatedByPosition['delink|delink|' + delinkSlotIndex];
-              if (positionRestore) restoreValue = positionRestore.value;
-            }
-            if (restoreValue) {
-              inp.value = restoreValue;
-              // Preserve the physical tray that this validated box contains so an
-              // edit/delete after a re-render removes only that tray's confirmation.
-              inp.dataset.lastValidatedId = String(restoreValue).trim().toUpperCase();
+            if (previousValidated[restoreKey]) {
+              inp.value = previousValidated[restoreKey];
               inp.classList.add('validated');
               inp.readOnly = true;
               inp.style.background = '#d4edda';
@@ -3085,7 +3035,6 @@ document.addEventListener('DOMContentLoaded', function () {
             var selfInp = tr.querySelector('.split-scan-input[data-panel="delink"]');
             if (selfInp && !selfInp.value) {
               selfInp.value = row.tray_id;
-              selfInp.dataset.lastValidatedId = String(row.tray_id || '').trim().toUpperCase();
               selfInp.classList.add('validated');
               selfInp.readOnly = true;
               selfInp.style.background = '#d4edda';
@@ -3162,14 +3111,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (excPanelType === 'excess_top') {
               excInp.id = 'excessTopTrayScanInput';
               excInp.placeholder = 'Scan / Type Top Tray ID';
-              var excTopRestore = previousValidated[excRestoreKey];
-              if (!excTopRestore) {
-                var excTopPositionRestore = previousValidatedByPosition['excess|excess_top|' + (excessSlotCounter - 1)];
-                if (excTopPositionRestore) excTopRestore = excTopPositionRestore.value;
-              }
-              if (excTopRestore) {
-                excInp.value = excTopRestore;
-                excInp.dataset.lastValidatedId = String(excTopRestore).trim().toUpperCase();
+              if (previousValidated[excRestoreKey]) {
+                excInp.value = previousValidated[excRestoreKey];
                 excInp.classList.add('validated');
                 excInp.readOnly = true;
                 excInp.style.background = '#d0f0f2';
@@ -3193,14 +3136,8 @@ document.addEventListener('DOMContentLoaded', function () {
               etd3.appendChild(topStatusCompat);
             } else {
               excInp.placeholder = 'Scan Excess';
-              var excRestore = previousValidated[excRestoreKey];
-              if (!excRestore) {
-                var excPositionRestore = previousValidatedByPosition['excess|excess|' + (excessSlotCounter - 1)];
-                if (excPositionRestore) excRestore = excPositionRestore.value;
-              }
-              if (excRestore) {
-                excInp.value = excRestore;
-                excInp.dataset.lastValidatedId = String(excRestore).trim().toUpperCase();
+              if (previousValidated[excRestoreKey]) {
+                excInp.value = previousValidated[excRestoreKey];
                 excInp.classList.add('validated');
                 excInp.readOnly = true;
                 excInp.style.background = '#d0f0f2';
@@ -3583,38 +3520,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Delink + Excess Scan (incl. top tray) cells all live in the same tbody now.
     collect('#splitPanelContainer .split-scan-input.validated');
-
-    // A confirmed Delink scan must remain part of the backend duplicate/loaded-state
-    // payload even if its input temporarily lost `.validated` during a re-render.
-    // The confirmation set is written only after a successful backend validation and
-    // is cleared only when that physical tray is explicitly edited/unscanned, so it
-    // is safe to use as the authoritative fallback here.
-    var confirmedDelink = window._confirmedDelinkTrayValues || {};
-    Object.keys(confirmedDelink).forEach(function(key) {
-      if (!confirmedDelink[key]) return;
-      var normalized = String(key || '').trim().toUpperCase();
-      if (!normalized || seen.has(normalized)) return;
-      seen.add(normalized);
-      var sourceInput = document.querySelector(
-        '#splitPanelContainer .split-scan-input[data-panel="delink"][value="' + normalized.replace(/"/g, '\\"') + '"]'
-      );
-      // CSS [value] is not reliable after programmatic `.value` assignment, so fall
-      // back to a direct value comparison when locating the box/expected quantity.
-      if (!sourceInput) {
-        var delinkInputs = document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="delink"]');
-        for (var di = 0; di < delinkInputs.length; di++) {
-          if ((delinkInputs[di].value || '').trim().toUpperCase() === normalized) {
-            sourceInput = delinkInputs[di];
-            break;
-          }
-        }
-      }
-      scans.push({
-        tray_id: normalized,
-        qty: sourceInput ? (parseInt(sourceInput.dataset.expectedQty || 0) || 0) : 0
-      });
-    });
-
     // Legacy compat
     collect('#unifiedTrayTableBody .unified-scan-input.validated');
     collect('#excessTrayContainer .tray-id-input.validated');
@@ -3737,24 +3642,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Remove the OLD (pre-edit) tray id from the allocation tracker — captured at validation time.
     var prevId = inputEl.dataset.lastValidatedId;
-    var editedPanel = inputEl.dataset.panel || (inputEl.id === 'excessTopTrayScanInput' ? 'excess_top' : '');
     if (prevId && window._trayAllocations) {
-      var prevAlloc = window._trayAllocations[prevId];
-      if (editedPanel === 'delink' || !prevAlloc || prevAlloc.type !== 'delink') {
-        delete window._trayAllocations[prevId];
-      }
-    }
-    // Remove ONLY the physical tray that was edited/removed from the confirmed
-    // Delink set. Other completed rows must remain Delinked and counted.
-    if (editedPanel === 'delink' && prevId && window._confirmedDelinkTrayValues) {
-      delete window._confirmedDelinkTrayValues[String(prevId).trim().toUpperCase()];
-    }
-    // If this Delink box was filled by the auto-allocator and the operator is
-    // now editing it, release ONLY that tray's auto-allocation marker. Do not
-    // touch any other auto-allocated Delink rows.
-    var prevIdUpper = prevId ? String(prevId).trim().toUpperCase() : '';
-    if (editedPanel === 'delink' && prevIdUpper && window._autoAllocatedTrayValues && window._autoAllocatedTrayValues[prevIdUpper]) {
-      delete window._autoAllocatedTrayValues[prevIdUpper];
+      delete window._trayAllocations[prevId];
     }
     delete inputEl.dataset.lastValidatedId;
     console.log('[EDIT_UNLOCK] Row unlocked for editing (value preserved), previous id:', prevId);
@@ -3887,8 +3776,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (scanPanel === 'delink') {
           // ===== DELINK SCAN: lock the row, green status =====
           window._trayAllocations[trayId.toUpperCase()] = { type: 'delink' };
-          if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
-          window._confirmedDelinkTrayValues[trayId.toUpperCase()] = true;
           inputEl.readOnly = true;
           inputEl.style.background = '#d4edda';
           inputEl.style.borderColor = '#28a745';
@@ -4064,7 +3951,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (window._trayAllocations) delete window._trayAllocations[normalized];
-    if (window._confirmedDelinkTrayValues) delete window._confirmedDelinkTrayValues[normalized];
     if (!dBody) return;
     dBody.querySelectorAll('.delink-row-checkbox').forEach(function(cb) {
       if ((cb.dataset.trayId || '').trim().toUpperCase() === normalized) {
@@ -4202,30 +4088,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!nextTrayId) break;
         nextBox.value = nextTrayId;
         await _validateSplitScan(nextTrayId, nextBox, false);
-
-        // The successful scan can trigger the debounced panel re-render while the
-        // await above is yielding.  Therefore never rely on the old DOM node
-        // (nextBox) to decide whether the auto-allocation succeeded.  Re-find the
-        // current Delink input by the value that was just validated.
-        var normalizedNextTrayId = String(nextTrayId).trim().toUpperCase();
-        var currentAutoBox = null;
-        var currentDelinkInputs = document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="delink"]');
-        for (var ai = 0; ai < currentDelinkInputs.length; ai++) {
-          var candidate = currentDelinkInputs[ai];
-          if ((candidate.value || '').trim().toUpperCase() === normalizedNextTrayId) {
-            currentAutoBox = candidate;
-            break;
-          }
-        }
-
-        if (!currentAutoBox || !currentAutoBox.classList.contains('validated')) {
+        if (!nextBox.classList.contains('validated')) {
           // Auto-scan failed (e.g. tray rejected by backend) — stop here and
           // leave any remaining boxes for manual entry rather than retrying
           // the same failing tray forever.
           console.warn('[AUTO_ALLOCATE_DELINK] Stopped — auto-scan failed for', nextTrayId);
           break;
         }
-
         // UI STATUS FIX: record this physical tray_id as auto-allocated (persists
         // across re-renders, keyed by value — same pattern as _trayAllocations).
         // _syncDelinkRowStatuses uses this to show "Delinked" for the row that
@@ -4233,17 +4102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // "own tray in own box" (any physical tray fills any open box by design —
         // see the box/value-identity notes throughout this file).
         if (!window._autoAllocatedTrayValues) window._autoAllocatedTrayValues = {};
-        window._autoAllocatedTrayValues[normalizedNextTrayId] = true;
-        if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
-        window._confirmedDelinkTrayValues[normalizedNextTrayId] = true;
-
-        // The allocation marker is intentionally written only after backend success.
-        // Reconcile immediately so a re-render cannot leave this successfully
-        // restored tray showing Pending or omit its quantity from the live total.
-        _syncDelinkRowStatuses();
-        _renderDelinkTrayChipStrip(document.getElementById('delinkPanelTableBody'));
-        _updateDelinkTotalBar();
-        _updateDelinkStatsBadge();
+        window._autoAllocatedTrayValues[String(nextTrayId).trim().toUpperCase()] = true;
       }
       console.log('[AUTO_ALLOCATE_DELINK] Completed after', guard - 1, 'iteration(s)');
     } finally {
@@ -4252,38 +4111,46 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   window._autoAllocateRemainingDelinkTrays = _autoAllocateRemainingDelinkTrays;
 
-  // ===== PRESERVE AUTO-ALLOCATED DELINK TRAYS WHEN EXCESS IS EDITED =====
-  // IMPORTANT: Editing/removing an Excess scan must NOT clear Delink boxes that
-  // were already confirmed by the auto-allocator. Those boxes represent real
-  // successful Delink scans and remain valid when another Excess row is edited.
-  //
-  // The previous implementation treated every Excess edit as a reason to wipe
-  // ALL auto-allocated Delink values. That made already completed Delink rows
-  // (for example rows 6 and 7) jump back to Pending even though their scans had
-  // succeeded. It also deleted their confirmed values from the authoritative
-  // _confirmedDelinkTrayValues set and their allocation records from
-  // _trayAllocations.
-  //
-  // Keep this function (and its existing call site) for compatibility, but make
-  // it reconciliation-only: preserve confirmed Delink scans and refresh the UI.
-  // If the edited Excess row changes which trays remain for automatic allocation,
-  // _unlockDelinkPanel() will call _autoAllocateRemainingDelinkTrays() after the
-  // Excess section becomes complete again. The allocator already skips confirmed
-  // tray ids, so existing Delink rows remain locked while only genuinely remaining
-  // trays are considered for new boxes.
+  // ===== CLEAR AUTO-ALLOCATED DELINK TRAYS (excess scan edited/removed) =====
+  // Only reverts boxes THIS auto-allocator itself filled (tracked in
+  // window._autoAllocatedTrayValues) — manual delink scans stay locked/intact.
+  // Re-fill only happens via a fresh _autoAllocateRemainingDelinkTrays() run,
+  // once excess is completed again, so the Delink side always reflects the
+  // current true leftover, never a stale pre-edit allocation.
   function _clearAutoAllocatedDelinkTrays() {
+    var autoValues = window._autoAllocatedTrayValues;
+    if (!autoValues || !Object.keys(autoValues).length) return;
     var dBody = document.getElementById('delinkPanelTableBody');
-
-    // Do NOT remove any validated Delink input, allocation, or confirmed tray id.
-    // A successful Delink scan is independent of an Excess-row edit.
+    if (dBody) {
+      dBody.querySelectorAll('.split-scan-input[data-panel="delink"].validated').forEach(function(inp) {
+        var val = (inp.value || '').trim().toUpperCase();
+        if (!val || !autoValues[val]) return;
+        inp.classList.remove('validated', 'error-input');
+        inp.readOnly = false;
+        inp.value = '';
+        inp.style.background = '';
+        inp.style.borderColor = '';
+        delete inp.dataset.lastValidatedId;
+        var tr = inp.closest('tr');
+        if (tr) {
+          var cb = tr.querySelector('.delink-row-checkbox');
+          if (cb) { cb.checked = false; cb.disabled = false; cb.classList.remove('locked'); }
+          tr.classList.remove('delink-row-scanned', 'delink-row-disabled');
+          delete tr.dataset.allocLocked;
+          var lastCell = tr.cells[tr.cells.length - 1];
+          if (lastCell) lastCell.innerHTML = '';
+        }
+        if (window._trayAllocations) delete window._trayAllocations[val];
+      });
+    }
+    window._autoAllocatedTrayValues = {};
     if (typeof _syncDelinkRowStatuses === 'function') _syncDelinkRowStatuses();
     if (typeof _renderDelinkTrayChipStrip === 'function') _renderDelinkTrayChipStrip(dBody);
     if (typeof _updateDelinkTotalBar === 'function') _updateDelinkTotalBar();
     if (typeof _updateDelinkStatsBadge === 'function') _updateDelinkStatsBadge();
     if (typeof window.updateLoadedDisplay === 'function') window.updateLoadedDisplay();
     if (typeof window._checkSubmitReadiness === 'function') window._checkSubmitReadiness();
-
-    console.log('[AUTO_ALLOCATE_DELINK] Preserved confirmed Delink scans — Excess edit/removal must not reset existing auto-allocated rows');
+    console.log('[AUTO_ALLOCATE_DELINK] Cleared — excess scan was edited/removed, chips unstruck, will recompute leftover once excess completes again');
   }
   window._clearAutoAllocatedDelinkTrays = _clearAutoAllocatedDelinkTrays;
 
@@ -4375,27 +4242,6 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('#splitPanelContainer .split-scan-input[data-panel="delink"].validated').forEach(function(inp) {
       var val = (inp.value || '').trim().toUpperCase();
       if (val) set[val] = true;
-    });
-
-    // Keep the confirmed physical-tray set authoritative across DOM rebuilds.
-    // `.validated` is a presentation/interaction flag; a successful Delink scan is
-    // recorded in _confirmedDelinkTrayValues and must not disappear merely because
-    // a multi-model render recreated the input element.
-    var confirmed = window._confirmedDelinkTrayValues || {};
-    Object.keys(confirmed).forEach(function(tid) {
-      if (confirmed[tid]) set[String(tid).trim().toUpperCase()] = true;
-    });
-    return set;
-  }
-
-  // A confirmed Delink scan stays authoritative across UI re-renders even when
-  // the rebuilt input temporarily loses its .validated class. This is separate
-  // from _trayAllocations because Excess/Top-Tray scans are panel-independent.
-  function _getConfirmedDelinkTrayIdSet() {
-    var set = _getValidatedDelinkOnlyTrayIdSet();
-    var confirmed = window._confirmedDelinkTrayValues || {};
-    Object.keys(confirmed).forEach(function(tid) {
-      if (confirmed[tid]) set[String(tid).trim().toUpperCase()] = true;
     });
     return set;
   }
@@ -5084,7 +4930,6 @@ document.addEventListener('DOMContentLoaded', function () {
   window._lastHalfFilledTrayInfo = {};
   window._lastInitData = null;
   window._trayAllocations = {};
-  window._confirmedDelinkTrayValues = {};
   window._autoAllocatedTrayValues = {};
   window._PLANNED_EMPTY_HOOKS = 0;
   window.isModelSelectionComplete = false;
@@ -6965,7 +6810,6 @@ function resetJigModalState() {
   window._lastHalfFilledTrayInfo = {};
   window._lastInitData = null;
   window._trayAllocations = {};
-  window._confirmedDelinkTrayValues = {};
   window._autoAllocatedTrayValues = {};
   window._PLANNED_EMPTY_HOOKS = 0;
 
@@ -10844,14 +10688,11 @@ if (!formatResult.valid) {
             var inp = matchingRow.querySelector('.split-scan-input');
             if (inp && !inp.value) {
               inp.value = scan.tray_id;
-              inp.dataset.lastValidatedId = String(scan.tray_id || '').trim().toUpperCase();
               inp.classList.add('validated');
               inp.readOnly = true;
               inp.style.background = '#d4edda';
               inp.style.borderColor = '#28a745';
               window._trayAllocations[scan.tray_id.toUpperCase()] = { type: 'delink' };
-              if (!window._confirmedDelinkTrayValues) window._confirmedDelinkTrayValues = {};
-              window._confirmedDelinkTrayValues[scan.tray_id.toUpperCase()] = true;
               // Lock checkbox + set status on delink row
               matchingRow.classList.add('delink-row-scanned');
               var cb = matchingRow.querySelector('.delink-row-checkbox');
@@ -10929,7 +10770,6 @@ if (!formatResult.valid) {
             }
           }
       });
-    }
 
     // Update UI elements after full restore
     if (typeof window._renderDelinkTrayChipStrip === 'function') {

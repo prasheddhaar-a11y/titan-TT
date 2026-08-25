@@ -489,6 +489,17 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   #order-listing tbody tr.z1-row-open td {
     background-color: #e8f5e9 !important;
   }
+  body.ju-unload-modal-open #order-listing thead th:nth-child(4),
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4) {
+    filter: blur(2px) grayscale(0.7);
+    opacity: 0.6;
+    user-select: none;
+    cursor: not-allowed;
+  }
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4),
+  body.ju-unload-modal-open #order-listing tbody td:nth-child(4) * {
+    pointer-events: none !important;
+  }
     /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
     top: auto !important;
@@ -1923,8 +1934,8 @@ body.add-model-mode #selectAllCheckbox {
                </div>
               
               <!-- Z1 Unload Modal — Two-Layer: Model List → Tray Scan -->
-              <div id="z1UnloadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.45); z-index:19000; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
-                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:700px; max-width:980px; width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B;">
+              <div id="z1UnloadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:transparent; z-index:19000; align-items:center; justify-content:center; pointer-events:none;">
+                <div id="z1UnloadModalInner" style="background:#ffffff; border-radius:12px; padding:0; min-width:700px; max-width:980px; width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06); position:relative; border-top:3px solid #00897B; pointer-events:auto;">
                   <!-- Close button -->
                   <span id="z1ModalClose" style="position:absolute; top:11px; right:16px; font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:2;" title="Close">&times;</span>
 
@@ -2189,10 +2200,24 @@ document.addEventListener('DOMContentLoaded', function() {
     layer.style.display = 'block';
   }
 
+  function setUnloadActionColumnDisabled(disabled) {
+    document.body.classList.toggle('ju-unload-modal-open', !!disabled);
+  }
+
+  function showUnloadModal() {
+    modal.style.display = 'flex';
+    setUnloadActionColumnDisabled(true);
+  }
+
+  function closeUnloadModal() {
+    modal.style.display = 'none';
+    setUnloadActionColumnDisabled(false);
+  }
+
   // --- OPEN MODAL ---
   function openUnloadModal(jigCompletedId) {
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -2320,7 +2345,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'All models submitted successfully!',
         'success',
         function() {
-          modal.style.display = 'none';
+          closeUnloadModal();
           window.location.reload();
         }
       );
@@ -2692,7 +2717,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -3215,7 +3240,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          modal.style.display = 'none';
+          closeUnloadModal();
           window.location.reload();
         } else {
           btn.disabled = false;
@@ -3274,10 +3299,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- NAVIGATION ---
-  document.getElementById('z1ModalClose').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
+  document.getElementById('z1ModalClose').addEventListener('click', function() { closeUnloadModal(); window.location.reload(); });
   document.getElementById('z1BackToModels').addEventListener('click', function() { showLayer(layerModelList); });
   document.getElementById('z1ViewBackBtn').addEventListener('click', function() { showLayer(layerModelList); });
-  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { modal.style.display = 'none'; window.location.reload(); });
+  document.getElementById('z1ViewCloseBtn').addEventListener('click', function() { closeUnloadModal(); window.location.reload(); });
   // Prevent modal from closing when clicking outside (backdrop click disabled)
 
   // --- LAYER 4: Add Model (in-scan, same-model merge) ---
@@ -3425,7 +3450,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // pendingTrayIds: unsaved tray IDs typed before the merge, reapplied client-side only
   function openUnloadModalWithAdditional(jigCompletedId, additionalJigIds, autoOpenModelNo, pendingTrayIds) {
     currentJigCompletedId = jigCompletedId;
-    modal.style.display = 'flex';
+    showUnloadModal();
     showLayer(layerModelList);
     document.getElementById('z1ModelTableBody').innerHTML =
       '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;font-size:13px;">Loading...</td></tr>';
@@ -3702,6 +3727,105 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
+    let juActiveScanRow = null;
+    let juActiveScanOriginalParent = null;
+    let juActiveScanOriginalNext = null;
+
+    function juRestoreScanRow() {
+      if (!juActiveScanRow || !juActiveScanOriginalParent) return;
+      juActiveScanRow.classList.remove('z1-row-open');
+      juActiveScanRow.removeAttribute('data-ju-scan-active');
+      juActiveScanRow.style.backgroundColor = '';
+      juActiveScanRow.style.outline = '';
+      juActiveScanRow.style.outlineOffset = '';
+      juActiveScanRow.querySelectorAll('td').forEach(function(cell) {
+        cell.style.boxShadow = '';
+      });
+      if (juActiveScanOriginalNext && juActiveScanOriginalNext.parentNode === juActiveScanOriginalParent) {
+        juActiveScanOriginalParent.insertBefore(juActiveScanRow, juActiveScanOriginalNext);
+      } else {
+        juActiveScanOriginalParent.appendChild(juActiveScanRow);
+      }
+      juActiveScanRow = null;
+      juActiveScanOriginalParent = null;
+      juActiveScanOriginalNext = null;
+    }
+
+    function juApplyScanRowHighlight(row) {
+      if (!row) return;
+      if (juActiveScanRow && juActiveScanRow !== row) juRestoreScanRow();
+      document.querySelectorAll('#order-listing tbody tr.z1-row-open, #order-listing tbody tr[data-global-scan-active="1"]').forEach(function(activeRow) {
+        if (activeRow !== row) {
+          activeRow.classList.remove('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+          activeRow.removeAttribute('data-global-scan-active');
+          activeRow.removeAttribute('data-ju-scan-active');
+          activeRow.style.backgroundColor = '';
+          activeRow.style.outline = '';
+          activeRow.style.outlineOffset = '';
+          activeRow.querySelectorAll('td').forEach(function(cell) { cell.style.boxShadow = ''; });
+        }
+      });
+      const tbody = row.closest('tbody');
+      if (!juActiveScanRow) {
+        juActiveScanRow = row;
+        juActiveScanOriginalParent = tbody;
+        juActiveScanOriginalNext = row.nextElementSibling;
+      }
+      if (tbody && tbody.firstElementChild !== row) {
+        tbody.insertBefore(row, tbody.firstElementChild);
+      }
+      row.classList.add('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+      row.setAttribute('data-ju-scan-active', '1');
+      row.setAttribute('data-global-scan-active', '1');
+      row.style.transition = 'background-color 0.3s';
+      row.style.backgroundColor = '#d4edda';
+      row.style.outline = '2px solid #d6a300';
+      row.style.outlineOffset = '-2px';
+      row.querySelectorAll('td').forEach(function(cell) {
+        cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
+      });
+      row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function juNormalizeScanValue(value) {
+      return String(value || '').replace(/\s+/g, '').toUpperCase();
+    }
+
+    function juFindRowFromScanParams() {
+      const params = new URLSearchParams(window.location.search);
+      const highlightJigId = juNormalizeScanValue(params.get('highlight'));
+      const highlightLotId = String(params.get('lot') || '');
+      const highlightCompletedId = String(params.get('highlight_jig') || '');
+      const rows = document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]');
+      for (const row of rows) {
+        if (highlightJigId && juNormalizeScanValue(row.getAttribute('data-jig-qr-id')) === highlightJigId) return row;
+        if (highlightCompletedId && String(row.getAttribute('data-jig-completed-id') || '') === highlightCompletedId) return row;
+        if (highlightLotId && (
+          String(row.getAttribute('data-lot-id') || '') === highlightLotId ||
+          String(row.getAttribute('data-jig-lot-id') || '') === highlightLotId
+        )) return row;
+      }
+      return null;
+    }
+
+    function juApplyUrlScanHighlight() {
+      const row = juFindRowFromScanParams();
+      if (row) juApplyScanRowHighlight(row);
+    }
+
+    document.addEventListener('click', function(e) {
+      const clickedRow = e.target.closest('#order-listing tbody tr');
+      if (clickedRow && juActiveScanRow && clickedRow !== juActiveScanRow) {
+        juRestoreScanRow();
+      }
+    }, true);
+
+    if (new URLSearchParams(window.location.search).get('highlight')) {
+      setTimeout(juApplyUrlScanHighlight, 150);
+      setTimeout(juApplyUrlScanHighlight, 700);
+      setTimeout(juApplyUrlScanHighlight, 1400);
+    }
+
     scanInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -3727,10 +3851,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (row.getAttribute('data-jig-completed-id') === String(data.jig_completed_id)) {
                   found = true;
                   // Highlight and scroll to row
-                  row.style.transition = 'background-color 0.3s';
-                  row.style.backgroundColor = '#d4edda';
-                  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  setTimeout(function() { row.style.backgroundColor = ''; }, 5000);
+                  // Highlight scan result only; do not open unload modal from scan.
+                  juApplyScanRowHighlight(row);
                   scanMsg.style.display = 'block';
                   scanMsg.style.background = '#d4edda';
                   scanMsg.style.color = '#155724';
@@ -3802,10 +3924,7 @@ document.addEventListener('DOMContentLoaded', function() {
       rows.forEach(function(row) {
         if (row.getAttribute('data-jig-completed-id') === highlightJig) {
           found = true;
-          row.style.transition = 'background-color 0.3s';
-          row.style.backgroundColor = '#d4edda';
-          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setTimeout(function() { row.style.backgroundColor = ''; }, 5000);
+          juApplyScanRowHighlight(row);
           if (scanMsg) {
             scanMsg.style.display = 'block';
             scanMsg.style.background = '#d4edda';
@@ -4145,6 +4264,116 @@ window.addEventListener('resize', function () {
 
 });
 
+</script>
+<script>
+(function() {
+  'use strict';
+
+  function norm(value) {
+    return String(value || '').replace(/\s+/g, '').toUpperCase();
+  }
+
+  function params() {
+    return new URLSearchParams(window.location.search);
+  }
+
+  function findHighlightRow() {
+    const query = params();
+    const highlightJig = norm(query.get('highlight'));
+    const highlightLot = String(query.get('lot') || '');
+    const highlightCompleted = String(query.get('highlight_jig') || '');
+    if (!highlightJig && !highlightLot && !highlightCompleted) return null;
+
+    const rows = document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]');
+    for (const row of rows) {
+      if (highlightJig && norm(row.getAttribute('data-jig-qr-id')) === highlightJig) return row;
+      if (highlightCompleted && String(row.getAttribute('data-jig-completed-id') || '') === highlightCompleted) return row;
+      if (highlightLot && (
+        String(row.getAttribute('data-lot-id') || '') === highlightLot ||
+        String(row.getAttribute('data-jig-lot-id') || '') === highlightLot
+      )) return row;
+    }
+    return null;
+  }
+
+  let activeRow = null;
+  let originalParent = null;
+  let originalNext = null;
+
+  function restoreActiveRow() {
+    if (!activeRow || !originalParent) return;
+    activeRow.classList.remove('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+    activeRow.removeAttribute('data-ju-final-scan-active');
+    activeRow.removeAttribute('data-global-scan-active');
+    activeRow.style.backgroundColor = '';
+    activeRow.style.outline = '';
+    activeRow.style.outlineOffset = '';
+    activeRow.querySelectorAll('td').forEach(function(cell) {
+      cell.style.boxShadow = '';
+      cell.style.backgroundColor = '';
+    });
+    if (originalNext && originalNext.parentNode === originalParent) {
+      originalParent.insertBefore(activeRow, originalNext);
+    } else {
+      originalParent.appendChild(activeRow);
+    }
+    activeRow = null;
+    originalParent = null;
+    originalNext = null;
+  }
+
+  function applyHighlight(row) {
+    if (!row) return false;
+    if (activeRow && activeRow !== row) restoreActiveRow();
+    const tbody = row.closest('tbody');
+    if (!activeRow) {
+      activeRow = row;
+      originalParent = tbody;
+      originalNext = row.nextElementSibling;
+    }
+    if (tbody && tbody.firstElementChild !== row) {
+      tbody.insertBefore(row, tbody.firstElementChild);
+    }
+    row.classList.add('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
+    row.setAttribute('data-ju-final-scan-active', '1');
+    row.setAttribute('data-global-scan-active', '1');
+    row.style.backgroundColor = '#d4edda';
+    row.style.outline = '3px solid #d6a300';
+    row.style.outlineOffset = '-3px';
+    row.querySelectorAll('td').forEach(function(cell) {
+      cell.style.backgroundColor = '#d4edda';
+      cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
+    });
+    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
+
+  function retryHighlight() {
+    applyHighlight(findHighlightRow());
+  }
+
+  if (params().get('highlight') || params().get('highlight_jig')) {
+    [100, 500, 1000, 1800, 3000].forEach(function(delay) {
+      window.setTimeout(retryHighlight, delay);
+    });
+    const table = document.querySelector('#order-listing');
+    if (table && window.MutationObserver) {
+      const observer = new MutationObserver(function() {
+        window.clearTimeout(observer._timer);
+        observer._timer = window.setTimeout(retryHighlight, 100);
+      });
+      observer.observe(table, { childList: true, subtree: true });
+      window.setTimeout(function() { observer.disconnect(); }, 6000);
+    }
+  }
+
+  document.addEventListener('click', function(event) {
+    const clickedRow = event.target.closest('#order-listing tbody tr');
+    if (clickedRow && activeRow && clickedRow !== activeRow) {
+      restoreActiveRow();
+    }
+  }, true);
+})();
 </script>
 <script src="{% static 'js/model_image_tooltip.js' %}"></script>
 <script src="{% static 'js/row_lock_guard.js' %}"></script>
