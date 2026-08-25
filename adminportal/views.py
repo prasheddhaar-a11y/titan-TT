@@ -2,6 +2,7 @@ from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from modelmasterapp.models import *
+from modelmasterapp.tray_code_mapping import TRAY_CODE_CHOICES, NORMAL_TRAY_CODES, JUMBO_TRAY_CODES
 from modelmasterapp.image_utils import (
     build_model_image_key_from_filename,
     build_model_image_keys_from_stock,
@@ -17,12 +18,14 @@ from modelmasterapp.image_utils import (
 from rest_framework import status
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone  # Added timezone import
 from django.conf import settings
 import json
 import re
+import csv
+import io
 import logging
 import hashlib
 import time as perf_time
@@ -300,6 +303,19 @@ class SessionHeartbeatAPIView(APIView):
         return Response({'success': True})
 
 
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+class NetworkPingAPIView(APIView):
+    """
+    Lightweight liveness check polled by the network-status banner in
+    base.html (static/templates/base.html) to detect a slow/unstable
+    connection. Intentionally does no DB work - only round-trip time matters.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request, format=None):
+        return Response({'success': True})
+
+
 # -----------------------------------------------------------------------------
 # TimedLoginView
 # - Extends Django's auth LoginView with per-phase timing so we can see exactly
@@ -447,34 +463,7 @@ class TimedLoginView(__import__('django.contrib.auth.views', fromlist=['LoginVie
         is_valid = form.is_valid()  # runs authenticate() + password verify
         timers['form_is_valid'] = (_time.time() - t0) * 1000
 
-        session_conflict_message = None
         if is_valid:
-            from .services import get_active_session_conflict_message
-            current_session_key = getattr(request.session, 'session_key', None)
-            session_conflict_message = get_active_session_conflict_message(
-                form.get_user(), current_session_key, request=request,
-            )
-
-        if is_valid and session_conflict_message:
-            response = self.form_invalid(form)
-            if hasattr(response, 'context_data'):
-                response.context_data['error'] = session_conflict_message
-            self._refresh_captcha_context_after_failed_login(response, username)
-            security_logger = logging.getLogger('security.auth')
-            security_logger.warning(
-                'LOGIN_BLOCKED_ACTIVE_SESSION_ELSEWHERE: user=%s', username,
-            )
-            _emit_auth_event(
-                request,
-                'AUTH.LOGIN.BLOCKED',
-                'WARNING',
-                'Login attempt blocked: account already active on another device',
-                {
-                    'username_hash': _perf_username(username),
-                    'duration_ms': round((perf_time.perf_counter() - login_start) * 1000, 3),
-                },
-            )
-        elif is_valid:
             t0 = _time.time()
             response = self.form_valid(form)
             timers['form_valid_otp'] = (_time.time() - t0) * 1000
@@ -3259,8 +3248,10 @@ class ModelMasterAPIView(APIView):
 
     def get(self, request):
         """Get all Model Masters"""
-        model_masters = ModelMaster.objects.all()
-        serializer = ModelMasterSerializer(model_masters, many=True)
+        from Jig_Loading.models import ModelMicroGroup
+        model_masters = ModelMaster.objects.select_related('polish_finish', 'tray_type', 'plating_color').all()
+        grouped_psns = set(ModelMicroGroup.objects.filter(is_active=True).values_list('plating_stk_no', flat=True))
+        serializer = ModelMasterSerializer(model_masters, many=True, context={'grouped_psns': grouped_psns})
         return Response({
             'success': True,
             'data': serializer.data
@@ -3344,6 +3335,302 @@ class ModelMasterAPIView(APIView):
                 'success': False,
                 'message': 'Unable to process the request. Please verify the submitted data and try again.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+MODEL_MASTER_BULK_UPLOAD_HEADERS = [
+    'model_no', 'plating_stk_no', 'polish_finish', 'ep_bath_type', 'tray_type', 'tray_capacity', 'version',
+]
+
+MODEL_MASTER_BULK_UPLOAD_HEADER_LABELS = [
+    'Model No', 'Plating Stock Number', 'Polish Finish', 'EP Bath Type', 'Tray Type', 'Tray Code', 'Tray Capacity', 'Version',
+]
+
+
+@login_required(login_url='login-api')
+@require_admin
+def model_master_bulk_upload_template(request):
+    """Return a downloadable .xlsx template for Model Master bulk upload."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Model Master Template'
+    ws.append(MODEL_MASTER_BULK_UPLOAD_HEADER_LABELS)
+
+    for col_idx in range(1, len(MODEL_MASTER_BULK_UPLOAD_HEADER_LABELS) + 1):
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 26
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="model_master_bulk_upload_template.xlsx"'
+    return response
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
+class ModelMasterBulkUploadAPIView(APIView):
+    """Bulk-create Model Master records from an uploaded .xlsx/.csv file."""
+    renderer_classes = [JSONRenderer]
+
+    def _read_rows(self, uploaded_file):
+        name = (uploaded_file.name or '').lower()
+        if name.endswith('.csv'):
+            decoded = uploaded_file.read().decode('utf-8-sig')
+            reader = csv.reader(io.StringIO(decoded))
+            rows = list(reader)
+        elif name.endswith('.xlsx'):
+            from openpyxl import load_workbook
+            wb = load_workbook(uploaded_file, data_only=True)
+            ws = wb.active
+            rows = [[cell if cell is not None else '' for cell in row] for row in ws.iter_rows(values_only=True)]
+        else:
+            raise ValueError('Unsupported file type. Please upload a .xlsx or .csv file.')
+
+        if not rows:
+            return []
+
+        header_aliases = {'plating_stock_number': 'plating_stk_no'}
+        headers = [re.sub(r'\s+', '_', str(h).strip().lower()) for h in rows[0]]
+        headers = [header_aliases.get(header, header) for header in headers]
+        data_rows = []
+        for raw_row in rows[1:]:
+            row_dict = {}
+            for idx, header in enumerate(headers):
+                row_dict[header] = str(raw_row[idx]).strip() if idx < len(raw_row) and raw_row[idx] is not None else ''
+            data_rows.append(row_dict)
+        return data_rows
+
+    def post(self, request):
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({
+                'success': False,
+                'message': 'Please select a file to upload.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            data_rows = self._read_rows(uploaded_file)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': str(e) if isinstance(e, ValueError) else 'Unable to read the uploaded file. Please use the provided template.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not data_rows:
+            return Response({
+                'success': False,
+                'message': 'The uploaded file has no data rows.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        created_count = 0
+        row_errors = []
+
+        for offset, row in enumerate(data_rows):
+            row_number = offset + 2  # account for header row, 1-indexed
+            model_no = (row.get('model_no') or '').strip()
+            plating_stk_no = (row.get('plating_stk_no') or '').strip()
+            polish_finish_name = (row.get('polish_finish') or '').strip()
+            ep_bath_type = (row.get('ep_bath_type') or '').strip()
+            tray_type_name = (row.get('tray_type') or '').strip()
+            tray_code_raw = (row.get('tray_code') or '').strip().upper()
+            tray_capacity_raw = (row.get('tray_capacity') or '').strip()
+            version = (row.get('version') or '').strip()
+
+            if not model_no and not plating_stk_no and not tray_type_name and not version:
+                continue  # skip fully blank rows
+
+            if not model_no or not plating_stk_no or not version or not tray_type_name:
+                row_errors.append({'row': row_number, 'message': 'Model No, Plating Stock Number, Version, and Tray Type are required.'})
+                continue
+
+            polish_finish_obj = None
+            if polish_finish_name:
+                polish_finish_obj = PolishFinishType.objects.filter(polish_finish__iexact=polish_finish_name).first()
+                if not polish_finish_obj:
+                    row_errors.append({'row': row_number, 'message': f'Polish Finish "{polish_finish_name}" was not found.'})
+                    continue
+
+            tray_type_obj = TrayType.objects.filter(tray_type__iexact=tray_type_name).first()
+            if not tray_type_obj:
+                row_errors.append({'row': row_number, 'message': f'Tray Type "{tray_type_name}" was not found.'})
+                continue
+
+            tray_code = None
+            if tray_code_raw:
+                valid_tray_codes = {choice[0] for choice in TRAY_CODE_CHOICES}
+                if tray_code_raw not in valid_tray_codes:
+                    row_errors.append({'row': row_number, 'message': f'Tray Code "{tray_code_raw}" is invalid. Allowed values: {", ".join(sorted(valid_tray_codes))}.'})
+                    continue
+                tray_type_key = tray_type_obj.tray_type.strip().lower()
+                if tray_type_key == 'normal' and tray_code_raw not in NORMAL_TRAY_CODES:
+                    row_errors.append({'row': row_number, 'message': f'Tray Code "{tray_code_raw}" does not match Tray Type "Normal". Allowed: {", ".join(sorted(NORMAL_TRAY_CODES))}.'})
+                    continue
+                if tray_type_key == 'jumbo' and tray_code_raw not in JUMBO_TRAY_CODES:
+                    row_errors.append({'row': row_number, 'message': f'Tray Code "{tray_code_raw}" does not match Tray Type "Jumbo". Allowed: {", ".join(sorted(JUMBO_TRAY_CODES))}.'})
+                    continue
+                tray_code = tray_code_raw
+
+            tray_capacity = None
+            if tray_capacity_raw:
+                try:
+                    tray_capacity = int(float(tray_capacity_raw))
+                except ValueError:
+                    row_errors.append({'row': row_number, 'message': f'Tray Capacity "{tray_capacity_raw}" is not a valid number.'})
+                    continue
+            else:
+                tray_capacity = tray_type_obj.tray_capacity
+
+            payload = {
+                'model_no': model_no,
+                'plating_stk_no': plating_stk_no,
+                'polish_finish': polish_finish_obj.id if polish_finish_obj else None,
+                'ep_bath_type': ep_bath_type,
+                'tray_type': tray_type_obj.id,
+                'tray_code': tray_code,
+                'tray_capacity': tray_capacity,
+                'version': version,
+                'date_time': timezone.now(),
+            }
+
+            serializer = ModelMasterSerializer(data=payload)
+            if serializer.is_valid():
+                serializer.save()
+                created_count += 1
+            else:
+                row_errors.append({'row': row_number, 'message': formatValidationErrorsForBulk(serializer.errors)})
+
+        total_rows = created_count + len(row_errors)
+        return Response({
+            'success': created_count > 0,
+            'message': f'{created_count} of {total_rows} model master row(s) created successfully.',
+            'created': created_count,
+            'total': total_rows,
+            'errors': row_errors,
+        }, status=status.HTTP_200_OK if created_count > 0 or total_rows == 0 else status.HTTP_400_BAD_REQUEST)
+
+
+def formatValidationErrorsForBulk(errors):
+    parts = []
+    for field, messages in errors.items():
+        if isinstance(messages, list):
+            parts.append(f"{field}: {'; '.join(str(m) for m in messages)}")
+        else:
+            parts.append(f"{field}: {messages}")
+    return ' | '.join(parts) if parts else 'Validation failed.'
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
+class ModelGroupManageAPIView(APIView):
+    """
+    Manage Jig Loading's ModelMicroGroup combinations (group_name <-> plating_stk_no)
+    from Model Master, so admins can view/reorganize them without Django admin.
+    Single action-based endpoint, consistent with TrayIdAPI's /api/tray/manage/ pattern.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def post(self, request):
+        from Jig_Loading.models import ModelMicroGroup
+        action = request.data.get('action')
+        try:
+            if action == 'list':
+                return self._list(ModelMicroGroup)
+            elif action == 'move':
+                return self._move(request, ModelMicroGroup)
+            elif action == 'rename':
+                return self._rename(request, ModelMicroGroup)
+            elif action == 'remove':
+                return self._remove(request, ModelMicroGroup)
+            return Response({'success': False, 'message': 'Unknown action.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("ModelGroupManageAPIView error")
+            return Response({
+                'success': False,
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _list(self, ModelMicroGroup):
+        psn_to_model_no = {}
+        for m in ModelMaster.objects.exclude(plating_stk_no__isnull=True).exclude(plating_stk_no='').only('plating_stk_no', 'model_no'):
+            psn_to_model_no.setdefault(m.plating_stk_no, m.model_no)
+
+        groups = {}
+        grouped_psns = set()
+        for entry in ModelMicroGroup.objects.filter(is_active=True).order_by('group_name', 'plating_stk_no'):
+            groups.setdefault(entry.group_name, []).append({
+                'plating_stk_no': entry.plating_stk_no,
+                'model_no': psn_to_model_no.get(entry.plating_stk_no, entry.plating_stk_no),
+            })
+            grouped_psns.add(entry.plating_stk_no)
+
+        ungrouped = [
+            {'plating_stk_no': psn, 'model_no': model_no}
+            for psn, model_no in psn_to_model_no.items()
+            if psn not in grouped_psns
+        ]
+        ungrouped.sort(key=lambda item: item['plating_stk_no'])
+
+        return Response({
+            'success': True,
+            'groups': [{'group_name': name, 'models': members} for name, members in sorted(groups.items())],
+            'ungrouped': ungrouped,
+        })
+
+    def _move(self, request, ModelMicroGroup):
+        plating_stk_no = (request.data.get('plating_stk_no') or '').strip()
+        group_name = (request.data.get('group_name') or '').strip()
+        if not plating_stk_no:
+            return Response({'success': False, 'message': 'plating_stk_no is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if group_name and not ModelMaster.objects.filter(plating_stk_no=plating_stk_no).exists():
+            return Response({
+                'success': False,
+                'message': f'"{plating_stk_no}" does not match any existing Model Master record. Pick a model from the dropdown.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            ModelMicroGroup.objects.filter(plating_stk_no=plating_stk_no, is_active=True).update(is_active=False)
+            if group_name:
+                ModelMicroGroup.objects.update_or_create(
+                    group_name=group_name,
+                    plating_stk_no=plating_stk_no,
+                    defaults={'is_active': True},
+                )
+        return Response({
+            'success': True,
+            'message': f'{plating_stk_no} moved to "{group_name}".' if group_name else f'{plating_stk_no} removed from its group.'
+        })
+
+    def _rename(self, request, ModelMicroGroup):
+        old_name = (request.data.get('old_group_name') or '').strip()
+        new_name = (request.data.get('new_group_name') or '').strip()
+        if not old_name or not new_name:
+            return Response({'success': False, 'message': 'old_group_name and new_group_name are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if old_name == new_name:
+            return Response({'success': True, 'message': 'No change.'})
+        if ModelMicroGroup.objects.filter(group_name=new_name).exists():
+            return Response({'success': False, 'message': f'Group "{new_name}" already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated = ModelMicroGroup.objects.filter(group_name=old_name).update(group_name=new_name)
+        if updated == 0:
+            return Response({'success': False, 'message': f'Group "{old_name}" not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success': True, 'message': f'Renamed "{old_name}" to "{new_name}".'})
+
+    def _remove(self, request, ModelMicroGroup):
+        plating_stk_no = (request.data.get('plating_stk_no') or '').strip()
+        if not plating_stk_no:
+            return Response({'success': False, 'message': 'plating_stk_no is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        ModelMicroGroup.objects.filter(plating_stk_no=plating_stk_no, is_active=True).update(is_active=False)
+        return Response({'success': True, 'message': f'{plating_stk_no} removed from its group.'})
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required(login_url='login-api'), name='dispatch')

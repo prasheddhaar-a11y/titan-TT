@@ -202,6 +202,13 @@ class ModelMaster(models.Model):
     )
     images = models.ManyToManyField(ModelImage, blank=True)  # Allows multiple images
     vendor_internal = models.ForeignKey(Vendor, on_delete=models.SET_NULL, null=True, blank=True)
+    plating_color = models.ForeignKey(
+        Plating_Color,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Plating color for this model; drives Jig Unloading Zone 1/2 scope via Plating_Color.jig_unload_zone_1/2",
+    )
     brand = models.CharField(max_length=100,null=True, blank=True)
     gender = models.CharField(max_length=50,null=True, blank=True)
     wiping_required = models.BooleanField(default=False)

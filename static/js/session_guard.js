@@ -21,7 +21,7 @@
   var LOGIN_URL = '/accounts/login/';
   var PING_URL = '/adminportal/api/shortcuts/'; // cheap, login_required, cached
   var HEARTBEAT_URL = '/adminportal/api/session-heartbeat/';
-  var HEARTBEAT_INTERVAL_MS = 45000;            // must stay under services.ACTIVE_SESSION_STALE_SECONDS
+  var HEARTBEAT_INTERVAL_MS = 5000;             // fast enough that a takeover on another device shows up almost immediately
   var IDLE_BUFFER_MS = 1000;                    // grace period past cookie age
   var RECHECK_INTERVAL_MS = 30000;              // fallback re-check cadence
   var alertShown = false;
@@ -34,13 +34,17 @@
     window.location.href = LOGIN_URL + '?next=' + next;
   }
 
-  function showSessionExpiredAlert() {
+  function showSessionExpiredAlert(reason) {
     if (alertShown) { return; }
     alertShown = true;
     if (idleTimerId) { clearTimeout(idleTimerId); }
 
     var title = 'Session Expired';
     var message = 'Your session has expired due to inactivity. Please log in again to continue.';
+    if (reason === 'takeover') {
+      title = 'Logged Out';
+      message = 'This account was just signed in from another device, so you have been logged out here. Please log in again if this was not you.';
+    }
 
     if (typeof window.Swal !== 'undefined' && window.Swal && window.Swal.fire) {
       window.Swal.fire({
@@ -68,7 +72,9 @@
     if (response.status === 401) {
       // Only treat as expired when the backend says so.
       response.clone().json().then(function (data) {
-        if (data && (data.code === 'SESSION_EXPIRED' || data.code === 'NOT_AUTHENTICATED')) {
+        if (data && data.code === 'SESSION_TAKEOVER') {
+          showSessionExpiredAlert('takeover');
+        } else if (data && (data.code === 'SESSION_EXPIRED' || data.code === 'NOT_AUTHENTICATED')) {
           showSessionExpiredAlert();
         } else if (data && typeof data.detail === 'string' &&
                    data.detail.toLowerCase().indexOf('logged in elsewhere') !== -1) {
@@ -125,6 +131,14 @@
       method: 'POST',
       headers: { 'X-CSRFToken': getCsrfToken() },
       credentials: 'same-origin'
+    }).then(function (response) {
+      // Uses nativeFetch (not the patched fetch) so a healthy heartbeat
+      // doesn't reset the idle-expiry countdown; a 401 here still means
+      // this device's session was taken over or expired, so it must be
+      // reported the same way a real page request's 401 would be.
+      if (isSessionExpiredResponse(response)) {
+        handlePossiblyExpired(response);
+      }
     }).catch(function () { /* best-effort; next tick retries */ });
   }
 

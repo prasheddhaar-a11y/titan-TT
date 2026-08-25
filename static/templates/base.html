@@ -220,7 +220,7 @@
             type scale as their submenu links. */
          @media (min-width: 768px) and (max-width: 1024px) {
          .sidebar .nav:not(.sub-menu) > .nav-item > .nav-link .menu-title {
-         font-size: 22px !important;
+        font-size: 22px !important;
          }
          /* Tablet-only: bump the sidebar circle-badge letters (D, DP, IS, BQ...)
             a little larger for readability. Base is 8.5px; +2px here.
@@ -4748,7 +4748,7 @@
 })();
 </script>
 
-<!-- Ã¢Å“â€¦ UNIVERSAL MODAL CLOSE HANDLER -->
+<!-- ✅ UNIVERSAL MODAL CLOSE HANDLER -->
 <script nonce="{{ csp_nonce }}">
 (function () {
   'use strict';
@@ -5372,16 +5372,7 @@
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Highlight and scroll (sticky-header aware) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   function highlightRow(row) {
-    if (isJigUnloadingContext()) {
-      moveHighlightedRowToTop(row);
-      row.classList.add('gs-active-scan', 'dp-row-action-highlight');
-      row.setAttribute('data-global-scan-active', '1');
-      row.style.outline = '2px solid #d6a300';
-      row.style.outlineOffset = '-2px';
-      row.querySelectorAll('td').forEach(function(cell) {
-        cell.style.boxShadow = 'inset 0 2px 0 #d6a300, inset 0 -2px 0 #d6a300';
-      });
-    } else if (row && row.parentNode && row.parentNode.firstElementChild !== row) {
+    if (row && row.parentNode && row.parentNode.firstElementChild !== row) {
       row.parentNode.insertBefore(row, row.parentNode.firstElementChild);
     }
     row.classList.add('gs-hi');
@@ -5760,4 +5751,3 @@
 
    </body>
 </html>
-

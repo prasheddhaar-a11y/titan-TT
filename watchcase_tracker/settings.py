@@ -148,6 +148,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adminportal.middleware.CSPMiddleware',
     'adminportal.middleware.LoginLatencyMiddleware',
+    # Auto-logs-out a user's older session the moment a newer login lands
+    # elsewhere (adminportal.signals.enforce_single_session_on_login records
+    # the new session; this middleware enforces it on every subsequent
+    # request from the older browser/device). Must run after
+    # AuthenticationMiddleware (needs request.user/session) and before
+    # ModuleAccessMiddleware (stale sessions must never reach business logic).
+    'adminportal.middleware.SingleSessionMiddleware',
     'adminportal.middleware.ModuleAccessMiddleware',
     'middleware.forbidden_redirect.ForbiddenToLoginMiddleware',
     'watchcase_tracker.middleware.latency_middleware.LatencyMiddleware',

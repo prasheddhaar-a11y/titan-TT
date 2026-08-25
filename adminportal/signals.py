@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from .models import UserActiveSession
 
 logger = logging.getLogger(__name__)
+security_logger = logging.getLogger('security.auth')
 
 
 def _get_client_ip(request):
@@ -59,6 +60,12 @@ def enforce_single_session_on_login(sender, request, user, **kwargs):
 
         if old_session_key and old_session_key != new_session_key:
             Session.objects.filter(pk=old_session_key).delete()
+            security_logger.warning(
+                'AUTH.SESSION.FORCED_LOGOUT: user=%s old_session=%s new_session=%s '
+                'old_ip=%s new_ip=%s',
+                getattr(user, 'username', ''), old_session_key, new_session_key,
+                getattr(active_session, 'ip_address', None), _get_client_ip(request),
+            )
 
         UserActiveSession.objects.update_or_create(
             user=user,

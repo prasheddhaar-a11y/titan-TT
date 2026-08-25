@@ -1,4 +1,4 @@
-﻿from rest_framework.views import APIView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import TemplateHTMLRenderer
 from django.shortcuts import render
@@ -119,17 +119,6 @@ class BrassPickTableView(APIView):
         master_data = []
         for stock_obj in page_obj.object_list:
             batch = stock_obj.batch_id
-            
-            current_stage_display = (
-                stock_obj.current_stage
-                or _compute_brass_qc_display_stage(stock_obj)
-            )
-
-            lot_status = (
-                'Released'
-                if current_stage_display != 'Brass QC'
-                else 'Yet to Release'
-            )
             data = {
                 'batch_id': batch.batch_id,
                 'lot_id': stock_obj.lot_id,
@@ -183,6 +172,7 @@ class BrassPickTableView(APIView):
                 'polishing_stk_no': batch.polishing_stk_no,
                 'category': batch.category,
                 'last_process_module': stock_obj.last_process_module,
+                'current_stage': stock_obj.current_stage,
                 'type_of_input': get_type_of_input_for_batch(batch),
             }
             master_data.append(data)
@@ -326,7 +316,21 @@ class BrassPickTableView(APIView):
             elif data.get('brass_qc_accepted_qty_verified'):
                 data['lot_status'] = 'Yet to Release'
             else:
-                data['lot_status'] = 'Yet to Start'
+                qc_completed = any((
+                    data.get('brass_qc_rejection'),
+                    data.get('brass_qc_few_cases_accptance'),
+                    data.get('brass_qc_accptance'),
+                ))
+                if qc_completed and data.get('current_stage') not in (None, '', 'Brass QC'):
+                    data['lot_status'] = 'Released'
+                elif qc_completed:
+                    data['lot_status'] = 'Yet to Release'
+                elif data.get('brass_qc_accepted_qty_verified'):
+                    # Persisted checkbox state: the lot has been picked and
+                    # remains in Brass QC until a submission is completed.
+                    data['lot_status'] = 'In Progress'
+                else:
+                    data['lot_status'] = 'Yet to Start'
 
         context = {
             'master_data': master_data,
@@ -520,6 +524,7 @@ class BrassCompletedView(APIView):
                 'tray_capacity': batch.tray_capacity,
                 'stock_lot_id': stock_obj.lot_id,
                 'last_process_module': stock_obj.last_process_module,
+                'current_stage': stock_obj.current_stage,
                 # Same stale-vs-child-progress resolution as current_stage_display above —
                 # this is the field the template actually renders as "Current Stage".
                 'next_process_module': current_stage_display,
@@ -701,6 +706,7 @@ def brass_qc_toggle_verified(request):
         "success": True,
         "lot_id": lot_id,
         "brass_qc_accepted_qty_verified": ts.brass_qc_accepted_qty_verified,
+        "lot_status": "In Progress" if ts.brass_qc_accepted_qty_verified else "Yet to Start",
         "last_process_module": ts.last_process_module,
         "can_delete": can_delete,
     })

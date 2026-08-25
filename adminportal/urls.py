@@ -37,7 +37,10 @@ urlpatterns = [
     # Model Master APIs
     path('model-master/', ModelMasterAPIView.as_view(), name='model-master-api'),
     path('model-master/<int:pk>/', ModelMasterAPIView.as_view(), name='model-master-detail-api'),
-    
+    path('model-master/bulk-upload/', ModelMasterBulkUploadAPIView.as_view(), name='model-master-bulk-upload-api'),
+    path('model-master/bulk-upload/template/', model_master_bulk_upload_template, name='model-master-bulk-upload-template'),
+    path('api/model-groups/manage/', ModelGroupManageAPIView.as_view(), name='model-groups-manage-api'),
+
     # Dropdown Data API
     path('dropdown-data/', ModelMasterDropdownDataAPIView.as_view(), name='dropdown-data-api'),
     
@@ -80,6 +83,7 @@ urlpatterns = [
     path('api/group-modules/<int:group_id>/', GroupModulesAPIView.as_view(), name='group-modules-detail-api'),
     path('api/shortcuts/', ShortcutConfigurationAPIView.as_view(), name='shortcut-configurations-api'),
     path('api/session-heartbeat/', SessionHeartbeatAPIView.as_view(), name='session-heartbeat-api'),
+    path('api/network-ping/', NetworkPingAPIView.as_view(), name='network-ping-api'),
     path('api/dashboard-stats/', DashboardStatsAPIView.as_view(), name='dashboard-stats-api'),
     # path('api/users/<int:user_id>/', UserDeleteAPIView.as_view(), name='user-delete'),
     path('extract_headings/', extract_headings_api, name='extract_headings_api'),

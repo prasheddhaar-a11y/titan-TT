@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from urllib.parse import urlparse
 import msal
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -124,12 +125,24 @@ def microsoft_login(request):
     # session that actually carries msal_states lives on the same origin
     # the callback will land on.
     configured_base = (settings.MSAL_REDIRECT_URI_BASE or '').strip()
-    if configured_base:
+    # Behind an IIS ARR/URL-Rewrite reverse proxy, request.get_host() reflects
+    # whatever internal Host ARR forwards to the backend (e.g. 127.0.0.1:8000),
+    # not the public hostname the browser/cookie actually use - so comparing
+    # it to configured_netloc is meaningless there and only produced an
+    # infinite self-redirect (ERR_TOO_MANY_REDIRECTS). SSO_SKIP_ORIGIN_BOUNCE
+    # lets that deployment disable the bounce outright via env var; unset,
+    # behavior for direct (non-proxied) hosting is unchanged.
+    skip_bounce = os.getenv('SSO_SKIP_ORIGIN_BOUNCE', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
+    if configured_base and not skip_bounce and 'sso_bounced' not in request.GET:
         configured_netloc = urlparse(configured_base).netloc
         if configured_netloc and configured_netloc.lower() != request.get_host().lower():
             configured_scheme = urlparse(configured_base).scheme or request.scheme
-            target = f"{configured_scheme}://{configured_netloc}{request.get_full_path()}"
-            logger.debug("Redirecting SSO login onto configured origin: %s", target)
+            separator = '&' if '?' in request.get_full_path() else '?'
+            target = f"{configured_scheme}://{configured_netloc}{request.get_full_path()}{separator}sso_bounced=1"
+            logger.warning(
+                "SSO login host mismatch: request host=%s configured=%s; bouncing once to %s",
+                request.get_host(), configured_netloc, target,
+            )
             return redirect(target)
 
     # Create and persist state to protect against CSRF. A small list of recent

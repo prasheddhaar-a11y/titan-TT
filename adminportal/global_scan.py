@@ -449,9 +449,7 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         # Completed/Reject/history tables are deliberately not eligible for
         # global scan navigation/highlighting.
         checks = [
-            # Jig Unloading must win for scanned JIG IDs that are already available
-            # on the Jig Unloading Zone 1/2 main tables; otherwise Dashboard scans
-            # resolve to the upstream Inprocess Inspection row first.
+            ('Inprocess Inspection', self._check_lot_in_inprocess_inspection),
             ('Jig Unloading',   self._check_lot_in_jig_unloading),
             ('Inprocess Inspection', self._check_lot_in_inprocess_inspection),
             ('Nickel Wiping',   self._check_lot_in_nickel_wiping),

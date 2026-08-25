@@ -3,7 +3,7 @@
 {% block content %}
 
 <style nonce="{{ csp_nonce }}">
-/* ═══ Model Master — Refined Design System ═══════════════════════════════ */
+/* ═══ Model Master — Professional Design System ═══════════════════════════ */
 :root {
   --mm-teal:        #0d9488;
   --mm-theme-teal:  #0f9d8f;
@@ -15,10 +15,10 @@
   --mm-teal-light:  #f0fdfa;
   --mm-accent:      #2563eb;
   --mm-soft:        #f8fafc;
-  --mm-bg:          #f8fafc;
+  --mm-bg:          #f4f6f8;
   --mm-card:        #ffffff;
-  --mm-border:      #e2e8f0;
-  --mm-text:        #0f172a;
+  --mm-border:      #e4e9ef;
+  --mm-text:        #101828;
   --mm-muted:       #64748b;
   --mm-label:       #475569;
   --mm-input-h:     38px;
@@ -26,141 +26,121 @@
   --mm-radius-lg:   12px;
   --mm-focus-ring:  0 0 0 3px rgba(13,148,136,.15);
   --mm-shadow:      inset 0 1px 2px rgba(0,0,0,.04);
+  --mm-shadow-card: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+  --mm-shadow-pop:  0 8px 24px rgba(16,24,40,.10);
 }
-/* ── Page frame ── */
+
+* { box-sizing: border-box; }
+
+/* ── Page frame — flows naturally with the page, single scrollbar ── */
 .model-master-frame {
   background: var(--mm-card);
-  border-radius: 14px;
-  box-shadow: 0 14px 36px rgba(15,23,42,.08);
-  margin: 0 auto;
-  max-width: 1320px;
-  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: var(--mm-shadow-pop);
+  margin: 0 0 24px;
+  width: 100%;
+  max-width: none;
+  overflow: visible;
   border: 1px solid var(--mm-border);
-  height: calc(100vh - var(--top-header-height, 96px) - var(--ttt-footer-height, 32px));
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  height: auto;
+  display: block;
 }
 
-body.dp-modelmaster-page-active {
-  overflow: hidden;
-}
-
-body.dp-modelmaster-page-active .main-panel,
-body.dp-modelmaster-page-active .content-wrapper {
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-.dp-modelmaster-main {
-  min-height: 0;
-}
+.dp-modelmaster-main { min-height: 0; }
 
 /* ── Header ── */
 .model-master-header {
   background: linear-gradient(135deg, var(--mm-teal-dark) 0%, var(--mm-teal-xdark) 100%);
   color: #fff;
-  padding: 16px 24px;
-  flex: 0 0 auto;
+  padding: 18px 26px;
+  border-radius: 16px 16px 0 0;
 }
 .model-master-header h3 {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 700;
   margin: 0;
   letter-spacing: -.01em;
 }
 .view-data-btn {
-  background: rgba(255,255,255,.15) !important;
+  background: rgba(255,255,255,.14) !important;
   color: #fff !important;
-  border: 1px solid rgba(255,255,255,.3) !important;
+  border: 1px solid rgba(255,255,255,.32) !important;
   border-radius: 20px !important;
-  padding: 6px 18px !important;
+  padding: 7px 18px !important;
   font-size: .82rem !important;
   font-weight: 600;
-  transition: background .2s;
+  transition: background .2s, box-shadow .2s;
 }
 .view-data-btn:hover {
-  background: rgba(255,255,255,.28) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  background: rgba(255,255,255,.26) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.22);
 }
 .back-to-dashboard-btn {
-  background: rgba(255,255,255,.15) !important;
+  background: rgba(255,255,255,.14) !important;
   color: #fff !important;
-  border: 1px solid rgba(255,255,255,.3) !important;
+  border: 1px solid rgba(255,255,255,.32) !important;
   border-radius: 20px !important;
-  padding: 6px 14px !important;
+  padding: 7px 15px !important;
   font-size: .82rem !important;
   font-weight: 600;
-  transition: background .2s;
+  transition: background .2s, box-shadow .2s;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 .back-to-dashboard-btn:hover {
-  background: rgba(255,255,255,.28) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  background: rgba(255,255,255,.26) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.22);
   color: #fff !important;
 }
 
 /* ── Content area ── */
 .model-master-content {
-  padding: 20px;
+  padding: 22px 24px 26px;
   background: var(--mm-bg);
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  border-radius: 0 0 16px 16px;
 }
 
 .model-master-content > .container-fluid {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: block;
 }
 
-/* ── Tab navigation ── */
+/* ── Tab navigation — clean segmented bar ── */
 .elegant-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  border-bottom: 2px solid var(--mm-border);
+  gap: 4px;
+  border: 1px solid var(--mm-border);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: var(--mm-shadow-card);
   margin-bottom: 20px;
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0;
+  padding: 6px;
   overflow-x: auto;
-  flex: 0 0 auto;
 }
 .elegant-tabs .nav-item { flex: 0 0 auto; margin: 0; }
 .elegant-tabs .nav-link {
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--mm-muted);
-  font-weight: 500;
+  font-weight: 600;
   font-size: .79rem;
-  padding: 8px 13px;
-  border-radius: 6px 6px 0 0;
+  padding: 8px 14px;
+  border-radius: 7px;
   transition: all .15s ease;
   white-space: nowrap;
-  position: relative;
-  bottom: -2px;
   display: block;
 }
 .elegant-tabs .nav-link:hover:not(.active) {
-  color: var(--mm-teal);
+  color: var(--mm-teal-dark);
   background: var(--mm-teal-light);
-  border-color: transparent;
 }
 .elegant-tabs .nav-link.active {
-  color: var(--mm-teal-dark);
-  background: var(--mm-card);
-  border-color: var(--mm-border);
-  border-bottom-color: var(--mm-card);
+  color: #fff;
+  background: var(--mm-teal);
+  border-color: var(--mm-teal);
+  box-shadow: 0 2px 8px rgba(13,148,136,.28);
   font-weight: 700;
 }
 
@@ -169,33 +149,16 @@ body.dp-modelmaster-page-active .content-wrapper {
   background: var(--mm-card);
   border-radius: var(--mm-radius-lg);
   border: 1px solid var(--mm-border);
-  padding: 20px;
+  box-shadow: var(--mm-shadow-card);
+  padding: 22px 24px;
 }
 
-#modelTabsContent {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#modelTabsContent > .tab-pane {
-  min-height: 0;
-  overflow: hidden;
-}
-
-#modelTabsContent > .tab-pane.active {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
-}
+#modelTabsContent { display: block; }
+#modelTabsContent > .tab-pane { height: auto; }
+#modelTabsContent > .tab-pane.active { height: auto; }
 
 .model-image-management-frame {
-  flex: 1 1 auto;
   height: auto;
-  min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -350,6 +313,12 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   box-shadow: 0 4px 16px rgba(13,148,136,.3);
   transform: translateY(-1px);
 }
+.btn-elegant-primary:focus,
+.btn-elegant-primary:focus-visible {
+  outline: 2px solid var(--mm-teal-dark);
+  outline-offset: 2px;
+  box-shadow: 0 4px 16px rgba(13,148,136,.3);
+}
 
 /* ── Alerts/messages ── */
 .message-area { margin-bottom: 14px; }
@@ -385,9 +354,11 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   display: flex;
   gap: 12px;
   align-items: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
-.mm-tray-field { min-width: 130px; flex: 1 1 130px; }
+.mm-tray-field { min-width: 130px; flex: 0 0 150px; }
 .mm-tray-field label {
   display: block;
   font-size: .72rem;
@@ -397,7 +368,7 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   letter-spacing: .06em;
   margin-bottom: 6px;
 }
-.mm-tray-btns { display: flex; gap: 8px; align-items: flex-end; }
+.mm-tray-btns { display: flex; gap: 8px; align-items: flex-end; flex: 0 0 auto; }
 .mm-tray-btns .btn {
   white-space: nowrap;
   font-size: .82rem !important;
@@ -411,13 +382,18 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+}
+.mm-tray-list-header .mm-section-title {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 .mm-tray-list-header .mm-search-wrap {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex: 0 0 auto;
 }
 .mm-tray-list-header .mm-search-wrap .form-control {
   width: 200px !important;
@@ -467,6 +443,9 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 }
 
 /* ── Responsive ── */
+@media (max-width: 576px) {
+  .mm-tray-list-header { flex-wrap: wrap; }
+}
 @media (max-width: 768px) {
   .model-master-content { padding: 14px; }
   .tab-content-frame { padding: 16px; }
@@ -476,24 +455,24 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 @media (max-width: 576px) {
   .model-master-frame { margin: 8px; border-radius: 12px; }
 }
-/* ── Phase 2: Split-panel layout ── */
-.mm-tab-layout { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); gap: 18px; align-items: start; }
-.image-management-layout { flex: 1 1 auto; height: 100%; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(300px, 330px) minmax(0, 1fr); gap: 18px; align-items: stretch; }
-.image-upload-sidebar { height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
-.upload-column-scroll { height: 100%; min-height: 0; overflow-y: auto !important; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 56px; display: flex; flex-direction: column; gap: 16px; }
-.image-album-viewer { height: 100%; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-.album-column-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 28px; }
+/* ── Split-panel layout ── */
+.mm-tab-layout { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.image-management-layout { display: grid; grid-template-columns: minmax(300px, 330px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.image-upload-sidebar { min-width: 0; }
+.upload-column-scroll { max-height: 72vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; display: flex; flex-direction: column; gap: 16px; }
+.image-album-viewer { min-width: 0; display: flex; flex-direction: column; }
+.album-column-scroll { max-height: 72vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; padding-bottom: 4px; }
 .album-type-switch { display: inline-flex; gap: 6px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: 8px; padding: 4px; }
 .album-switch-btn { border: none; border-radius: 6px; background: transparent; color: #64748b; font-size: .74rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
 .album-switch-btn.active { background: #fff; color: var(--mm-teal-dark); box-shadow: 0 1px 4px rgba(15,23,42,.08); }
 .mm-panel-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-.mm-form-panel { background: var(--mm-soft); border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 16px 18px; }
+.mm-form-panel { background: var(--mm-soft); border: 1px solid var(--mm-border); border-top: 3px solid var(--mm-teal); border-radius: var(--mm-radius-lg); padding: 18px 20px; box-shadow: var(--mm-shadow-card); }
 .mm-form-panel .mm-form { grid-template-columns: 1fr; }
 .mm-form-panel .submit-section { padding-top: 4px; }
-.mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 14px 16px; min-height: 180px; max-height: min(430px, calc(100vh - 255px)); overflow: hidden; display: flex; flex-direction: column; }
-.image-management-layout .mm-form-panel { height: auto; padding: 14px 16px; }
+.mm-list-panel { background: #fff; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 16px 18px; min-height: 180px; max-height: 460px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--mm-shadow-card); }
+.image-management-layout .mm-form-panel { height: auto; padding: 16px 18px; }
 .upload-column-scroll > .mm-form-panel { flex: 0 0 auto; }
-.image-album-viewer .mm-list-panel { flex: 1 1 auto; min-height: 0; max-height: none; overflow: hidden; }
+.image-album-viewer .mm-list-panel { max-height: none; overflow: visible; }
 .image-album-viewer > .mm-list-panel > .mm-list-header { flex: 0 0 auto; }
 #modelImageAlbumPanel,
 #versionImageAlbumPanel { min-height: 0; overflow: visible; flex-direction: column; }
@@ -604,30 +583,22 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 #versionAlbumInlineImage { max-width: 100%; max-height: 100%; transform-origin: center center; transition: transform .15s ease; }
 @media (max-width: 991px) {
   .image-management-layout { grid-template-columns: 1fr; }
-  .model-master-frame { height: auto; min-height: calc(100vh - var(--top-header-height, 96px) - var(--ttt-footer-height, 32px) - 16px); }
-  .model-master-content { overflow: visible; }
-  .model-master-content > .container-fluid,
-  #modelTabsContent { overflow: visible; }
-  body.dp-modelmaster-page-active { overflow: auto; }
-  body.dp-modelmaster-page-active .main-panel,
-  body.dp-modelmaster-page-active .content-wrapper { overflow: visible !important; }
-  .image-upload-sidebar,
   .upload-column-scroll,
-  .image-album-viewer,
-  .album-column-scroll { height: auto; overflow: visible; }
+  .album-column-scroll { max-height: none; overflow: visible; }
 }
 @media (max-width: 640px) {
   .version-info-modal-fields,
   .version-info-fields-grid { grid-template-columns: 1fr; }
 }
 /* ── Empty/loading states ── */
-.mm-list-empty { text-align: center; padding: 24px 12px; color: #94a3b8; font-size: .83rem; display: block; }
+.mm-list-empty { text-align: center; padding: 28px 12px; color: #94a3b8; font-size: .83rem; display: block; }
 /* ── Model master compact table ── */
-.mm-master-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-.mm-master-table th { background: #f8fafc; font-weight: 600; color: var(--mm-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .05em; padding: 8px 10px; border-bottom: 2px solid var(--mm-border); white-space: nowrap; }
-.mm-master-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: var(--mm-text); }
-.mm-master-table tr:hover td { background: #fafcff; }
-.mm-table-scroll { max-height: 335px; overflow: auto; border: 1px solid #f1f5f9; border-radius: var(--mm-radius); }
+.mm-master-table { width: 100%; border-collapse: collapse; font-size: .81rem; }
+.mm-master-table th { background: #f8fafc; font-weight: 700; color: var(--mm-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .05em; padding: 10px 12px; border-bottom: 2px solid var(--mm-border); white-space: nowrap; }
+.mm-master-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: var(--mm-text); }
+.mm-master-table tbody tr:nth-child(even) td { background: #fbfcfe; }
+.mm-master-table tr:hover td { background: var(--mm-theme-teal-soft); }
+.mm-table-scroll { max-height: 335px; overflow: auto; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); }
 .mm-table-scroll .mm-master-table th { position: sticky; top: 0; z-index: 1; }
 
 /* ── Model Master workspace ── */
@@ -661,6 +632,26 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 @media (max-width: 1050px) { .mm-model-workspace { grid-template-columns: 1fr; } .mm-model-form-panel, .mm-model-list-panel { max-height: none; } }
 @media (max-width: 900px) { .mm-tab-layout { grid-template-columns: 1fr; } .mm-list-panel { max-height: 420px; } .mm-album-shell { grid-template-columns: 1fr; } .mm-album-rail { border-right: 0; border-bottom: 1px solid var(--mm-border); padding-right: 0; padding-bottom: 8px; max-height: 120px; } }
 @media (max-width: 640px) { .mm-model-form-panel .mm-form { grid-template-columns: 1fr; } .mm-picker-browser { grid-template-columns: 1fr; } .mm-picker-nav { width: 100%; border-radius: 7px; } }
+
+/* ── Groups board (drag-and-drop) ── */
+.mm-groups-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; align-items: flex-start; }
+.mm-group-column { flex: 0 0 250px; background: #f8fafc; border: 1px solid var(--mm-border); border-radius: var(--mm-radius-lg); padding: 14px; min-height: 170px; display: flex; flex-direction: column; box-shadow: var(--mm-shadow-card); transition: border-color .15s, background .15s; }
+.mm-group-column.mm-group-dragover { border-color: var(--mm-teal); background: var(--mm-teal-light); box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
+.mm-group-column-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--mm-border); }
+.mm-group-column-title { font-size: .78rem; font-weight: 700; color: var(--mm-teal-dark); text-transform: uppercase; letter-spacing: .04em; cursor: text; border-radius: 4px; padding: 2px 4px; margin: -2px -4px; }
+.mm-group-column-title:focus { outline: 2px solid var(--mm-teal); background: #fff; }
+.mm-group-column-count { font-size: .68rem; color: #fff; font-weight: 700; background: var(--mm-teal); border-radius: 999px; padding: 1px 8px; }
+.mm-group-cards { display: flex; flex-direction: column; gap: 8px; min-height: 60px; flex: 1 1 auto; }
+.mm-group-card { background: #fff; border: 1px solid var(--mm-border); border-radius: 7px; padding: 8px 10px; font-size: .78rem; font-weight: 600; color: var(--mm-text); cursor: grab; user-select: none; box-shadow: 0 1px 2px rgba(16,24,40,.04); transition: box-shadow .12s, border-color .12s; }
+.mm-group-card:hover { border-color: #99f6e4; box-shadow: 0 2px 8px rgba(15,23,42,.08); }
+.mm-group-card:active { cursor: grabbing; }
+.mm-group-card.mm-group-dragging { opacity: .4; }
+.mm-group-card .mm-tag-sub { display: block; font-size: .68rem; font-weight: 400; color: var(--mm-muted); margin-top: 2px; }
+.mm-group-column.mm-group-ungrouped { background: #fff; border-style: dashed; }
+.mm-group-column.mm-group-ungrouped .mm-group-column-count { background: var(--mm-muted); }
+
+/* ── Bulk upload panel ── */
+.mm-bulk-upload-panel { background: #fff; border-style: dashed; border-width: 1.5px; }
 </style>
 
 <div class="model-master-frame dp-modelmaster-main">
@@ -840,6 +831,21 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
             Model Master
           </button>
         </li>
+        <!-- Groups Tab (Jig Loading eligibility combinations) -->
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="groups-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#groups"
+            type="button"
+            role="tab"
+            aria-controls="groups"
+            aria-selected="false"
+          >
+            Add Jig - Groups
+          </button>
+        </li>
       </ul>
 
       <div class="tab-content mt-3 dp-modelmaster-tab-content" id="modelTabsContent">
@@ -849,6 +855,26 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
           <div class="tab-content-frame mm-model-frame">
             <!-- Model Master message area -->
             <div id="model-message-area" class="message-area"></div>
+
+            <!-- Bulk Upload -->
+            <section class="mm-form-panel mm-tray-add-section mm-bulk-upload-panel">
+              <p class="mm-section-title">Bulk Upload Model Masters</p>
+              <div class="mm-tray-add-bar">
+                <div class="mm-tray-field" style="flex:1 1 260px;">
+                  <label for="model-bulk-upload-file">Upload File (.xlsx or .csv)</label>
+                  <input type="file" class="form-control" id="model-bulk-upload-file" accept=".xlsx,.csv" />
+                </div>
+                <div class="mm-tray-btns">
+                  <button type="button" class="btn btn-outline-secondary" id="model-bulk-template-btn">Download Template</button>
+                  <button type="button" class="btn btn-elegant-primary" id="model-bulk-upload-btn">Upload</button>
+                </div>
+              </div>
+              <small class="text-muted" style="display:block;margin-top:10px;font-size:.78rem;">
+                Columns: Model No, Plating Stock Number, Polish Finish, EP Bath Type, Tray Type, Tray Capacity, Version. Model No, Plating Stock Number, Version, and Tray Type are mandatory; EP Bath Type and Polish Finish are optional. Polish Finish and Tray Type must match existing master names.
+              </small>
+              <div id="model-bulk-upload-result" style="margin-top:12px;"></div>
+            </section>
+
             <div class="mm-model-workspace">
               <section class="mm-form-panel mm-model-form-panel">
                 <p class="mm-panel-title mm-panel-title-border">Add Model Master</p>
@@ -920,6 +946,15 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
                     />
                   </div>
 
+                  <!-- Plating Color (drives Jig Unloading Zone 1/2 scope) -->
+                  <div class="col-md-6">
+                    <label for="model_plating_color" class="form-label">Plating Color</label>
+                    <select class="form-select" id="model_plating_color" name="plating_color">
+                      <option value="">Select Plating Color</option>
+                    </select>
+                    <small class="text-muted" style="display:block;margin-top:4px;font-size:.7rem;">Determines Jig Unloading Zone 1 / Zone 2 scope for this model.</small>
+                  </div>
+
                   <!-- Images -->
                   <div class="col-md-12 mm-image-field">
                     <label for="model_images" class="form-label">Images</label>
@@ -968,12 +1003,14 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
                         <th>Polish Finish</th>
                         <th>EP Bath Type</th>
                         <th>Tray Type</th>
+                        <th>Plating Color</th>
                         <th>Version</th>
+                        <th>Module Scope</th>
                         <th style="text-align:center;">Action</th>
                       </tr>
                     </thead>
                     <tbody id="model-list-body">
-                      <tr><td colspan="7" class="mm-list-empty">Loading...</td></tr>
+                      <tr><td colspan="9" class="mm-list-empty">Loading...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1253,7 +1290,6 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 
             <!-- Add Tray IDs Section -->
             <div class="mm-tray-add-section">
-              <p class="mm-section-title">Add Tray IDs</p>
               <div class="mm-tray-add-bar">
                 <div class="mm-tray-field">
                   <label for="trayid_tray_type_select">Tray Type</label>
@@ -1422,6 +1458,23 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
           </div>
         </div>
 
+        <!-- 10. Groups (Jig Loading eligibility combinations) -->
+        <div class="tab-pane fade" id="groups" role="tabpanel" aria-labelledby="groups-tab">
+          <div class="tab-content-frame">
+            <div id="groups-message-area" class="message-area"></div>
+            <div class="mm-group-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+              <small class="text-muted" style="font-size:.78rem;">Drag a model card between columns to change its Jig Loading eligibility group. Drop on "Ungrouped" to remove it from a group.</small>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="groups-refresh-btn">↺ Refresh</button>
+                <button type="button" class="btn btn-elegant-primary" id="groups-new-btn" style="font-size:.82rem !important;padding:6px 14px;">+ New Group</button>
+              </div>
+            </div>
+            <div id="groups-board" class="mm-groups-board">
+              <span class="mm-list-empty">Loading groups...</span>
+            </div>
+          </div>
+        </div>
+
       </div> <!-- End tab-content -->
     </div> <!-- End container-fluid -->
   </div> <!-- End model-master-content -->
@@ -1444,6 +1497,38 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
       <div class="modal-footer">
         <button type="button" class="btn version-info-save-btn" id="saveVersionInfoBtn">Save Info</button>
         <button type="button" class="btn version-info-close-btn" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Group Modal — model must be picked from Model Master data, no free-text model entry -->
+<div class="modal fade" id="newGroupModal" tabindex="-1" aria-labelledby="newGroupModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newGroupModalTitle">New Jig Loading Group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mm-form" style="grid-template-columns:1fr;gap:14px;">
+          <div>
+            <label for="newGroupNameInput" class="form-label">Group Name</label>
+            <input type="text" class="form-control" id="newGroupNameInput" placeholder="e.g. GROUP_017" />
+          </div>
+          <div>
+            <label for="newGroupModelSelect" class="form-label">Model (from Model Master)</label>
+            <select class="form-select" id="newGroupModelSelect">
+              <option value="">Select an ungrouped model...</option>
+            </select>
+            <small class="text-muted" style="display:block;margin-top:4px;font-size:.72rem;">Only models already present in Model Master and not yet in a group can be selected.</small>
+          </div>
+        </div>
+        <div id="newGroupValidationMessage" class="version-info-validation"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn version-info-save-btn" id="newGroupCreateBtn">Create Group</button>
+        <button type="button" class="btn version-info-close-btn" data-bs-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>
@@ -2189,6 +2274,75 @@ const ModelMasterAPI = {
     }
 };
 
+// Model Master Bulk Upload
+const ModelMasterBulkUploadAPI = {
+    upload: async function(file) {
+        const resultArea = document.getElementById('model-bulk-upload-result');
+        const uploadBtn = document.getElementById('model-bulk-upload-btn');
+        if (uploadBtn) {
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+        }
+        if (resultArea) resultArea.innerHTML = '';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/adminportal/model-master/bulk-upload/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                body: formData
+            });
+            const result = await response.json();
+
+            if (resultArea) {
+                let html = `<div class="alert ${result.created > 0 ? 'alert-success' : 'alert-danger'}">${escapeHtml(result.message || '')}</div>`;
+                if (result.errors && result.errors.length > 0) {
+                    html += '<div class="mm-table-scroll" style="max-height:220px;"><table class="mm-master-table"><thead><tr><th>Row</th><th>Issue</th></tr></thead><tbody>';
+                    result.errors.forEach(err => {
+                        html += `<tr><td>${escapeHtml(String(err.row))}</td><td>${escapeHtml(err.message)}</td></tr>`;
+                    });
+                    html += '</tbody></table></div>';
+                }
+                resultArea.innerHTML = html;
+            }
+
+            if (result.created > 0) {
+                refreshModelMasterList();
+                const fileInput = document.getElementById('model-bulk-upload-file');
+                if (fileInput) fileInput.value = '';
+            }
+
+            return result;
+        } catch (error) {
+            if (resultArea) resultArea.innerHTML = `<div class="alert alert-danger">Error uploading file: ${escapeHtml(error.message)}</div>`;
+        } finally {
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload';
+            }
+        }
+    },
+    downloadTemplate: function() {
+        window.location.href = '/adminportal/model-master/bulk-upload/template/';
+    }
+};
+
+document.getElementById('model-bulk-template-btn')?.addEventListener('click', function() {
+    ModelMasterBulkUploadAPI.downloadTemplate();
+});
+
+document.getElementById('model-bulk-upload-btn')?.addEventListener('click', function() {
+    const fileInput = document.getElementById('model-bulk-upload-file');
+    const file = fileInput && fileInput.files[0];
+    if (!file) {
+        const resultArea = document.getElementById('model-bulk-upload-result');
+        if (resultArea) resultArea.innerHTML = '<div class="alert alert-danger">Please choose a file to upload.</div>';
+        return;
+    }
+    ModelMasterBulkUploadAPI.upload(file);
+});
+
 // Location API Functions
 const LocationAPI = {
     create: async function(formData) {
@@ -2461,10 +2615,38 @@ function setupTrayCapacityAutoFill() {
     }
 }
 
+// Remember the last active Model Master tab across page refreshes
+const MODEL_MASTER_ACTIVE_TAB_KEY = 'modelMasterActiveTabId';
+
+function restoreActiveModelMasterTab() {
+    const savedTabId = localStorage.getItem(MODEL_MASTER_ACTIVE_TAB_KEY);
+    if (!savedTabId) return;
+
+    const savedTabButton = document.getElementById(savedTabId);
+    if (!savedTabButton || savedTabButton.classList.contains('active')) return;
+    if (!window.bootstrap || !window.bootstrap.Tab) return;
+
+    const tabInstance = window.bootstrap.Tab.getOrCreateInstance(savedTabButton);
+    tabInstance.show();
+}
+
+function setupModelMasterTabPersistence() {
+    const tabButtons = document.querySelectorAll('#modelTabs button[data-bs-toggle="tab"]');
+    tabButtons.forEach(function(tabButton) {
+        tabButton.addEventListener('shown.bs.tab', function(event) {
+            localStorage.setItem(MODEL_MASTER_ACTIVE_TAB_KEY, event.target.id);
+        });
+    });
+}
+
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing...');
-    
+
+    // Keep the user on whichever Model Master tab they last had open
+    setupModelMasterTabPersistence();
+    restoreActiveModelMasterTab();
+
     // Load dropdown data
     loadDropdownData();
     
@@ -2480,7 +2662,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Init refresh buttons and load all existing-data lists
     initListRefreshButtons();
     loadAllLists();
-    
+
+    // Groups board
+    initGroupsTab();
+    refreshGroupsBoard();
+
     console.log('Initialization complete!');
 });
 
@@ -2494,6 +2680,7 @@ async function loadDropdownData() {
             // Populate dropdowns
             populateSelect('polish_finish', data.polish_finishes, 'id', 'polish_finish');
             populateSelect('tray_type', data.tray_types, 'id', 'tray_type');
+            populateSelect('model_plating_color', data.plating_colors, 'id', 'plating_color');
             populateSelect('source_name', data.locations, 'id', 'location_name');
             populateSelect('category', data.categories, 'id', 'category_name');
             await ModelImageAPI.refreshDropdown();
@@ -2728,6 +2915,7 @@ function setupFormHandlers() {
             tray_type: document.getElementById('tray_type').value || null,
             tray_capacity: parseInt(document.getElementById('tray_capacity').value) || null,
             version: document.getElementById('version').value.trim(), // <-- Add this line
+            plating_color: document.getElementById('model_plating_color').value || null,
             source_name: document.getElementById('source_name').value || null,
             images: Array.from(document.getElementById('model_images').selectedOptions).map(option => option.value),
             category: document.getElementById('category').value || null
@@ -3755,6 +3943,14 @@ async function refreshNickelRejectionList() {
     } catch (e) { console.error('refreshNickelRejectionList:', e); }
 }
 
+function moduleScopeBadgesHtml(m) {
+    const badges = [];
+    if (m.has_micro_group) badges.push('<span class="mm-tag-badge" title="Has a Jig Loading eligibility group">Jig Loading</span>');
+    if (m.jig_unload_zone_1) badges.push('<span class="mm-tag-badge" title="Plating color is active in Jig Unloading Zone 1">JU Zone 1</span>');
+    if (m.jig_unload_zone_2) badges.push('<span class="mm-tag-badge" title="Plating color is active in Jig Unloading Zone 2">JU Zone 2</span>');
+    return badges.length ? badges.join(' ') : '<span class="mm-tag-sub">-</span>';
+}
+
 async function refreshModelMasterList() {
     try {
         const r = await fetch('/adminportal/model-master/');
@@ -3762,8 +3958,9 @@ async function refreshModelMasterList() {
         const tbody = document.getElementById('model-list-body');
         const badge = document.getElementById('model-count-badge');
         if (!tbody) return;
+        window._modelMasterData = (data && data.success && data.data) ? data.data : [];
         if (!data || !data.success || !data.data || !data.data.length) {
-            tbody.innerHTML = '<tr><td colspan="7" class="mm-list-empty">No model masters yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="mm-list-empty">No model masters yet.</td></tr>';
             if (badge) badge.textContent = '0';
             return;
         }
@@ -3774,7 +3971,9 @@ async function refreshModelMasterList() {
             <td>${escapeHtml(m.polish_finish_name || (typeof m.polish_finish === 'string' ? m.polish_finish : '') || '-')}</td>
             <td>${escapeHtml(m.ep_bath_type || '-')}</td>
             <td>${escapeHtml(m.tray_type_name || (typeof m.tray_type === 'string' ? m.tray_type : '') || '-')}</td>
+            <td>${escapeHtml(m.plating_color_name || '-')}</td>
             <td>${escapeHtml(m.version || '-')}</td>
+            <td>${moduleScopeBadgesHtml(m)}</td>
             <td style="text-align:center;">
                 <button type="button" class="btn btn-outline-danger btn-sm model-del-btn" data-id="${m.id}" style="font-size:.72rem;padding:2px 10px;border-radius:5px;">Delete</button>
             </td>
@@ -3830,6 +4029,206 @@ async function loadAllLists() {
     ]);
 }
 // ── End Master List Refresh Functions ─────────────────────────────────────────────
+
+// ── Groups tab (drag-and-drop ModelMicroGroup editor) ───────────────────────
+const ModelGroupsAPI = {
+    manage: async function(payload) {
+        try {
+            const response = await fetch('/adminportal/api/model-groups/manage/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('[ModelGroups] Error:', error);
+            return { success: false, message: 'Network error: ' + error.message };
+        }
+    },
+    list: async function() { return await this.manage({ action: 'list' }); },
+    move: async function(plating_stk_no, group_name) { return await this.manage({ action: 'move', plating_stk_no, group_name }); },
+    rename: async function(old_group_name, new_group_name) { return await this.manage({ action: 'rename', old_group_name, new_group_name }); },
+};
+
+let _lastUngroupedModels = [];
+
+async function refreshGroupsBoard() {
+    const board = document.getElementById('groups-board');
+    if (!board) return;
+    board.innerHTML = '<span class="mm-list-empty">Loading groups...</span>';
+    const result = await ModelGroupsAPI.list();
+    if (!result || !result.success) {
+        board.innerHTML = '<span class="mm-list-empty">Unable to load groups.</span>';
+        return;
+    }
+    renderGroupsBoard(result.groups || [], result.ungrouped || []);
+}
+
+function groupColumnHtml(groupName, members, isUngrouped) {
+    const cardsHtml = members.map(m => `
+        <div class="mm-group-card" draggable="true" data-psn="${escapeHtml(m.plating_stk_no)}">
+            ${escapeHtml(m.model_no || m.plating_stk_no)}
+            <span class="mm-tag-sub">${escapeHtml(m.plating_stk_no)}</span>
+        </div>`).join('');
+    return `
+        <div class="mm-group-column${isUngrouped ? ' mm-group-ungrouped' : ''}" data-group-name="${escapeHtml(isUngrouped ? '' : groupName)}">
+            <div class="mm-group-column-header">
+                <span class="mm-group-column-title"${isUngrouped ? '' : ' contenteditable="true" spellcheck="false"'}>${escapeHtml(groupName)}</span>
+                <span class="mm-group-column-count">${members.length}</span>
+            </div>
+            <div class="mm-group-cards">${cardsHtml}</div>
+        </div>`;
+}
+
+function renderGroupsBoard(groups, ungrouped) {
+    const board = document.getElementById('groups-board');
+    if (!board) return;
+
+    _lastUngroupedModels = ungrouped;
+
+    const columnsHtml = groups.map(g => groupColumnHtml(g.group_name, g.models, false));
+    columnsHtml.push(groupColumnHtml('Ungrouped', ungrouped, true));
+
+    board.innerHTML = columnsHtml.join('');
+    bindGroupsDragAndDrop();
+    bindGroupTitleRename();
+}
+
+function bindGroupsDragAndDrop() {
+    const board = document.getElementById('groups-board');
+    if (!board) return;
+
+    board.querySelectorAll('.mm-group-card').forEach(card => {
+        card.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', this.getAttribute('data-psn'));
+            e.dataTransfer.effectAllowed = 'move';
+            this.classList.add('mm-group-dragging');
+        });
+        card.addEventListener('dragend', function() {
+            this.classList.remove('mm-group-dragging');
+        });
+    });
+
+    board.querySelectorAll('.mm-group-column').forEach(column => {
+        column.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('mm-group-dragover');
+        });
+        column.addEventListener('dragleave', function() {
+            this.classList.remove('mm-group-dragover');
+        });
+        column.addEventListener('drop', async function(e) {
+            e.preventDefault();
+            this.classList.remove('mm-group-dragover');
+            const platingStkNo = e.dataTransfer.getData('text/plain');
+            const groupName = this.getAttribute('data-group-name') || '';
+            if (!platingStkNo) return;
+            const result = await ModelGroupsAPI.move(platingStkNo, groupName);
+            if (result && result.success) {
+                showInlineMessage('groups-message-area', result.message || 'Moved.', true);
+                refreshGroupsBoard();
+            } else {
+                showInlineMessage('groups-message-area', result?.message || 'Move failed.', false);
+            }
+        });
+    });
+}
+
+function bindGroupTitleRename() {
+    document.querySelectorAll('.mm-group-column-title[contenteditable="true"]').forEach(title => {
+        const original = title.textContent.trim();
+        title.addEventListener('blur', async function() {
+            const newName = this.textContent.trim();
+            if (!newName || newName === original) {
+                this.textContent = original;
+                return;
+            }
+            const result = await ModelGroupsAPI.rename(original, newName);
+            if (result && result.success) {
+                showInlineMessage('groups-message-area', result.message || 'Renamed.', true);
+                refreshGroupsBoard();
+            } else {
+                showInlineMessage('groups-message-area', result?.message || 'Rename failed.', false);
+                this.textContent = original;
+            }
+        });
+        title.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+        });
+    });
+}
+
+function getNewGroupModalInstance() {
+    const modalElement = document.getElementById('newGroupModal');
+    if (!modalElement || !window.bootstrap || !window.bootstrap.Modal) return null;
+    return window.bootstrap.Modal.getOrCreateInstance(modalElement);
+}
+
+function populateNewGroupModelSelect() {
+    const select = document.getElementById('newGroupModelSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Select an ungrouped model...</option>';
+    _lastUngroupedModels.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.plating_stk_no;
+        option.textContent = `${m.model_no} (${m.plating_stk_no})`;
+        select.appendChild(option);
+    });
+    if (!_lastUngroupedModels.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No ungrouped models available';
+        option.disabled = true;
+        select.appendChild(option);
+    }
+}
+
+async function submitNewGroup() {
+    const nameInput = document.getElementById('newGroupNameInput');
+    const select = document.getElementById('newGroupModelSelect');
+    const validation = document.getElementById('newGroupValidationMessage');
+    const createBtn = document.getElementById('newGroupCreateBtn');
+    const groupName = nameInput ? nameInput.value.trim() : '';
+    const platingStkNo = select ? select.value : '';
+
+    if (!groupName) {
+        if (validation) validation.textContent = 'Group name is required.';
+        return;
+    }
+    if (!platingStkNo) {
+        if (validation) validation.textContent = 'Select a model from the dropdown — free-text model entry is not allowed.';
+        return;
+    }
+    if (validation) validation.textContent = '';
+
+    if (createBtn) { createBtn.disabled = true; createBtn.textContent = 'Creating...'; }
+    const result = await ModelGroupsAPI.move(platingStkNo, groupName);
+    if (createBtn) { createBtn.disabled = false; createBtn.textContent = 'Create Group'; }
+
+    if (result && result.success) {
+        showInlineMessage('groups-message-area', result.message || 'Group created.', true);
+        if (nameInput) nameInput.value = '';
+        if (select) select.value = '';
+        const modal = getNewGroupModalInstance();
+        if (modal) modal.hide();
+        refreshGroupsBoard();
+    } else {
+        if (validation) validation.textContent = result?.message || 'Unable to create group.';
+    }
+}
+
+function initGroupsTab() {
+    document.getElementById('groups-refresh-btn')?.addEventListener('click', refreshGroupsBoard);
+    document.getElementById('groups-new-btn')?.addEventListener('click', function() {
+        const validation = document.getElementById('newGroupValidationMessage');
+        if (validation) validation.textContent = '';
+        populateNewGroupModelSelect();
+        const modal = getNewGroupModalInstance();
+        if (modal) modal.show();
+    });
+    document.getElementById('newGroupCreateBtn')?.addEventListener('click', submitNewGroup);
+}
 </script>
 
 {% endblock %}

@@ -311,21 +311,58 @@ class ModelImageSerializer(serializers.ModelSerializer):
 
 class ModelMasterSerializer(serializers.ModelSerializer):
     model_no = serializers.CharField()  # No unique error here
+    # Optional for bulk upload; the manual Add Model Master form still enforces it client-side.
+    ep_bath_type = serializers.CharField(required=False, allow_blank=True)
+    plating_color_name = serializers.SerializerMethodField()
+    jig_unload_zone_1 = serializers.SerializerMethodField()
+    jig_unload_zone_2 = serializers.SerializerMethodField()
+    has_micro_group = serializers.SerializerMethodField()
 
     class Meta:
         model = ModelMaster
         fields = '__all__'
-    
+
+    def get_plating_color_name(self, obj):
+        return obj.plating_color.plating_color if obj.plating_color_id else None
+
+    def get_jig_unload_zone_1(self, obj):
+        return bool(obj.plating_color_id and obj.plating_color.jig_unload_zone_1)
+
+    def get_jig_unload_zone_2(self, obj):
+        return bool(obj.plating_color_id and obj.plating_color.jig_unload_zone_2)
+
+    def get_has_micro_group(self, obj):
+        grouped_psns = self.context.get('grouped_psns')
+        if not obj.plating_stk_no:
+            return False
+        if grouped_psns is not None:
+            return obj.plating_stk_no in grouped_psns
+        from Jig_Loading.models import ModelMicroGroup
+        return ModelMicroGroup.objects.filter(plating_stk_no=obj.plating_stk_no, is_active=True).exists()
+
     def validate(self, data):
         model_no = data.get('model_no', '').strip()
         polish_finish = data.get('polish_finish')
         ep_bath_type = data.get('ep_bath_type')
         version = data.get('version')
+        plating_stk_no = (data.get('plating_stk_no') or '').strip()
 
         qs = ModelMaster.objects.all()
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
-        # Check for duplicate combination
+
+        if plating_stk_no:
+            # Plating Stock Number is the caller-supplied unique business identifier
+            # (e.g. bulk upload) - different stock numbers are legitimately different
+            # records even when Model No/Polish Finish/EP Bath Type/Version match.
+            if qs.filter(plating_stk_no__iexact=plating_stk_no).exists():
+                raise serializers.ValidationError(
+                    f'A model with Plating Stock Number "{plating_stk_no}" already exists. Please enter a unique Plating Stock Number.'
+                )
+            return data
+
+        # No Plating Stock Number supplied (e.g. manual Add Model Master form, where it
+        # is auto-generated on create) - fall back to the combination-based check.
         if qs.filter(
             model_no__iexact=model_no,
             polish_finish=polish_finish,
@@ -339,12 +376,13 @@ class ModelMasterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['date_time'] = timezone.now()
-        model_no = validated_data.get('model_no', '')
-        polish_finish = validated_data.get('polish_finish')  # This is a PolishFinishType instance
-        version = validated_data.get('version')  # This is a string or int
 
-        plating_stk_no = f"{model_no}X{polish_finish.polish_internal}{version}"
-        validated_data['plating_stk_no'] = plating_stk_no
+        if not (validated_data.get('plating_stk_no') or '').strip():
+            model_no = validated_data.get('model_no', '')
+            polish_finish = validated_data.get('polish_finish')  # This is a PolishFinishType instance
+            version = validated_data.get('version')  # This is a string or int
+            validated_data['plating_stk_no'] = f"{model_no}X{polish_finish.polish_internal}{version}"
+
         return super().create(validated_data)
 
 class LocationSerializer(serializers.ModelSerializer):

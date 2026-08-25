@@ -1,0 +1,18 @@
+$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$session.Cookies.Add((New-Object System.Net.Cookie("csrftoken", "6oIqiW0j8bPoSxgTIdcTV6WT3GeMTorI", "/", "trackandtrace.titan.in")))
+$session.Cookies.Add((New-Object System.Net.Cookie("sessionid", "l7mjimotrg9ssqexikelg1815toqhcg3", "/", "trackandtrace.titan.in")))
+
+try {
+    $resp = Invoke-WebRequest -Uri "https://trackandtrace.titan.in/brass_audit/api/action/" -Method "POST" -WebSession $session -Headers @{"x-csrftoken"="oywTDrn1ANdiSwguKAmps2flbYyA1ZsXkM49LddayOSwATmdiDo8dY144uCcKdJv"; "referer"="https://trackandtrace.titan.in/brass_audit/brass_audit_picktable/"; "Accept-Encoding"="identity"} -ContentType "application/json" -Body '{"action":"VALIDATE_TRAY","tray_id":"JB-A00060","lot_id":"LID20260814103200861462552b"}'
+    $resp.Content | Out-File -FilePath C:\temp\response.html -Encoding utf8
+    Write-Host "Saved to C:\temp\response.html"
+}
+catch {
+    $errResp = $_.Exception.Response
+    $stream = $errResp.GetResponseStream()
+    $reader = New-Object System.IO.StreamReader($stream)
+    $body = $reader.ReadToEnd()
+    $body | Out-File -FilePath C:\temp\response.html -Encoding utf8
+    Write-Host "STATUS:" $errResp.StatusCode
+    Write-Host "Saved error body to C:\temp\response.html ($($body.Length) chars)"
+}

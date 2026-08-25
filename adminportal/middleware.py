@@ -523,7 +523,11 @@ class SingleSessionMiddleware:
 
         if self._wants_json(request):
             return JsonResponse(
-                {'detail': 'Session Interrupted - please relogin to proceed.'},
+                {
+                    'success': False,
+                    'error': 'You have been logged out because this account was signed in from another device.',
+                    'code': 'SESSION_TAKEOVER',
+                },
                 status=401,
             )
 
