@@ -445,6 +445,13 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
             logger.info('%s no_candidates tray_id=%s', SCAN_TAG, tray_id)
             return None
 
+        # A scanned JIG ID must resolve to Jig Unloading Zone 1/2 before the
+        # lot-first workflow checks older/current upstream modules.
+        if self._is_jig_id_format(tray_id):
+            jig_unload_result = self._resolve_jig_unloading_by_jig_id(tray_id, lot_ids)
+            if jig_unload_result:
+                return jig_unload_result
+
         # Step 2: Check each module's eligible Main/Pick table only.
         # Completed/Reject/history tables are deliberately not eligible for
         # global scan navigation/highlighting.
@@ -571,6 +578,67 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
         except Exception:
             return fallback
 
+    def _is_jig_id_format(self, value):
+        normalized = ''.join(str(value or '').split()).upper()
+        return bool(re.match(r'^(JL-[A-Z]\d{5}|J\d{3}-\d{4})$', normalized))
+
+    def _resolve_jig_unloading_by_jig_id(self, jig_id, candidate_lot_ids=None):
+        try:
+            from Jig_Loading.models import JigCompleted
+
+            normalized_jig_id = ''.join(str(jig_id or '').split()).upper()
+            lot_ids = {str(lot_id) for lot_id in (candidate_lot_ids or []) if lot_id}
+            active_jigs = JigCompleted.objects.filter(
+                jig_id__iexact=normalized_jig_id,
+                last_process_module='Inprocess Inspection',
+            ).order_by('-IP_loaded_date_time', '-updated_at')
+
+            jig = None
+            if lot_ids:
+                jig = active_jigs.filter(lot_id__in=lot_ids).first()
+            if not jig:
+                jig = active_jigs.first()
+            if not jig:
+                return None
+
+            stock = self._stock_for(jig.lot_id)
+            module_name, module_url = self._jig_unload_route(jig)
+            page = self._page_for_jig_unload_jig(jig, module_url)
+            return {
+                'module': module_name,
+                'url': module_url,
+                'lot_id': jig.lot_id,
+                'stock_lot_id': jig.lot_id,
+                'jig_completed_id': jig.id,
+                'jig_id': jig.jig_id or normalized_jig_id,
+                'batch_id': self._batch_str(stock, getattr(jig, 'batch_id', jig.lot_id)),
+                'page': page,
+            }
+        except Exception as e:
+            logger.error('%s _resolve_jig_unloading_by_jig_id: %s', SCAN_TAG, e)
+            return None
+
+    def _page_for_jig_unload_jig(self, target_jig, target_url, page_size=10):
+        try:
+            from Jig_Loading.models import JigCompleted
+
+            active_jigs = JigCompleted.objects.filter(
+                last_process_module='Inprocess Inspection',
+            ).order_by('-IP_loaded_date_time', '-updated_at').only(
+                'id', 'lot_id', 'batch_id', 'draft_data', 'jig_id'
+            )
+            position = 0
+            for candidate in active_jigs.iterator():
+                _, candidate_url = self._jig_unload_route(candidate)
+                if self._normalize_path(candidate_url) != self._normalize_path(target_url):
+                    continue
+                position += 1
+                if candidate.id == target_jig.id:
+                    return ((position - 1) // page_size) + 1
+        except Exception as e:
+            logger.debug('%s _page_for_jig_unload_jig failed: %s', SCAN_TAG, e)
+        return None
+
     def _jig_unload_route(self, jig):
         draft_data = getattr(jig, 'draft_data', {}) or {}
         plating_color = ''
@@ -589,6 +657,21 @@ class GlobalTraySearchView(LoginRequiredMixin, View):
                 plating_color = ''
 
         normalized_color = str(plating_color or '').upper().replace('IP-', '').strip()
+        try:
+            from modelmasterapp.models import Plating_Color
+            color = (
+                Plating_Color.objects.filter(
+                    Q(plating_color__iexact=normalized_color) |
+                    Q(plating_color__iexact=f'IP-{normalized_color}')
+                ).first()
+            )
+            if color and getattr(color, 'jig_unload_zone_2', False):
+                return 'Jig Unloading Zone 2', reverse('JU_Zone_MainTable')
+            if color and getattr(color, 'jig_unload_zone_1', False):
+                return 'Jig Unloading', reverse('Jig_Unloading_MainTable')
+        except Exception as e:
+            logger.debug('%s jig unload color route lookup failed: %s', SCAN_TAG, e)
+
         if normalized_color == 'IPS':
             return 'Jig Unloading', reverse('Jig_Unloading_MainTable')
         return 'Jig Unloading Zone 2', reverse('JU_Zone_MainTable')

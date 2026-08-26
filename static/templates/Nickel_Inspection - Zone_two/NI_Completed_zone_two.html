@@ -864,6 +864,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           class="text-primary tray-scan-btn-BQ-view tray-scan-btn-Jig"
                           style="text-decoration: underline"
                           data-stock-lot-id="{{ data.lot_id }}"
+                          data-nw-event-type="{{ data.nw_event_type|default:'' }}"
+                          data-nw-record-lot-id="{{ data.nw_record_lot_id|default:'' }}"
                           data-batch-id="{{ data.batch_id }}"
                           data-model-no="{{ data.plating_stk_no }}"
                           data-no-of-trays="{{ data.no_of_trays }}"
@@ -1754,6 +1756,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const batchId = link.getAttribute('data-batch-id');
       const modelNo = link.getAttribute('data-model-no');
       const stockLotId = link.getAttribute('data-stock-lot-id');
+      const nwEventType = link.getAttribute('data-nw-event-type') || '';
+      const nwRecordLotId = link.getAttribute('data-nw-record-lot-id') || '';
       
       // Get the row to access additional data
       const row = link.closest('tr');
@@ -1905,6 +1909,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // Get Brass QC status from row data attributes
         apiParams = {
           lot_id: stockLotId,
+          event_type: nwEventType,
+          record_lot_id: nwRecordLotId,
 
         };
         
@@ -1918,6 +1924,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         apiParams = {
           lot_id: stockLotId,
+          event_type: nwEventType,
+          record_lot_id: nwRecordLotId,
         };
         
         console.log(`Ã¢Å“â€¦ [PICK MODE] Using: ${trayListEndpoint}`);

@@ -500,6 +500,14 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   body.ju-unload-modal-open #order-listing tbody td:nth-child(4) * {
     pointer-events: none !important;
   }
+  body.ju-add-model-open #order-listing tbody tr:not(.ju-add-model-current-row) td:nth-child(4),
+  body.ju-add-model-open #order-listing tbody tr:not(.ju-add-model-current-row) td:nth-child(4) * {
+    pointer-events: none !important;
+  }
+  body.ju-add-model-open #order-listing tbody tr.ju-add-model-current-row td:nth-child(4),
+  body.ju-add-model-open #order-listing tbody tr.ju-add-model-current-row td:nth-child(4) * {
+    pointer-events: auto !important;
+  }
     /* Show remark tooltip above the trigger instead of below */
   .remark-tooltip {
     top: auto !important;
@@ -2198,10 +2206,29 @@ document.addEventListener('DOMContentLoaded', function() {
     layerView.style.display      = 'none';
     layerAddModel.style.display  = 'none';
     layer.style.display = 'block';
+    setAddModelActionLock(layer === layerAddModel);
   }
 
   function setUnloadActionColumnDisabled(disabled) {
     document.body.classList.toggle('ju-unload-modal-open', !!disabled);
+  }
+
+  function setAddModelActionLock(active) {
+    document.body.classList.toggle('ju-add-model-open', !!active);
+    document.querySelectorAll('#order-listing tbody tr.ju-add-model-current-row').forEach(function(row) {
+      row.classList.remove('ju-add-model-current-row');
+    });
+    if (!active || !currentJigCompletedId) return;
+    const currentRow = Array.from(document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]')).find(function(row) {
+      return row.dataset.jigCompletedId === String(currentJigCompletedId);
+    });
+    if (currentRow) currentRow.classList.add('ju-add-model-current-row');
+  }
+
+  function isAddModelActionBlocked(actionBtn) {
+    if (!document.body.classList.contains('ju-add-model-open')) return false;
+    const row = actionBtn && actionBtn.closest('tr');
+    return !row || row.dataset.jigCompletedId !== String(currentJigCompletedId);
   }
 
   function showUnloadModal() {
@@ -2211,6 +2238,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function closeUnloadModal() {
     modal.style.display = 'none';
+    setAddModelActionLock(false);
     setUnloadActionColumnDisabled(false);
   }
 
@@ -3489,6 +3517,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (unloadBtn) {
       e.preventDefault();
       e.stopPropagation();
+      if (isAddModelActionBlocked(unloadBtn)) return;
       const jigId = unloadBtn.dataset.jigCompletedId;
       console.log('[Z1] Unload clicked, jigCompletedId =', jigId);
       // Highlight only the clicked row
@@ -3502,6 +3531,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (viewBtn) {
       e.preventDefault();
       e.stopPropagation();
+      if (isAddModelActionBlocked(viewBtn)) return;
       const jigId = viewBtn.dataset.jigCompletedId;
       console.log('[Z1] View clicked, jigCompletedId =', jigId);
       // Highlight only the clicked row
@@ -3731,6 +3761,26 @@ document.addEventListener('DOMContentLoaded', function() {
     let juActiveScanOriginalParent = null;
     let juActiveScanOriginalNext = null;
 
+    function juGetSerialNumber(row) {
+      const firstCell = row ? row.querySelector('td:first-child') : null;
+      const value = firstCell ? parseInt((firstCell.textContent || '').trim(), 10) : NaN;
+      return Number.isNaN(value) ? null : value;
+    }
+
+    function juRestoreTableSerialOrder(tbody) {
+      if (!tbody) return;
+      Array.from(tbody.querySelectorAll('tr[data-jig-completed-id]'))
+        .sort(function(firstRow, secondRow) {
+          const firstSerial = juGetSerialNumber(firstRow);
+          const secondSerial = juGetSerialNumber(secondRow);
+          if (firstSerial === null || secondSerial === null) return 0;
+          return firstSerial - secondSerial;
+        })
+        .forEach(function(row) {
+          tbody.appendChild(row);
+        });
+    }
+
     function juRestoreScanRow() {
       if (!juActiveScanRow || !juActiveScanOriginalParent) return;
       juActiveScanRow.classList.remove('z1-row-open');
@@ -3741,11 +3791,7 @@ document.addEventListener('DOMContentLoaded', function() {
       juActiveScanRow.querySelectorAll('td').forEach(function(cell) {
         cell.style.boxShadow = '';
       });
-      if (juActiveScanOriginalNext && juActiveScanOriginalNext.parentNode === juActiveScanOriginalParent) {
-        juActiveScanOriginalParent.insertBefore(juActiveScanRow, juActiveScanOriginalNext);
-      } else {
-        juActiveScanOriginalParent.appendChild(juActiveScanRow);
-      }
+      juRestoreTableSerialOrder(juActiveScanOriginalParent);
       juActiveScanRow = null;
       juActiveScanOriginalParent = null;
       juActiveScanOriginalNext = null;
@@ -4299,9 +4345,40 @@ window.addEventListener('resize', function () {
   let activeRow = null;
   let originalParent = null;
   let originalNext = null;
+  let highlightDismissed = false;
+
+  function clearHighlightParams() {
+    const url = new URL(window.location.href);
+    ['highlight', 'highlight_jig', 'lot', 'batch'].forEach(function(key) {
+      url.searchParams.delete(key);
+    });
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  function getSerialNumber(row) {
+    const firstCell = row ? row.querySelector('td:first-child') : null;
+    const value = firstCell ? parseInt((firstCell.textContent || '').trim(), 10) : NaN;
+    return Number.isNaN(value) ? null : value;
+  }
+
+  function restoreTableSerialOrder(tbody) {
+    if (!tbody) return;
+    Array.from(tbody.querySelectorAll('tr[data-jig-completed-id]'))
+      .sort(function(firstRow, secondRow) {
+        const firstSerial = getSerialNumber(firstRow);
+        const secondSerial = getSerialNumber(secondRow);
+        if (firstSerial === null || secondSerial === null) return 0;
+        return firstSerial - secondSerial;
+      })
+      .forEach(function(row) {
+        tbody.appendChild(row);
+      });
+  }
 
   function restoreActiveRow() {
     if (!activeRow || !originalParent) return;
+    highlightDismissed = true;
+    clearHighlightParams();
     activeRow.classList.remove('z1-row-open', 'gs-hi', 'gs-active-scan', 'dp-row-action-highlight');
     activeRow.removeAttribute('data-ju-final-scan-active');
     activeRow.removeAttribute('data-global-scan-active');
@@ -4312,11 +4389,7 @@ window.addEventListener('resize', function () {
       cell.style.boxShadow = '';
       cell.style.backgroundColor = '';
     });
-    if (originalNext && originalNext.parentNode === originalParent) {
-      originalParent.insertBefore(activeRow, originalNext);
-    } else {
-      originalParent.appendChild(activeRow);
-    }
+    restoreTableSerialOrder(originalParent);
     activeRow = null;
     originalParent = null;
     originalNext = null;
@@ -4349,7 +4422,10 @@ window.addEventListener('resize', function () {
   }
 
   function retryHighlight() {
-    applyHighlight(findHighlightRow());
+    if (highlightDismissed) return;
+    if (applyHighlight(findHighlightRow())) {
+      clearHighlightParams();
+    }
   }
 
   if (params().get('highlight') || params().get('highlight_jig')) {
@@ -4369,6 +4445,13 @@ window.addEventListener('resize', function () {
 
   document.addEventListener('click', function(event) {
     const clickedRow = event.target.closest('#order-listing tbody tr');
+    if (clickedRow && activeRow && clickedRow !== activeRow) {
+      restoreActiveRow();
+    }
+  }, true);
+
+  document.addEventListener('pointerdown', function(event) {
+    const clickedRow = event.target.closest('#order-listing tbody tr[data-jig-completed-id]');
     if (clickedRow && activeRow && clickedRow !== activeRow) {
       restoreActiveRow();
     }

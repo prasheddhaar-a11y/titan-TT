@@ -932,7 +932,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           data-multi-model='{{ jig_detail.enriched_multi_model_allocation|json_encode }}'
                           data-images='{{ jig_detail.model_images|json_encode }}'
                           data-model-colors='{{ jig_detail.model_colors|json_encode }}'
-                          data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'>
+                          data-model-list='{{ jig_detail.no_of_model_cases|json_encode }}'
+                          data-lot-qty="{{ jig_detail.total_cases_loaded|default:jig_detail.original_lot_qty|default:0 }}">
                         <span class="model-stock-no-text" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;">
                           {% if jig_detail.is_multi_model and jig_detail.no_of_model_cases_str %}
                             {% with models=jig_detail.no_of_model_cases_str|default:""|split:"," %}
@@ -1976,11 +1977,26 @@ document.addEventListener("DOMContentLoaded", function () {
         const modelImages = JSON.parse(cell.getAttribute('data-images') || '{}');
         const modelColors = JSON.parse(cell.getAttribute('data-model-colors') || '{}');
         const modelList = JSON.parse(cell.getAttribute('data-model-list') || '[]');
+        const multiModelAlloc = JSON.parse(cell.getAttribute('data-multi-model') || '[]');
+        let rowLotQty = parseInt(cell.getAttribute('data-lot-qty') || '0', 10);
+        if (Number.isNaN(rowLotQty)) rowLotQty = 0;
 
         // Build grid of images (3 columns max, responsive)
         let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:18px 12px;justify-items:center;">`;
         
-        modelList.forEach(function(modelNo, index) {
+        modelList.forEach(function(modelEntry, index) {
+          const parts = String(modelEntry || '').split(':');
+          const modelNo = parts[0].trim();
+          const matchedAlloc = Array.isArray(multiModelAlloc)
+            ? multiModelAlloc.find(function(item) {
+                const itemModel = String((item && (item.model_name || item.model)) || '').trim();
+                return itemModel === modelNo;
+              })
+            : null;
+          let modelQty = parts.length > 1
+            ? parseInt(parts[1], 10)
+            : parseInt((matchedAlloc && matchedAlloc.allocated_qty) || '', 10);
+          if (Number.isNaN(modelQty)) modelQty = modelList.length === 1 ? rowLotQty : 0;
           const color = (typeof getCompletedModelColor === 'function') ? getCompletedModelColor(modelNo) : (modelColors[modelNo] || '#ccc');
           const modelImageData = modelImages[modelNo] || {};
           const firstImage = normalizeIpCompletedImageUrl(modelImageData.first_image) || '/static/assets/images/imagePlaceholder.jpg';
@@ -1990,6 +2006,7 @@ document.addEventListener("DOMContentLoaded", function () {
               <span class="model-circle" style="background:${color};width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;margin-bottom:2px;">${index + 1}</span>
               <img src="${firstImage}" data-model-no="${modelNo}" class="ip-completed-preview-img" alt="${modelNo}" style="max-width:80px;max-height:80px;border-radius:8px;border:1px solid #eee;background:#fafafa;cursor:pointer;object-fit:contain;" onclick="showModelImages('${modelNo}', '${JSON.stringify(modelImageData.images || []).replace(/'/g, "\\'")}')"/>
               <div style="font-weight:600;color:#023E4DCC;font-size:0.98rem;text-align:center;word-break:break-all;">${modelNo}</div>
+              <div style="font-size:10px;color:#555;">Qty: ${modelQty}</div>
             </div>
           `;
         });

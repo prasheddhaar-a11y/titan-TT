@@ -668,6 +668,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
                     <th>
+                      Action <i class="fa fa-filter" aria-hidden="true"></i>
+                    </th>
+                    <th>
                       Polishing Stk No
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
@@ -717,9 +720,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       Process Status
                       <i class="fa fa-filter" aria-hidden="true"></i>
                     </th>
-                    <th>
-                      Action <i class="fa fa-filter" aria-hidden="true"></i>
-                    </th>
+
                     <th>
                       Lot Status
                       <i class="fa fa-filter" aria-hidden="true"></i>
@@ -779,80 +780,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           <button class="img-scroll-right" style="display:none; background: none; border: none; font-size: 20px; cursor: pointer;">&#8594;</button>
                         </div>
                       </span>
-                    </td>
-                    <td >{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
-
-                    <td >{{ data.plating_color }}</td>
-                    <td >{{ data.category }}</td>
-                    <td >{{data.polish_finish}}</td>
-                    <td >{{data.tray_type}}-{{data.tray_capacity}}</td>
-                    <td >{{data.location__location_name}}</td>
-                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
-
-                    <td >{{data.no_of_trays}}</td>
-                    <td>
-                      <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_accepted_qty }}</span>
-                      <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        <input type="checkbox"
-                                class="brass-checkbox"
-                                data-lot-id="{{ data.stock_lot_id }}"
-                                style="width: 15px; height: 15px"
-                                {% if data.na_ac_accepted_qty_verified %}checked disabled{% endif %} />
-                        <input type="text"
-                                class="missing-qty-input"
-                                value="{{ data.na_missing_qty|default_if_none:'' }}"
-                                style="width: 36px; padding: 1px 3px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;"
-                                {% if data.na_ac_accepted_qty_verified %}disabled{% endif %} />
-                      </span>
-                    </td>
-                    <td>{{data.na_physical_qty}}</td>
-
-                    <td >
-                        {{ data.na_qc_accepted_qty|default:0 }}    
-                    </td>
-                    <td >
-                        {{ data.na_rejection_qty|default:0 }}
-                    </td>
-                    <!-- Process Status Column -->
-                    <td >
-                      <div class="d-flex">
-                        <!-- Q: Green if na_ac_accepted_qty_verified, else gray -->
-                        <div
-                          title="Tray Scan"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            background-color: {% if data.na_ac_accepted_qty_verified %}#0c8249{% else %}#bdbdbd{% endif %};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding-top: 1px;
-                            padding-right: 1px;
-                          "
-                        >
-                          Q
-                        </div>
-                        <!-- QC: Green if na_qc_rejection or na_qc_accptance, else gray -->
-                        <div
-                          title="Tray Scan"
-                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
-                          style="
-                            width: 25px;
-                            height: 25px;
-                            background-color: {% if data.na_qc_rejection or data.na_qc_accptance or data.na_qc_few_cases_accptance %}#0c8249{% else %}#bdbdbd{% endif %};
-                            color: white;
-                            font-weight: bold;
-                            line-height: 20px;
-                            text-align: center;
-                            padding-top: 1px;
-                            padding-right: 1px;
-                          "
-                        >
-                          QC
-                        </div>
-                      </div>
                     </td>
                     <td >
                       <!-- Acceptance/Rejection Status -->
@@ -914,6 +841,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                              class="text-primary tray-scan-btn-BQ-view tray-scan-btn-Jig"
                              style="text-decoration: underline"
                              data-stock-lot-id="{{ data.stock_lot_id }}"
+                             data-na-submission-id="{{ data.na_submission_id|default:'' }}"
                              data-batch-id="{{ data.batch_id }}"
                              data-model-no="{{ data.plating_stk_no }}"
                          data-plating-stk-no="{{ data.plating_stk_no }}"
@@ -925,7 +853,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                              data-brass-qc-accptance="{{ data.na_qc_accptance|default:'false' }}"
                              data-brass-qc-rejection="{{ data.na_qc_rejection|default:'false' }}"
                              data-brass-qc-few-cases-accptance="{{ data.na_qc_few_cases_accptance|default:'false' }}"
-                                data-total-batch-quantity="{{ data.na_physical_qty }}"
+                                data-total-batch-quantity="{{ data.display_accepted_qty|default:0 }}"
                                 data-missing-qty="{{ data.na_missing_qty|default:'' }}"
                                 data-physical-qty="{{ data.na_physical_qty|default:'' }}">
 
@@ -933,6 +861,87 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                                  alt="View"
                                  style="width: 20px; margin-right: 8px; height: auto; cursor:pointer;" />
                           </a>
+                    </td>
+                    <td >{{ data.polishing_stk_no|default:"N/A"|highlight_polish_finish|safe_html }}</td>
+
+                    <td >{{ data.plating_color }}</td>
+                    <td >{{ data.category }}</td>
+                    <td >{{data.polish_finish}}</td>
+                    <td >{{data.tray_type}}-{{data.tray_capacity}}</td>
+                    <td >{{data.location__location_name}}</td>
+                    <td>{% include 'partials/_type_of_input_cell.html' with type_of_input=data.type_of_input %}</td>
+
+                    <td >{{data.no_of_trays}}</td>
+                    <td>
+                      <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.display_accepted_qty }}</span>
+                      <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        <input type="checkbox"
+                                class="brass-checkbox"
+                                data-lot-id="{{ data.stock_lot_id }}"
+                                style="width: 15px; height: 15px"
+                                {% if data.na_ac_accepted_qty_verified %}checked disabled{% endif %} />
+                        <input type="text"
+                                class="missing-qty-input"
+                                value="{{ data.na_missing_qty|default_if_none:'' }}"
+                                style="width: 36px; padding: 1px 3px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;"
+                                {% if data.na_ac_accepted_qty_verified %}disabled{% endif %} />
+                      </span>
+                    </td>
+                    <td>{{data.na_physical_qty}}</td>
+
+                    <td >
+                        {{ data.na_qc_accepted_qty|default:0 }}    
+                    </td>
+                    <td >
+                        {{ data.na_rejection_qty|default:0 }}
+                    </td>
+                    <!-- Process Status Column -->
+                    <td >
+                      <div class="d-flex">
+                        <!-- Q: Green only for accepted lots -->
+                        <div
+                          title="Tray Scan"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 25px;
+                            height: 25px;
+                            background-color: {% if data.na_qc_accptance %}#0c8249{% else %}#bdbdbd{% endif %};
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding-top: 1px;
+                            padding-right: 1px;
+                          "
+                        >
+                          Q
+                        </div>
+                        <!-- QC: full for accepted/rejected, half for partial rejected -->
+                        <div
+                          title="Tray Scan"
+                          class="d-flex align-items-center justify-content-center rounded-circle ms-1"
+                          style="
+                            width: 25px;
+                            height: 25px;
+                            background:
+                              {% if data.na_qc_few_cases_accptance %}
+                                linear-gradient(to right, #0c8249 50%, #bdbdbd 50%);
+                              {% elif data.na_qc_rejection or data.na_qc_accptance %}
+                                #0c8249;
+                              {% else %}
+                                #bdbdbd;
+                              {% endif %}
+                            color: white;
+                            font-weight: bold;
+                            line-height: 20px;
+                            text-align: center;
+                            padding-top: 1px;
+                            padding-right: 1px;
+                          "
+                        >
+                          QC
+                        </div>
+                      </div>
                     </td>
                     <td>
                       {% if data.na_ac_accepted_qty_verified  %}
@@ -1041,9 +1050,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
           </div>
                       <p style="margin: 0 0 0 2px;">
-              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-              Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
+              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
             </p>
         </div>
       </div>
@@ -1696,6 +1703,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const batchId = link.getAttribute('data-batch-id');
       const modelNo = link.getAttribute('data-model-no');
       const stockLotId = link.getAttribute('data-stock-lot-id');
+      const naSubmissionId = link.getAttribute('data-na-submission-id') || '';
       
       // Get the row to access additional data
       const row = link.closest('tr');
@@ -1813,26 +1821,17 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       
-      // Set dynamic values for Lot Qty, Missing Qty, Physical Qty
-      document.getElementById('modalLotQty').textContent = displayAcceptedQty || '';
-      document.getElementById('modalMissingQty').textContent = brassMissingQty || '';
-      document.getElementById('modalPhysicalQty').textContent = brassPhysicalQty || '';
+      // Set dynamic value for Lot Qty from the backend-provided table context.
+      const modalLotQtyValue = document.getElementById('modalLotQty');
+      if (modalLotQtyValue) {
+        modalLotQtyValue.textContent = displayAcceptedQty || '';
+      }
 
-      // ✅ ENHANCED: Dynamic quantity display based on verification status
       if (modalLotQty && modalQtyLabel) {
-        if (isVerified) {
-          // Show Physical Qty when verified
-          modalQtyLabel.textContent = "Physical Qty:";
-          modalLotQty.textContent = brassPhysicalQty; // <-- This should be the correct value
-          modalLotQty.style.color = "#28a745";
-          console.log(`✅ Showing Physical Qty: ${brassPhysicalQty}`);
-        } else {
-          // Show Lot Qty when not verified
-          modalQtyLabel.textContent = "Lot Qty:";
-          modalLotQty.textContent = displayAcceptedQty;
-          modalLotQty.style.color = "#e67e22";
-          console.log(`✅ Showing Lot Qty: ${displayAcceptedQty}`);
-        }
+        modalQtyLabel.textContent = "Lot Qty:";
+        modalLotQty.textContent = displayAcceptedQty;
+        modalLotQty.style.color = "#e67e22";
+        console.log(`✅ Showing Lot Qty: ${displayAcceptedQty}`);
       }
 
 
@@ -1850,7 +1849,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Get Brass QC status from row data attributes
         apiParams = {
           lot_id: stockLotId,
-
+          submission_id: naSubmissionId,
         };
         
         console.log(`✅ [AFTER CHECK MODE] Using: ${trayListEndpoint}`);
@@ -1863,6 +1862,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         apiParams = {
           lot_id: stockLotId,
+          submission_id: naSubmissionId,
         };
         
         console.log(`✅ [PICK MODE] Using: ${trayListEndpoint}`);

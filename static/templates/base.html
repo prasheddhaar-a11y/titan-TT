@@ -3961,6 +3961,7 @@
     const params = new URLSearchParams();
     params.set('highlight', trayId);
     if (lotId) params.set('lot', lotId);
+    if (responseData && responseData.jig_completed_id) params.set('highlight_jig', responseData.jig_completed_id);
     if (responseData && responseData.batch_id) params.set('batch', responseData.batch_id);
     if (responseData && responseData.page) params.set('page', responseData.page);
     const separator = targetUrl.indexOf('?') === -1 ? '?' : '&';
