@@ -7157,7 +7157,7 @@ document.addEventListener('click', function (e) {
       return;
     }
 
-    const payload = window._buildJigPayload();
+    const payload = window._buildJigPayload({ forSubmit: true });
     // Override jig_id from the validated input (user may have typed it)
     payload.jig_id = jigId.trim();
     // Add action for unified API
@@ -9211,8 +9211,21 @@ if (!formatResult.valid) {
 
   // ===== Collect FULL tray_data snapshot from the split panel tables =====
   // Returns: [{tray_id, original_qty, delink_qty, excess_qty, top_tray, model_code, source_lot_id}, ...]
-  function collectTrayDataSnapshot() {
+  function collectTrayDataSnapshot(options) {
+    options = options || {};
+    var forSubmit = options.forSubmit === true;
     var trayData = [];
+    function _intVal(value) {
+      return parseInt(value || 0, 10) || 0;
+    }
+    function _submitPhysicalTrayId(row) {
+      if (!forSubmit || !row || row.dataset.rowType !== 'excess') {
+        return (row && row.dataset.trayId || '').trim();
+      }
+      var inp = row.querySelector('.split-scan-input');
+      var scanned = inp && inp.classList.contains('validated') ? (inp.value || '').trim() : '';
+      return scanned || (row.dataset.trayId || '').trim();
+    }
 
     // Each original tray now renders as up to TWO separate <tr>s in
     // #delinkPanelTableBody — a Delink card (data-row-type="delink", carries
@@ -9224,7 +9237,7 @@ if (!formatResult.valid) {
     var merged = {};
     var order = [];
     document.querySelectorAll('#splitPanelContainer tr[data-tray-id]').forEach(function(row) {
-      var trayId = (row.dataset.trayId || '').trim();
+      var trayId = _submitPhysicalTrayId(row);
       if (!trayId) return;
       if (!merged[trayId]) {
         merged[trayId] = {
@@ -9244,11 +9257,16 @@ if (!formatResult.valid) {
       // delink_qty > 0, or the Excess card alone for pure-excess trays (no paired
       // Delink card exists for those) — so it must always be accumulated here,
       // not only on the non-excess branch, or pure-excess trays lose their qty.
-      entry.original_qty += parseInt(row.dataset.originalQty || 0) || 0;
-      if (isExcessCard) {
-        entry.excess_qty += parseInt(row.dataset.excessQty || 0) || 0;
+      var rowOriginalQty = _intVal(row.dataset.originalQty);
+      if (forSubmit) {
+        entry.original_qty = Math.max(entry.original_qty || 0, rowOriginalQty);
       } else {
-        entry.delink_qty += parseInt(row.dataset.delinkQty || 0) || 0;
+        entry.original_qty += rowOriginalQty;
+      }
+      if (isExcessCard) {
+        entry.excess_qty += _intVal(row.dataset.excessQty);
+      } else {
+        entry.delink_qty += _intVal(row.dataset.delinkQty);
       }
       if (row.dataset.topTray === 'true') entry.top_tray = true;
       if (!entry.model_code) entry.model_code = (row.dataset.modelCode || '').trim();
@@ -9257,6 +9275,12 @@ if (!formatResult.valid) {
     order.forEach(function(trayId) {
       var entry = merged[trayId];
       entry.source_lot_id = entry.source_lot_id || window.CURRENT_LOT_ID || '';
+      if (forSubmit) {
+        entry.original_qty = Math.max(
+          _intVal(entry.original_qty),
+          _intVal(entry.delink_qty) + _intVal(entry.excess_qty)
+        );
+      }
       trayData.push(entry);
     });
 
@@ -9597,8 +9621,9 @@ if (!formatResult.valid) {
   }
 
   // ===== Build full payload from current UI state =====
-  function buildFullPayload() {
-    var trayData = collectTrayDataSnapshot();
+  function buildFullPayload(options) {
+    options = options || {};
+    var trayData = collectTrayDataSnapshot({ forSubmit: options.forSubmit === true });
     var scannedTrays = collectScannedTrays();
     var totalDelinkQty = 0;
     var totalExcessQty = 0;

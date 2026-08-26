@@ -3732,6 +3732,68 @@ class JigCompletedTable(TemplateView):
 				# Use bulk-prefetched data (no per-row DB query)
 				stock_model = stock_map.get(jig_rec.lot_id)
 				batch_obj = batch_map.get(jig_rec.batch_id)
+
+				def _safe_int(value, default=0):
+					try:
+						if value is None or value == '':
+							return default
+						return int(value)
+					except (TypeError, ValueError):
+						return default
+
+				def _completed_delink_tray_info():
+					draft_data = jig_rec.draft_data if isinstance(jig_rec.draft_data, dict) else {}
+					split_snapshot = draft_data.get('split_panel_snapshot')
+					if not isinstance(split_snapshot, dict):
+						return jig_rec.delink_tray_info or []
+
+					delink_panel = split_snapshot.get('delink_panel') or {}
+					delink_rows = delink_panel.get('trays') if isinstance(delink_panel, dict) else []
+					if not isinstance(delink_rows, list) or not delink_rows:
+						return jig_rec.delink_tray_info or []
+
+					excess_panel = split_snapshot.get('excess_panel') or {}
+					top_scan_value = ''
+					if isinstance(excess_panel, dict):
+						top_tray = excess_panel.get('top_tray') or {}
+						if isinstance(top_tray, dict):
+							top_scan_value = str(top_tray.get('scan_value') or '').strip()
+
+					completed_rows = []
+					for row in delink_rows:
+						if not isinstance(row, dict):
+							continue
+						delink_qty = _safe_int(row.get('delink_qty'))
+						excess_qty = _safe_int(row.get('excess_qty'))
+						if delink_qty <= 0 and excess_qty <= 0:
+							continue
+
+						is_split_top_row = bool(row.get('is_partial')) and excess_qty > 0 and top_scan_value
+						physical_tray_id = top_scan_value if is_split_top_row else str(
+							row.get('scan_value') or row.get('tray_id') or ''
+						).strip()
+						if not physical_tray_id:
+							continue
+
+						original_qty = _safe_int(row.get('original_qty'))
+						if original_qty <= 0:
+							original_qty = delink_qty + excess_qty
+
+						completed_rows.append({
+							'tray_id': physical_tray_id,
+							'top_tray': bool(row.get('is_top_tray') or is_split_top_row),
+							'delink_qty': delink_qty,
+							'excess_qty': excess_qty,
+							'model_code': row.get('model_code', ''),
+							'original_qty': original_qty,
+							'source_lot_id': row.get('lot_id') or row.get('source_lot_id') or '',
+						})
+
+					if not completed_rows:
+						return jig_rec.delink_tray_info or []
+					top_rows = [row for row in completed_rows if row.get('top_tray')]
+					non_top_rows = [row for row in completed_rows if not row.get('top_tray')]
+					return top_rows + non_top_rows
 				
 				# Build multi-model allocation string as comma-separated model_name:qty
 				# Template expects: "model1:qty1,model2:qty2,model3:qty3" for split(",") and get_model_name/get_model_qty filters
@@ -3825,7 +3887,7 @@ class JigCompletedTable(TemplateView):
 					'half_filled_tray_qty': jig_rec.half_filled_tray_qty or 0,
 					'draft_status': jig_rec.draft_status,
 					'original_lot_qty': jig_rec.original_lot_qty or 0,
-					'delink_tray_info': json.dumps(jig_rec.delink_tray_info or []),
+					'delink_tray_info': json.dumps(_completed_delink_tray_info()),
 					'half_filled_tray_info': json.dumps(jig_rec.half_filled_tray_info or []),
 					'excess_qty': jig_rec.excess_qty or 0,
 					'multi_model_allocation': jig_rec.multi_model_allocation or [],
@@ -4065,6 +4127,27 @@ class JigSaveAPI(APIView):
 			sum_delink = sum(int(t.get('delink_qty', 0) or 0) for t in tray_data)
 			sum_excess = sum(int(t.get('excess_qty', 0) or 0) for t in tray_data)
 
+			def _norm_tray_id(value):
+				return str(value or '').strip().upper()
+
+			def _sum_qty_by_tray(rows, qty_key):
+				qty_by_tray = {}
+				for row in rows if isinstance(rows, list) else []:
+					if not isinstance(row, dict):
+						continue
+					qty = int(row.get(qty_key, 0) or 0)
+					if qty <= 0:
+						continue
+					tray_id_val = _norm_tray_id(row.get('tray_id'))
+					if not tray_id_val:
+						continue
+					qty_by_tray[tray_id_val] = qty_by_tray.get(tray_id_val, 0) + qty
+				return qty_by_tray
+
+			tray_excess_by_id = _sum_qty_by_tray(tray_data, 'excess_qty')
+			half_filled_by_id = _sum_qty_by_tray(half_filled_tray_info, 'qty')
+			sum_half_filled = sum(half_filled_by_id.values())
+
 			if is_multi_model and multi_model_allocation:
 				# `requested_qty` is produced by the backend multi-model allocator
 				# before the UI is rendered. `allocated_qty` is intentionally NOT
@@ -4116,6 +4199,25 @@ class JigSaveAPI(APIView):
 				validation_errors.append(f'sum(delink_qty)={sum_delink} != total_delink_qty={total_delink_qty}')
 			if sum_excess != total_excess_qty:
 				validation_errors.append(f'sum(excess_qty)={sum_excess} != total_excess_qty={total_excess_qty}')
+			if total_excess_qty > 0:
+				if sum_half_filled != total_excess_qty:
+					validation_errors.append(
+						f'sum(half_filled_tray_info.qty)={sum_half_filled} != total_excess_qty={total_excess_qty}'
+					)
+				if tray_excess_by_id != half_filled_by_id:
+					validation_errors.append(
+						'tray_data excess tray IDs/qty do not match half_filled_tray_info'
+					)
+			for tray in tray_data if isinstance(tray_data, list) else []:
+				if not isinstance(tray, dict):
+					continue
+				orig_qty = int(tray.get('original_qty', 0) or 0)
+				delink_qty = int(tray.get('delink_qty', 0) or 0)
+				excess_qty = int(tray.get('excess_qty', 0) or 0)
+				if delink_qty > 0 and excess_qty > 0 and orig_qty > 0 and (delink_qty + excess_qty) > orig_qty:
+					validation_errors.append(
+						f"tray {tray.get('tray_id', '')}: delink_qty + excess_qty exceeds original_qty"
+					)
 			if validation_errors:
 				logging.error(json.dumps({'event': 'JIG_SUBMIT_VALIDATION_FAILED', 'errors': validation_errors}))
 				return Response({'status': 'error', 'message': 'Validation failed: data integrity mismatch', 'errors': validation_errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -4253,37 +4355,42 @@ class JigSaveAPI(APIView):
 					jig_id=jig_id, lot_id=lot_id, batch_id=batch_id
 				).delete()
 
+				jig_loading_record_defaults = {
+					'jig_id': jig_id,
+					'lot_qty': lot_qty,
+					'jig_capacity': jig_capacity,
+					'effective_capacity': effective_capacity,
+					'broken_hooks': broken_hooks,
+					'loaded_cases_qty': total_delink_qty,
+					'empty_hooks': empty_hooks,
+					'tray_data': tray_data,
+					'total_delink_qty': total_delink_qty,
+					'total_excess_qty': total_excess_qty,
+					'scanned_trays': scanned_trays,
+					'status_flag': 'SUBMITTED',
+					'is_multi_model': is_multi_model,
+					'multi_model_allocation': multi_model_allocation,
+					'half_filled_tray_info': half_filled_tray_info,
+					'nickel_bath_type': nickel_bath_type,
+					'tray_type': tray_type,
+					'tray_capacity': tray_capacity,
+					'plating_stock_num': effective_plating_stock_num,
+					'remarks': remarks,
+				}
+				jlr_for_submit = None
+
 				for tray in tray_data:
 					d_qty = int(tray.get('delink_qty', 0) or 0)
+					e_qty = int(tray.get('excess_qty', 0) or 0)
 					if d_qty <= 0:
 						continue
 					tray_id_val = tray.get('tray_id', '')
 					# Find the JigLoadingRecord for FK (create minimal one if needed)
 					jlr, _ = JigLoadingRecord.objects.update_or_create(
 						lot_id=lot_id, batch_id=batch_id, user=user,
-						defaults={
-							'jig_id': jig_id,
-							'lot_qty': lot_qty,
-							'jig_capacity': jig_capacity,
-							'effective_capacity': effective_capacity,
-							'broken_hooks': broken_hooks,
-							'loaded_cases_qty': total_delink_qty,
-							'empty_hooks': empty_hooks,
-							'tray_data': tray_data,
-							'total_delink_qty': total_delink_qty,
-							'total_excess_qty': total_excess_qty,
-							'scanned_trays': scanned_trays,
-							'status_flag': 'SUBMITTED',
-							'is_multi_model': is_multi_model,
-							'multi_model_allocation': multi_model_allocation,
-							'half_filled_tray_info': half_filled_tray_info,
-							'nickel_bath_type': nickel_bath_type,
-							'tray_type': tray_type,
-							'tray_capacity': tray_capacity,
-							'plating_stock_num': effective_plating_stock_num,
-							'remarks': remarks,
-						}
+						defaults=jig_loading_record_defaults
 					)
+					jlr_for_submit = jlr
 
 					JigDelinkRecord.objects.create(
 						jig_loading_record=jlr,
@@ -4297,6 +4404,16 @@ class JigSaveAPI(APIView):
 						scanned_tray_id=tray_id_val,
 					)
 					delink_created += 1
+
+					if e_qty > 0:
+						logging.info(
+							'JigSaveAPI: preserving active excess tray occupancy '
+							'for split tray_id=%s delink_qty=%s excess_qty=%s',
+							tray_id_val,
+							d_qty,
+							e_qty,
+						)
+						continue
 
 					# Propagate delink status to the shared tray master, Day Planning's tray
 					# history, AND every other module's own tray mirror table, so the tray
@@ -4367,26 +4484,52 @@ class JigSaveAPI(APIView):
 						ts = (ts + 1) % 100000
 						excess_lot_id = f'EX-{lot_id}-{ts:05d}'
 
+					if jlr_for_submit is None:
+						jlr_for_submit, _ = JigLoadingRecord.objects.update_or_create(
+							lot_id=lot_id, batch_id=batch_id, user=user,
+							defaults=jig_loading_record_defaults
+						)
+
 					excess_lot = ExcessLotRecord.objects.create(
-						jig_loading_record=jlr,
+						jig_loading_record=jlr_for_submit,
 						new_lot_id=excess_lot_id,
 						parent_lot_id=lot_id,
 						parent_batch_id=batch_id,
 						lot_qty=total_excess_qty,
 						jig_id=jig_id,
 					)
+					excess_batch_instance = ModelMasterCreation.objects.filter(batch_id=batch_id).first()
 					for tray in tray_data:
 						e_qty = int(tray.get('excess_qty', 0) or 0)
 						if e_qty <= 0:
 							continue
+						excess_tray_id = tray.get('tray_id', '')
 						ExcessLotTray.objects.create(
 							excess_lot=excess_lot,
 							lot_id=excess_lot_id,
-							tray_id=tray.get('tray_id', ''),
+							tray_id=excess_tray_id,
 							qty=e_qty,
 							original_qty=int(tray.get('original_qty', 0) or 0),
 							model_code=tray.get('model_code', '') or effective_plating_stock_num,
 						)
+						try:
+							tray_obj = TrayId.objects.filter(tray_id=excess_tray_id).first()
+							if tray_obj:
+								tray_obj.delink_tray = False
+								tray_obj.lot_id = excess_lot_id
+								tray_obj.scanned = True
+								tray_obj.top_tray = bool(tray.get('top_tray', False))
+								if excess_batch_instance:
+									tray_obj.batch_id = excess_batch_instance
+								tray_obj.save(update_fields=[
+									'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray'
+								])
+						except Exception:
+							logging.exception(
+								'JigSaveAPI: failed to reserve excess tray_id=%s for lot_id=%s',
+								excess_tray_id,
+								excess_lot_id,
+							)
 						excess_trays_created += 1
 
 					# ===== CREATE TotalStockModel for excess lot (makes it a REAL lot) =====

@@ -756,6 +756,9 @@ class NQ_Zone_CompletedView(APIView):
                 "combine_lot_ids": jig_unload_obj.combine_lot_ids,
                 "unload_lot_id": jig_unload_obj.unload_lot_id,
                 "audit_check": jig_unload_obj.audit_check,
+                "nw_event_type": getattr(jig_unload_obj, "_nw_event_type", ""),
+                "nw_record_lot_id": getattr(jig_unload_obj, "_nw_record_lot_id", ""),
+                "nw_no_of_trays": getattr(jig_unload_obj, "_nw_no_of_trays", None),
             }
             images = []
             if jig_unload_obj.plating_stk_no:
@@ -812,7 +815,10 @@ class NQ_Zone_CompletedView(APIView):
                         jig_unload_obj.total_case_qty if jig_unload_obj else 0
                     )
             display_qty = data.get("display_accepted_qty", 0)
-            if tray_capacity > 0 and display_qty > 0:
+            event_no_of_trays = data.get("nw_no_of_trays")
+            if data.get("nw_event_type") and event_no_of_trays is not None:
+                data["no_of_trays"] = event_no_of_trays
+            elif tray_capacity > 0 and display_qty > 0:
                 data["no_of_trays"] = ceil(display_qty / tray_capacity)
             else:
                 data["no_of_trays"] = 0

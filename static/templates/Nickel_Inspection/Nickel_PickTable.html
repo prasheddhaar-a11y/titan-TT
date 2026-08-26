@@ -3261,7 +3261,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (reuseIdx >= 0 && reuseIdx < reuseRejInputs.length - 1) reuseRejInputs[reuseIdx + 1].focus();
             return;
           }
-          post(API_BASE + 'action/', { action: 'CHECK_TRAY', tray_id: val })
+          post(API_BASE + 'action/', { action: 'CHECK_TRAY', tray_id: val, lot_id: state.lotId })
             .then(function (res) {
               if (res.valid) {
                 inp.style.borderColor = '#4caf50';

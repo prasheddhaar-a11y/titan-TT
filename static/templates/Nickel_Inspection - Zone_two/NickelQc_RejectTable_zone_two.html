@@ -845,16 +845,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <td {% if data.nq_hold_lot %} class="row-inactive-blur"{% endif %}>
                     <span style="display:flex; align-items:center; gap:3px;">
                       {% if can_hold_release %}
-                        <!-- Admin users: Show toggle switch -->
-                        <label class="hold-toggle-switch" style="margin-bottom:0;">
-                          {% if not data.nq_hold_lot %}
-                            <input type="checkbox" class="hold-toggle-btn" checked />
-                            <span class="hold-slider"></span>
-                          {% else %}
-                            <input type="checkbox" class="hold-toggle-btn" />
-                            <span class="hold-slider"></span>
-                          {% endif %}
-                        </label>
                         <!-- Hold remark icon -->
                         <span class="hold-remark-icon" 
                               style="display:{% if data.nq_hold_lot or data.nq_release_lot or data.nq_holding_reason or data.nq_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
@@ -1180,6 +1170,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
             </div>
 
           </div>
+          <p style="margin: 0 0 0 2px;">
+            Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
+          </p>
         </div>
       </div>
     </div>
@@ -1431,6 +1424,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (modalModelNo && modelNo) {
         modalModelNo.textContent = modelNo;
         
+      }
+      const modalLotQtyValue = document.getElementById('modalLotQty');
+      if (modalLotQtyValue) {
+        modalLotQtyValue.textContent = displayAcceptedQty || '';
       }
 
       
@@ -2038,7 +2035,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function actionTarget(target) {
     return target.closest(
-      '.hold-toggle-btn, .hold-remark-icon, .tray-scan-btn, .tray-scan-btn-Jig, .tray-scan-btn-BQ-view, .btn-accept-is:not(:disabled), .btn-reject-is:not(:disabled), .delete-batch-btn, .remark-send-btn, .rejection-popup-trigger, #delink-selected-btn'
+      '.hold-remark-icon, .tray-scan-btn, .tray-scan-btn-Jig, .tray-scan-btn-BQ-view, .btn-accept-is:not(:disabled), .btn-reject-is:not(:disabled), .delete-batch-btn, .remark-send-btn, .rejection-popup-trigger, #delink-selected-btn'
     );
   }
 
@@ -2047,12 +2044,6 @@ document.addEventListener("DOMContentLoaded", function() {
     var action = actionTarget(event.target);
     if (!action) return;
     highlightRow(action.closest('tr'));
-  }, true);
-
-  document.addEventListener('change', function(event) {
-    if (event.target.matches('.hold-toggle-btn')) {
-      highlightRow(event.target.closest('tr'));
-    }
   }, true);
 
   [

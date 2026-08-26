@@ -1,3 +1,10 @@
+import re
+
+
+_TRAY_SERIES_RE = re.compile(r'^([A-Z]{2})-A\d{5}$')
+_JUMBO_TRAY_TYPE_CODES = {'JR', 'JD', 'JB', 'JL', 'JUMBO'}
+
+
 def _nq_int(value):
     try:
         return int(value or 0)
@@ -11,6 +18,199 @@ def _tray_id(value):
 
 def _tray_sort_key(tray_id):
     return _tray_id(tray_id)
+
+
+def extract_tray_series_from_tray_id(tray_id):
+    tray_key = _tray_id(tray_id)
+    match = _TRAY_SERIES_RE.match(tray_key)
+    return match.group(1) if match else ''
+
+
+def get_nickel_wiping_rejection_tray_allocation(tray_type):
+    """
+    Resolve Nickel Wiping rejection tray allocation from model master tray type.
+
+    Nickel Wiping receives the configured model tray type from the upstream
+    model master flow via JigUnloadAfterTable.tray_type. Normal-family models
+    use NB rejection trays; Jumbo-family models use JB rejection trays.
+    """
+    tray_type_key = str(tray_type or '').strip().upper()
+    if 'JUMBO' in tray_type_key or tray_type_key in _JUMBO_TRAY_TYPE_CODES:
+        return 'JB', 12
+    return 'NB', 16
+
+
+def validate_nickel_wiping_rejection_tray_series(tray_id, tray_type):
+    allowed_prefix, _ = get_nickel_wiping_rejection_tray_allocation(tray_type)
+    scanned_prefix = extract_tray_series_from_tray_id(tray_id)
+
+    if not scanned_prefix:
+        return (
+            False,
+            f'Invalid tray ID format. Expected {allowed_prefix}-A00001 format.',
+            allowed_prefix,
+        )
+    if scanned_prefix != allowed_prefix:
+        return (
+            False,
+            f'This model is allocated to {allowed_prefix} trays. Please scan a {allowed_prefix} tray.',
+            allowed_prefix,
+        )
+    return True, '', allowed_prefix
+
+
+def release_tray_master_for_reuse(tray_id, *, delink_qty=None):
+    """
+    Release the global TrayId row for a tray that has been explicitly delinked.
+
+    The caller must run inside transaction.atomic() when this release is paired
+    with module-level delink updates.
+    """
+    tray_key = _tray_id(tray_id)
+    if not tray_key:
+        return False
+
+    from modelmasterapp.models import TrayId
+
+    tray_master = (
+        TrayId.objects.select_for_update()
+        .filter(tray_id__iexact=tray_key)
+        .first()
+    )
+    if not tray_master:
+        return False
+
+    tray_master.lot_id = None
+    tray_master.batch_id = None
+    tray_master.tray_quantity = None
+    tray_master.delink_tray = True
+    tray_master.delink_tray_qty = str(delink_qty) if delink_qty is not None else None
+    tray_master.scanned = False
+    tray_master.top_tray = False
+    tray_master.IP_tray_verified = False
+    tray_master.rejected_tray = False
+    tray_master.brass_rejected_tray = False
+    tray_master.save(update_fields=[
+        'lot_id',
+        'batch_id',
+        'tray_quantity',
+        'delink_tray',
+        'delink_tray_qty',
+        'scanned',
+        'top_tray',
+        'IP_tray_verified',
+        'rejected_tray',
+        'brass_rejected_tray',
+    ])
+    return True
+
+
+def _nickel_wiping_active_lot_ids(current_lot_id=None):
+    from django.db.models import Q
+    from Jig_Unloading.models import JigUnloadAfterTable
+
+    current_lot = str(current_lot_id or '').strip()
+    active_lots = JigUnloadAfterTable.objects.filter(
+        Q(nq_draft=True)
+        | Q(nq_onhold_picking=True)
+        | Q(nq_qc_rejection=True)
+        | Q(nq_qc_few_cases_accptance=True)
+        | Q(current_stage__iexact='Nickel Wiping')
+    )
+    if current_lot:
+        active_lots = active_lots.exclude(lot_id=current_lot)
+    return list(active_lots.values_list('lot_id', flat=True))
+
+
+def _tray_rows_contain_tray_id(rows, tray_key):
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        if _tray_id(row.get('tray_id') or row.get('rejected_tray_id')) == tray_key:
+            return True
+    return False
+
+
+def validate_nickel_wiping_rejection_tray_available(
+    tray_id,
+    current_lot_id=None,
+    *,
+    lock_master=False,
+):
+    """
+    Return (is_available, message) for Nickel Wiping rejection tray reuse.
+
+    Historical reject snapshots are considered blocking only while their owner
+    lot is still active in Nickel Wiping. The current lot is excluded so draft
+    resume and revalidation of the same lot's trays remain valid.
+    """
+    tray_key = _tray_id(tray_id)
+    if not tray_key:
+        return False, 'Tray ID required'
+
+    from modelmasterapp.models import TrayId
+    from Nickel_Inspection.models import (
+        Nickel_QC_Draft_Store,
+        Nickel_QC_Rejected_TrayScan,
+        NickelQC_Submission,
+        NickelWiping_FullRejectRecord,
+        NickelWiping_PartialRejectRecord,
+    )
+
+    master_qs = TrayId.objects
+    if lock_master:
+        master_qs = master_qs.select_for_update()
+    master_tray = master_qs.filter(tray_id__iexact=tray_key).first()
+    if not master_tray:
+        return False, f'Tray {tray_key} not found in master'
+
+    active_lot_ids = _nickel_wiping_active_lot_ids(current_lot_id)
+    if not active_lot_ids:
+        return True, ''
+
+    if Nickel_QC_Rejected_TrayScan.objects.filter(
+        rejected_tray_id__iexact=tray_key,
+        lot_id__in=active_lot_ids,
+    ).exists():
+        return False, f'Tray {tray_key} is already assigned in Nickel Wiping.'
+
+    if str(current_lot_id or '').strip():
+        draft_qs = Nickel_QC_Draft_Store.objects.filter(
+            draft_type='batch_rejection',
+            lot_id__in=active_lot_ids,
+        ).only('lot_id', 'draft_data')
+        for draft in draft_qs:
+            draft_data = draft.draft_data or {}
+            if not isinstance(draft_data, dict):
+                continue
+            if _tray_rows_contain_tray_id(draft_data.get('reject_trays'), tray_key):
+                return False, f'Tray {tray_key} is already reserved in Nickel Wiping.'
+            if _tray_rows_contain_tray_id(draft_data.get('reject_slots'), tray_key):
+                return False, f'Tray {tray_key} is already reserved in Nickel Wiping.'
+
+    submission_qs = NickelQC_Submission.objects.filter(
+        lot_id__in=active_lot_ids,
+        submission_type__in=['PARTIAL', 'FULL_REJECT'],
+    ).only('lot_id', 'reject_trays_data')
+    for submission in submission_qs:
+        if _tray_rows_contain_tray_id(submission.reject_trays_data, tray_key):
+            return False, f'Tray {tray_key} is already assigned in Nickel Wiping.'
+
+    full_reject_qs = NickelWiping_FullRejectRecord.objects.filter(
+        source_lot_id__in=active_lot_ids,
+    ).only('source_lot_id', 'reject_trays')
+    for record in full_reject_qs:
+        if _tray_rows_contain_tray_id(record.reject_trays, tray_key):
+            return False, f'Tray {tray_key} is already assigned in Nickel Wiping.'
+
+    partial_reject_qs = NickelWiping_PartialRejectRecord.objects.filter(
+        source_lot_id__in=active_lot_ids,
+    ).only('source_lot_id', 'reject_trays')
+    for record in partial_reject_qs:
+        if _tray_rows_contain_tray_id(record.reject_trays, tray_key):
+            return False, f'Tray {tray_key} is already assigned in Nickel Wiping.'
+
+    return True, ''
 
 
 def _row_get(row, key, default=None):

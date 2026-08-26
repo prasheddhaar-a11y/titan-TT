@@ -995,7 +995,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     </td>
                     <!-- Lot Status -->
                     <td {% if data.na_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      {% if data.na_onhold_picking %}
+                      {% if data.na_draft or data.na_onhold_picking %}
                         <div class="d-inline-block px-3 fw-semibold text-center rounded-pill"
                             style="border: 1px solid #4997ac; background-color: #d1f2f3; color: #03425d; font-size: clamp(0.75rem, 2vw, 0.875rem); white-space: nowrap; padding: 5px;">
                           Draft
@@ -1186,6 +1186,9 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
             </div>
 
           </div>
+          <p style="margin: 0 0 0 2px;">
+            Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
+          </p>
 
         </div>
       </div>
@@ -2548,7 +2551,7 @@ document.addEventListener("DOMContentLoaded", function() {
             selectTrayInputForOverwrite(inp);
             return;
           }
-          post(API_BASE + 'action/', { action: 'CHECK_TRAY', tray_id: val })
+          post(API_BASE + 'action/', { action: 'CHECK_TRAY', tray_id: val, lot_id: state.lotId })
             .then(function (res) {
               if (res.valid) {
                 inp.style.borderColor = '#4caf50';

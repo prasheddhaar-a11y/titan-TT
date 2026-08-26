@@ -182,6 +182,8 @@ class NickelAudit_Submission(models.Model):
                                         help_text="Accept tray snapshot: [{tray_id, qty, is_top}]")
     reject_trays_data = models.JSONField(default=list, blank=True,
                                         help_text="Reject tray snapshot: [{tray_id, qty}]")
+    delink_trays_data = models.JSONField(default=list, blank=True,
+                                        help_text="Delink tray snapshot: [{tray_id, qty}]")
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

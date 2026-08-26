@@ -606,6 +606,7 @@ class NA_Zone_CompletedView(APIView):
                 "na_ac_accepted_qty_verified": jig_unload_obj.na_ac_accepted_qty_verified,
                 "na_qc_accepted_qty": accepted_qty,
                 "na_rejection_qty": rejected_qty,
+                "na_submission_id": getattr(jig_unload_obj, '_na_submission_id', ''),
                 "na_last_process_date_time": jig_unload_obj.na_last_process_date_time,
                 "plating_stk_no": jig_unload_obj.plating_stk_no or "",
                 "polishing_stk_no": jig_unload_obj.polish_stk_no or "",

@@ -752,16 +752,6 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       <td {% if data.nq_hold_lot %} class="row-inactive-blur"{% endif %}>
                     <span style="display:flex; align-items:center; gap:3px;">
                       {% if can_hold_release %}
-                        <!-- Admin users: Show toggle switch -->
-                        <label class="hold-toggle-switch" style="margin-bottom:0;">
-                          {% if not data.nq_hold_lot %}
-                            <input type="checkbox" class="hold-toggle-btn" checked />
-                            <span class="hold-slider"></span>
-                          {% else %}
-                            <input type="checkbox" class="hold-toggle-btn" />
-                            <span class="hold-slider"></span>
-                          {% endif %}
-                        </label>
                         <!-- Hold remark icon -->
                         <span class="hold-remark-icon" 
                               style="display:{% if data.nq_hold_lot or data.nq_release_lot or data.nq_holding_reason or data.nq_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
@@ -851,7 +841,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                         data-model-image=""
                         data-plating-stk-no="{{ data.plating_stk_no }}"
                         data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
-                        data-total-batch-quantity="{{ data.nq_physical_qty|default:0 }}"
+                        data-total-batch-quantity="{{ data.nq_lot_qty|default:0 }}"
                         data-brass-missing-qty="{{ data.nq_missing_qty|default:0 }}">
                         <img src="{% static 'assets/icons/view.png' %}"
                             alt="View"
@@ -888,7 +878,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>{{data.no_of_trays}}</td>
                     <!-- Column 7: Lot Qty -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
-                      <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.nq_physical_qty|default:0 }}</span>
+                      <span class="lot-qty" style="min-width: 30px; text-align: right">{{ data.nq_lot_qty|default:0 }}</span>
                     </td>
                     <!-- Column 9: Reject Qty -->
                     <td {% if data.nq_hold_lot %} class="row-inactive-blur" {% endif %}>
@@ -1072,9 +1062,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
           </div>
                       <p style="margin: 0 0 0 2px;">
-              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-              Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-              Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
+              Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
             </p>
         </div>
       </div>
@@ -1793,10 +1781,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       
-      // Set dynamic values for Lot Qty, Missing Qty, Physical Qty
-      document.getElementById('modalLotQty').textContent = displayAcceptedQty || '';
-      document.getElementById('modalMissingQty').textContent = brassMissingQty || '';
-      document.getElementById('modalPhysicalQty').textContent = brassPhysicalQty || '';
+      // Set dynamic value for Lot Qty from the backend-provided row context.
+      const modalLotQtyValue = document.getElementById('modalLotQty');
+      if (modalLotQtyValue) {
+        modalLotQtyValue.textContent = displayAcceptedQty || '';
+      }
 
       // Ã¢Å“â€¦ ENHANCED: Dynamic quantity display based on verification status
       if (modalLotQty && modalQtyLabel) {

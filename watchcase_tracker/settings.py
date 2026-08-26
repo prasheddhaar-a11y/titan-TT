@@ -130,7 +130,7 @@ MIDDLEWARE = [
     # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
     'adminportal.middleware.SecurityHeadersMiddleware',
     # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
-    #'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
+    'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # SafeSessionMiddleware = Django's SessionMiddleware + graceful handling of

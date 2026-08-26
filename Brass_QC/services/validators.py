@@ -81,7 +81,7 @@ def _snapshot_has_actual_is_reject(tray_id):
                 continue
             qty = _safe_int(tray.get("qty"))
             has_reason = bool(tray.get("reason_id") or tray.get("reason_text"))
-            if qty > 0 and has_reason:
+            if qty > 0 and has_reason and not bool(tray.get("is_delinked")):
                 return True
     return False
 
@@ -117,6 +117,7 @@ def is_tray_rejected_in_input_screening(tray_id):
         tray_id=tid,
         reject_lot__isnull=False,
         qty__gt=0,
+        is_delinked=False,
     ).exists()
     if has_actual_reject_allocation or IP_Rejected_TrayScan.objects.filter(rejected_tray_id=tid).exists():
         return True
@@ -125,6 +126,58 @@ def is_tray_rejected_in_input_screening(tray_id):
 
     if IPTrayId.objects.filter(tray_id=tid, rejected_tray=True, delink_tray=False).exists():
         return not is_input_screening_delink_only_tray(tid)
+    return False
+
+
+def has_active_input_screening_reject_occupancy(tray_id, lot_id=None):
+    """
+    Return True while a physical tray still holds Input Screening rejected
+    material. Historical rejects are allowed once master/release state marks the
+    tray reusable.
+    """
+    tid = _norm_tray_id(tray_id)
+    current_lot = str(lot_id or "").strip()
+    if not tid or is_tray_released_for_reuse(tid):
+        return False
+
+    allocation_qs = IS_AllocationTray.objects.filter(
+        tray_id=tid,
+        reject_lot__isnull=False,
+        qty__gt=0,
+        is_delinked=False,
+    )
+    if current_lot:
+        allocation_qs = allocation_qs.exclude(reject_lot__new_lot_id=current_lot)
+    if allocation_qs.exists():
+        return True
+
+    rejected_scan_qs = IP_Rejected_TrayScan.objects.filter(rejected_tray_id=tid)
+    if current_lot:
+        rejected_scan_qs = rejected_scan_qs.exclude(lot_id=current_lot)
+    if rejected_scan_qs.exists():
+        return True
+
+    ip_reject_qs = IPTrayId.objects.filter(
+        tray_id=tid,
+        rejected_tray=True,
+        delink_tray=False,
+    )
+    if current_lot:
+        ip_reject_qs = ip_reject_qs.exclude(lot_id=current_lot)
+    if ip_reject_qs.exists() and not is_input_screening_delink_only_tray(tid):
+        return True
+
+    for reject_lot in _iter_snapshot_reject_lots(tid):
+        if current_lot and reject_lot.new_lot_id == current_lot:
+            continue
+        for tray in reject_lot.trays_snapshot or []:
+            if _norm_tray_id(tray.get("tray_id")) != tid:
+                continue
+            qty = _safe_int(tray.get("qty"))
+            has_reason = bool(tray.get("reason_id") or tray.get("reason_text"))
+            if qty > 0 and has_reason and not bool(tray.get("is_delinked")):
+                return True
+
     return False
 
 
@@ -352,6 +405,88 @@ def validate_tray_not_rejected_in_brass_qc(tray_id):
     return None
 
 
+def _submitted_jig_record_uses_lot(record, lot_id):
+    for item in record.multi_model_allocation or []:
+        if isinstance(item, dict) and str(item.get("lot_id") or "").strip() == lot_id:
+            return True
+    return False
+
+
+def _is_jig_excess_lot_consumed(excess_lot_id):
+    """Return True once the EX-* lot has been submitted again in Jig Loading."""
+    from Jig_Loading.models import JigCompleted
+
+    if not excess_lot_id:
+        return False
+
+    if JigCompleted.objects.filter(
+        lot_id=excess_lot_id,
+        draft_status="submitted",
+    ).exists():
+        return True
+
+    submitted_multi_model_records = JigCompleted.objects.filter(
+        draft_status="submitted",
+        is_multi_model=True,
+        multi_model_allocation__isnull=False,
+    ).only("multi_model_allocation")
+    for record in submitted_multi_model_records:
+        if _submitted_jig_record_uses_lot(record, excess_lot_id):
+            return True
+    return False
+
+
+def has_active_jig_loading_excess_occupancy(tray_id, lot_id=None):
+    """
+    Return True only while Jig Loading currently owns the physical tray as
+    excess / half-filled stock. Historical ExcessLotTray rows do not block once
+    the jig is released or the EX-* lot is consumed.
+    """
+    from django.db.models import Q
+    from Jig_Loading.models import ExcessLotTray, Jig, JigCompleted
+
+    tid = _norm_tray_id(tray_id)
+    current_lot = str(lot_id or "").strip()
+    if not tid:
+        return False
+
+    excess_trays = (
+        ExcessLotTray.objects.filter(tray_id__iexact=tid)
+        .select_related("excess_lot")
+        .order_by("-created_at")
+    )
+    for excess_tray in excess_trays:
+        excess_lot = excess_tray.excess_lot
+        excess_lot_id = str(excess_lot.new_lot_id or "").strip()
+        if current_lot and current_lot == excess_lot_id:
+            continue
+
+        active_jig = Jig.objects.filter(
+            jig_qr_id=excess_lot.jig_id,
+        ).filter(
+            Q(occupied_flag=True) | Q(is_loaded=True)
+        ).exists()
+        if not active_jig:
+            continue
+
+        parent_still_has_excess = JigCompleted.objects.filter(
+            lot_id=excess_lot.parent_lot_id,
+            batch_id=excess_lot.parent_batch_id,
+            jig_id=excess_lot.jig_id,
+            draft_status="submitted",
+            half_filled_tray_qty__gt=0,
+        ).exists()
+        if not parent_still_has_excess:
+            continue
+
+        if _is_jig_excess_lot_consumed(excess_lot_id):
+            continue
+
+        return True
+
+    return False
+
+
 def validate_tray_cross_module_occupancy(tray_id, lot_id):
     """
     Checks tray occupancy across IS, Brass QC, Brass Audit, and IQF modules.
@@ -399,6 +534,12 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
     for qs, module_name in checks:
         if qs.exists():
             return module_name, f"Tray is currently occupied in {module_name}"
+
+    if has_active_input_screening_reject_occupancy(tray_id, lot_id):
+        return "Input Screening", "Tray is rejected in Input Screening"
+
+    if has_active_jig_loading_excess_occupancy(tray_id, lot_id):
+        return "Jig Loading", "Tray is currently occupied in Jig Loading"
 
     # Brass Audit drafts reserve tray IDs even before live BrassAuditTrayId rows
     # are created. Exclude the current lot so reopening/editing its own draft
