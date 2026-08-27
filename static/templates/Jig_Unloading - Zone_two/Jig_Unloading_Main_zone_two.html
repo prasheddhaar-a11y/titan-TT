@@ -509,8 +509,8 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     user-select: none;
     cursor: not-allowed;
   }
-  body.ju-unload-modal-open #order-listing tbody td:nth-child(4),
-  body.ju-unload-modal-open #order-listing tbody td:nth-child(4) * {
+  body.ju-unload-modal-open:not(.ju-add-model-open) #order-listing tbody td:nth-child(4),
+  body.ju-unload-modal-open:not(.ju-add-model-open) #order-listing tbody td:nth-child(4) * {
     pointer-events: none !important;
   }
   body.ju-add-model-open #order-listing tbody tr:not(.ju-add-model-current-row) td:nth-child(4),
@@ -2224,11 +2224,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('#order-listing tbody tr.ju-add-model-current-row').forEach(function(row) {
       row.classList.remove('ju-add-model-current-row');
     });
-    if (!active || !currentJigCompletedId) return;
-    const currentRow = Array.from(document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]')).find(function(row) {
-      return row.dataset.jigCompletedId === String(currentJigCompletedId);
+    document.querySelectorAll('#order-listing tbody tr[data-jig-completed-id]').forEach(function(row) {
+      const isCurrentRow = !!active && row.dataset.jigCompletedId === String(currentJigCompletedId);
+      row.classList.toggle('ju-add-model-current-row', isCurrentRow);
+      row.querySelectorAll('td:nth-child(4) a, td:nth-child(4) button').forEach(function(control) {
+        if (active && !isCurrentRow) {
+          control.setAttribute('aria-disabled', 'true');
+          control.setAttribute('tabindex', '-1');
+        } else {
+          control.removeAttribute('aria-disabled');
+          control.removeAttribute('tabindex');
+        }
+      });
     });
-    if (currentRow) currentRow.classList.add('ju-add-model-current-row');
   }
 
   function isAddModelActionBlocked(actionBtn) {
@@ -2236,6 +2244,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const row = actionBtn && actionBtn.closest('tr');
     return !row || row.dataset.jigCompletedId !== String(currentJigCompletedId);
   }
+
+  document.addEventListener('click', function(e) {
+    const actionBtn = e.target.closest('.z1-unload-btn, .z1-view-btn');
+    if (!actionBtn || !isAddModelActionBlocked(actionBtn)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }, true);
 
   function showUnloadModal() {
     modal.style.display = 'flex';
