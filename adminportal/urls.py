@@ -28,7 +28,11 @@ urlpatterns = [
     # Tray Type APIs
     path('tray-type/', TrayTypeAPIView.as_view(), name='tray-type-api'),
     path('tray-type/<int:pk>/', TrayTypeAPIView.as_view(), name='tray-type-detail-api'),
-    
+
+    # Jig Capacity APIs (sourced from Jig_Loading.JigLoadingMaster; list + edit existing records)
+    path('jig-capacity/', JigCapacityAPIView.as_view(), name='jig-capacity-api'),
+    path('jig-capacity/<int:pk>/', JigCapacityAPIView.as_view(), name='jig-capacity-detail-api'),
+
     
     # Model Image APIs
     path('model-image/', ModelImageAPIView.as_view(), name='model-image-api'),

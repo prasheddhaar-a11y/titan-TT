@@ -69,6 +69,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Module, UserModuleProvision
 from Recovery_DP.models import *
+from Jig_Loading.models import JigLoadingMaster
 
 
 def _perf_username(username):
@@ -2869,6 +2870,48 @@ class PlatingColorAPIView(APIView):
                 'success': True,
                 'message': 'Plating color deleted successfully!'
             }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': 'Unable to process the request. Please verify the submitted data and try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required(login_url='login-api'), name='dispatch')
+@method_decorator(require_admin, name='dispatch')
+class JigCapacityAPIView(APIView):
+    """Read-only listing of Jig Loading Master records for the Model Master 'Jig Capacity' tab."""
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        """Get all Jig Capacity master records (jig_type, jig_capacity, forging_info per model)"""
+        jig_masters = JigLoadingMaster.objects.select_related('model_stock_no').order_by(
+            'model_stock_no__model_no'
+        )
+        serializer = JigCapacitySerializer(jig_masters, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        """Update an existing Jig Capacity master record"""
+        try:
+            jig_master = get_object_or_404(JigLoadingMaster, pk=pk)
+            serializer = JigCapacitySerializer(jig_master, data=request.data)
+            if serializer.is_valid():
+                updated_jig_master = serializer.save()
+                return Response({
+                    'success': True,
+                    'message': 'Jig capacity updated successfully!',
+                    'data': JigCapacitySerializer(updated_jig_master).data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Validation failed',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
                 'success': False,

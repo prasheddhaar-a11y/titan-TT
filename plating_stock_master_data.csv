@@ -1,0 +1,2592 @@
+plating_stk_no,model_no,version,brand,gender,pol_finish,jig_qty,traycate,ip_wiping,bath_type
+10005NAA02,10005,A,TI,GEN,Buffed,144,Normal,No,Bright
+10005SAA02,10005,A,TI,GEN,Buffed,144,Normal,No,Bright
+10005YAA02,10005,A,TI,GEN,Buffed,144,Normal,No,Bright
+10019SAA02,10019,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+10020SAA02,10020,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+10024QAA02/GUN,10024,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+10024SAA02,10024,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+10026SAA02,10026,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10027QAA02/GUN,10027,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10027SAA02,10027,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10033SCA02,10033,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+10038NAA02,10038,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10038QAA02/BRN,10038,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10038SAA02,10038,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+10038WAA02,10038,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1072YAC02,1072,C,TI,GEN,Buffed,220,Normal,No,Bright
+1092YAA02,1092,A,SO,GEN,Buffed,220,Normal,No,Bright
+1107YAK02,1107,K,TI,GEN,Buffed,144,Normal,No,Bright
+1161NFC02,1161,C,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1161SFC02,1161,C,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1161SFE02,1161,E,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1163BAB02,1163,B,TI,GEN,Buffed,220,Normal,No,Bright
+1163SAB02,1163,B,TI,GEN,Buffed,220,Normal,No,Bright
+1163YAB02,1163,B,TI,GEN,Buffed,220,Normal,No,Bright
+1164YAC02,1164,C,TI,GEN,Buffed,220,Normal,No,Bright
+1164YAE02,1164,E,TI,GEN,Buffed,220,Normal,No,Bright
+1165YAC02,1165,C,TI,GEN,Buffed,220,Normal,No,Bright
+1165YAD02,1165,D,TI,GEN,Buffed,220,Normal,No,Bright
+1168SAB02,1168,B,TI,GEN,Buffed,220,?,No,Bright
+1230SEB02,1230,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1230SEC02,1230,C,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1234YEB02,1234,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+1311BAB02,1311,B,TI,GEN,Buffed,220,?,No,Bright
+1318YAB02,1318,B,TI,GEN,Buffed,220,Normal,No,Bright
+1335YAB02,1335,B,TI,GEN,Buffed,220,Normal,No,Bright
+1377YAB02,1377,B,TI,GEN,Buffed,220,Normal,No,Bright
+1383YAA02,1383,A,TI,GEN,Buffed,220,?,No,Bright
+139SAD02,139,D,TI,GEN,Buffed,220,Normal,No,Bright
+139YAD02,139,D,TI,GEN,Buffed,220,Normal,No,Bright
+140YAC02,140,C,TI,GEN,Buffed,220,Normal,No,Bright
+1416YAA02,1416,A,TI,GEN,Buffed,220,?,No,Bright
+1445YAG02,1445,G,TI,GEN,Buffed,144,?,No,Bright
+1455YAA02,1455,A,TI,GEN,Buffed,220,?,No,Bright
+1459YAB02,1459,B,TI,GEN,Buffed,220,Normal,No,Bright
+1461YAA02,1461,A,TI,GEN,Buffed,220,?,No,Bright
+1474QAE02/BRN,1474,E,FT,GEN,Buffed,144,Normal,No,Bright
+1474QDE02/BLU/M,1474,E,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1474NFE02,1474,E,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1474NSA02,1474,A,FT,GEN,Shotblasting,144,Normal,Yes,Dull
+1474SSA02,1474,A,FT,GEN,Shotblasting,144,Normal,Yes,Dull
+1474SSB02,1474,B,FT,GEN,Shotblasting,144,Normal,Yes,Dull
+1477SJE02,1477,E,TI,GEN,Bi-Finish,144,?,Yes,Semi bright
+1478SBG02,1478,G,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1478SBL02,1478,L,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1482YAE02,1482,E,TI,GEN,Buffed,220,Normal,No,Bright
+1482YAG02,1482,G,TI,GEN,Buffed,220,Normal,No,Bright
+1485YAB02,1485,B,TI,GEN,Buffed,220,Normal,No,Bright
+1486YAA02,1486,A,TI,GEN,Buffed,220,Normal,No,Bright
+1486SAB02,1486,B,TI,GEN,Buffed,220,Normal,No,Bright
+1486YAB02,1486,B,TI,GEN,Buffed,220,Normal,No,Bright
+1487YAB02,1487,B,TI,GEN,Buffed,144,Normal,No,Bright
+1488SAA02,1488,A,TI,GEN,Buffed,144,Normal,No,Bright
+1488WAA02,1488,A,TI,GEN,Buffed,144,Normal,No,Bright
+1488YAA02,1488,A,TI,GEN,Buffed,144,Normal,No,Bright
+1489SAA02,1489,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1494SCB02,1494,B,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+149YAD02,149,D,TI,GEN,Buffed,220,Normal,No,Bright
+1506BCC02,1506,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1506YCC02,1506,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1508SEA02,1508,A,TI,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+1521YAA02,1521,A,TI,GEN,Buffed,144,Normal,No,Bright
+1521YAB02,1521,B,TI,GEN,Buffed,144,Normal,No,Bright
+1521YAE02,1521,E,TI,GEN,Buffed,144,Normal,No,Bright
+1521YAF02,1521,F,TI,GEN,Buffed,144,Normal,No,Bright
+1522YAA02,1522,A,TI,GEN,Buffed,220,?,No,Bright
+1527SAA02,1527,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1528YAA02,1528,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1528YAB02,1528,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1530BEA02,1530,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1530BEC02,1530,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1530SEC02,1530,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1530YEC02,1530,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1548SSA02,1548,A,TI,GEN,Shotblasting,144,?,Yes,Dull
+1557BAA02,1557,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1557BAB02,1557,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1557YAB02,1557,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1558SEA02,1558,A,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1558YEB02,1558,B,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1560SAA02,1560,A,TI,GEN,Buffed,144,Normal,No,Bright
+1560YAA02,1560,A,TI,GEN,Buffed,144,Normal,No,Bright
+1578SAA02,1578,A,TI,GEN,Buffed,144,Normal,No,Bright
+1578YAA02,1578,A,TI,GEN,Buffed,144,Normal,No,Bright
+1578SAC02,1578,C,TI,GEN,Buffed,144,Normal,No,Bright
+1578YAC02,1578,C,TI,GEN,Buffed,144,Normal,No,Bright
+1580SEA02,1580,A,TI,GEN,Buffed,144,Normal,No,Bright
+1580YEA02,1580,A,TI,GEN,Buffed,144,Normal,No,Bright
+1580SEF02,1580,F,TI,GEN,Buffed,144,Normal,No,Bright
+1580YEF02,1580,F,TI,GEN,Buffed,144,Normal,No,Bright
+1581SAA02,1581,A,TI,GEN,Buffed,144,Normal,No,Bright
+1581YAA02,1581,A,TI,GEN,Buffed,144,Normal,No,Bright
+1581SAB02,1581,B,TI,GEN,Buffed,180,Normal,No,Bright
+1581YAB02,1581,B,TI,GEN,Buffed,180,Normal,No,Bright
+1582SAA02,1582,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1582SAE02,1582,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1582NAF02,1582,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1582SAF02,1582,F,TI,GEN,Buffed,70,Jumbo,No,Bright
+1582YCF02,1582,F,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1584SAE02,1584,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1584NAF02,1584,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1584SAF02,1584,F,TI,GEN,Buffed,70,Jumbo,No,Bright
+1585SAE02,1585,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1587SDA02,1587,A,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1587SDB02,1587,B,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1587SDD02,1587,D,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1587NDE02,1587,E,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1587SDE02,1587,E,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1591SAA02,1591,A,TI,GEN,Buffed,144,?,No,Bright
+1593SAA02,1593,A,TI,GEN,Buffed,144,?,No,Bright
+1594SFA02,1594,A,TI,GEN,Bi-Finish,144,?,Yes,Semi bright
+161YAK02,161,K,TI,GEN,Buffed,220,Normal,No,Bright
+1627BAA02,1627,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627YAA02,1627,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627BAD02/2N,1627,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627KAD02/RGSS,1627,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627YAD02/2N,1627,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1636SAE02,1636,E,TI,GEN,Buffed,144,Normal,No,Bright
+1636WAE02,1636,E,TI,GEN,Buffed,144,Normal,No,Bright
+1636YAE02/2N,1636,E,TI,GEN,Buffed,144,Normal,No,Bright
+1636BEA02,1636,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636SEA02,1636,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636YEA02,1636,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636BEE02,1636,E,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636SEE02,1636,E,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636YEE02,1636,E,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636SEF02,1636,F,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636YEF02,1636,F,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636BEH02,1636,H,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636SEH02,1636,H,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636YEH02,1636,H,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1638YAA02,1638,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638YAB02,1638,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638SAE02,1638,E,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638YAE02,1638,E,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638YAF02,1638,F,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638SAH02,1638,H,TI,GEN,Buffed,144,Jumbo,No,Bright
+1638YAH02,1638,H,TI,GEN,Buffed,144,Jumbo,No,Bright
+1639YEA02,1639,A,TI,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+1639SEB02,1639,B,TI,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+1639YEB02,1639,B,TI,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+1640SEA02,1640,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640YEA02,1640,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640YEB02,1640,B,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640BEC02,1640,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640SEC02,1640,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640YEC02,1640,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1641SCA02,1641,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1641YCA02,1641,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1641SCB02,1641,B,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1641YCB02,1641,B,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1641YCC02,1641,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1644SAC02,1644,C,TI,GEN,Buffed,144,Normal,No,Bright
+1644YAC02,1644,C,TI,GEN,Buffed,144,Normal,No,Bright
+1644YAD02,1644,D,TI,GEN,Buffed,144,Normal,No,Bright
+1647YAC02,1647,C,TI,GEN,Buffed,144,Normal,No,Bright
+1647YAD02,1647,D,TI,GEN,Buffed,144,Normal,No,Bright
+1648YAC02,1648,C,TI,GEN,Buffed,144,Normal,No,Bright
+1648YAD02,1648,D,TI,GEN,Buffed,144,Normal,No,Bright
+1650BAD02,1650,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1650SAD02,1650,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1650YAD02,1650,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1672SAA02,1672,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1672WAA02,1672,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1672YAA02,1672,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1697SAA02,1697,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1698NAA02,1698,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698SAA02,1698,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698WAA02,1698,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698NAC02,1698,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698SAC02,1698,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698WAC02,1698,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698NAD02,1698,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698NAF02,1698,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698SAF02,1698,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698WAF02,1698,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1698NCA02,1698,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1698SCA02,1698,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1698QDF02/BRN,1698,F,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1702NDA02,1702,A,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1702SDA02,1702,A,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1702NDB02,1702,B,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1702SDB02,1702,B,TI,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+1703YAB02,1703,B,TI,GEN,Buffed,144,Normal,No,Bright
+1712YAA02,1712,A,TI,GEN,Buffed,144,Normal,No,Bright
+1712YAB02,1712,B,TI,GEN,Buffed,144,Normal,No,Bright
+1713SAA02,1713,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1713YAA02,1713,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1713YAA02/2N,1713,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1713YAB02,1713,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1713WAG02,1713,G,TI,GEN,Buffed,144,Jumbo,No,Bright
+1713YAG02/2N,1713,G,TI,GEN,Buffed,144,Jumbo,No,Bright
+1715YAB02,1715,B,TI,GEN,Buffed,144,Normal,No,Bright
+1729SAA02,1729,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1729SAD02,1729,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1729SAH02,1729,H,TI,GEN,Buffed,144,Jumbo,No,Bright
+1730SAA02,1730,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1731SAA02,1731,A,TI,GEN,Buffed,180,Normal,No,Bright
+1733NAA02,1733,A,TI,GEN,Buffed,144,Normal,No,Bright
+1733SAA02,1733,A,TI,GEN,Buffed,144,Normal,No,Bright
+1733WAA02,1733,A,TI,GEN,Buffed,144,Normal,No,Bright
+1733YAC02/2N,1733,C,TI,GEN,Buffed,144,Normal,No,Bright
+1734BAA02/2N,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1734KAA02,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1734NAA02,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1734SAA02,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1734WAA02,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1735SAA02,1735,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1735YAA02,1735,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1737SAA02,1737,A,TI,GEN,Buffed,144,Normal,No,Bright
+1737YAA02,1737,A,TI,GEN,Buffed,144,Normal,No,Bright
+1738SAA02,1738,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1738YAA02,1738,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1739SAA02,1739,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1739YAA02,1739,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1766SAA02,1766,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1767NEA02,1767,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1767SEA02,1767,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1767SEB02,1767,B,TI,GEN,Buffed,70,Jumbo,No,Bright
+1768SAA02,1768,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1768BCA02/HN,1768,A,TI,GEN,Bi-Finish,220,Jumbo,Yes,Semi bright
+1769SAA02,1769,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1770SAA02,1770,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1771SAA02,1771,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1773NAA02,1773,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1773SAA02,1773,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1773WAA02,1773,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1773YAA02,1773,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1774SEA02,1774,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1774WEA02,1774,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1774YEA02,1774,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775BEA02,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775KEA02/SSRG,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775SEA02,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775YEA02,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775SEB02,1775,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775YEB02,1775,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775YEB02/2N,1775,B,TI,GEN,Buffed,98,Jumbo,No,Bright
+1776SEA02,1776,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1776YEA02,1776,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1777SAA02,1777,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1777YAA02,1777,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1802NAA02,1802,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802SAA02,1802,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802WAA02,1802,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802NAD02,1802,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802SAD02,1802,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802WAD02,1802,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802NAE02,1802,E,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802SAE02,1802,E,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802WAE02,1802,E,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802NAG02,1802,G,TI,GEN,Buffed,144,Jumbo,No,Bright
+1802NSA02,1802,A,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1802NSD02,1802,D,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1802NSE02,1802,E,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1802QSE02/GUN,1802,E,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1803SAA02,1803,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1803SAB02,1803,B,TI,GEN,Buffed,98,Jumbo,No,Bright
+1803KEA02/RGSS,1803,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1803NSA02,1803,A,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1803NSB02,1803,B,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1805NAA02,1805,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805SAA02,1805,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805WAA02,1805,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805NAD02,1805,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805QAD02/GUN,1805,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805SAD02,1805,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805NAK02,1805,K,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805SAK02,1805,K,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805WAK02,1805,K,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805YAK02/2N,1805,K,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805NAR02,1805,R,TI,GEN,Buffed,98,Jumbo,No,Bright
+1805QBK02/GUN,1805,K,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1805WBK02,1805,K,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1805QCL02/GUN,1805,L,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1805QSP02/GUN,1805,P,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1806NAA02,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806SAA02,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806YAA02/2N,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806SAC02,1806,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806WAC02,1806,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806QAD02/BRN,1806,D,TI,LAD,Buffed,98,Jumbo,No,Bright
+1806QAD02/GUN,1806,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806WAD02,1806,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806QAE02/BRN,1806,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806SAE02,1806,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806YAE02/2N,1806,E,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806WAF02,1806,F,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806NBA02,1806,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1806QBG02/BRN,1806,G,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1806SCG02,1806,G,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1806NDA02,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806QDA02/GUN,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806SDA02,1806,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1806SGA02,1806,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1806NSA02,1806,A,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1806NSG02,1806,G,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1823SAA02,1823,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1823WAA02,1823,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1823YAA02,1823,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1823QCA02/BRN,1823,A,TI,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+1824BAA02,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1824NAA02,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1824SAA02,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1824WAA02,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1824YAA02,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1824YAC02,1824,C,TI,GEN,Buffed,144,Normal,No,Bright
+1825BAA02,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825KAA02/RGSS,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825WAA02,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825YAA02,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825KAC02/SSRG,1825,C,TI,GEN,Buffed,144,Normal,No,Bright
+1825SAC02,1825,C,TI,GEN,Buffed,144,Normal,No,Bright
+1825YAC02,1825,C,TI,GEN,Buffed,144,Normal,No,Bright
+1825SAD02,1825,D,TI,GEN,Buffed,144,Normal,No,Bright
+1825WAD02/CN,1825,D,TI,GEN,Buffed,144,Normal,No,Bright
+1825YAD02,1825,D,TI,GEN,Buffed,144,Normal,No,Bright
+1825SAF02,1825,F,TI,GEN,Buffed,144,Normal,No,Bright
+1825WAF02/CN,1825,F,TI,GEN,Buffed,144,Normal,No,Bright
+1825YCD02/2N,1825,D,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1825YCF02/2N,1825,F,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1825NSD02,1825,D,TI,GEN,Shotblasting,144,Normal,Yes,Dull
+1834NAA02,1834,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1834SAA02,1834,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1836NAA02,1836,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1836SAA02,1836,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1845SAA02,1845,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1845WAA02,1845,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1845YAA02,1845,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1845YAA02/2N,1845,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1849SAA02,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849WAA02,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849YAA02/2N,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849QHA02/BRN,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849SHA02,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849WHA02,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849NSA02,1849,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1849QSA02/BRN,1849,A,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1860NFA02,1860,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1860SFA02,1860,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1860SSA02,1860,A,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1862SAA02,1862,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1863SAA02,1863,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1864SAA02,1864,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1864SAB02,1864,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1864SAC02,1864,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+1865NAA02,1865,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1865SAA02,1865,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1866SAA02,1866,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1870SAA02,1870,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1870NAB02,1870,B,TI,GEN,Buffed,98,Jumbo,No,Bright
+1870SAB02,1870,B,TI,GEN,Buffed,98,Jumbo,No,Bright
+1870NSA02,1870,A,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1870QSA02/GUN,1870,A,TI,GEN,Shotblasting,98,Jumbo,Yes,Dull
+1877NAA02,1877,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1877SAA02,1877,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1877QSA02/GUN,1877,A,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1884NAA02,1884,A,TI,GEN,Buffed,144,Normal,No,Bright
+1884SSA02,1884,A,TI,GEN,Shotblasting,144,Normal,Yes,Dull
+1885NAA02,1885,A,TI,GEN,Buffed,144,Normal,No,Bright
+1885SAA02,1885,A,TI,GEN,Buffed,144,Normal,No,Bright
+1885WAA02,1885,A,TI,GEN,Buffed,144,Normal,No,Bright
+1885YAA02/2N,1885,A,TI,GEN,Buffed,144,Normal,No,Bright
+1885NSA02,1885,A,TI,GEN,Shotblasting,144,Normal,Yes,Dull
+1885SSA02,1885,A,TI,GEN,Shotblasting,144,Normal,Yes,Dull
+1896SSA02,1896,A,TI,GEN,Shotblasting,144,Jumbo,Yes,Dull
+1899NAA02,1899,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1899QAA02/GUN,1899,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1899SAA02,1899,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1899WAA02,1899,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1918SAB02,1918,B,TI,GEN,Buffed,220,Normal,No,Bright
+1918YAB02,1918,B,TI,GEN,Buffed,220,Normal,No,Bright
+1918SAE02,1918,E,TI,GEN,Buffed,220,Normal,No,Bright
+1918YAE02,1918,E,TI,GEN,Buffed,220,Normal,No,Bright
+1918SAF02,1918,F,TI,GEN,Buffed,220,Normal,No,Bright
+1918YAF02,1918,F,TI,GEN,Buffed,220,Normal,No,Bright
+1918SAG02,1918,G,TI,GEN,Buffed,220,Normal,No,Bright
+1918YAG02,1918,G,TI,GEN,Buffed,220,Normal,No,Bright
+1927BAB02,1927,B,TI,GEN,Buffed,220,Normal,No,Bright
+1927RAB02,1927,B,TI,GEN,Buffed,220,Normal,No,Bright
+1927YAB02,1927,B,TI,GEN,Buffed,220,Normal,No,Bright
+1937YDC02,1937,C,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+193YAD02,193,D,TI,LAD,Buffed,312,Normal,No,Bright
+1940BEB02,1940,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+1940YEB02,1940,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+1955BAA02,1955,A,TI,GEN,Buffed,220,Normal,No,Bright
+1955YAA02,1955,A,TI,GEN,Buffed,220,Normal,No,Bright
+1955BAB02,1955,B,TI,GEN,Buffed,144,Normal,No,Bright
+1955YAB02,1955,B,TI,GEN,Buffed,220,Normal,No,Bright
+1956YFA02,1956,A,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+1957NAA02/BLK,1957,A,TI,GEN,Buffed,144,Normal,No,Bright
+1957SAA02,1957,A,TI,GEN,Buffed,144,Normal,No,Bright
+1959YAA02,1959,A,TI,GEN,Buffed,144,Normal,No,Bright
+1963SBA02,1963,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1964YCA02,1964,A,TI,GEN,Bi-Finish,220,?,Yes,Semi bright
+197WAE02,197,E,TI,LAD,Buffed,312,Normal,No,Bright
+197YAE02,197,E,TI,LAD,Buffed,312,Normal,No,Bright
+2012WAC02,2012,C,TI,LAD,Buffed,312,Normal,No,Bright
+2012YAC02/2N,2012,C,TI,LAD,Buffed,312,Normal,No,Bright
+2037YAC02,2037,C,SO,LAD,Buffed,312,Normal,No,Bright
+2040YAA02,2040,A,TI,LAD,Buffed,312,?,No,Bright
+2049SAB02,2049,B,FT,LAD,Buffed,312,Normal,No,Bright
+2061YAD02,2061,D,TI,LAD,Buffed,312,Normal,No,Bright
+2131BAB02,2131,B,TI,LAD,Buffed,312,Normal,No,Bright
+2131YAB02,2131,B,TI,LAD,Buffed,312,Normal,No,Bright
+2163YAB02,2163,B,TI,LAD,Buffed,312,Normal,No,Bright
+2170YAB02,2170,B,TI,LAD,Buffed,312,Normal,No,Bright
+2194SAA02,2194,A,SO,LAD,Buffed,312,Normal,No,Bright
+2214YAB02,2214,B,TI,LAD,Buffed,312,Normal,No,Bright
+2247YAB02,2247,B,TI,LAD,Buffed,312,Normal,No,Bright
+2250YAC02,2250,C,TI,LAD,Buffed,312,Normal,No,Bright
+2250YAD02/2N,2250,D,TI,LAD,Buffed,312,Normal,No,Bright
+2250YAE02,2250,E,TI,LAD,Buffed,312,Normal,No,Bright
+2250SAF02,2250,F,TI,LAD,Buffed,312,Normal,No,Bright
+2250WAF02,2250,F,TI,LAD,Buffed,312,Normal,No,Bright
+2250YAF02/2N,2250,F,TI,LAD,Buffed,312,Normal,No,Bright
+2251YAD02,2251,D,TI,LAD,Buffed,312,Normal,No,Bright
+2251SAE02,2251,E,TI,LAD,Buffed,312,Normal,No,Bright
+2251YAE02,2251,E,TI,LAD,Buffed,312,Normal,No,Bright
+2252YED02,2252,D,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2253SAE02,2253,E,TI,LAD,Buffed,312,Normal,No,Bright
+2253WAE02,2253,E,TI,LAD,Buffed,312,Normal,No,Bright
+2253YAE02,2253,E,TI,LAD,Buffed,312,Normal,No,Bright
+2253YAE02/2N,2253,E,TI,LAD,Buffed,312,Normal,No,Bright
+2262SAA02,2262,A,FT,LAD,Buffed,220,Normal,No,Bright
+2296SEB02,2296,B,TI,LAD,Buffed,312,Normal,No,Bright
+2296YEB02/2N,2296,B,TI,LAD,Buffed,312,Normal,No,Bright
+2298SSD02,2298,D,FT,LAD,Shotblasting,312,Normal,Yes,Dull
+2298NSE02,2298,E,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+2298WSE02,2298,E,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+2304BAB02,2304,B,TI,LAD,Buffed,312,Normal,No,Bright
+2304YAB02,2304,B,TI,LAD,Buffed,312,Normal,No,Bright
+2331SAA02,2331,A,TI,LAD,Buffed,312,Jumbo,No,Bright
+2331YAA02,2331,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2332YAB02,2332,B,TI,LAD,Buffed,312,Normal,No,Bright
+2333YAA02,2333,A,TI,LAD,Buffed,312,Normal,No,Bright
+2345BAA02,2345,A,TI,LAD,Buffed,312,Normal,No,Bright
+2345SAA02,2345,A,TI,LAD,Buffed,312,Normal,No,Bright
+2345YAA02,2345,A,TI,LAD,Buffed,312,Normal,No,Bright
+2370SAB02,2370,B,TI,LAD,Buffed,312,Normal,No,Bright
+2370WAB02,2370,B,TI,LAD,Buffed,312,Normal,No,Bright
+2370YAB02,2370,B,TI,LAD,Buffed,312,Normal,No,Bright
+2387YAA02,2387,A,TI,LAD,Buffed,312,Normal,No,Bright
+2394SFA02,2394,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+2395YEC02/2N,2395,C,TI,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+2400SAB02,2400,B,TI,LAD,Buffed,144,Jumbo,No,Bright
+2400YAB02,2400,B,TI,LAD,Buffed,144,Jumbo,No,Bright
+2401SAD02,2401,D,TI,LAD,Buffed,312,Normal,No,Bright
+2401YAD02,2401,D,TI,LAD,Buffed,312,Normal,No,Bright
+2404SSB02,2404,B,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+2414YAA02,2414,A,TI,LAD,Buffed,312,Normal,No,Bright
+2417SAB02,2417,B,TI,LAD,Buffed,312,Normal,No,Bright
+2417YAB02,2417,B,TI,LAD,Buffed,312,Normal,No,Bright
+2418SAC02,2418,C,TI,LAD,Buffed,312,Normal,No,Bright
+2418YAC02,2418,C,TI,LAD,Buffed,312,Normal,No,Bright
+2419SAA02,2419,A,TI,LAD,Buffed,312,Normal,No,Bright
+2419YAA02,2419,A,TI,LAD,Buffed,312,Normal,No,Bright
+2435YAA02,2435,A,TI,LAD,Buffed,312,Normal,No,Bright
+2444SAB02,2444,B,TI,LAD,Buffed,312,Normal,No,Bright
+2444WAB02,2444,B,TI,LAD,Buffed,312,Normal,No,Bright
+2444YAB02/2N,2444,B,TI,LAD,Buffed,312,Normal,No,Bright
+2444SAD02,2444,D,TI,LAD,Buffed,312,Normal,No,Bright
+2444WAD02,2444,D,TI,LAD,Buffed,312,Normal,No,Bright
+2444YAD02/2N,2444,D,TI,LAD,Buffed,312,Normal,No,Bright
+2451YAA02/01,2451,A,TI,LAD,Buffed,312,?,No,Bright
+2453YAA02,2453,A,TI,LAD,Buffed,312,Normal,No,Bright
+2454YAA02,2454,A,TI,LAD,Buffed,312,Normal,No,Bright
+2455SAA02,2455,A,TI,LAD,Buffed,312,Normal,No,Bright
+2455YAA02,2455,A,TI,LAD,Buffed,312,Normal,No,Bright
+2455SAB02,2455,B,TI,LAD,Buffed,312,Normal,No,Bright
+2455WAB02,2455,B,TI,LAD,Buffed,312,Normal,No,Bright
+2455YAB02,2455,B,TI,LAD,Buffed,312,Normal,No,Bright
+2457SAB02,2457,B,TI,LAD,Buffed,312,Normal,No,Bright
+2457YAB02,2457,B,TI,LAD,Buffed,312,Normal,No,Bright
+2463YAA02,2463,A,TI,LAD,Buffed,220,?,No,Bright
+2464YAA02,2464,A,TI,LAD,Buffed,220,Normal,No,Bright
+2467YAA02,2467,A,TI,LAD,Buffed,312,Normal,No,Bright
+2468YEA02,2468,A,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2468YEB02,2468,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2471BAA02,2471,A,TI,LAD,Buffed,312,Normal,No,Bright
+2471YAA02,2471,A,TI,LAD,Buffed,312,Normal,No,Bright
+2471WAB02,2471,B,TI,LAD,Buffed,312,Normal,No,Bright
+2471YAB02,2471,B,TI,LAD,Buffed,312,Normal,No,Bright
+2480YAD02/2N,2480,D,TI,LAD,Buffed,144,Normal,No,Bright
+2480NAE02,2480,E,TI,LAD,Buffed,144,Normal,No,Bright
+2480QAE02/BRN,2480,E,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAE02,2480,E,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAE02,2480,E,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAE02/2N,2480,E,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAF02,2480,F,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAJ02,2480,J,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAJ02,2480,J,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAJ02/2N,2480,J,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAL02,2480,L,TI,LAD,Buffed,0,Normal,No,Bright
+2480SAM02,2480,M,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAM02,2480,M,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAM02/2N,2480,M,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAN02/2N,2480,N,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAP02,2480,P,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAP02,2480,P,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAP02/2N,2480,P,TI,LAD,Buffed,144,Normal,No,Bright
+2480NAQ02,2480,Q,TI,LAD,Buffed,144,Normal,No,Bright
+2480QAQ02/BRN,2480,Q,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAQ02,2480,Q,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAQ02,2480,Q,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAQ02/2N,2480,Q,TI,LAD,Buffed,144,Normal,No,Bright
+2480SAR02,2480,R,TI,LAD,Buffed,144,Normal,No,Bright
+2480WAR02,2480,R,TI,LAD,Buffed,144,Normal,No,Bright
+2480YAR02/2N,2480,R,TI,LAD,Buffed,144,Normal,No,Bright
+2481SAD02,2481,D,TI,LAD,Buffed,220,Normal,No,Bright
+2481SAH02,2481,H,TI,LAD,Buffed,220,Normal,No,Bright
+2481BAJ02,2481,J,TI,LAD,Buffed,220,Normal,No,Bright
+2481KAJ02/SSRG,2481,J,TI,LAD,Buffed,220,Normal,No,Bright
+2488SAA02,2488,A,TI,LAD,Buffed,312,Normal,No,Bright
+2488YAA02,2488,A,TI,LAD,Buffed,312,Normal,No,Bright
+2489BAC02,2489,C,TI,LAD,Buffed,312,Normal,No,Bright
+2489SAC02,2489,C,TI,LAD,Buffed,220,Normal,No,Bright
+2489YAC02,2489,C,TI,LAD,Buffed,220,Normal,No,Bright
+2490SEC02,2490,C,TI,LAD,Buffed,220,Normal,No,Bright
+2490YEC02,2490,C,TI,LAD,Buffed,220,Normal,No,Bright
+2490SED02,2490,D,TI,LAD,Buffed,312,Normal,No,Bright
+2490YED02,2490,D,TI,LAD,Buffed,220,Normal,No,Bright
+2494YAA02,2494,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2496WEB02,2496,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2497SAB02,2497,B,TI,LAD,Buffed,220,Normal,No,Bright
+2497YAB02,2497,B,TI,LAD,Buffed,312,Normal,No,Bright
+2497SAC02,2497,C,TI,LAD,Buffed,220,Normal,No,Bright
+2497WAC02,2497,C,TI,LAD,Buffed,312,Normal,No,Bright
+2497YAC02,2497,C,TI,LAD,Buffed,312,Normal,No,Bright
+2497YAC02/2N,2497,C,TI,LAD,Buffed,220,Normal,No,Bright
+2498SAB02,2498,B,TI,LAD,Buffed,220,Normal,No,Bright
+2498YAB02,2498,B,TI,LAD,Buffed,220,Normal,No,Bright
+2499SAA02,2499,A,TI,LAD,Buffed,220,Normal,No,Bright
+2499WAA02,2499,A,TI,LAD,Buffed,220,Normal,No,Bright
+2499YAA02,2499,A,TI,LAD,Buffed,220,Normal,No,Bright
+2499SAB02,2499,B,TI,LAD,Buffed,220,Normal,No,Bright
+2509NAA02,2509,A,TI,LAD,Buffed,220,Normal,No,Bright
+2509SAA02,2509,A,TI,LAD,Buffed,220,Normal,No,Bright
+2511SAA02,2511,A,TI,LAD,Buffed,312,Normal,No,Bright
+2511WAA02,2511,A,TI,LAD,Buffed,312,Normal,No,Bright
+2511YAA02/2N,2511,A,TI,LAD,Buffed,312,Normal,No,Bright
+2511NAB02,2511,B,TI,LAD,Buffed,312,Normal,No,Bright
+2511SAB02,2511,B,TI,LAD,Buffed,312,Normal,No,Bright
+2511WAB02,2511,B,TI,LAD,Buffed,312,Normal,No,Bright
+2511YAB02,2511,B,TI,LAD,Buffed,312,Normal,No,Bright
+2512YAA02,2512,A,TI,LAD,Buffed,220,?,No,Bright
+2513NEA02,2513,A,TI,LAD,Buffed,180,Normal,No,Bright
+2513SEA02,2513,A,TI,LAD,Buffed,220,Normal,No,Bright
+2520SAA02,2520,A,TI,LAD,Buffed,312,Normal,No,Bright
+2520YAA02,2520,A,TI,LAD,Buffed,312,Normal,No,Bright
+2521SAA02,2521,A,TI,LAD,Buffed,312,Normal,No,Bright
+2521YAA02,2521,A,TI,LAD,Buffed,312,Normal,No,Bright
+2521SAB02,2521,B,TI,LAD,Buffed,312,Normal,No,Bright
+2521YAB02,2521,B,TI,LAD,Buffed,312,Normal,No,Bright
+2522SAA02,2522,A,TI,LAD,Buffed,312,Normal,No,Bright
+2522YAA02,2522,A,TI,LAD,Buffed,312,Normal,No,Bright
+2527QAA02/DG,2527,A,TI,LAD,Buffed,312,Normal,No,Bright
+2527SAA02,2527,A,TI,LAD,Buffed,220,Normal,No,Bright
+2527YAA02,2527,A,TI,LAD,Buffed,312,Normal,No,Bright
+2527YAA02/2N,2527,A,TI,LAD,Buffed,220,Normal,No,Bright
+2527YAC02/2N,2527,C,TI,LAD,Buffed,220,Normal,No,Bright
+2529YAA02,2529,A,TI,LAD,Buffed,312,?,No,Bright
+2530SAA02,2530,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2530WAA02,2530,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2530YAA02,2530,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2531NEA02,2531,A,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2531SEA02,2531,A,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2531YEA02,2531,A,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2532SAA02,2532,A,TI,LAD,Buffed,220,Jumbo,No,Bright
+2532WAA02,2532,A,TI,LAD,Buffed,180,Jumbo,No,Bright
+2532YAA02,2532,A,TI,LAD,Buffed,180,Jumbo,No,Bright
+2532YDA02,2532,A,TI,LAD,Bi-Finish,180,Jumbo,Yes,Semi bright
+2534SAB02,2534,B,TI,LAD,Buffed,312,Normal,No,Bright
+2534YAB02,2534,B,TI,LAD,Buffed,220,Normal,No,Bright
+2535YAB02,2535,B,TI,LAD,Buffed,312,Normal,No,Bright
+2536SAB02,2536,B,TI,LAD,Buffed,312,Normal,No,Bright
+2536YAB02,2536,B,TI,LAD,Buffed,312,Normal,No,Bright
+2538YAB02,2538,B,TI,LAD,Buffed,312,Normal,No,Bright
+2539SEA02,2539,A,TI,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+2539WEA02,2539,A,TI,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+2539YEA02/2N,2539,A,TI,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+2540SAA02,2540,A,TI,LAD,Buffed,312,Normal,No,Bright
+2540WAA02,2540,A,TI,LAD,Buffed,312,Normal,No,Bright
+2540YAA02/2N,2540,A,TI,LAD,Buffed,312,Normal,No,Bright
+2540SAB02,2540,B,TI,LAD,Buffed,312,Normal,No,Bright
+2540WAB02,2540,B,TI,LAD,Buffed,220,Normal,No,Bright
+2540YAB02/2N,2540,B,TI,LAD,Buffed,220,Normal,No,Bright
+2540SAC02,2540,C,TI,LAD,Buffed,312,Normal,No,Bright
+2540WAC02,2540,C,TI,LAD,Buffed,220,Normal,No,Bright
+2540YAC02/2N,2540,C,TI,LAD,Buffed,312,Normal,No,Bright
+2540SAD02,2540,D,TI,LAD,Buffed,312,Normal,No,Bright
+2540WAD02,2540,D,TI,LAD,Buffed,312,Normal,No,Bright
+2540YAD02/2N,2540,D,TI,LAD,Buffed,312,Normal,No,Bright
+2540SAG02,2540,G,TI,LAD,Buffed,220,Normal,No,Bright
+2540WAG02,2540,G,TI,LAD,Buffed,220,Normal,No,Bright
+2540YAG02/2N,2540,G,TI,LAD,Buffed,220,Normal,No,Bright
+2540WAJ02,2540,J,TI,LAD,Buffed,220,Normal,No,Bright
+2540YAJ02/2N,2540,J,TI,LAD,Buffed,220,Normal,No,Bright
+2541SAA02,2541,A,TI,LAD,Buffed,220,Normal,No,Bright
+2541WAA02,2541,A,TI,LAD,Buffed,220,Normal,No,Bright
+2541YAA02,2541,A,TI,LAD,Buffed,220,Normal,No,Bright
+2543SFA02,2543,A,TI,LAD,Bi-Finish,312,?,Yes,Semi bright
+2543WFA02,2543,A,TI,LAD,Bi-Finish,312,?,Yes,Semi bright
+2543YFA02/2N,2543,A,TI,LAD,Bi-Finish,312,?,Yes,Semi bright
+2544YAA02/2N,2544,A,TI,LAD,Buffed,312,Normal,No,Bright
+2544BAB02/2N,2544,B,TI,LAD,Buffed,312,Normal,No,Bright
+2544SAB02,2544,B,TI,LAD,Buffed,312,Normal,No,Bright
+2544WAB02,2544,B,TI,LAD,Buffed,312,Normal,No,Bright
+2544YAB02/2N,2544,B,TI,LAD,Buffed,312,Normal,No,Bright
+2553SAA02,2553,A,TI,LAD,Buffed,312,Normal,No,Bright
+2553WAA02,2553,A,TI,LAD,Buffed,312,Normal,No,Bright
+2553YAA02/2N,2553,A,TI,LAD,Buffed,312,Normal,No,Bright
+2553SAB02,2553,B,TI,LAD,Buffed,312,Normal,No,Bright
+2553YAB02/2N,2553,B,TI,LAD,Buffed,312,Normal,No,Bright
+2553SAC02,2553,C,TI,LAD,Buffed,312,Normal,No,Bright
+2553WAC02,2553,C,TI,LAD,Buffed,312,Normal,No,Bright
+2553YAC02/2N,2553,C,TI,LAD,Buffed,312,Normal,No,Bright
+2554SAA02,2554,A,TI,LAD,Buffed,180,Normal,No,Bright
+2554KAB02,2554,B,TI,LAD,Buffed,180,Normal,No,Bright
+2554SAB02,2554,B,TI,LAD,Buffed,144,Normal,No,Bright
+2554YAB02/2N,2554,B,TI,LAD,Buffed,144,Normal,No,Bright
+2556SKA02,2556,A,TI,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+2556SKB02,2556,B,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2557SAA02,2557,A,TI,LAD,Buffed,144,Normal,No,Bright
+2558SAA02,2558,A,TI,LAD,Buffed,220,Normal,No,Bright
+2562BAA02/2N,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2562KAA02,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2562SAA02,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2562YAA02/2N,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2563BAA02/2N,2563,A,TI,LAD,Buffed,220,Normal,No,Bright
+2563KAA02,2563,A,TI,LAD,Buffed,312,Normal,No,Bright
+2563SAA02,2563,A,TI,LAD,Buffed,312,Normal,No,Bright
+2565SAA02,2565,A,TI,LAD,Buffed,180,Normal,No,Bright
+2565WAA02,2565,A,TI,LAD,Buffed,180,Normal,No,Bright
+2565YAA02/2N,2565,A,TI,LAD,Buffed,180,Normal,No,Bright
+2565SAB02,2565,B,TI,LAD,Buffed,180,Normal,No,Bright
+2565WAB02,2565,B,TI,LAD,Buffed,180,Normal,No,Bright
+2566SAA02,2566,A,TI,LAD,Buffed,312,Normal,No,Bright
+2566WAA02,2566,A,TI,LAD,Buffed,312,Normal,No,Bright
+2567SAA02,2567,A,TI,LAD,Buffed,220,Normal,No,Bright
+2567WAA02,2567,A,TI,LAD,Buffed,220,Normal,No,Bright
+2567YAA02/2N,2567,A,TI,LAD,Buffed,220,Normal,No,Bright
+2568SAA02,2568,A,TI,LAD,Buffed,312,Normal,No,Bright
+2569SAA02,2569,A,TI,LAD,Buffed,144,Normal,No,Bright
+2569WAA02,2569,A,TI,LAD,Buffed,144,Normal,No,Bright
+2569SAB02,2569,B,TI,LAD,Buffed,144,Normal,No,Bright
+2569WAB02,2569,B,TI,LAD,Buffed,144,Normal,No,Bright
+2570NAA02,2570,A,TI,LAD,Buffed,180,Normal,No,Bright
+2570SAA02,2570,A,TI,LAD,Buffed,180,Normal,No,Bright
+2570WAA02,2570,A,TI,LAD,Buffed,180,Normal,No,Bright
+2570SAB02,2570,B,TI,LAD,Buffed,180,Normal,No,Bright
+2570WAB02,2570,B,TI,LAD,Buffed,180,Normal,No,Bright
+2570SAC02,2570,C,TI,LAD,Buffed,144,Normal,No,Bright
+2570WAC02,2570,C,TI,LAD,Buffed,144,Normal,No,Bright
+2570SAD02,2570,D,TI,LAD,Buffed,144,Normal,No,Bright
+2571SAA02,2571,A,TI,LAD,Buffed,312,Normal,No,Bright
+2571YAA02,2571,A,TI,LAD,Buffed,312,Normal,No,Bright
+2571SAB02,2571,B,TI,LAD,Buffed,312,Normal,No,Bright
+2571YAB02,2571,B,TI,LAD,Buffed,312,Normal,No,Bright
+2572SAA02,2572,A,TI,LAD,Buffed,220,Normal,No,Bright
+2572YAA02,2572,A,TI,LAD,Buffed,220,Normal,No,Bright
+2572SAB02,2572,B,TI,LAD,Buffed,220,Normal,No,Bright
+2572WAB02,2572,B,TI,LAD,Buffed,220,Normal,No,Bright
+2572YAB02,2572,B,TI,LAD,Buffed,220,Normal,No,Bright
+2574SAA02,2574,A,TI,LAD,Buffed,220,Normal,No,Bright
+2574YAA02,2574,A,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAA02/GUN,2575,A,TI,LAD,Buffed,312,Normal,No,Bright
+2575WAA02,2575,A,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAA02/2N,2575,A,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAB02,2575,B,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAB02/2N,2575,B,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAC02/BR,2575,C,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAC02/GUN,2575,C,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAC02,2575,C,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAC02/2N,2575,C,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAD02,2575,D,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAD02/2N,2575,D,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAE02/BR,2575,E,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAE02/GUN,2575,E,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAE02,2575,E,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAE02/2N,2575,E,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAF02,2575,F,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAF02/2N,2575,F,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAG02/BRN,2575,G,TI,LAD,Buffed,220,Normal,No,Bright
+2575QAG02/GUN,2575,G,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAG02,2575,G,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAG02/2N,2575,G,TI,LAD,Buffed,220,Normal,No,Bright
+2575WAH02,2575,H,TI,LAD,Buffed,220,Normal,No,Bright
+2575YAH02/2N,2575,H,TI,LAD,Buffed,220,Normal,No,Bright
+2576SAA02,2576,A,TI,LAD,Buffed,220,Normal,No,Bright
+2576WAA02,2576,A,TI,LAD,Buffed,220,Normal,No,Bright
+2576YAA02/2N,2576,A,TI,LAD,Buffed,220,Normal,No,Bright
+2576SAB02,2576,B,TI,LAD,Buffed,220,Normal,No,Bright
+2576WAB02,2576,B,TI,LAD,Buffed,220,Normal,No,Bright
+2576YAB02/2N,2576,B,TI,LAD,Buffed,220,Normal,No,Bright
+2576QAC02/BRN,2576,C,TI,LAD,Buffed,220,Normal,No,Bright
+2576SAC02,2576,C,TI,LAD,Buffed,220,Normal,No,Bright
+2576WAC02,2576,C,TI,LAD,Buffed,220,Normal,No,Bright
+2576YAC02/2N,2576,C,TI,LAD,Buffed,220,Normal,No,Bright
+2577QAA02/GUN,2577,A,TI,LAD,Buffed,312,Normal,No,Bright
+2577SAA02,2577,A,TI,LAD,Buffed,312,Normal,No,Bright
+2577WAA02,2577,A,TI,LAD,Buffed,312,Normal,No,Bright
+2577YAA02/2N,2577,A,TI,LAD,Buffed,312,Normal,No,Bright
+2577QAB02/GUN,2577,B,TI,LAD,Buffed,312,Normal,No,Bright
+2577SAB02,2577,B,TI,LAD,Buffed,312,Normal,No,Bright
+2577WAB02,2577,B,TI,LAD,Buffed,312,Normal,No,Bright
+2577YAB02/2N,2577,B,TI,LAD,Buffed,312,Normal,No,Bright
+2578SAA02,2578,A,TI,LAD,Buffed,220,Normal,No,Bright
+2578WAA02,2578,A,TI,LAD,Buffed,220,Normal,No,Bright
+2578YAA02/2N,2578,A,TI,LAD,Buffed,220,Normal,No,Bright
+2578QAB02/BR,2578,B,TI,LAD,Buffed,220,Normal,No,Bright
+2578QAB02/GUN,2578,B,TI,LAD,Buffed,220,Normal,No,Bright
+2578SAB02,2578,B,TI,LAD,Buffed,220,Normal,No,Bright
+2578WAB02,2578,B,TI,LAD,Buffed,220,Normal,No,Bright
+2578YAB02/2N,2578,B,TI,LAD,Buffed,220,Normal,No,Bright
+2579QAA02/GUN,2579,A,TI,LAD,Buffed,312,Normal,No,Bright
+2579SAA02,2579,A,TI,LAD,Buffed,220,Normal,No,Bright
+2579WAA02,2579,A,TI,LAD,Buffed,220,Normal,No,Bright
+2579YAA02/2N,2579,A,TI,LAD,Buffed,220,Normal,No,Bright
+2579QAB02/GUN,2579,B,TI,LAD,Buffed,220,Normal,No,Bright
+2579SAB02,2579,B,TI,LAD,Buffed,220,Normal,No,Bright
+2579WAB02,2579,B,TI,LAD,Buffed,220,Normal,No,Bright
+2579YAB02/2N,2579,B,TI,LAD,Buffed,220,Normal,No,Bright
+2579QAC02/GUN,2579,C,TI,LAD,Buffed,220,Normal,No,Bright
+2579SAC02,2579,C,TI,LAD,Buffed,220,Normal,No,Bright
+2579WAC02,2579,C,TI,LAD,Buffed,220,Normal,No,Bright
+2579YAC02/2N,2579,C,TI,LAD,Buffed,220,Normal,No,Bright
+2579QEA02/GUN,2579,A,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2581SAA02,2581,A,TI,LAD,Buffed,220,Normal,No,Bright
+2581WAA02,2581,A,TI,LAD,Buffed,220,Normal,No,Bright
+2581YAA02/2N,2581,A,TI,LAD,Buffed,220,Normal,No,Bright
+2581WSB02,2581,B,TI,LAD,Shotblasting,220,Normal,Yes,Dull
+2581YSB02/2N,2581,B,TI,LAD,Shotblasting,220,Normal,Yes,Dull
+2583WAA02,2583,A,TI,LAD,Buffed,220,Normal,No,Bright
+2584KAA02,2584,A,TI,LAD,Buffed,312,Normal,No,Bright
+2584SAA02,2584,A,TI,LAD,Buffed,312,Normal,No,Bright
+2584WAA02,2584,A,TI,LAD,Buffed,220,Normal,No,Bright
+2584YAA02/2N,2584,A,TI,LAD,Buffed,220,Normal,No,Bright
+2586WAA02,2586,A,TI,LAD,Buffed,220,Normal,No,Bright
+2586YAA02/2N,2586,A,TI,LAD,Buffed,220,Normal,No,Bright
+2588NAA02,2588,A,TI,LAD,Buffed,144,Normal,No,Bright
+2588SAA02,2588,A,TI,LAD,Buffed,144,Normal,No,Bright
+2589NAA02,2589,A,TI,LAD,Buffed,180,Normal,No,Bright
+2589SAA02,2589,A,TI,LAD,Buffed,180,Normal,No,Bright
+2589WAA02,2589,A,TI,LAD,Buffed,180,Normal,No,Bright
+2590BAA02,2590,A,TI,LAD,Buffed,180,Normal,No,Bright
+2590KAA02/RGSS,2590,A,TI,LAD,Buffed,180,Normal,No,Bright
+2590SAA02,2590,A,TI,LAD,Buffed,180,Normal,No,Bright
+2592KCA02/SSRG,2592,A,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2592SCA02,2592,A,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2593SAA02,2593,A,TI,LAD,Buffed,220,Normal,No,Bright
+2593YAA02,2593,A,TI,LAD,Buffed,220,Normal,No,Bright
+2593SAB02,2593,B,TI,LAD,Buffed,220,Normal,No,Bright
+2593WAB02,2593,B,TI,LAD,Buffed,220,Normal,No,Bright
+2593YAB02,2593,B,TI,LAD,Buffed,220,Normal,No,Bright
+2593YAB02/2N,2593,B,TI,LAD,Buffed,220,Normal,No,Bright
+2593SAC02,2593,C,TI,LAD,Buffed,312,Normal,No,Bright
+2594SAA02,2594,A,TI,LAD,Buffed,312,Normal,No,Bright
+2594YAA02,2594,A,TI,LAD,Buffed,312,Normal,No,Bright
+2595SAA02,2595,A,TI,LAD,Buffed,180,Normal,No,Bright
+2595WAA02,2595,A,TI,LAD,Buffed,180,Normal,No,Bright
+2596SAA02,2596,A,TI,LAD,Buffed,180,Normal,No,Bright
+2596WAA02,2596,A,TI,LAD,Buffed,180,Normal,No,Bright
+2596SAB02,2596,B,TI,LAD,Buffed,180,Normal,No,Bright
+2596WAB02,2596,B,TI,LAD,Buffed,180,Normal,No,Bright
+2596QAC02/BRN,2596,C,TI,GEN,Buffed,180,Normal,No,Bright
+2597SAA02,2597,A,TI,LAD,Buffed,312,Normal,No,Bright
+2597YAA02,2597,A,TI,LAD,Buffed,312,Normal,No,Bright
+2597SAB02,2597,B,TI,LAD,Buffed,312,Normal,No,Bright
+2597YAB02,2597,B,TI,LAD,Buffed,312,Normal,No,Bright
+2598BAA02,2598,A,TI,LAD,Buffed,312,Normal,No,Bright
+2598SAA02,2598,A,TI,LAD,Buffed,220,Normal,No,Bright
+2598YAA02,2598,A,TI,LAD,Buffed,220,Normal,No,Bright
+2598BAB02,2598,B,TI,LAD,Buffed,312,Normal,No,Bright
+2598SAB02,2598,B,TI,LAD,Buffed,220,Normal,No,Bright
+2598WAB02,2598,B,TI,LAD,Buffed,220,Normal,No,Bright
+2598YAB02,2598,B,TI,LAD,Buffed,220,Normal,No,Bright
+2599SAA02,2599,A,TI,LAD,Buffed,312,Normal,No,Bright
+2599YAA02,2599,A,TI,LAD,Buffed,312,Normal,No,Bright
+2599SAB02,2599,B,TI,LAD,Buffed,312,Normal,No,Bright
+2599YAB02,2599,B,TI,LAD,Buffed,312,Normal,No,Bright
+2601WAA02,2601,A,TI,LAD,Buffed,220,Normal,No,Bright
+2601YAA02,2601,A,TI,LAD,Buffed,220,Normal,No,Bright
+2601YAA02/2N,2601,A,TI,LAD,Buffed,312,Normal,No,Bright
+2601WAB02,2601,B,TI,LAD,Buffed,220,Normal,No,Bright
+2601YAB02,2601,B,TI,LAD,Buffed,220,Normal,No,Bright
+2602SAA02,2602,A,TI,LAD,Buffed,312,Normal,No,Bright
+2602WAA02,2602,A,TI,LAD,Buffed,220,Normal,No,Bright
+2602YAA02,2602,A,TI,LAD,Buffed,220,Normal,No,Bright
+2602SAB02,2602,B,TI,LAD,Buffed,220,Normal,No,Bright
+2602YAB02,2602,B,TI,LAD,Buffed,220,Normal,No,Bright
+2603QAA02/GUN,2603,A,TI,LAD,Buffed,220,Normal,No,Bright
+2603SAA02,2603,A,TI,LAD,Buffed,220,Normal,No,Bright
+2603WAA02,2603,A,TI,LAD,Buffed,220,Normal,No,Bright
+2603SAB02,2603,B,TI,LAD,Buffed,220,Normal,No,Bright
+2603WAB02,2603,B,TI,LAD,Buffed,220,Normal,No,Bright
+2603QAC02/GUN,2603,C,TI,LAD,Buffed,220,Normal,No,Bright
+2603SAC02,2603,C,TI,LAD,Buffed,220,Normal,No,Bright
+2603WAC02,2603,C,TI,LAD,Buffed,220,Normal,No,Bright
+2603SAD02,2603,D,TI,LAD,Buffed,220,Normal,No,Bright
+2603WAD02,2603,D,TI,LAD,Buffed,220,Normal,No,Bright
+2604QAA02/GUN,2604,A,TI,LAD,Buffed,220,Normal,No,Bright
+2604SAA02,2604,A,TI,LAD,Buffed,220,Normal,No,Bright
+2604TAA02,2604,A,TI,LAD,Buffed,220,Normal,No,Bright
+2604WAA02,2604,A,TI,LAD,Buffed,220,Normal,No,Bright
+2604YAA02/2N,2604,A,TI,LAD,Buffed,220,Normal,No,Bright
+2606QAA02/GUN,2606,A,TI,LAD,Buffed,220,Normal,No,Bright
+2606SAA02,2606,A,TI,LAD,Buffed,220,Normal,No,Bright
+2606WAA02,2606,A,TI,LAD,Buffed,220,Normal,No,Bright
+2606YAA02/2N,2606,A,TI,LAD,Buffed,220,Normal,No,Bright
+2606QAC02/BRN,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2606QAC02/GUN,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2606SAC02,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2606WAC02,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2606WAC02/CN,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2606YAC02/2N,2606,C,TI,LAD,Buffed,220,Normal,No,Bright
+2607SAA02,2607,A,TI,LAD,Buffed,312,Normal,No,Bright
+2607WAA02,2607,A,TI,LAD,Buffed,220,Normal,No,Bright
+2607YAA02/2N,2607,A,TI,LAD,Buffed,312,Normal,No,Bright
+2608SAA02,2608,A,TI,LAD,Buffed,220,Normal,No,Bright
+2608WAA02,2608,A,TI,LAD,Buffed,220,Normal,No,Bright
+2608YAA02/2N,2608,A,TI,LAD,Buffed,220,Normal,No,Bright
+2608QAB02/BRN,2608,B,TI,LAD,Buffed,220,Normal,No,Bright
+2608SAB02,2608,B,TI,LAD,Buffed,220,Normal,No,Bright
+2608WAB02,2608,B,TI,LAD,Buffed,220,Normal,No,Bright
+2608YAB02/2N,2608,B,TI,LAD,Buffed,220,Normal,No,Bright
+2610SAB02,2610,B,TI,LAD,Buffed,0,Normal,No,Bright
+2610WAB02,2610,B,TI,LAD,Buffed,35,Normal,No,Bright
+2617SAA02,2617,A,TI,LAD,Buffed,144,Normal,No,Bright
+2617WAA02,2617,A,TI,LAD,Buffed,144,Normal,No,Bright
+2617SAB02,2617,B,TI,LAD,Buffed,144,Normal,No,Bright
+2617WAB02,2617,B,TI,LAD,Buffed,144,Normal,No,Bright
+2617WAC02,2617,C,TI,LAD,Buffed,144,Normal,No,Bright
+2617YAC02/2N,2617,C,TI,LAD,Buffed,144,Normal,No,Bright
+2617NAD02,2617,D,TI,LAD,Buffed,144,Normal,No,Bright
+2617SAD02,2617,D,TI,LAD,Buffed,144,Normal,No,Bright
+2617YAD02/2N,2617,D,TI,LAD,Buffed,144,Normal,No,Bright
+2617NSA02,2617,A,TI,LAD,Shotblasting,144,Normal,Yes,Dull
+2620QAA02/BR,2620,A,TI,LAD,Buffed,220,Normal,No,Bright
+2620SAA02,2620,A,TI,LAD,Buffed,220,Normal,No,Bright
+2620WAA02,2620,A,TI,LAD,Buffed,220,Normal,No,Bright
+2621QAA02/GUN,2621,A,TI,LAD,Buffed,220,Normal,No,Bright
+2621WAA02,2621,A,TI,LAD,Buffed,220,Normal,No,Bright
+2621YAA02/2N,2621,A,TI,LAD,Buffed,220,Normal,No,Bright
+2621QAB02/BRN,2621,B,TI,LAD,Buffed,220,Normal,No,Bright
+2621WAB02,2621,B,TI,LAD,Buffed,220,Normal,No,Bright
+2622SAA02,2622,A,TI,LAD,Buffed,220,Normal,No,Bright
+2622WAA02,2622,A,TI,LAD,Buffed,220,Normal,No,Bright
+2625WAA02,2625,A,TI,LAD,Buffed,220,Normal,No,Bright
+2625YAA02,2625,A,TI,LAD,Buffed,220,Normal,No,Bright
+2626SAA02,2626,A,TI,LAD,Buffed,220,Normal,No,Bright
+2626YAA02,2626,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628BAA02,2628,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628SAA02,2628,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628WAA02,2628,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628YAA02,2628,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628BAC02,2628,C,TI,LAD,Buffed,220,Normal,No,Bright
+2628SAC02,2628,C,TI,LAD,Buffed,220,Normal,No,Bright
+2628WAC02,2628,C,TI,LAD,Buffed,220,Normal,No,Bright
+2628YAC02,2628,C,TI,LAD,Buffed,220,Normal,No,Bright
+2634SEA02,2634,A,TI,LAD,Buffed,144,Normal,No,Bright
+2634WEA02,2634,A,TI,LAD,Buffed,144,Normal,No,Bright
+2634QEB02/BRN,2634,B,TI,LAD,Buffed,144,Normal,No,Bright
+2634SEB02,2634,B,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2634WEB02,2634,B,TI,LAD,Buffed,144,Normal,No,Bright
+2634WEB02/CN,2634,B,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2634YEB02/HN,2634,B,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2635SAA02,2635,A,TI,LAD,Buffed,312,Normal,No,Bright
+2637WAA02,2637,A,TI,LAD,Buffed,220,Normal,No,Bright
+2637YAA02/2N,2637,A,TI,LAD,Buffed,220,Normal,No,Bright
+2638BAA02/2N,2638,A,TI,LAD,Buffed,220,Normal,No,Bright
+2638SAA02,2638,A,TI,LAD,Buffed,220,Normal,No,Bright
+2638WAA02,2638,A,TI,LAD,Buffed,220,Normal,No,Bright
+2638YAA02/2N,2638,A,TI,LAD,Buffed,220,Normal,No,Bright
+2639SAA02,2639,A,TI,LAD,Buffed,180,Normal,No,Bright
+2639WAA02,2639,A,TI,LAD,Buffed,180,Normal,No,Bright
+2639SAB02,2639,B,TI,LAD,Buffed,180,Normal,No,Bright
+2639SCA02,2639,A,TI,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+2639SEA02,2639,A,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2642QAA02/BRN,2642,A,TI,LAD,Buffed,220,Normal,No,Bright
+2642SAA02,2642,A,TI,LAD,Buffed,220,Normal,No,Bright
+2642WAA02,2642,A,TI,LAD,Buffed,220,Normal,No,Bright
+2642YAA02/2N,2642,A,TI,LAD,Buffed,220,Normal,No,Bright
+2643WEA02,2643,A,TI,LAD,Buffed,220,Normal,No,Bright
+2643YEA02/2N,2643,A,TI,LAD,Buffed,220,Normal,No,Bright
+2644WAA02,2644,A,TI,LAD,Buffed,220,Normal,No,Bright
+2644YAA02/2N,2644,A,TI,LAD,Buffed,220,Normal,No,Bright
+2644SSC02,2644,C,TI,LAD,Shotblasting,220,Normal,Yes,Dull
+2644WSC02,2644,C,TI,LAD,Shotblasting,220,Normal,Yes,Dull
+2644YSC02/2N,2644,C,TI,LAD,Shotblasting,220,Normal,Yes,Dull
+2647SAA02,2647,A,TI,LAD,Buffed,180,Normal,No,Bright
+2647WAA02,2647,A,TI,LAD,Buffed,180,Normal,No,Bright
+2648NAA02,2648,A,TI,LAD,Buffed,144,Normal,No,Bright
+2648QAA02/BRN,2648,A,TI,LAD,Buffed,144,Normal,No,Bright
+2648SAA02,2648,A,TI,LAD,Buffed,144,Normal,No,Bright
+2648WAA02,2648,A,TI,LAD,Buffed,144,Normal,No,Bright
+2648YAA02/2N,2648,A,TI,LAD,Buffed,144,Normal,No,Bright
+2648KAB02/RGSS,2648,B,TI,LAD,Buffed,144,Normal,No,Bright
+2648QAB02/GUN,2648,B,TI,LAD,Buffed,144,Normal,No,Bright
+2648SAB02,2648,B,TI,LAD,Buffed,144,Normal,No,Bright
+2648WAB02,2648,B,TI,LAD,Buffed,144,Normal,No,Bright
+2648QAD02/BRN,2648,D,TI,LAD,Buffed,144,Normal,No,Bright
+2648SAD02,2648,D,TI,LAD,Buffed,144,Normal,No,Bright
+2648WAD02,2648,D,TI,LAD,Buffed,144,Normal,No,Bright
+2648SAE02,2648,E,TI,LAD,Buffed,144,Normal,No,Bright
+2648WAE02,2648,E,TI,LAD,Buffed,144,Normal,No,Bright
+2648QAF02/BRN,2648,F,TI,LAD,Buffed,144,Normal,No,Bright
+2648SAF02,2648,F,TI,LAD,Buffed,144,Normal,No,Bright
+2648WAF02,2648,F,TI,LAD,Buffed,144,Normal,No,Bright
+2649NAA02,2649,A,TI,LAD,Buffed,180,Normal,No,Bright
+2649SAA02,2649,A,TI,LAD,Buffed,180,Normal,No,Bright
+2649WAA02,2649,A,TI,LAD,Buffed,180,Normal,No,Bright
+2649SAB02,2649,B,TI,LAD,Buffed,180,Normal,No,Bright
+2649WAB02,2649,B,TI,LAD,Buffed,180,Normal,No,Bright
+2649SAC02,2649,C,TI,LAD,Buffed,180,Normal,No,Bright
+2649WAC02,2649,C,TI,LAD,Buffed,180,Normal,No,Bright
+2649WAC02/CN,2649,C,TI,LAD,Buffed,180,Normal,No,Bright
+2649YAC02/2N,2649,C,TI,LAD,Buffed,144,Normal,No,Bright
+2651SAA02,2651,A,TI,GEN,Buffed,144,Normal,No,Bright
+2651WAA02,2651,A,TI,GEN,Buffed,144,Normal,No,Bright
+2651NAB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651QAB02/GUN,2651,B,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2651SAB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651WAB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651WAB02/CN,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651QAE02/GUN,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651SAE02,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651WAE02,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651NHB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651QHB02/BRN,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651QHB02/GUN,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651SHB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651WHB02,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651WHB02/CN,2651,B,TI,LAD,Buffed,144,Normal,No,Bright
+2651QHE02/GUN,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651SHE02,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651WHE02,2651,E,TI,LAD,Buffed,144,Normal,No,Bright
+2651NSA02,2651,A,TI,GEN,Buffed,144,Normal,No,Bright
+2652NAA02,2652,A,TI,LAD,Buffed,144,Normal,No,Bright
+2652SAA02,2652,A,TI,LAD,Buffed,144,Normal,No,Bright
+2652WAA02,2652,A,TI,LAD,Buffed,144,Normal,No,Bright
+2656SAA02,2656,A,TI,LAD,Buffed,220,Normal,No,Bright
+2656YAA02,2656,A,TI,LAD,Buffed,220,Normal,No,Bright
+2656SAB02,2656,B,TI,LAD,Buffed,220,Normal,No,Bright
+2656WAB02,2656,B,TI,LAD,Buffed,220,Normal,No,Bright
+2656YAB02,2656,B,TI,LAD,Buffed,220,Normal,No,Bright
+2659QAA02/BRN,2659,A,TI,LAD,Buffed,180,Normal,No,Bright
+2659WAA02,2659,A,TI,LAD,Buffed,180,Normal,No,Bright
+2659YAA02/2N,2659,A,TI,LAD,Buffed,180,Normal,No,Bright
+2660NAA02,2660,A,TI,LAD,Buffed,220,Normal,No,Bright
+2660SAA02,2660,A,TI,LAD,Buffed,220,Normal,No,Bright
+2660WAA02,2660,A,TI,LAD,Buffed,220,Normal,No,Bright
+2660YAA02,2660,A,TI,LAD,Buffed,220,Normal,No,Bright
+2664SAA02,2664,A,TI,GEN,Buffed,144,Normal,No,Bright
+2664WAA02,2664,A,TI,GEN,Buffed,144,Normal,No,Bright
+2664SAB02,2664,B,TI,LAD,Buffed,144,Normal,No,Bright
+2664WAB02,2664,B,TI,LAD,Buffed,144,Normal,No,Bright
+2664QAC02/BRN,2664,C,TI,LAD,Buffed,144,Normal,No,Bright
+2664WAC02,2664,C,TI,LAD,Buffed,144,Normal,No,Bright
+2664SAD02,2664,D,TI,LAD,Buffed,144,Normal,No,Bright
+2664WAD02,2664,D,TI,LAD,Buffed,144,Normal,No,Bright
+2665WAA02,2665,A,TI,LAD,Buffed,220,Normal,No,Bright
+2665YAA02/2N,2665,A,TI,LAD,Buffed,220,Normal,No,Bright
+2666WAA02,2666,A,TI,LAD,Buffed,220,Normal,No,Bright
+2667QAA02/BRN,2667,A,TI,LAD,Buffed,220,Normal,No,Bright
+2667SAA02,2667,A,TI,LAD,Buffed,220,Normal,No,Bright
+2667WAA02,2667,A,TI,LAD,Buffed,220,Normal,No,Bright
+2669SAA02,2669,A,TI,LAD,Buffed,220,Normal,No,Bright
+2669WAA02,2669,A,TI,LAD,Buffed,220,Normal,No,Bright
+2670WAA02,2670,A,TI,LAD,Buffed,144,Normal,No,Bright
+2670YAA02/2N,2670,A,TI,LAD,Buffed,144,Normal,No,Bright
+2670SAB02,2670,B,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAB02,2670,B,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAB02/CN,2670,B,TI,LAD,Buffed,144,Normal,No,Bright
+2670SAC02,2670,C,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAC02,2670,C,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAC02/CN,2670,C,TI,LAD,Buffed,144,Normal,No,Bright
+2670YAC02/HN,2670,C,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAD02,2670,D,TI,LAD,Buffed,144,Normal,No,Bright
+2670SAE02,2670,E,TI,LAD,Buffed,144,Normal,No,Bright
+2670WAE02/CN,2670,E,TI,LAD,Buffed,144,Normal,No,Bright
+2674SAA02,2674,A,TI,LAD,Buffed,0,Normal,No,Bright
+2676SAA02,2676,A,TI,LAD,Buffed,144,Normal,No,Bright
+2676WAA02,2676,A,TI,LAD,Buffed,144,Normal,No,Bright
+2678WAA02,2678,A,TI,LAD,Buffed,220,Normal,No,Bright
+2678YAA02,2678,A,TI,LAD,Buffed,220,Normal,No,Bright
+2679NAA02,2679,A,TI,LAD,Buffed,220,Normal,No,Bright
+2679SAA02,2679,A,TI,LAD,Buffed,220,Normal,No,Bright
+2679WAA02,2679,A,TI,LAD,Buffed,220,Normal,No,Bright
+2679YAA02,2679,A,TI,LAD,Buffed,220,Normal,No,Bright
+2679SAB02,2679,B,TI,LAD,Buffed,220,Normal,No,Bright
+2679WAB02,2679,B,TI,LAD,Buffed,220,Normal,No,Bright
+2679YAB02,2679,B,TI,LAD,Buffed,220,Normal,No,Bright
+2680NAA02,2680,A,TI,LAD,Buffed,180,Normal,No,Bright
+2680WAA02,2680,A,TI,LAD,Buffed,180,Normal,No,Bright
+2680YAA02,2680,A,TI,LAD,Buffed,180,Normal,No,Bright
+2683SAA02,2683,A,TI,LAD,Buffed,220,Normal,No,Bright
+2683WAA02,2683,A,TI,LAD,Buffed,220,Normal,No,Bright
+2684WAA02,2684,A,TI,LAD,Buffed,180,Normal,No,Bright
+2685YAA02/2N,2685,A,TI,LAD,Buffed,180,Normal,No,Bright
+2686SAA02,2686,A,TI,LAD,Buffed,312,Normal,No,Bright
+2687WAA02,2687,A,TI,LAD,Buffed,220,Normal,No,Bright
+2689WAA02,2689,A,TI,LAD,Buffed,180,Normal,No,Bright
+2689YAA02/2N,2689,A,TI,LAD,Buffed,180,Normal,No,Bright
+2700SSA02,2700,A,TI,LAD,Shotblasting,180,Normal,Yes,Dull
+2701SAA02,2701,A,TI,LAD,Buffed,180,Normal,No,Bright
+2701WAA02,2701,A,TI,LAD,Buffed,180,Normal,No,Bright
+2701YAA02,2701,A,TI,LAD,Buffed,180,Normal,No,Bright
+2702SAA02,2702,A,TI,LAD,Buffed,220,Normal,No,Bright
+2702WAA02,2702,A,TI,LAD,Buffed,220,Normal,No,Bright
+2702YAA02,2702,A,TI,LAD,Buffed,220,Normal,No,Bright
+2712YAA02,2712,A,TI,LAD,Buffed,220,Normal,No,Bright
+2720WAA02,2720,A,TI,LAD,Buffed,180,Normal,No,Bright
+2721WAA02,2721,A,TI,LAD,Buffed,220,Normal,No,Bright
+2724WAA02,2724,A,TI,LAD,Buffed,180,Normal,No,Bright
+2724YAA02/2N,2724,A,TI,LAD,Buffed,180,Normal,No,Bright
+2725WAA02,2725,A,TI,LAD,Buffed,220,Normal,No,Bright
+2725YAA02/2N,2725,A,TI,LAD,Buffed,220,Normal,No,Bright
+2727WAA02,2727,A,TI,LAD,Buffed,220,Normal,No,Bright
+2727YAA02/2N,2727,A,TI,LAD,Buffed,220,Normal,No,Bright
+2728QAA02/BRN,2728,A,TI,LAD,Buffed,220,Normal,No,Bright
+2728SAA02,2728,A,TI,LAD,Buffed,220,Normal,No,Bright
+2728WAA02,2728,A,TI,LAD,Buffed,220,Normal,No,Bright
+2729NAA02,2729,A,TI,LAD,Buffed,144,Normal,No,Bright
+2729SAA02,2729,A,TI,LAD,Buffed,144,Normal,No,Bright
+2729WAA02,2729,A,TI,LAD,Buffed,144,Normal,No,Bright
+2730SAA02,2730,A,TI,LAD,Buffed,180,Normal,No,Bright
+2730WAA02,2730,A,TI,LAD,Buffed,180,Normal,No,Bright
+2730YAA02/2N,2730,A,TI,LAD,Buffed,180,Normal,No,Bright
+2732SAA02,2732,A,TI,LAD,Buffed,144,Normal,No,Bright
+2733SAA02,2733,A,TI,LAD,Buffed,180,Normal,No,Bright
+2747WAA02,2747,A,TI,LAD,Buffed,180,Normal,No,Bright
+2748WAA02,2748,A,TI,LAD,Buffed,180,Normal,No,Bright
+2752SAA02,2752,A,TI,LAD,Buffed,180,Normal,No,Bright
+2752WAA02,2752,A,TI,LAD,Buffed,180,Normal,No,Bright
+2754WAA02,2754,A,TI,LAD,Buffed,180,Normal,No,Bright
+291NAB02,291,B,TI,GEN,Buffed,220,Normal,No,Bright
+291YAB02,291,B,TI,GEN,Buffed,220,Normal,No,Bright
+2927BAB02,2927,B,TI,GEN,Buffed,312,Normal,No,Bright
+2927YAB02,2927,B,TI,GEN,Buffed,312,Normal,No,Bright
+2937YDB02,2937,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2940BEB02,2940,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2940YEB02,2940,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2955BAA02,2955,A,TI,LAD,Buffed,312,Normal,No,Bright
+2955YAA02,2955,A,TI,LAD,Buffed,312,Normal,No,Bright
+2955SAB02,2955,B,TI,LAD,Buffed,312,Normal,No,Bright
+2957NAA02/BLK,2957,A,TI,LAD,Buffed,312,Normal,No,Bright
+2957SAA02,2957,A,TI,LAD,Buffed,312,Normal,No,Bright
+2959YAA02,2959,A,TI,LAD,Buffed,312,Normal,No,Bright
+2963SAA02,2963,A,TI,LAD,Buffed,312,Normal,No,Bright
+3001SBC02,3001,C,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3001SBN02,3001,N,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3001SBP02,3001,P,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3001SBR02,3001,R,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3001SDD02,3001,D,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3001SDP02,3001,P,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3015ASD02/01,3015,D,FT,GEN,AL,0,Jumbo,NA,NA
+3016ASB02/01,3016,B,FT,GEN,AL,0,Jumbo,NA,NA
+3017SSA02,3017,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3018SSA02,3018,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3020SSA02,3020,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3021SSC02,3021,C,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3021NSD02,3021,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3021SSD02,3021,D,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3021SSE02,3021,E,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3021SSF02,3021,F,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3022SSA02,3022,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3024SSA02,3024,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3027SSA02,3027,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3040SFB02,3040,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3040SFC02,3040,C,FT,GEN,Bi-Finish,98,Normal,Yes,Semi bright
+3040SFD02,3040,D,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3054SFA02,3054,A,FT,GEN,Bi-Finish,70,?,Yes,Semi bright
+3057SEA02,3057,A,FT,GEN,Bi-Finish,70,?,Yes,Semi bright
+3066SEA02,3066,A,FT,GEN,Bi-Finish,70,?,Yes,Semi bright
+3070SEA02,3070,A,FT,GEN,Bi-Finish,144,?,Yes,Semi bright
+3071SFA02,3071,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3071SFB02,3071,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3071SFD02,3071,D,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3075SSA02,3075,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3075SSC02,3075,C,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3076SSB02,3076,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3076SSD02,3076,D,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3079SSA02,3079,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3079SSB02,3079,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3081NSA02/01/01,3081,A,FT,GEN,AL,0,Jumbo,NA,NA
+3083SSA02,3083,A,FT,GEN,Shotblasting,144,Jumbo,Yes,Dull
+3084NSA02,3084,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3084SSA02,3084,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3084NSC02,3084,C,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3084SSC02,3084,C,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3084NSE02,3084,E,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3084SSE02,3084,E,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3088SSA02,3088,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3088SSB02,3088,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3089NAF02,3089,F,FT,GEN,Buffed,98,Jumbo,No,Bright
+3089SAF02,3089,F,FT,GEN,Buffed,144,Jumbo,No,Bright
+3089NAL02,3089,L,FT,GEN,Buffed,98,Jumbo,No,Bright
+3089SAL02,3089,L,FT,GEN,Buffed,98,Jumbo,No,Bright
+3089SFB02,3089,B,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3089SFF02,3089,F,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3089SFG02,3089,G,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3089SFK02,3089,K,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3089NSF02,3089,F,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3090SSB02,3090,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3094NSA02,3094,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3094NSB02,3094,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3096NSA02,3096,A,FT,GEN,Shotblasting,98,?,Yes,Dull
+3097NFA02,3097,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3097SFA02,3097,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3097NFB02,3097,B,FT,GEN,Bi-Finish,0,Jumbo,Yes,Semi bright
+3097SFB02,3097,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3097NFC02,3097,C,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3097SFC02,3097,C,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3097NFD02,3097,D,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3097SFD02,3097,D,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3098SFB02,3098,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3098SFC02,3098,C,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3099SSA02,3099,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSB02,3099,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSD02,3099,D,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSE02,3099,E,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSF02,3099,F,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSG02,3099,G,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSH02,3099,H,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3099SSJ02,3099,J,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3110SBA02,3110,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3110SBB02,3110,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3111SSA02,3111,A,FT,GEN,Shotblasting,70,Normal,Yes,Dull
+3112NSA02,3112,A,FT,GEN,Shotblasting,70,Normal,Yes,Dull
+3112SSA02,3112,A,FT,GEN,Shotblasting,70,Normal,Yes,Dull
+3112NSB02,3112,B,FT,GEN,Shotblasting,70,Normal,Yes,Dull
+3112SSB02,3112,B,FT,GEN,Shotblasting,70,Normal,Yes,Dull
+3117SSB02,3117,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3119SSA02,3119,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+311SAD02,311,D,TI,LAD,Buffed,312,Normal,No,Bright
+311YAD02,311,D,TI,LAD,Buffed,312,Normal,No,Bright
+311SAE02,311,E,TI,LAD,Buffed,312,Normal,No,Bright
+311WAE02,311,E,TI,LAD,Buffed,220,Normal,No,Bright
+311YAE02/2N,311,E,TI,LAD,Buffed,220,Normal,No,Bright
+311SAH02,311,H,TI,LAD,Buffed,312,Normal,No,Bright
+311WAH02,311,H,TI,LAD,Buffed,220,Normal,No,Bright
+311YAH02/2N,311,H,TI,LAD,Buffed,220,Normal,No,Bright
+311WAJ02,311,J,TI,LAD,Buffed,312,Normal,No,Bright
+311YAJ02/2N,311,J,TI,LAD,Buffed,312,Normal,No,Bright
+311WAK02,311,K,TI,LAD,Buffed,220,Normal,No,Bright
+311YAK02/2N,311,K,TI,LAD,Buffed,220,Normal,No,Bright
+311WAL02,311,L,TI,LAD,Buffed,312,Normal,No,Bright
+311YAL02/2N,311,L,TI,LAD,Buffed,312,Normal,No,Bright
+3120NSJ02,3120,J,FT,GEN,AL,98,Jumbo,Yes,Dull
+3120SSJ02,3120,J,FT,GEN,AL,70,Jumbo,Yes,Dull
+3120YSJ02,3120,J,FT,GEN,AL,70,Jumbo,Yes,Dull
+3120NBG02,3120,G,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3120NSB02,3120,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3120SSB02,3120,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3120NSD02,3120,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3120SSD02,3120,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3120NSG02,3120,G,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3120SSG02,3120,G,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3121SSB02,3121,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3121SSD02,3121,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3121SSG02,3121,G,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123SEE02,3123,E,FT,GEN,Buffed,98,Jumbo,No,Bright
+3123NJE02,3123,E,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123QJE02/GUN,3123,E,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123SJE02,3123,E,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123NKE02,3123,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3123SKE02,3123,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3123SSB02,3123,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3123SSE02,3123,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3123SSF02,3123,F,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123SSH02,3123,H,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3123SSJ02,3123,J,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3124SSB02,3124,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3124SSD02,3124,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3125SSA02,3125,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3126SSA02,3126,A,FT,,Shotblasting,70,Jumbo,Yes,Dull
+3129SJA02,3129,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3129SSA02,3129,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3130NSA02,3130,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3130SSA02,3130,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3130NSB02,3130,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3130SSB02,3130,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3131NSA02,3131,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3131SSA02,3131,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3133SEA02,3133,A,FT,GEN,Buffed,70,Jumbo,No,Bright
+3133SSA02,3133,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3137SAA02,3137,A,FT,GEN,Buffed,70,Jumbo,No,Bright
+3138NSA02,3138,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3139SJA02,3139,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3142SKA02,3142,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3147NSA02,3147,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3148SGA02,3148,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3150SSA02,3150,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3151SSA02,3151,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3152SJA02,3152,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3153SGA02,3153,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3153SGB02,3153,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3153SSA02,3153,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3153SSB02,3153,B,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3157SCB02,3157,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3159SAA02,3159,A,FT,GEN,Buffed,70,Jumbo,No,Bright
+3162SBA02,3162,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3164SCA02,3164,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3165NBA02,3165,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3165SBA02,3165,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3166NBA02,3166,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3166QBA02/GUN,3166,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3166SBA02,3166,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3166SBB02,3166,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3168NBA02,3168,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3168SBA02,3168,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3168SCA02,3168,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3169SFA02,3169,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3169NGA02,3169,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3169NSA02,3169,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3169QSA02/GUN,3169,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3170SSA02,3170,A,FT,GEN,Shotblasting,70,?,Yes,Dull
+3171SCA02,3171,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3171NCB02,3171,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3171SCB02,3171,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3173SSA02,3173,A,FT,GEN,Shotblasting,144,Jumbo,Yes,Dull
+3173SSB02,3173,B,FT,GEN,Shotblasting,144,Jumbo,Yes,Dull
+3174SBA02,3174,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3175SBA02,3175,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3177SAA02,3177,A,FT,GEN,Buffed,70,Jumbo,No,Bright
+3177SEA02,3177,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3178SSA02,3178,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3179SBA02,3179,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3180SBA02,3180,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3182SAB02,3182,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3182NSA02,3182,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3182SSC02,3182,C,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3182QSD02/GUN,3182,D,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3183SSA02,3183,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3184NAA02,3184,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184SAA02,3184,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184NAB02,3184,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184QAB02/BL01,3184,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184QAB02/BLU,3184,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184QAB02/BRN,3184,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3184SSA02,3184,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3187SFA02,3187,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3187SFB02,3187,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3187SFC02,3187,C,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3187YSC02/BA,3187,C,FT,GEN,Shotblasting,0,Jumbo,Yes,Dull
+3188SAA02,3188,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3188SAB02,3188,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3188SSA02,3188,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3189SSA02,3189,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3191ASB02/01,3191,B,FT,GEN,AL,0,Jumbo,NA,NA
+3191ASB02/02,3191,B,FT,GEN,AL,0,Jumbo,NA,NA
+3191ASB02/03,3191,B,FT,GEN,AL,0,Jumbo,NA,NA
+3191SSA02,3191,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3197SSA02,3197,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3198ASA02/01,3198,A,FT,GEN,AL,0,Jumbo,NA,NA
+3199SAA02,3199,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3199NBA02,3199,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3201SAA02,3201,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3201QBA02/GUN,3201,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3201NSA02,3201,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3204SSA02,3204,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3207ASA02/01,3207,A,FT,GEN,AL,0,Jumbo,NA,NA
+3207ASA02/02,3207,A,FT,GEN,AL,0,Jumbo,NA,NA
+3209SSA02,3209,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3210NAB02,3210,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3210NBB02,3210,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3210SBB02,3210,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3210NSA02,3210,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3211SSA02,3211,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3213SSA02,3213,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3214NSA02,3214,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3214SSA02,3214,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3215SSA02,3215,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3216NSA02,3216,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3216SSA02,3216,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3218SSA02,3218,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3219SSA02,3219,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3220SAA02,3220,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3220NBA02,3220,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3220SBA02,3220,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3222SSA02,3222,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3224NSA02,3224,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3225SSA02,3225,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3227SAA02,3227,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3227SFA02,3227,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3228SEA02,3228,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3228SSA02,3228,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3229SAA02,3229,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3229SSA02,3229,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3231SAA02,3231,A,FT,GEN,Buffed,70,Jumbo,No,Bright
+3231SBA02,3231,A,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3231SDA02,3231,A,FT,GEN,Bi-Finish,0,Jumbo,Yes,Semi bright
+3231SSA02,3231,A,FT,GEN,Shotblasting,70,Jumbo,Yes,Dull
+3232SFA02,3232,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3233SAA02,3233,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3234SAA02,3234,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3234SFA02,3234,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3234NSA02,3234,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3236SAA02,3236,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3237NAA02,3237,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3237SAA02,3237,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3237SAB02,3237,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3238QSA02/GUN,3238,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3238SSA02,3238,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3240SAA02,3240,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3240NAB02,3240,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3240SAB02,3240,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3240SCB02,3240,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3240NGB02,3240,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3241SSA02,3241,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3242NAA02,3242,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3242SAA02,3242,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3242SSA02,3242,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3245SAA02,3245,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3245NBA02,3245,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3245NBB02,3245,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3245NSA02,3245,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3245SSA02,3245,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3245NSB02,3245,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3246SAA02,3246,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3246NSA02,3246,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3247SAA02,3247,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3247NAC02,3247,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3247QAC02/BLU,3247,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3247QAC02/BRN,3247,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3247NSA02,3247,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3249NBA02,3249,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3249SBA02,3249,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3250NSA02,3250,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3251NGA02,3251,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3251QGA02/GUN,3251,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3252NSA02,3252,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3252SSA02,3252,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3254NBA02,3254,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3254SBA02,3254,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3255NAA02,3255,A,FT,GEN,Buffed,144,Normal,No,Bright
+3255SAA02,3255,A,FT,GEN,Buffed,144,Normal,No,Bright
+3255NBA02,3255,A,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3255SBA02,3255,A,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3260NBA02,3260,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3260SBA02,3260,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3261SAB02,3261,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3261SBB02,3261,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3261SSA02,3261,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3263NBA02,3263,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3263SBA02,3263,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3264SBA02,3264,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3268NBA02,3268,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3268NBB02,3268,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3268QBB02/BLU,3268,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3268SBB02,3268,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3269NAA02,3269,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3269NBB02,3269,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3269NBC02,3269,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3270NAA02,3270,A,FT,GEN,Buffed,144,Normal,No,Bright
+3270SAA02,3270,A,FT,GEN,Buffed,144,Normal,No,Bright
+3270NCB02,3270,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3270SCB02,3270,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3270WCB02,3270,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+3272NAA02,3272,A,FT,GEN,Buffed,98,Normal,No,Bright
+3272SAA02,3272,A,FT,GEN,Buffed,98,Normal,No,Bright
+3273NAA02,3273,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3273QAA02/BRN,3273,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3273SAA02,3273,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3273NHA02,3273,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3273SHA02,3273,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3276NAA02,3276,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3276SAA02,3276,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277NAA02,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277NAA02/01,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277QAA02/BL01,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277QAA02/BLU,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277SAA02,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277SAA02/01,3277,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3277NCB02,3277,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3277SCB02,3277,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3279NBA02,3279,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3279SBA02,3279,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3281SBA02,3281,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3281WBA02,3281,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+B3282SAA02,B3282,A,FT,GEN,Buffed,144,?,No,Bright
+3283SBA02,3283,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3283SBB02,3283,B,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3285QBA02/BL01,3285,A,FT,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+3285QBA02/BLU,3285,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3285QBA02/BRN,3285,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3285QCA02/BL01,3285,A,FT,GEN,Bi-Finish,0,Jumbo,Yes,Semi bright
+3286QAA02/BLU,3286,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3286SAA02,3286,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287NAA02,3287,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287QAA02/BRN,3287,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287SAA02,3287,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287NAB02,3287,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287QAB02/BL01,3287,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287QAB02/BLU,3287,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287SAB02,3287,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287WAB02,3287,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287NAF02,3287,F,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287SAF02,3287,F,FT,GEN,Buffed,98,Jumbo,No,Bright
+3287NCA02,3287,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287WCA02,3287,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287NCD02,3287,D,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QCD02/BLU,3287,D,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QCD02/BRN,3287,D,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287NCE02,3287,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QCE02/BLU/M,3287,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QCE02/BRN,3287,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QCE02/GUN,3287,E,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QDA02/BLU/M,3287,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QDA02/BRN,3287,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287SDA02,3287,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287QDB02/BRZ,3287,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+3287SDB02,3287,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287WDB02,3287,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3287SDD02,3287,D,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3290SAA02,3290,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3291SAA02,3291,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3292QAA02/BLU/M,3292,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3292QAA02/BRN,3292,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3292NAB02,3292,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3292SAB02,3292,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3294NAA02,3294,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3294QAA02/BRN,3294,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3294SAA02,3294,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3295NAA02,3295,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3295QAA02/BRN,3295,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3295SAA02,3295,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3296QSA02/BLU,3296,A,FT,GEN,Shotblasting,144,Jumbo,Yes,Dull
+3296QSA02/BRN,3296,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3299SAA02,3299,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3299NAB02,3299,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3299SAB02,3299,B,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3300NAA02,3300,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3300QAA02/BRN,3300,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3301NAA02,3301,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3301QAA02/BLU/M,3301,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3301QAA02/BRN,3301,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3301NBA02,3301,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3301QBA02/BLU/M,3301,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3301QBA02/BRN,3301,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3303SAA02,3303,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3303SAB02,3303,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3303NAC02,3303,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3303QAC02/BLU/M,3303,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3303QAC02/BRN,3303,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3303SBA02,3303,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3303NCC02,3303,C,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3305NAA02,3305,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305QAA02/BLU/J,3305,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305QAA02/BRN,3305,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305SAA02,3305,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305QAB02/BLU/M,3305,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305SAB02,3305,B,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305NAC02,3305,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305QAC02/BRN,3305,C,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305QAD02/BRN,3305,D,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305SAD02,3305,D,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305WAD02,3305,D,FT,GEN,Buffed,98,Jumbo,No,Bright
+3305SCA02,3305,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3305NEA02,3305,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3305SEA02,3305,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3305NSB02,3305,B,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+3306SAA02,3306,A,FT,GEN,Buffed,144,Jumbo,No,Bright
+3308NDA02,3308,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3308SDA02,3308,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3309NAA02,3309,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3309QAA02/BLU/M,3309,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3309QAA02/BRN,3309,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3309QAA02/BRZ,3309,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3313SCA02,3313,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3315NDA02,3315,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3315QDA02/BRN,3315,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3315SDA02,3315,A,FT,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+3317NAA02,3317,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3317QAA02/BLU/M,3317,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3317QAA02/BRN,3317,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3317SAA02,3317,A,FT,GEN,Buffed,98,Jumbo,No,Bright
+3317NSA02,3317,A,FT,GEN,Shotblasting,98,Jumbo,Yes,Dull
+340YAF02,340,F,TI,LAD,Buffed,312,Normal,No,Bright
+340YAG02,340,G,TI,LAD,Buffed,312,Normal,No,Bright
+38034NJB02,38034,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+38035SBB02,38035,B,FT,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+38051SAB02,38051,B,FT,GEN,Buffed,70,Jumbo,No,Bright
+38052SAB02,38052,B,FT,GEN,Buffed,70,Jumbo,No,Bright
+520YAC02,520,C,TI,GEN,Buffed,220,?,No,Bright
+6001SFA02,6001,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6004NAC02,6004,C,FT,LAD,Buffed,144,Normal,No,Bright
+6004QAC02/BRN,6004,C,FT,LAD,Buffed,144,Normal,No,Bright
+6004QAC02/GUN,6004,C,FT,LAD,Buffed,144,Normal,No,Bright
+6004SAC02,6004,C,FT,LAD,Buffed,144,Normal,No,Bright
+6004WAC02,6004,C,FT,LAD,Buffed,144,Normal,No,Bright
+6004SGB02,6004,B,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6004SGC02,6004,C,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6013SAA02,6013,A,FT,LAD,Buffed,220,Normal,No,Bright
+6014SCA02,6014,A,FT,LAD,Bi-Finish,220,?,Yes,Semi bright
+6015SAA02,6015,A,FT,LAD,Buffed,220,Normal,No,Bright
+6015WAA02,6015,A,FT,LAD,Buffed,220,Normal,No,Bright
+6015SAC02,6015,C,FT,LAD,Buffed,180,Normal,No,Bright
+6015WAC02,6015,C,FT,LAD,Buffed,180,Normal,No,Bright
+6021SEA02,6021,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6023SAA02,6023,A,FT,LAD,Buffed,220,?,No,Bright
+6024NAA02,6024,A,FT,LAD,Buffed,144,Normal,No,Bright
+6024QAA02/BRN,6024,A,FT,LAD,Buffed,220,Normal,No,Bright
+6024SAA02,6024,A,FT,LAD,Buffed,144,Normal,No,Bright
+6024SAA02/01,6024,A,FT,LAD,Buffed,144,Normal,No,Bright
+6026SEA02,6026,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6027SEC02,6027,C,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6035SFA02,6035,A,FT,LAD,Bi-Finish,180,Jumbo,Yes,Semi bright
+6041SBA02,6041,A,FT,LAD,Bi-Finish,144,?,Yes,Semi bright
+6042SSA02,6042,A,FT,LAD,Shotblasting,220,?,Yes,Dull
+6046SAG02,6046,G,FT,LAD,Buffed,220,?,No,Bright
+6048SAA02,6048,A,FT,LAD,Buffed,144,?,No,Bright
+6057SAA02,6057,A,FT,LAD,Buffed,144,Normal,No,Bright
+6072SFC02,6072,C,FT,LAD,Bi-Finish,220,?,Yes,Semi bright
+6075SEA02,6075,A,FT,LAD,Bi-Finish,144,?,Yes,Semi bright
+6078SAA02,6078,A,FT,LAD,Buffed,144,Normal,No,Bright
+6078SAB02,6078,B,FT,LAD,Buffed,144,Normal,No,Bright
+6078SAE02,6078,E,FT,LAD,Buffed,144,Normal,No,Bright
+6078SAF02,6078,F,FT,LAD,Buffed,144,Normal,No,Bright
+6078SAG02,6078,G,FT,LAD,Buffed,144,Normal,No,Bright
+6088SEC02,6088,C,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6090SAA02,6090,A,FT,LAD,Buffed,220,Normal,No,Bright
+6091SAA02,6091,A,FT,LAD,Buffed,180,Normal,No,Bright
+6093NAB02,6093,B,FT,LAD,Buffed,180,Normal,No,Bright
+6093QAB02/BRN,6093,B,FT,LAD,Buffed,180,Normal,No,Bright
+6093SAB02,6093,B,FT,LAD,Buffed,180,Normal,No,Bright
+6093WAB02,6093,B,FT,LAD,Buffed,180,Normal,No,Bright
+6094SEA02,6094,A,FT,LAD,Bi-Finish,220,?,Yes,Semi bright
+6095SEA02,6095,A,FT,LAD,Buffed,144,Normal,No,Bright
+6096SAA02,6096,A,FT,LAD,Buffed,220,?,No,Bright
+6097SEB02,6097,B,FT,LAD,Bi-Finish,220,?,Yes,Semi bright
+6098NSA02,6098,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6099SSA02,6099,A,FT,LAD,Shotblasting,144,?,Yes,Dull
+6102SAA02,6102,A,FT,LAD,Buffed,220,?,No,Bright
+6103SAA02,6103,A,FT,LAD,Buffed,144,?,No,Bright
+6107NAA02,6107,A,FT,LAD,Buffed,220,Normal,No,Bright
+6107SAA02,6107,A,FT,LAD,Buffed,220,Normal,No,Bright
+6109SAA02,6109,A,FT,LAD,Buffed,144,Normal,No,Bright
+6111SAB02,6111,B,FT,LAD,Buffed,220,Normal,No,Bright
+6112SEB02,6112,B,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6112SEC02,6112,C,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6112SSC02,6112,C,FT,LAD,Shotblasting,180,Normal,Yes,Dull
+6113NCA02,6113,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6113SCA02,6113,A,FT,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+6113WCA02,6113,A,FT,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+6114SAA02,6114,A,FT,GEN,Buffed,220,Normal,No,Bright
+6114WAA02,6114,A,FT,GEN,Buffed,312,Normal,No,Bright
+6116SAA02,6116,A,FT,LAD,Buffed,220,?,No,Bright
+6117SAA02,6117,A,FT,LAD,Buffed,220,Normal,No,Bright
+6118SAA02,6118,A,FT,LAD,Buffed,312,?,No,Bright
+6120SAA02,6120,A,FT,LAD,Buffed,220,?,No,Bright
+6121SAA02,6121,A,FT,LAD,Buffed,220,Normal,No,Bright
+6122SAA02,6122,A,FT,LAD,Buffed,180,Normal,No,Bright
+6123SAA02,6123,A,FT,LAD,Buffed,220,Normal,No,Bright
+6123SAB02,6123,B,FT,LAD,Buffed,220,Normal,No,Bright
+6125SAA02,6125,A,FT,LAD,Buffed,220,Normal,No,Bright
+6126SAA02,6126,A,FT,LAD,Buffed,312,Normal,No,Bright
+6127SAA02,6127,A,FT,LAD,Buffed,144,?,No,Bright
+6130SAA02,6130,A,FT,LAD,Buffed,220,?,No,Bright
+6131SEA02,6131,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6131WEA02,6131,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6132KAA02,6132,A,FT,LAD,Buffed,220,Normal,No,Bright
+6134KAA02,6134,A,FT,LAD,Buffed,220,Normal,No,Bright
+6134SAA02,6134,A,FT,LAD,Buffed,220,Normal,No,Bright
+6135SAA02,6135,A,FT,LAD,Buffed,144,Normal,No,Bright
+6138SAA02,6138,A,FT,LAD,Buffed,180,Normal,No,Bright
+6139SEA02,6139,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6140SAA02,6140,A,FT,LAD,Buffed,144,Normal,No,Bright
+6141SSA02,6141,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6143SEA02,6143,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6144SAA02,6144,A,FT,LAD,Buffed,220,Normal,No,Bright
+6145QAA02/GUN,6145,A,FT,LAD,Buffed,312,Jumbo,No,Bright
+6145SAA02,6145,A,FT,LAD,Buffed,220,Jumbo,No,Bright
+6147QAA02/BL01,6147,A,FT,LAD,Buffed,98,Jumbo,No,Bright
+6147WAA02,6147,A,FT,LAD,Buffed,98,Jumbo,No,Bright
+6147NSA02,6147,A,FT,LAD,Shotblasting,98,Jumbo,Yes,Dull
+6148SAA02,6148,A,FT,LAD,Buffed,312,Normal,No,Bright
+6148WAA02,6148,A,FT,LAD,Buffed,312,Normal,No,Bright
+6148SEA02,6148,A,FT,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+6148WEA02,6148,A,FT,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+6149SAA02,6149,A,FT,LAD,Buffed,220,Normal,No,Bright
+6150NAA02,6150,A,FT,LAD,Buffed,220,Normal,No,Bright
+6150SAA02,6150,A,FT,LAD,Buffed,220,Normal,No,Bright
+6150WAA02,6150,A,FT,LAD,Buffed,220,Normal,No,Bright
+6152SAA02,6152,A,FT,LAD,Buffed,180,Normal,No,Bright
+6153SAA02,6153,A,FT,LAD,Buffed,144,Normal,No,Bright
+6153NAB02,6153,B,FT,LAD,Buffed,180,Normal,No,Bright
+6153SAB02,6153,B,FT,LAD,Buffed,180,Normal,No,Bright
+6153SAC02,6153,C,FT,LAD,Buffed,144,Normal,No,Bright
+6156SAA02,6156,A,FT,LAD,Buffed,144,Normal,No,Bright
+6157SEA02,6157,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6158SAA02,6158,A,FT,LAD,Buffed,144,Normal,No,Bright
+6162SAA02,6162,A,FT,LAD,Buffed,220,Normal,No,Bright
+6163NAA02,6163,A,FT,LAD,Buffed,144,Normal,No,Bright
+6163SAA02,6163,A,FT,LAD,Buffed,144,Normal,No,Bright
+6165NAA02,6165,A,FT,LAD,Buffed,180,Normal,No,Bright
+6165SAA02,6165,A,FT,LAD,Buffed,180,Normal,No,Bright
+6165WAA02,6165,A,FT,LAD,Buffed,180,Normal,No,Bright
+6166SAA02,6166,A,FT,LAD,Buffed,144,Normal,No,Bright
+6167SAA02,6167,A,FT,LAD,Buffed,144,Normal,No,Bright
+6167WAA02,6167,A,FT,LAD,Buffed,144,Normal,No,Bright
+6167NEA02,6167,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6168NEA02,6168,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6168SEA02,6168,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6168WEA02,6168,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6169SAA02,6169,A,FT,LAD,Buffed,144,Jumbo,No,Bright
+6169SAB02,6169,B,FT,LAD,Buffed,144,Jumbo,No,Bright
+6171SAA02,6171,A,FT,LAD,Buffed,144,Normal,No,Bright
+6172SAA02,6172,A,FT,LAD,Buffed,144,Normal,No,Bright
+6172NAB02,6172,B,FT,LAD,Buffed,144,Normal,No,Bright
+6172SAB02,6172,B,FT,LAD,Buffed,144,Normal,No,Bright
+6174SAA02,6174,A,FT,LAD,Buffed,144,Normal,No,Bright
+6175SAA02,6175,A,FT,LAD,Buffed,144,?,No,Bright
+6176NAA02,6176,A,FT,LAD,Buffed,144,Normal,No,Bright
+6176SAA02,6176,A,FT,LAD,Buffed,144,Normal,No,Bright
+6176NAB02,6176,B,FT,LAD,Buffed,144,Normal,No,Bright
+6176QAB02/GUN,6176,B,FT,LAD,Buffed,144,Normal,No,Bright
+6178ASB02/01,6178,B,FT,LAD,AL,0,Normal,NA,NA
+6178ASB02/02,6178,B,FT,LAD,AL,0,Normal,NA,NA
+6178SSA02,6178,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6179SAA02,6179,A,FT,LAD,Buffed,144,Jumbo,No,Bright
+617YAE02,617,E,TI,GEN,Buffed,220,Normal,No,Bright
+617SAM02,617,M,TI,GEN,Buffed,220,Normal,No,Bright
+617YAM02,617,M,TI,GEN,Buffed,220,Normal,No,Bright
+6180SAA02,6180,A,FT,LAD,Buffed,180,Normal,No,Bright
+6181SEA02,6181,A,FT,LAD,Bi-Finish,180,Jumbo,Yes,Semi bright
+6183SEA02,6183,A,FT,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+6184SSA02,6184,A,FT,LAD,Shotblasting,312,Normal,Yes,Dull
+6184WSA02,6184,A,FT,LAD,Shotblasting,312,Normal,Yes,Dull
+6185NAA02,6185,A,FT,LAD,Buffed,144,Normal,No,Bright
+6185SAA02,6185,A,FT,LAD,Buffed,144,Normal,No,Bright
+6186NAA02,6186,A,FT,LAD,Buffed,144,Jumbo,No,Bright
+6186SAA02,6186,A,FT,LAD,Buffed,144,Jumbo,No,Bright
+6187NAA02,6187,A,FT,LAD,Buffed,144,Normal,No,Bright
+6187SAA02,6187,A,FT,LAD,Buffed,144,Normal,No,Bright
+6187NSA02,6187,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6188NSA02,6188,A,FT,LAD,Shotblasting,180,Normal,Yes,Dull
+6189NAA02,6189,A,FT,LAD,Buffed,144,Normal,No,Bright
+6189SAA02,6189,A,FT,LAD,Buffed,144,Normal,No,Bright
+6189NSA02,6189,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6190SSA02,6190,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6192NAA02,6192,A,FT,LAD,Buffed,144,Normal,No,Bright
+6192SAA02,6192,A,FT,LAD,Buffed,144,Normal,No,Bright
+6193NAA02,6193,A,FT,LAD,Buffed,144,Normal,No,Bright
+6193SAA02,6193,A,FT,LAD,Buffed,144,Normal,No,Bright
+6194NEA02,6194,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6194SEA02,6194,A,FT,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+6194SSA02,6194,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6196QSA02/BR,6196,A,FT,LAD,Shotblasting,144,?,Yes,Dull
+6197SAA02,6197,A,FT,LAD,Buffed,180,Normal,No,Bright
+6198NAA02,6198,A,FT,LAD,Buffed,144,Normal,No,Bright
+6198NSA02,6198,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6198QSA02/BRN,6198,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6201NBA02,6201,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6201QBA02/BRN,6201,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6201SBA02,6201,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6201SSA02,6201,A,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+6202SAA02,6202,A,FT,LAD,Buffed,144,Normal,No,Bright
+6202SSA02,6202,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6203SAA02,6203,A,FT,LAD,Buffed,180,Normal,No,Bright
+6203SSA02,6203,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6204SAA02,6204,A,FT,LAD,Buffed,180,Normal,No,Bright
+6204SSA02,6204,A,FT,LAD,Shotblasting,180,Normal,Yes,Dull
+6206NAA02,6206,A,FT,LAD,Buffed,144,Normal,No,Bright
+6206WAA02,6206,A,FT,LAD,Buffed,144,Normal,No,Bright
+6207SAA02,6207,A,FT,LAD,Buffed,144,Normal,No,Bright
+6207WAA02,6207,A,FT,LAD,Buffed,144,Normal,No,Bright
+6207QAB02/BL01,6207,B,FT,LAD,Buffed,144,Normal,No,Bright
+6207QAB02/BLU,6207,B,FT,LAD,Buffed,144,Normal,No,Bright
+6207WAB02/CHG,6207,B,FT,LAD,Buffed,144,Normal,No,Bright
+6207NSA02,6207,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6208NAA02,6208,A,FT,LAD,Buffed,144,Normal,No,Bright
+6208SAA02,6208,A,FT,LAD,Buffed,144,Normal,No,Bright
+6208QSA02/BRN,6208,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6210QAA02/GUN,6210,A,FT,LAD,Buffed,144,Normal,No,Bright
+6210SAA02,6210,A,FT,LAD,Buffed,144,Normal,No,Bright
+6210NAB02,6210,B,FT,LAD,Buffed,144,Normal,No,Bright
+6210SAB02,6210,B,FT,LAD,Buffed,144,Normal,No,Bright
+6210WAB02,6210,B,FT,LAD,Buffed,144,Normal,No,Bright
+6210NAC02,6210,C,FT,LAD,Buffed,144,Normal,No,Bright
+6210SAC02,6210,C,FT,LAD,Buffed,144,Normal,No,Bright
+6210WAC02,6210,C,FT,LAD,Buffed,144,Normal,No,Bright
+6210NAD02,6210,D,FT,LAD,Buffed,144,Normal,No,Bright
+6210QAD02/BL01,6210,D,FT,LAD,Buffed,144,Normal,No,Bright
+6210WAD02,6210,D,FT,LAD,Buffed,144,Normal,No,Bright
+6212SAA02,6212,A,FT,LAD,Buffed,144,Normal,No,Bright
+6213SSA02,6213,A,FT,LAD,Buffed,144,Normal,No,Bright
+6215SAA02,6215,A,FT,LAD,Buffed,144,Normal,No,Bright
+6215NBA02,6215,A,FT,LAD,Buffed,144,Normal,No,Bright
+6215WBA02,6215,A,FT,LAD,Buffed,144,Normal,No,Bright
+6215YSA02/BA,6215,A,FT,LAD,Shotblasting,0,Normal,Yes,Dull
+6216NAA02,6216,A,FT,LAD,Buffed,144,Normal,No,Bright
+6216WAA02,6216,A,FT,LAD,Buffed,144,Normal,No,Bright
+6216QAB02/BL01,6216,B,FT,LAD,Buffed,144,Normal,No,Bright
+6216QAB02/BLU,6216,B,FT,LAD,Buffed,144,Normal,No,Bright
+6216WAB02/CHG,6216,B,FT,LAD,Buffed,144,Normal,No,Bright
+6216QSA02/BRN,6216,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6217SAA02,6217,A,FT,LAD,Buffed,180,Normal,No,Bright
+6219SAA02,6219,A,FT,LAD,Buffed,180,Normal,No,Bright
+6220WAA02,6220,A,FT,LAD,Buffed,98,Jumbo,No,Bright
+6221NAA02,6221,A,FT,LAD,Buffed,220,Normal,No,Bright
+6221QAA02/BL01,6221,A,FT,LAD,Buffed,220,Normal,No,Bright
+6221QAA02/BRN,6221,A,FT,LAD,Buffed,220,Normal,No,Bright
+6221SAA02,6221,A,FT,LAD,Buffed,220,Normal,No,Bright
+6221WAA02,6221,A,FT,LAD,Buffed,220,Normal,No,Bright
+6221NSA02,6221,A,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+6222NAA02,6222,A,FT,LAD,Buffed,144,Normal,No,Bright
+6222SAA02,6222,A,FT,LAD,Buffed,144,Normal,No,Bright
+6222WAA02,6222,A,FT,LAD,Buffed,144,Normal,No,Bright
+6225QAA02/BRN,6225,A,FT,LAD,Buffed,144,Normal,No,Bright
+6225WAA02,6225,A,FT,LAD,Buffed,144,Normal,No,Bright
+6225NSA02,6225,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6226WAA02,6226,A,FT,LAD,Buffed,180,Normal,No,Bright
+6228NAA02,6228,A,FT,LAD,Buffed,144,Normal,No,Bright
+6228WAA02,6228,A,FT,LAD,Buffed,144,Normal,No,Bright
+6229WAA02,6229,A,FT,LAD,Buffed,180,Normal,No,Bright
+6230NAA02,6230,A,FT,LAD,Buffed,144,Normal,No,Bright
+6230WAA02,6230,A,FT,LAD,Buffed,144,Normal,No,Bright
+6230WAA02/CHG,6230,A,FT,LAD,Buffed,144,Normal,No,Bright
+6231SAA02,6231,A,FT,LAD,Buffed,144,Normal,No,Bright
+6233SAA02,6233,A,FT,LAD,Buffed,180,Normal,No,Bright
+6234NAA02,6234,A,FT,LAD,Buffed,180,Normal,No,Bright
+6234QAA02/BL01,6234,A,FT,LAD,Buffed,180,Normal,No,Bright
+6234QAA02/BLU,6234,A,FT,LAD,Buffed,180,Normal,No,Bright
+6234SAA02,6234,A,FT,LAD,Buffed,180,Normal,No,Bright
+6234WAA02,6234,A,FT,LAD,Buffed,180,Normal,No,Bright
+6237SAA02,6237,A,FT,LAD,Buffed,180,Normal,No,Bright
+6237NBA02,6237,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6237QBA02/BRN,6237,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6238YSA02/BA,6238,A,FT,LAD,Shotblasting,0,Normal,Yes,Dull
+6240NSA02,6240,A,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+6242QSA02/BRN,6242,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6243NSA02,6243,A,FT,LAD,Shotblasting,144,Normal,Yes,Dull
+6243YSA02/BA,6243,A,FT,LAD,Shotblasting,0,Normal,Yes,Dull
+6244SSA02/SA,6244,A,FT,LAD,Shotblasting,0,Normal,Yes,Dull
+6246SAA02,6246,A,FT,LAD,Buffed,144,Jumbo,No,Bright
+6246SSA02,6246,A,FT,LAD,Shotblasting,144,Jumbo,Yes,Dull
+6247NAA02,6247,A,FT,LAD,Buffed,180,Normal,No,Bright
+6247SAA02,6247,A,FT,LAD,Buffed,180,Normal,No,Bright
+6247WAA02/CHG,6247,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248NAA02,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248QAA02/BL01,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248QAA02/BLU,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248SAA02,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248WAA02,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6248WAA02/CHG,6248,A,FT,LAD,Buffed,180,Normal,No,Bright
+6249SAA02,6249,A,FT,LAD,Buffed,144,Normal,No,Bright
+6251SAA02,6251,A,FT,LAD,Buffed,220,Normal,No,Bright
+6256SAA02,6256,A,FT,LAD,Buffed,180,Normal,No,Bright
+6256NBA02,6256,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6256SBA02,6256,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6257NFA02,6257,A,FT,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+6258SAA02,6258,A,FT,LAD,Buffed,312,Normal,No,Bright
+6258WAA02/CHG,6258,A,FT,LAD,Buffed,312,Normal,No,Bright
+6258NAB02,6258,B,FT,LAD,Buffed,312,Normal,No,Bright
+6258QAB02/BL01,6258,B,FT,LAD,Buffed,312,Normal,No,Bright
+6258QAB02/BLU,6258,B,FT,LAD,Buffed,312,Normal,No,Bright
+6258QAB02/BRN,6258,B,FT,LAD,Buffed,312,Normal,No,Bright
+6258WAB02/CHG,6258,B,FT,LAD,Buffed,312,Normal,No,Bright
+6259SSA02,6259,A,FT,LAD,Shotblasting,180,Normal,Yes,Dull
+6259WSA02/CHG,6259,A,FT,LAD,Shotblasting,180,Normal,Yes,Dull
+6260NSA02,6260,A,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+6260WSA02/CHG,6260,A,FT,LAD,Shotblasting,220,Normal,Yes,Dull
+6264SAA02,6264,A,FT,LAD,Buffed,220,Normal,No,Bright
+6264WAA02/CHG,6264,A,FT,LAD,Buffed,220,Normal,No,Bright
+6265NAA02,6265,A,FT,LAD,Buffed,180,Normal,No,Bright
+6265QAA02/BL01,6265,A,FT,LAD,Buffed,180,Normal,No,Bright
+6265QAA02/BLU,6265,A,FT,LAD,Buffed,180,Normal,No,Bright
+6265SAA02,6265,A,FT,LAD,Buffed,180,Normal,No,Bright
+6266SAA02,6266,A,FT,LAD,Buffed,180,Normal,No,Bright
+6269NAA02,6269,A,FT,LAD,Buffed,144,Normal,No,Bright
+6269QAA02/GUN,6269,A,FT,LAD,Buffed,144,Normal,No,Bright
+6269WAA02,6269,A,FT,LAD,Buffed,144,Normal,No,Bright
+6270QAA02/BL01,6270,A,0,0,Buffed,144,Normal,No,Bright
+6270QAA02/BLU,6270,A,FT,LAD,Buffed,144,Normal,No,Bright
+6270WAA02/CHG,6270,A,FT,LAD,Buffed,144,Normal,No,Bright
+6274NAA02,6274,A,FT,LAD,Buffed,312,Normal,No,Bright
+6274QAA02/BRN,6274,A,FT,LAD,Buffed,312,Normal,No,Bright
+6274SAA02,6274,A,FT,LAD,Buffed,312,Normal,No,Bright
+6274WAA02/CHG,6274,A,FT,LAD,Buffed,312,Normal,No,Bright
+6277NAA02,6277,A,FT,LAD,Buffed,220,Normal,No,Bright
+6277SAA02,6277,A,FT,LAD,Buffed,220,Normal,No,Bright
+6277WAA02/CHG,6277,A,FT,LAD,Buffed,220,Normal,No,Bright
+6278NAA02,6278,A,FT,LAD,Buffed,180,Normal,No,Bright
+6278QAA02/BL01,6278,A,TI,LAD,Buffed,180,Normal,No,Bright
+6278QAA02/BLU,6278,A,FT,LAD,Buffed,180,Normal,No,Bright
+6278SAA02,6278,A,FT,LAD,Buffed,180,Normal,No,Bright
+6278WAA02/CHG,6278,A,FT,LAD,Buffed,180,Normal,No,Bright
+6279NAA02,6279,A,FT,LAD,Buffed,180,Normal,No,Bright
+6279QAA02/BL01,6279,A,TI,LAD,Buffed,180,Normal,No,Bright
+6279QAA02/BLU,6279,A,FT,LAD,Buffed,180,Normal,No,Bright
+6279SAA02,6279,A,FT,LAD,Buffed,180,Normal,No,Bright
+6279WAA02/CHG,6279,A,FT,LAD,Buffed,180,Normal,No,Bright
+6280SAA02,6280,A,FT,LAD,Buffed,180,Normal,No,Bright
+6282SAA02,6282,A,FT,LAD,Buffed,144,Normal,No,Bright
+6282QAB02/BRN,6282,B,FT,LAD,Buffed,144,Normal,No,Bright
+6282WAB02,6282,B,FT,LAD,Buffed,144,Normal,No,Bright
+6283NAA02,6283,A,FT,LAD,Buffed,180,Normal,No,Bright
+6283QAA02/BL01,6283,A,FT,LAD,Buffed,180,Normal,No,Bright
+6283QAA02/BLU,6283,A,FT,LAD,Buffed,180,Normal,No,Bright
+6283SAA02,6283,A,FT,LAD,Buffed,180,Normal,No,Bright
+6283WAA02,6283,A,FT,LAD,Buffed,180,Normal,No,Bright
+6284NAA02,6284,A,FT,LAD,Buffed,144,Normal,No,Bright
+6284QAA02/BRN,6284,A,FT,LAD,Buffed,144,Normal,No,Bright
+6284SAA02,6284,A,FT,LAD,Buffed,144,Normal,No,Bright
+6284WAA02,6284,A,FT,LAD,Buffed,144,Normal,No,Bright
+6285NAA02,6285,A,FT,LAD,Buffed,144,Normal,No,Bright
+6285WAA02,6285,A,FT,LAD,Buffed,144,Normal,No,Bright
+6287QAA02/BRN,6287,A,FT,LAD,Buffed,144,Normal,No,Bright
+6287WAA02,6287,A,FT,LAD,Buffed,144,Normal,No,Bright
+6291NAA02,6291,A,FT,LAD,Buffed,144,Normal,No,Bright
+6291SAA02,6291,A,FT,LAD,Buffed,144,Normal,No,Bright
+6291WAA02,6291,A,FT,LAD,Buffed,144,Normal,No,Bright
+6292QAA02/BL01,6292,A,FT,LAD,Buffed,144,Normal,No,Bright
+6292QAA02/BLU/J,6292,A,FT,LAD,Buffed,144,Normal,No,Bright
+6292QAA02/BRN,6292,A,FT,LAD,Buffed,144,Normal,No,Bright
+6292WAA02/CN,6292,A,FT,LAD,Buffed,144,Normal,No,Bright
+6296NAA02,6296,A,FT,LAD,Buffed,180,Normal,No,Bright
+6296QAA02/BLU/J,6296,A,FT,LAD,Buffed,180,Normal,No,Bright
+6296QAA02/BRN,6296,A,FT,LAD,Buffed,144,Normal,No,Bright
+6296SAA02,6296,A,FT,LAD,Buffed,180,Normal,No,Bright
+6296WAA02,6296,A,FT,LAD,Buffed,180,Normal,No,Bright
+6296QAB02/BRN,6296,B,FT,LAD,Buffed,144,Normal,No,Bright
+6296SAB02,6296,B,FT,LAD,Buffed,180,Normal,No,Bright
+6296WAB02,6296,B,FT,LAD,Buffed,180,Normal,No,Bright
+6297QAA02/BRN,6297,A,FT,LAD,Buffed,220,Normal,No,Bright
+6297WAA02/CHG,6297,A,FT,LAD,Buffed,220,Normal,No,Bright
+6300QAA02/BRN,6300,A,FT,LAD,Buffed,144,Normal,No,Bright
+6300WAA02,6300,A,FT,LAD,Buffed,144,Normal,No,Bright
+6303NAA02,6303,A,FT,LAD,Buffed,144,Normal,No,Bright
+6303WAA02,6303,A,FT,LAD,Buffed,144,Normal,No,Bright
+6305NAA02,6305,A,FT,LAD,Buffed,144,Normal,No,Bright
+6305WAA02,6305,A,FT,LAD,Buffed,144,Normal,No,Bright
+6306NAA02,6306,A,FT,LAD,Buffed,180,Normal,No,Bright
+6306QAA02/BRN,6306,A,FT,LAD,Buffed,180,Normal,No,Bright
+6306WAA02,6306,A,FT,LAD,Buffed,180,Normal,No,Bright
+665YAA02,665,A,TI,GEN,Buffed,220,Normal,No,Bright
+669YAA02,669,A,TI,GEN,Buffed,220,Normal,No,Bright
+68008SAB02,68008,B,FT,LAD,Buffed,220,Normal,No,Bright
+68010SAB02,68010,B,FT,LAD,Buffed,144,Normal,No,Bright
+7041YAA02,7041,A,SO,GEN,Buffed,220,Normal,No,Bright
+7053SAC02,7053,C,SO,GEN,Buffed,220,Normal,No,Bright
+7053YAC02,7053,C,SO,GEN,Buffed,220,Normal,No,Bright
+7053YAN02,7053,N,SO,GEN,Buffed,220,Normal,No,Bright
+7058YAC02,7058,C,SO,GEN,Buffed,220,Normal,No,Bright
+7058YAJ02,7058,J,SO,GEN,Buffed,220,Normal,No,Bright
+7058NAK02,7058,K,SO,GEN,Buffed,144,Normal,No,Bright
+7058YAK02,7058,K,SO,GEN,Buffed,220,Normal,No,Bright
+7070YAA02,7070,A,SO,GEN,Buffed,220,?,No,Bright
+7070SAB02,7070,B,SO,GEN,Buffed,220,?,No,Bright
+7070SAC02,7070,C,SO,GEN,Buffed,220,?,No,Bright
+7070YAC02,7070,C,SO,GEN,Buffed,220,?,No,Bright
+7078SAD02,7078,D,SO,GEN,Buffed,220,Normal,No,Bright
+7078YAD02,7078,D,SO,GEN,Buffed,144,Normal,No,Bright
+7078SAG02,7078,G,SO,GEN,Buffed,220,Normal,No,Bright
+7078SAH02,7078,H,SO,GEN,Buffed,144,Normal,No,Bright
+7078YAH02,7078,H,SO,GEN,Buffed,144,Normal,No,Bright
+7078YAQ02,7078,Q,SO,GEN,Buffed,144,Normal,No,Bright
+7078YSD02,7078,D,SO,GEN,Shotblasting,220,Normal,Yes,Dull
+7079YEA02,7079,A,SO,GEN,Buffed,144,?,No,Bright
+7080SEA02,7080,A,SO,GEN,Bi-Finish,180,Normal,Yes,Semi bright
+7080YEA02,7080,A,SO,GEN,Bi-Finish,180,Normal,Yes,Semi bright
+7083YAA02,7083,A,SO,GEN,Buffed,144,Normal,No,Bright
+7084YAA02,7084,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7087YEA02,7087,A,SO,GEN,Bi-Finish,144,?,Yes,Semi bright
+7088YAA02,7088,A,SO,GEN,Buffed,144,?,No,Bright
+7089SAA02,7089,A,SO,GEN,Buffed,144,?,No,Bright
+7090YEA02,7090,A,SO,GEN,Bi-Finish,144,?,Yes,Semi bright
+7092SAA02,7092,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7094SAA02,7094,A,SO,LAD,Buffed,144,?,No,Bright
+7094YAA02,7094,A,SO,LAD,Buffed,144,?,No,Bright
+7094SAB02,7094,B,SO,LAD,Buffed,144,?,No,Bright
+7094YAB02,7094,B,SO,LAD,Buffed,144,?,No,Bright
+7095SAA02,7095,A,SO,GEN,Buffed,144,?,No,Bright
+7095YAA02,7095,A,SO,GEN,Buffed,144,?,No,Bright
+7095SAB02,7095,B,SO,GEN,Buffed,144,?,No,Bright
+7095YAB02,7095,B,SO,GEN,Buffed,144,?,No,Bright
+7099SAA02,7099,A,SO,GEN,Buffed,144,?,No,Bright
+7099YAA02,7099,A,SO,GEN,Buffed,144,?,No,Bright
+7100SEA02,7100,A,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7100SEC02,7100,C,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7100YEC02,7100,C,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7100SFA02,7100,A,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7100YFA02,7100,A,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7103QAA02/TIN,7103,A,SO,GEN,Buffed,144,?,No,Bright
+7104SEA02,7104,A,SO,GEN,Bi-Finish,144,?,Yes,Semi bright
+7106NEA02,7106,A,SO,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+7106SEA02,7106,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7106YEA02,7106,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7106YEB02,7106,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7107NAB02,7107,B,SO,GEN,Buffed,70,Jumbo,No,Bright
+7107SAB02,7107,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+7107YAB02,7107,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+7108YEA02,7108,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7108NEB02,7108,B,SO,GEN,Bi-Finish,70,Jumbo,Yes,Semi bright
+7108SEB02,7108,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7108TEB02,7108,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7108YEB02,7108,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7110YAA02,7110,A,SO,GEN,Buffed,144,Normal,No,Bright
+7111YEA02,7111,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7112YAA02,7112,A,SO,GEN,Buffed,144,Normal,No,Bright
+7112YSA02,7112,A,SO,GEN,Shotblasting,144,Normal,Yes,Dull
+7113YAA02,7113,A,SO,GEN,Buffed,144,Normal,No,Bright
+7113YAB02,7113,B,SO,GEN,Buffed,144,Normal,No,Bright
+7113YSA02,7113,A,SO,GEN,Shotblasting,144,Normal,Yes,Dull
+7113YSB02,7113,B,SO,GEN,Shotblasting,144,Normal,Yes,Dull
+7115YAA02,7115,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7115YAB02,7115,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+7116YEA02,7116,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7116YEB02,7116,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7121SCA02,7121,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7121YCA02,7121,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7121SCB02,7121,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7121YCB02,7121,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7122SFA02,7122,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7122SFB02,7122,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7122YFB02,7122,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128WAA02,7128,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7128NEA02,7128,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128SEA02,7128,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128WEA02,7128,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128YEA02,7128,A,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128NEB02,7128,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128SEB02,7128,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7128WEB02,7128,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+7129YAA02,7129,A,SO,GEN,Buffed,180,Jumbo,No,Bright
+7129YAB02,7129,B,SO,GEN,Buffed,180,Jumbo,No,Bright
+7129YAC02,7129,C,SO,GEN,Buffed,144,Jumbo,No,Bright
+7131NAA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131SAA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131WAA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131SAB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131WAB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131NCA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131SCA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131WCA02,7131,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131WCB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131YCB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131SEA02,7131,A,SO,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+7131WHB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131YHB02,7131,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7131NSA02,7131,A,SO,GEN,Shotblasting,98,Jumbo,Yes,Dull
+7133QAA02/BRN/01,7133,A,SO,GEN,Buffed,144,Normal,No,Bright
+7133SAA02,7133,A,SO,GEN,Buffed,144,Normal,No,Bright
+7133SAA02/01,7133,A,SO,GEN,Buffed,144,Normal,No,Bright
+7133WAA02,7133,A,SO,GEN,Buffed,144,Normal,No,Bright
+7133YAA02,7133,A,SO,GEN,Buffed,144,Normal,No,Bright
+7133NAB02,7133,B,SO,GEN,Buffed,144,Normal,No,Bright
+7133SAB02,7133,B,SO,GEN,Buffed,144,Normal,No,Bright
+7133YAB02,7133,B,SO,GEN,Buffed,144,Normal,No,Bright
+7133NAC02,7133,C,SO,GEN,Buffed,144,Normal,No,Bright
+7133SAC02,7133,C,SO,GEN,Buffed,144,Normal,No,Bright
+7133WAC02,7133,C,SO,GEN,Buffed,144,Normal,No,Bright
+7133NAD02,7133,D,SO,GEN,Buffed,144,Normal,No,Bright
+7133SAD02,7133,D,SO,GEN,Buffed,144,Normal,No,Bright
+7133WAD02,7133,D,SO,GEN,Buffed,144,Normal,No,Bright
+7133NBA02/01,7133,A,SO,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+7134WAA02,7134,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7134YAA02,7134,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7134YAA02/2N,7134,A,SO,GEN,Buffed,144,Jumbo,No,Bright
+7134YAB02,7134,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+7134WAC02,7134,C,SO,GEN,Buffed,144,Jumbo,No,Bright
+7134YAC02/2N,7134,C,SO,GEN,Buffed,144,Jumbo,No,Bright
+7137ASA02/01,7137,A,SO,GEN,AL,0,Jumbo,NA,NA
+7137ASB02/01,7137,B,SO,GEN,AL,0,Jumbo,NA,NA
+7137ASB02/02,7137,B,SO,GEN,AL,0,Jumbo,NA,NA
+7137ASB02/03,7137,B,SO,GEN,AL,0,Jumbo,NA,NA
+7138SAA02,7138,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7138SAB02,7138,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139SAA02,7139,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139WAA02,7139,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139SAB02,7139,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139NDA02,7139,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139SDA02,7139,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7139SDB02,7139,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140NAA02,7140,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140SAA02,7140,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140WAA02,7140,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140NAB02,7140,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140SAB02,7140,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140WAB02,7140,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140QAC02/GUN,7140,C,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140SAC02,7140,C,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140WAC02,7140,C,SO,GEN,Buffed,98,Jumbo,No,Bright
+7140NBC02,7140,C,SO,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+7140QBC02/BLU/M,7140,C,SO,GEN,Bi-Finish,98,Normal,Yes,Semi bright
+7143NAA02,7143,A,SO,GEN,Buffed,98,Normal,No,Bright
+7143WAA02,7143,A,SO,GEN,Buffed,98,Normal,No,Bright
+7143YAA02/2N,7143,A,SO,GEN,Buffed,98,Normal,No,Bright
+7143WAB02,7143,B,SO,GEN,Buffed,98,Normal,No,Bright
+7143YAB02/2N,7143,B,SO,GEN,Buffed,98,Normal,No,Bright
+7144NAA02,7144,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7144SAA02,7144,A,SO,GEN,Buffed,98,Jumbo,No,Bright
+7147NAA02,7147,A,SO,GEN,Buffed,144,Normal,No,Bright
+7147SAA02,7147,A,SO,GEN,Buffed,144,Normal,No,Bright
+7147NAB02,7147,B,SO,GEN,Buffed,144,Normal,No,Bright
+7147SAB02,7147,B,SO,GEN,Buffed,144,Normal,No,Bright
+7148NAA02,7148,A,SO,GEN,Buffed,180,Normal,No,Bright
+7148SAA02,7148,A,SO,GEN,Buffed,180,Normal,No,Bright
+7148NAB02,7148,B,SO,GEN,Buffed,180,Normal,No,Bright
+7148SAB02,7148,B,SO,GEN,Buffed,180,Normal,No,Bright
+77001SAB02,77001,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+77002SAB02,77002,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+77002YAB02,77002,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+77002YAC02,77002,C,SO,GEN,Buffed,144,Jumbo,No,Bright
+77003NAB02,77003,B,SO,GEN,Buffed,98,Jumbo,No,Bright
+77003SAB02,77003,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+77003YAB02,77003,B,SO,GEN,Buffed,144,Jumbo,No,Bright
+77003YAC02,77003,C,SO,GEN,Buffed,98,Jumbo,No,Bright
+77031SAD02,77031,D,SO,GEN,Buffed,144,Jumbo,No,Bright
+77031WAD02,77031,D,SO,GEN,Buffed,144,Jumbo,No,Bright
+77031YAD02,77031,D,SO,GEN,Buffed,144,Jumbo,No,Bright
+77031NAE02,77031,E,SO,GEN,Buffed,144,Jumbo,No,Bright
+77031WAE02,77031,E,SO,GEN,Buffed,144,Jumbo,No,Bright
+77031YAE02,77031,E,SO,GEN,Buffed,144,Jumbo,No,Bright
+77049SAB02,77049,B,SO,GEN,Buffed,144,Normal,No,Bright
+77049YAB02,77049,B,SO,GEN,Buffed,144,Normal,No,Bright
+77063NAC02,77063,C,SO,GEN,Buffed,70,Jumbo,No,Bright
+77063SAC02,77063,C,SO,GEN,Buffed,70,Jumbo,No,Bright
+77063NAD02,77063,D,SO,GEN,Buffed,70,Jumbo,No,Bright
+77063SAD02,77063,D,SO,GEN,Buffed,70,Jumbo,No,Bright
+77083YAC02,77083,C,SO,GEN,Buffed,144,Normal,No,Bright
+77083SAD02,77083,D,SO,GEN,Buffed,144,Normal,No,Bright
+77083YAD02,77083,D,SO,GEN,Buffed,144,Normal,No,Bright
+7904YAB02,7904,B,SO,GEN,Buffed,220,?,No,Bright
+7925SAC02,7925,C,SO,GEN,Buffed,144,Normal,No,Bright
+7925SAD02,7925,D,SO,GEN,Buffed,144,Normal,No,Bright
+7946SAC02,7946,C,SO,GEN,Buffed,144,Jumbo,No,Bright
+7946SAE02,7946,E,SO,GEN,Buffed,144,Jumbo,No,Bright
+7954SAD02,7954,D,SO,GEN,Buffed,144,Normal,No,Bright
+7954YAD02,7954,D,SO,GEN,Buffed,144,Normal,No,Bright
+7954SAE02,7954,E,SO,GEN,Buffed,144,Normal,No,Bright
+7954YAE02,7954,E,SO,GEN,Buffed,144,Normal,No,Bright
+7987SAC02,7987,C,SO,GEN,Buffed,144,Normal,No,Bright
+7987YAC02,7987,C,SO,GEN,Buffed,144,Normal,No,Bright
+7987NAD02,7987,D,SO,GEN,Buffed,144,Normal,No,Bright
+7987YAD02,7987,D,SO,GEN,Buffed,144,Normal,No,Bright
+7998SAB02,7998,B,SO,GEN,Buffed,180,Normal,No,Bright
+7998YAB02,7998,B,SO,GEN,Buffed,144,Normal,No,Bright
+7998SAC02,7998,C,SO,GEN,Buffed,144,Normal,No,Bright
+7998YAC02,7998,C,SO,GEN,Buffed,144,Normal,No,Bright
+7999SDB02,7999,B,SO,GEN,Bi-Finish,144,Jumbo,Yes,Semi bright
+8023SAA02,8023,A,SO,LAD,Buffed,312,?,No,Bright
+8031YAA02,8031,A,SO,LAD,Buffed,312,Normal,No,Bright
+8057YAA02,8057,A,SO,LAD,Buffed,312,?,No,Bright
+8059SAA02,8059,A,SO,LAD,Buffed,312,?,No,Bright
+8060QAC02/TIN,8060,C,SO,LAD,Buffed,312,Normal,No,Bright
+8060SAC02,8060,C,SO,LAD,Buffed,312,Normal,No,Bright
+8060YAC02,8060,C,SO,LAD,Buffed,312,Normal,No,Bright
+8063NAA02,8063,A,SO,LAD,Buffed,312,Normal,No,Bright
+8063SAA02,8063,A,SO,LAD,Buffed,312,Normal,No,Bright
+8063YAA02,8063,A,SO,LAD,Buffed,312,Normal,No,Bright
+8064YAA02,8064,A,SO,LAD,Buffed,312,Normal,No,Bright
+8065YAA02,8065,A,SO,LAD,Buffed,312,Normal,No,Bright
+8067YAA02,8067,A,SO,LAD,Buffed,312,Normal,No,Bright
+8068YAA02,8068,A,SO,LAD,Buffed,312,Normal,No,Bright
+8069SAA02,8069,A,SO,LAD,Buffed,220,Normal,No,Bright
+8069YAA02,8069,A,SO,LAD,Buffed,312,Normal,No,Bright
+8070YAA02,8070,A,SO,LAD,Buffed,220,?,No,Bright
+8071SEA02,8071,A,SO,LAD,Bi-Finish,312,?,Yes,Semi bright
+8071YEA02,8071,A,SO,LAD,Bi-Finish,312,?,Yes,Semi bright
+8073YEA02,8073,A,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8074YAA02,8074,A,SO,LAD,Buffed,220,Normal,No,Bright
+8076YEA02,8076,A,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8077SAA02,8077,A,SO,LAD,Buffed,144,?,No,Bright
+8077YAA02,8077,A,SO,LAD,Buffed,144,?,No,Bright
+8080SAA02,8080,A,SO,LAD,Buffed,312,Normal,No,Bright
+8080WAA02,8080,A,SO,LAD,Buffed,312,Normal,No,Bright
+8080YAA02,8080,A,SO,LAD,Buffed,312,Normal,No,Bright
+8091YAA02,8091,A,SO,LAD,Buffed,220,Normal,No,Bright
+8091WAB02,8091,B,SO,LAD,Buffed,180,Normal,No,Bright
+8091YAB02,8091,B,SO,LAD,Buffed,220,Normal,No,Bright
+8102SAA02,8102,A,SO,LAD,Buffed,312,Normal,No,Bright
+8107YAA02,8107,A,SO,LAD,Buffed,312,Normal,No,Bright
+8109SAA02,8109,A,SO,LAD,Buffed,220,Normal,No,Bright
+8109YAA02,8109,A,SO,LAD,Buffed,312,Normal,No,Bright
+8110SAA02,8110,A,SO,LAD,Buffed,312,Normal,No,Bright
+8110YAA02,8110,A,SO,LAD,Buffed,312,Normal,No,Bright
+8111YAA02,8111,A,SO,LAD,Buffed,312,Normal,No,Bright
+8112SAA02,8112,A,SO,LAD,Buffed,312,?,No,Bright
+8116SAA02,8116,A,SO,LAD,Buffed,312,Normal,No,Bright
+8116YAA02,8116,A,SO,LAD,Buffed,312,Normal,No,Bright
+8118SAA02,8118,A,SO,LAD,Buffed,312,Normal,No,Bright
+8118YAA02,8118,A,SO,LAD,Buffed,312,Normal,No,Bright
+8119SAA02,8119,A,SO,LAD,Buffed,220,Normal,No,Bright
+8119YAA02,8119,A,SO,LAD,Buffed,220,Normal,No,Bright
+8120SAA02,8120,A,SO,LAD,Buffed,220,Normal,No,Bright
+8120YAA02,8120,A,SO,LAD,Buffed,220,Normal,No,Bright
+8121NAA02,8121,A,SO,LAD,Buffed,180,?,No,Bright
+8121YAA02,8121,A,SO,LAD,Buffed,220,?,No,Bright
+8123NEA02,8123,A,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8123QEA02/BRN,8123,A,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8123SEA02,8123,A,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8123WEA02,8123,A,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8123YEA02,8123,A,SO,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+8123SEB02,8123,B,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8124NAA02,8124,A,SO,LAD,Buffed,220,Normal,No,Bright
+8124SAA02,8124,A,SO,LAD,Buffed,312,Normal,No,Bright
+8124YAA02,8124,A,SO,LAD,Buffed,312,Normal,No,Bright
+8125NEA02,8125,A,SO,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+8125QEA02/BR,8125,A,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8125SEA02,8125,A,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8127YAA02,8127,A,SO,LAD,Buffed,220,Normal,No,Bright
+8128SAA02,8128,A,SO,LAD,Buffed,312,Normal,No,Bright
+8128YAA02,8128,A,SO,LAD,Buffed,312,Normal,No,Bright
+8129YAA02,8129,A,SO,LAD,Buffed,312,Normal,No,Bright
+8132NAA02,8132,A,SO,LAD,Buffed,180,Normal,No,Bright
+8132SAA02,8132,A,SO,LAD,Buffed,220,Normal,No,Bright
+8132YAA02,8132,A,SO,LAD,Buffed,220,Normal,No,Bright
+8133NAA02,8133,A,SO,LAD,Buffed,220,Normal,No,Bright
+8133SAA02,8133,A,SO,LAD,Buffed,312,Normal,No,Bright
+8133YAA02,8133,A,SO,LAD,Buffed,312,Normal,No,Bright
+8136SAA02,8136,A,SO,LAD,Buffed,220,Normal,No,Bright
+8136YAA02,8136,A,SO,LAD,Buffed,220,Normal,No,Bright
+8136NAB02,8136,B,SO,LAD,Buffed,220,Normal,No,Bright
+8136SAB02,8136,B,SO,LAD,Buffed,220,Normal,No,Bright
+8139SAA02,8139,A,SO,LAD,Buffed,312,Normal,No,Bright
+8139YAA02,8139,A,SO,LAD,Buffed,312,Normal,No,Bright
+8141NAA02,8141,A,SO,LAD,Buffed,180,Normal,No,Bright
+8141SAA02,8141,A,SO,LAD,Buffed,144,Normal,No,Bright
+8141YAA02,8141,A,SO,LAD,Buffed,144,Normal,No,Bright
+8141NAB02,8141,B,SO,LAD,Buffed,180,Normal,No,Bright
+8141QAB02/GUN,8141,B,SO,LAD,Buffed,180,Normal,No,Bright
+8141SAB02,8141,B,SO,LAD,Buffed,180,Normal,No,Bright
+8141WAB02,8141,B,SO,LAD,Buffed,180,Normal,No,Bright
+8141YAB02,8141,B,SO,LAD,Buffed,180,Normal,No,Bright
+8141NAC02,8141,C,SO,LAD,Buffed,180,Normal,No,Bright
+8141SAC02,8141,C,SO,LAD,Buffed,180,Normal,No,Bright
+8141WAC02,8141,C,SO,LAD,Buffed,180,Normal,No,Bright
+8141YAC02,8141,C,SO,LAD,Buffed,180,Normal,No,Bright
+8142SAA02,8142,A,SO,LAD,Buffed,220,Normal,No,Bright
+8142YAA02,8142,A,SO,LAD,Buffed,220,Normal,No,Bright
+8143SAA02,8143,A,SO,LAD,Buffed,220,Normal,No,Bright
+8143YAA02,8143,A,SO,LAD,Buffed,220,Normal,No,Bright
+8148SAA02,8148,A,SO,LAD,Buffed,312,Normal,No,Bright
+8148YAA02,8148,A,SO,LAD,Buffed,312,Normal,No,Bright
+8149YAA02,8149,A,SO,LAD,Buffed,312,Normal,No,Bright
+8152SAA02,8152,A,SO,LAD,Buffed,220,Normal,No,Bright
+8152WAA02,8152,A,SO,LAD,Buffed,220,Normal,No,Bright
+8152YAA02,8152,A,SO,LAD,Buffed,220,Normal,No,Bright
+8154SAA02,8154,A,SO,LAD,Buffed,144,Normal,No,Bright
+8154SAB02,8154,B,SO,LAD,Buffed,144,Normal,No,Bright
+8159SAA02,8159,A,SO,LAD,Buffed,144,Normal,No,Bright
+8159SAB02,8159,B,SO,LAD,Buffed,144,Normal,No,Bright
+8159WAB02,8159,B,SO,LAD,Buffed,144,Normal,No,Bright
+8160SAA02,8160,A,SO,LAD,Buffed,220,Normal,No,Bright
+8160WAA02,8160,A,SO,LAD,Buffed,220,Normal,No,Bright
+8160YAA02,8160,A,SO,LAD,Buffed,220,Normal,No,Bright
+8164NAA02,8164,A,SO,LAD,Buffed,144,Normal,No,Bright
+8164SAA02,8164,A,SO,LAD,Buffed,144,Normal,No,Bright
+8164WAA02,8164,A,SO,LAD,Buffed,144,Normal,No,Bright
+8164NAB02,8164,B,SO,LAD,Buffed,144,Normal,No,Bright
+8164SAB02,8164,B,SO,LAD,Buffed,144,Normal,No,Bright
+8164WAB02,8164,B,SO,LAD,Buffed,144,Normal,No,Bright
+8164SAC02,8164,C,SO,LAD,Buffed,144,Normal,No,Bright
+8164WAC02,8164,C,SO,LAD,Buffed,144,Normal,No,Bright
+8164NAD02,8164,D,SO,LAD,Buffed,144,Normal,No,Bright
+8164SAD02,8164,D,SO,LAD,Buffed,144,Normal,No,Bright
+8164WAD02,8164,D,SO,LAD,Buffed,144,Normal,No,Bright
+8165SEA02,8165,A,SO,LAD,Buffed,144,Normal,No,Bright
+8165WEA02,8165,A,SO,LAD,Buffed,144,Normal,No,Bright
+8166NAA02,8166,A,SO,LAD,Buffed,180,Normal,No,Bright
+8166QAA02/BRN,8166,A,SO,LAD,Buffed,180,Normal,No,Bright
+8166WAA02,8166,A,SO,LAD,Buffed,180,Normal,No,Bright
+8166YAA02/2N,8166,A,SO,LAD,Buffed,180,Normal,No,Bright
+8166YAB02/2N,8166,B,SO,LAD,Buffed,180,Normal,No,Bright
+8168NAA02,8168,A,SO,LAD,Buffed,220,Normal,No,Bright
+8168QAA02/BRN,8168,A,SO,LAD,Buffed,220,Normal,No,Bright
+8168WAA02,8168,A,SO,LAD,Buffed,220,Normal,No,Bright
+8168YAA02/2N,8168,A,SO,LAD,Buffed,220,Normal,No,Bright
+8169WAA02,8169,A,SO,LAD,Buffed,220,Normal,No,Bright
+8169YAA02/2N,8169,A,SO,LAD,Buffed,220,Normal,No,Bright
+8184SAA02,8184,A,SO,LAD,Buffed,180,Normal,No,Bright
+8184WAA02,8184,A,SO,LAD,Buffed,180,Normal,No,Bright
+8184YAA02,8184,A,SO,LAD,Buffed,180,Normal,No,Bright
+8185NAA02,8185,A,SO,LAD,Buffed,220,Normal,No,Bright
+8185QAA02/BRN,8185,A,SO,LAD,Buffed,220,Normal,No,Bright
+8185SAA02,8185,A,SO,LAD,Buffed,220,Normal,No,Bright
+8185WAA02,8185,A,SO,LAD,Buffed,220,Normal,No,Bright
+8185YAA02,8185,A,SO,LAD,Buffed,220,Normal,No,Bright
+8186NAA02,8186,A,SO,LAD,Buffed,220,Normal,No,Bright
+8186WAA02,8186,A,SO,LAD,Buffed,220,Normal,No,Bright
+8186YAA02,8186,A,SO,LAD,Buffed,220,Normal,No,Bright
+8190NAA02,8190,A,SO,LAD,Buffed,144,Normal,No,Bright
+8190QAA02/BLU/M,8190,A,SO,LAD,Buffed,144,Normal,No,Bright
+8190QAA02/GUN,8190,A,SO,LAD,Buffed,144,Normal,No,Bright
+8190SAA02,8190,A,SO,LAD,Buffed,144,Normal,No,Bright
+8190WAA02,8190,A,SO,LAD,Buffed,144,Normal,No,Bright
+8190NAC02,8190,C,SO,LAD,Buffed,144,Normal,No,Bright
+8190QAC02/BRN,8190,C,SO,LAD,Buffed,144,Normal,No,Bright
+8190QAC02/GUN,8190,C,SO,LAD,Buffed,144,Normal,No,Bright
+8190SAC02,8190,C,SO,LAD,Buffed,144,Normal,No,Bright
+8190WAC02,8190,C,SO,LAD,Buffed,144,Normal,No,Bright
+87001NAB02,87001,B,SO,LAD,Buffed,144,Normal,No,Bright
+87001QAB02/BR,87001,B,SO,LAD,Buffed,144,Normal,No,Bright
+87001SAB02,87001,B,SO,LAD,Buffed,312,Normal,No,Bright
+87001SAC02,87001,C,SO,LAD,Buffed,144,Normal,No,Bright
+87001WAC02,87001,C,SO,LAD,Buffed,144,Normal,No,Bright
+87001YAC02,87001,C,SO,LAD,Buffed,144,Normal,No,Bright
+87001NAD02,87001,D,SO,LAD,Buffed,144,Normal,No,Bright
+87001QAD02/BR,87001,D,SO,LAD,Buffed,144,Normal,No,Bright
+87001WAE02,87001,E,SO,LAD,Buffed,144,Normal,No,Bright
+87001YAE02,87001,E,SO,LAD,Buffed,144,Normal,No,Bright
+87002SAB02,87002,B,SO,LAD,Buffed,312,Normal,No,Bright
+87003SCB02,87003,B,SO,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+87005SAB02,87005,B,SO,LAD,Buffed,312,Normal,No,Bright
+87005YAB02,87005,B,SO,LAD,Buffed,312,Normal,No,Bright
+87006SAB02,87006,B,SO,LAD,Buffed,312,Normal,No,Bright
+8919YAB02,8919,B,SO,LAD,Buffed,220,Normal,No,Bright
+8926SAB02,8926,B,SO,LAD,Buffed,220,Normal,No,Bright
+8943SAB02,8943,B,SO,LAD,Buffed,312,Normal,No,Bright
+8944NAB02,8944,B,SO,LAD,Buffed,312,Normal,No,Bright
+8944SAB02,8944,B,SO,LAD,Buffed,312,Normal,No,Bright
+8959NAC02,8959,C,SO,LAD,Buffed,220,Normal,No,Bright
+8959SAC02,8959,C,SO,LAD,Buffed,220,Normal,No,Bright
+8959SBC02,8959,C,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8959YBC02,8959,C,SO,LAD,Bi-Finish,220,Normal,Yes,Semi bright
+8960SAB02,8960,B,SO,LAD,Buffed,312,Normal,No,Bright
+8960YAB02,8960,B,SO,LAD,Buffed,220,Normal,No,Bright
+8965SAB02,8965,B,SO,LAD,Buffed,220,Normal,No,Bright
+8965SBB02,8965,B,SO,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+8979BAB02,8979,B,SO,LAD,Buffed,312,Jumbo,No,Bright
+8979NAB02,8979,B,SO,LAD,Buffed,220,Jumbo,No,Bright
+8982SAB02,8982,B,SO,LAD,Buffed,312,Jumbo,No,Bright
+8983SAB02,8983,B,SO,LAD,Buffed,312,Normal,No,Bright
+90023BAC02,90023,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+90023SAC02,90023,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+90023YAC02,90023,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+90024SAC02,90024,C,TI,GEN,Buffed,144,Normal,No,Bright
+90024YAC02,90024,C,TI,GEN,Buffed,144,Normal,No,Bright
+90024YAD02,90024,D,TI,GEN,Buffed,144,Normal,No,Bright
+90024BAE02,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024BAE02/2N,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024KAE02,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024SAE02,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024YAE02,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024YAE02/2N,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024SAF02,90024,F,TI,GEN,Buffed,144,Normal,No,Bright
+90024YAF02/2N,90024,F,TI,GEN,Buffed,144,Normal,No,Bright
+9151BAB02,9151,B,TI,GEN,Buffed,220,Normal,No,Bright
+9151SAB02,9151,B,TI,GEN,Buffed,180,Normal,No,Bright
+9151YAB02,9151,B,TI,GEN,Buffed,220,Normal,No,Bright
+9151BAC02,9151,C,TI,GEN,Buffed,180,Normal,No,Bright
+9151YAC02,9151,C,TI,GEN,Buffed,180,Normal,No,Bright
+9151BAD02,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9151KAD02/SSRG,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9151NAD02,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9151SAD02,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9151YAD02,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9152YAB02,9152,B,TI,GEN,Buffed,220,Normal,No,Bright
+9152YAC02,9152,C,TI,GEN,Buffed,220,Normal,No,Bright
+9153YFB02,9153,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+9153YFC02,9153,C,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+9154YAB02,9154,B,TI,GEN,Buffed,220,Normal,No,Bright
+9154BAC02,9154,C,TI,GEN,Buffed,220,Normal,No,Bright
+9154YAC02,9154,C,TI,GEN,Buffed,220,Normal,No,Bright
+9154BAD02,9154,D,TI,GEN,Buffed,220,Normal,No,Bright
+9154YAD02,9154,D,TI,GEN,Buffed,220,Normal,No,Bright
+9159WAB02,9159,B,TI,GEN,Buffed,144,Normal,No,Bright
+9159NAD02,9159,D,TI,GEN,Buffed,180,Normal,No,Bright
+9159SAD02,9159,D,TI,GEN,Buffed,180,Normal,No,Bright
+9159WAD02,9159,D,TI,GEN,Buffed,180,Normal,No,Bright
+9162SAD02,9162,D,TI,GEN,Buffed,144,Normal,No,Bright
+9162YAD02,9162,D,TI,GEN,Buffed,144,Normal,No,Bright
+9171NAB02,9171,B,TI,GEN,Buffed,70,Jumbo,No,Bright
+917SAH02,917,H,TI,LAD,Buffed,312,Normal,No,Bright
+917YAH02,917,H,TI,LAD,Buffed,312,Normal,No,Bright
+917SAJ02,917,J,TI,LAD,Buffed,312,Normal,No,Bright
+917YAJ02,917,J,TI,LAD,Buffed,312,Normal,No,Bright
+9260YFB02,9260,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+9264BEC02,9264,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9264SEC02,9264,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9264YEC02,9264,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9264SED02,9264,D,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9264YED02,9264,D,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9280BAC02,9280,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9280SAC02,9280,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9280YAC02,9280,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9280SAD02,9280,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9314YAB02,9314,B,TI,GEN,Buffed,144,?,No,Bright
+9315BAB02,9315,B,TI,GEN,Buffed,180,Normal,No,Bright
+9315YAB02,9315,B,TI,GEN,Buffed,180,Normal,No,Bright
+9315BAD02,9315,D,TI,GEN,Buffed,180,Normal,No,Bright
+9315YAD02,9315,D,TI,GEN,Buffed,180,Normal,No,Bright
+9317BAB02,9317,B,TI,GEN,Buffed,220,Normal,No,Bright
+9317YAB02,9317,B,TI,GEN,Buffed,220,Normal,No,Bright
+9322SAC02,9322,C,TI,GEN,Buffed,98,Jumbo,No,Bright
+9322SAD02,9322,D,TI,GEN,Buffed,70,Jumbo,No,Bright
+9322WAD02,9322,D,TI,GEN,Buffed,70,Jumbo,No,Bright
+9322SAJ02,9322,J,TI,GEN,Buffed,70,Jumbo,No,Bright
+9322SAK02,9322,K,TI,GEN,Buffed,70,Jumbo,No,Bright
+9322SAN02,9322,N,TI,GEN,Buffed,70,Jumbo,No,Bright
+9322WAN02,9322,N,TI,GEN,Buffed,70,Jumbo,No,Bright
+9323SAC02,9323,C,TI,GEN,Buffed,70,Jumbo,No,Bright
+9323SAJ02,9323,J,TI,GEN,Buffed,70,Jumbo,No,Bright
+9323SAK02,9323,K,TI,GEN,Buffed,98,Jumbo,No,Bright
+9323SAL02,9323,L,TI,GEN,Buffed,70,Jumbo,No,Bright
+9327BAB02,9327,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAB02,9327,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327SAB02,9327,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAC02,9327,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327YAC02,9327,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327BAD02/2N,9327,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAD02,9327,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327SAD02,9327,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9336SFB02,9336,B,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9336SFC02,9336,C,FT,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9462ASB02/03,9462,B,FT,GEN,AL,0,Jumbo,NA,NA
+9463ASB02/01,9463,B,FT,GEN,AL,0,Jumbo,NA,NA
+95003SAB02,95003,B,TI,LAD,Buffed,220,Normal,No,Bright
+95003WAB02,95003,B,TI,LAD,Buffed,220,Normal,No,Bright
+95003YAB02/2N,95003,B,TI,LAD,Buffed,220,Normal,No,Bright
+95032WAB02,95032,B,TI,LAD,Buffed,220,Normal,No,Bright
+95036WAB02,95036,B,TI,LAD,Buffed,220,Normal,No,Bright
+95043SAB02,95043,B,TI,LAD,Buffed,220,Normal,No,Bright
+95043WAB02,95043,B,TI,LAD,Buffed,220,Normal,No,Bright
+95043YAB02/2N,95043,B,TI,LAD,Buffed,220,Normal,No,Bright
+95047WAB02,95047,B,TI,LAD,Buffed,312,Normal,No,Bright
+95048SAB02,95048,B,TI,LAD,Buffed,220,Normal,No,Bright
+95048WAB02,95048,B,TI,LAD,Buffed,220,Normal,No,Bright
+95048YAB02/2N,95048,B,TI,LAD,Buffed,220,Normal,No,Bright
+95095WAB02,95095,B,TI,LAD,Buffed,312,Normal,No,Bright
+95095WAB02/CN,95095,B,TI,LAD,Buffed,312,Normal,No,Bright
+95095YAB02/HN,95095,B,TI,LAD,Buffed,312,Normal,No,Bright
+95096WBB02,95096,B,TI,LAD,Buffed,220,Normal,No,Bright
+95106WAB02,95106,B,TI,LAD,Buffed,312,Normal,No,Bright
+95106WAB02/CHG,95106,B,TI,LAD,Buffed,312,Normal,No,Bright
+95119WAB02,95119,B,TI,LAD,Buffed,220,Normal,No,Bright
+95121WAB02,95121,B,TI,LAD,Buffed,220,Normal,No,Bright
+95122QEC02/OGR,95122,C,TI,LAD,Bi-Finish,0,Normal,Yes,Semi bright
+95122WEC02,95122,C,TI,LAD,Bi-Finish,180,Normal,Yes,Semi bright
+954YAD02,954,D,TI,LAD,Buffed,312,Normal,No,Bright
+9639YAB02,9639,B,TI,LAD,Buffed,312,Normal,No,Bright
+9639SAC02,9639,C,TI,LAD,Buffed,312,Normal,No,Bright
+9639YAC02,9639,C,TI,LAD,Buffed,312,Normal,No,Bright
+9643YAB02,9643,B,TI,LAD,Buffed,312,?,No,Bright
+9644SAB02,9644,B,TI,LAD,Buffed,312,Normal,No,Bright
+9644YAB02,9644,B,TI,LAD,Buffed,312,Normal,No,Bright
+9665YAB02,9665,B,TI,LAD,Buffed,312,Normal,No,Bright
+9701SAB02,9701,B,TI,LAD,Buffed,220,Jumbo,No,Bright
+9701WAB02,9701,B,TI,LAD,Buffed,220,Jumbo,No,Bright
+9701YAB02/2N,9701,B,TI,LAD,Buffed,220,Jumbo,No,Bright
+9703YAB02/2N,9703,B,TI,LAD,Buffed,312,?,No,Bright
+9710SEB02,9710,B,TI,LAD,Buffed,144,Jumbo,No,Bright
+9710YEB02,9710,B,TI,LAD,Buffed,144,Jumbo,No,Bright
+9716SAB02,9716,B,TI,LAD,Buffed,312,Normal,No,Bright
+9716WAB02,9716,B,TI,LAD,Buffed,312,Normal,No,Bright
+9716YAB02/2N,9716,B,TI,LAD,Buffed,312,Normal,No,Bright
+9717SAB02,9717,B,TI,LAD,Buffed,312,Normal,No,Bright
+9717YAB02,9717,B,TI,LAD,Buffed,312,Normal,No,Bright
+9720SAC02,9720,C,TI,LAD,Buffed,312,Normal,No,Bright
+9720YAC02/2N,9720,C,TI,LAD,Buffed,312,Normal,No,Bright
+9721SAB02,9721,B,TI,LAD,Buffed,312,Normal,No,Bright
+9721WAB02,9721,B,TI,LAD,Buffed,312,Normal,No,Bright
+9734SAB02,9734,B,FT,LAD,Buffed,220,Normal,No,Bright
+9735NAB02,9735,B,FT,GEN,Buffed,220,Normal,No,Bright
+9735SAB02,9735,B,FT,GEN,Buffed,220,Normal,No,Bright
+9743KAD02,9743,D,TI,LAD,Buffed,180,Normal,No,Bright
+9743SAD02,9743,D,TI,LAD,Buffed,144,Normal,No,Bright
+9743WAD02,9743,D,TI,LAD,Buffed,180,Normal,No,Bright
+9743YAD02/2N,9743,D,TI,LAD,Buffed,144,Normal,No,Bright
+9743SAE02,9743,E,TI,LAD,Buffed,180,Normal,No,Bright
+9743YAE02/2N,9743,E,TI,LAD,Buffed,144,Normal,No,Bright
+9798SAF02,9798,F,TI,LAD,Buffed,180,Normal,No,Bright
+9798WAF02,9798,F,TI,LAD,Buffed,180,Normal,No,Bright
+9798YAF02/2N,9798,F,TI,LAD,Buffed,180,Normal,No,Bright
+9798SAG02,9798,G,TI,LAD,Buffed,144,Normal,No,Bright
+9798WAG02,9798,G,TI,LAD,Buffed,180,Normal,No,Bright
+9851SAB02,9851,B,TI,LAD,Buffed,312,Normal,No,Bright
+9851YAB02,9851,B,TI,LAD,Buffed,312,Normal,No,Bright
+9901WAB02,9901,B,TI,LAD,Buffed,312,?,No,Bright
+9903YAB02/2N,9903,B,TI,LAD,Buffed,312,?,No,Bright
+9931SAB02,9931,B,TI,LAD,Buffed,312,?,No,Bright
+9931WAB02,9931,B,TI,LAD,Buffed,312,?,No,Bright
+9932YAB02/2N,9932,B,TI,LAD,Buffed,312,?,No,Bright
+B1584SAA02,B1584,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+B1773SAA02,B1773,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+B1805SAA02,B1805,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+2673SAA02,2673,A,TI,LAD,Buffed,0,Normal,No,Bright
+2673WAA02,2673,A,TI,LAD,Buffed,0,Normal,No,Bright
+2674WAA02,2674,A,TI,LAD,Buffed,0,Normal,No,Bright
+1163BAB02-20,1163,B,TI,GEN,Buffed,220,Normal,No,Bright
+1311BAB02-20,1311,B,TI,GEN,Buffed,220,?,No,Bright
+1506BCC02-20,1506,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1530BEA02-20,1530,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1530BEC02-20,1530,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1557BAA02-20,1557,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1557BAB02-20,1557,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+1627BAA02-20,1627,A,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627BAD02/2N-20,1627,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1627KAD02/RGSS-20,1627,D,TI,GEN,Buffed,98,Jumbo,No,Bright
+1636BEA02-20,1636,A,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636BEE02-20,1636,E,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1636BEH02-20,1636,H,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1640BEC02-20,1640,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+1650BAD02-20,1650,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+1734BAA02/2N-20,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1734KAA02-20,1734,A,TI,GEN,Buffed,98,Normal,No,Bright
+1768BCA02/HN-20,1768,A,TI,GEN,Bi-Finish,220,Jumbo,Yes,Semi bright
+1775BEA02-20,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1775KEA02/SSRG-20,1775,A,TI,GEN,Buffed,144,Jumbo,No,Bright
+1803KEA02/RGSS-20,1803,A,TI,GEN,Bi-Finish,98,Jumbo,Yes,Semi bright
+1824BAA02-20,1824,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825BAA02-20,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825KAA02/RGSS-20,1825,A,TI,GEN,Buffed,144,Normal,No,Bright
+1825KAC02/SSRG-20,1825,C,TI,GEN,Buffed,144,Normal,No,Bright
+1927BAB02-20,1927,B,TI,GEN,Buffed,220,Normal,No,Bright
+1927RAB02-20,1927,B,TI,GEN,Buffed,220,Normal,No,Bright
+1940BEB02-20,1940,B,TI,GEN,Bi-Finish,220,Normal,Yes,Semi bright
+1955BAA02-20,1955,A,TI,GEN,Buffed,220,Normal,No,Bright
+1955BAB02-20,1955,B,TI,GEN,Buffed,144,Normal,No,Bright
+2131BAB02-20,2131,B,TI,LAD,Buffed,312,Normal,No,Bright
+2304BAB02-20,2304,B,TI,LAD,Buffed,312,Normal,No,Bright
+2345BAA02-20,2345,A,TI,LAD,Buffed,312,Normal,No,Bright
+2471BAA02-20,2471,A,TI,LAD,Buffed,312,Normal,No,Bright
+2481BAJ02-20,2481,J,TI,LAD,Buffed,220,Normal,No,Bright
+2481KAJ02/SSRG-20,2481,J,TI,LAD,Buffed,220,Normal,No,Bright
+2489BAC02-20,2489,C,TI,LAD,Buffed,312,Normal,No,Bright
+2544BAB02/2N-20,2544,B,TI,LAD,Buffed,312,Normal,No,Bright
+2554KAB02-20,2554,B,TI,LAD,Buffed,180,Normal,No,Bright
+2562BAA02/2N-20,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2562KAA02-20,2562,A,TI,LAD,Buffed,312,Normal,No,Bright
+2563BAA02/2N-20,2563,A,TI,LAD,Buffed,220,Normal,No,Bright
+2563KAA02-20,2563,A,TI,LAD,Buffed,312,Normal,No,Bright
+2584KAA02-20,2584,A,TI,LAD,Buffed,312,Normal,No,Bright
+2590BAA02-20,2590,A,TI,LAD,Buffed,180,Normal,No,Bright
+2590KAA02/RGSS-20,2590,A,TI,LAD,Buffed,180,Normal,No,Bright
+2592KCA02/SSRG-20,2592,A,TI,LAD,Bi-Finish,144,Normal,Yes,Semi bright
+2598BAA02-20,2598,A,TI,LAD,Buffed,312,Normal,No,Bright
+2598BAB02-20,2598,B,TI,LAD,Buffed,312,Normal,No,Bright
+2628BAA02-20,2628,A,TI,LAD,Buffed,220,Normal,No,Bright
+2628BAC02-20,2628,C,TI,LAD,Buffed,220,Normal,No,Bright
+2638BAA02/2N-20,2638,A,TI,LAD,Buffed,220,Normal,No,Bright
+2648KAB02/RGSS-20,2648,B,TI,LAD,Buffed,144,Normal,No,Bright
+2927BAB02-20,2927,B,TI,GEN,Buffed,312,Normal,No,Bright
+2940BEB02-20,2940,B,TI,LAD,Bi-Finish,312,Normal,Yes,Semi bright
+2955BAA02-20,2955,A,TI,LAD,Buffed,312,Normal,No,Bright
+6132KAA02-20,6132,A,FT,LAD,Buffed,220,Normal,No,Bright
+6134KAA02-20,6134,A,FT,LAD,Buffed,220,Normal,No,Bright
+8979BAB02-20,8979,B,SO,LAD,Buffed,312,Jumbo,No,Bright
+90023BAC02-20,90023,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+90024BAE02-20,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024BAE02/2N-20,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+90024KAE02-20,90024,E,TI,GEN,Buffed,144,Normal,No,Bright
+9151BAB02-20,9151,B,TI,GEN,Buffed,220,Normal,No,Bright
+9151BAC02-20,9151,C,TI,GEN,Buffed,180,Normal,No,Bright
+9151BAD02-20,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9151KAD02/SSRG-20,9151,D,TI,GEN,Buffed,180,Normal,No,Bright
+9154BAC02-20,9154,C,TI,GEN,Buffed,220,Normal,No,Bright
+9154BAD02-20,9154,D,TI,GEN,Buffed,220,Normal,No,Bright
+9264BEC02-20,9264,C,TI,GEN,Bi-Finish,144,Normal,Yes,Semi bright
+9280BAC02-20,9280,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9315BAB02-20,9315,B,TI,GEN,Buffed,180,Normal,No,Bright
+9315BAD02-20,9315,D,TI,GEN,Buffed,180,Normal,No,Bright
+9317BAB02-20,9317,B,TI,GEN,Buffed,220,Normal,No,Bright
+9327BAB02-20,9327,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAB02-20,9327,B,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAC02-20,9327,C,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327BAD02/2N-20,9327,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9327KAD02-20,9327,D,TI,GEN,Buffed,144,Jumbo,No,Bright
+9743KAD02-20,9743,D,TI,LAD,Buffed,180,Normal,No,Bright
+1506BCF02/2N,1506,F,TI,GEN,Bi-Finish,180,JUMBO,Yes,Semi bright
+1506YCF02/2N,1506,F,TI,GEN,Bi-Finish,180,NORMAL,Yes,Semi bright
+1521YAP02/2N,1521,P,TI,GEN,Buffed,144,NORMAL,No,Bright
+1627BAJ02/2N,1627,J,TI,GEN,Buffed,98,JUMBO,No,Bright
+1627YAK02/2N,1627,K,TI,GEN,Buffed,98,JUMBO,No,Bright
+1636BEG02,1636,G,TI,GEN,Bi-Finish,144,NORMAL,Yes,Semi bright
+1636SEG02,1636,G,TI,GEN,Bi-Finish,144,NORMAL,Yes,Semi bright
+1636YEG02,1636,G,TI,GEN,Bi-Finish,144,NORMAL,Yes,Semi bright
+1927YAF02,1927,F,TI,GEN,Buffed,180,NORMAL,No,Bright
+2480NAU02,2480,U,TI,LAD,Buffed,144,NORMAL,No,Bright
+2480QAU02/BRN,2480,U,TI,LAD,Buffed,144,NORMAL,No,Bright
+2480SAU02,2480,U,TI,LAD,Buffed,144,NORMAL,No,Bright
+2480WAU02,2480,U,TI,LAD,Buffed,144,NORMAL,No,Bright
+2648QAE02/BRN,2648,E,TI,LAD,Buffed,144,NORMAL,No,Bright
+2664QAB02/BRN,2664,B,TI,LAD,Buffed,144,NORMAL,No,Bright
+2679NAB02,2679,B,TI,LAD,Buffed,220,NORMAL,No,Bright
+2758SAA02,2758,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2758WAA02,2758,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2758YAA02,2758,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2759NAA02,2759,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2760NAA02,2760,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2760QAA02/BRN,2760,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2760SAA02,2760,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2760WAA02,2760,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2760YAA02,2760,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2761SAA02,2761,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+2763QAA02/GUN,2763,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+2763SAA02,2763,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+2763WAA02,2763,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+2764QAA02/BRN,2764,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+2764WAA02,2764,A,TI,LAD,Buffed,144,NORMAL,No,Bright
+3319NDA02,3319,A,FT,GEN,Bi-Finish,98,NORMAL,Yes,Semi bright
+3319NJA02,3319,A,FT,GEN,Bi-Finish,98,NORMAL,Yes,Semi bright
+3319QDA02/BRN,3319,A,FT,GEN,Bi-Finish,98,NORMAL,Yes,Semi bright
+7152NAA02,7152,A,SO,GEN,Buffed,144,NORMAL,No,Bright
+7152QAA02/BLU/M,7152,A,SO,GEN,Buffed,144,NORMAL,No,Bright
+7152SAA02,7152,A,SO,GEN,Buffed,144,NORMAL,No,Bright
+7152SAA02,7152,A,SO,GEN,Buffed,144,NORMAL,No,Bright
+9264SEE02,9264,E,TI,GEN,Bi-Finish,144,NORMAL,Yes,Semi bright
+9264YEE02,9264,E,TI,GEN,Bi-Finish,144,NORMAL,Yes,Semi bright
+95136WAB02,95136,B,TI,LAD,Buffed,312,NORMAL,No,Bright
+95154QAB02/BRN,95154,B,TI,LAD,Buffed,312,NORMAL,No,Bright
+95156QAB02/BRN,95156,B,TI,LAD,Buffed,220,NORMAL,No,Bright
+1650BAG02,1650,G,TI,GEN,Buffed,144,Normal,No,Bright
+1774SEB02,1774,B,TI,GEN,Buffed,144,JUMBO,No,Bright
+1825BAC02,1825,C,TI,GEN,Buffed,144,JUMBO,No,Bright
+2480NAM02,2480,M,TI,LAD,Buffed,144,NORMAL,No,Bright
+2565QAB02/BRN,2565,B,TI,LAD,Buffed,144,NORMAL,No,Bright
+2665SAA02,2665,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2685SAA02,2685,A,TI,LAD,Buffed,180,NORMAL,No,Bright
+2685WAA02,2685,A,TI,LAD,Buffed,180,NORMAL,No,Bright
+2727SAA02,2727,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2772WAA02,2772,A,TI,LAD,Buffed,180,NORMAL,No,Bright
+2773WAA02,2773,A,TI,LAD,Buffed,220,NORMAL,No,Bright
+2781SAA02,2781,A,TI,LAD,Buffed,180,NORMAL,No,Bright
+2781WAA02,2781,A,TI,LAD,Buffed,180,NORMAL,No,Bright
+3240NAC02,3240,C,FT,GEN,Buffed,98,JUMBO,No,Bright
+3240SAC02,3240,C,FT,GEN,Buffed,98,JUMBO,No,Bright
+3247NAA02,3247,B,FT,GEN,Buffed,98,JUMBO,No,Bright
+3304SAB02,3304,B,FT,GEN,Buffed,98,JUMBO,No,Bright
+3304SDB02,3304,B,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3304SDB02,3304,B,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3317NCB02,3317,B,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3317QAB02/BRZ,3317,B,FT,GEN,Buffed,98,JUMBO,No,Bright
+3317SAB02,3317,B,FT,GEN,Buffed,98,JUMBO,No,Bright
+3318NDA02,3318,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3318QDA02/BRN,3318,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3318SAA02,3318,A,FT,GEN,Buffed,98,JUMBO,No,Bright
+3321NDA02,3321,A,FT,Gen,Bi-Finish,144,NORMAL,Yes,Semi bright
+3321NDA02,3321,A,FT,Gen,Bi-Finish,144,NORMAL,Yes,Semi bright
+3321QDA02/GUN,3321,A,FT,Gen,Bi-Finish,144,NORMAL,Yes,Semi bright
+3321QDA02/BRN,3321,A,FT,Gen,Bi-Finish,144,NORMAL,Yes,Semi bright
+3321SDA02,3321,A,FT,Gen,Bi-Finish,144,NORMAL,Yes,Semi bright
+3322NFA02,3322,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3322QFA02/BRN,3322,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3322SAA02,3322,A,FT,GEN,Buffed,98,JUMBO,No,Bright
+3322SFA02,3322,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3323QKA02/BRZ,3323,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3323QKA02/GUN,3323,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3323QKA02/BRN,3323,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3323SKA02,3323,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3326SAA02,3326,A,FT,GEN,Buffed,98,JUMBO,No,Bright
+3326QFA02/BLU/M,3326,A,FT,GEN,Bi-Finish,98,JUMBO,Yes,Semi bright
+3326NEB02,3326,B,FT,GEN,Bi-Finish,144,JUMBO,Yes,Semi bright
+3326NFB02,3326,B,FT,GEN,Bi-Finish,144,JUMBO,Yes,Semi bright
+6237QAB02/BRN,6237,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6237WAB02,6237,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6237WAB02,6237,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6265NAB02,6265,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6265SAB02,6265,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6266NAB02,6266,B,FT,LAD,Buffed,180,NORMAL,No,Bright
+6284QAB02/PM01,6284,B,FT,LAD,Buffed,144,NORMAL,No,Bright
+6284WAB02,6284,B,FT,LAD,Buffed,144,NORMAL,No,Bright
+6285NAB02,6285,B,FT,LAD,Buffed,144,NORMAL,No,Bright
+6285SAB02,6285,B,FT,LAD,Buffed,144,NORMAL,No,Bright
+6307QAA02/BRN,6307,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6307WAA02,6307,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6309NAA02,6309,A,FT,LAD,Buffed,312,NORMAL,No,Bright
+6309QAA02/PM01,6309,A,FT,LAD,Buffed,312,NORMAL,No,Bright
+6309WAA02,6309,A,FT,LAD,Buffed,312,NORMAL,No,Bright
+6310QAA02/BRN,6310,A,FT,LAD,Buffed,144,JUMBO,No,Bright
+6310WAA02,6310,A,FT,LAD,Buffed,144,JUMBO,No,Bright
+6311SAA02,6311,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6311WAA02,6311,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6314QAA02/BRN,6314,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6314SAA02,6314,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6314WAA02,6314,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6314WAA02,6314,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6315WAA02,6315,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6315WAA02,6315,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6315WAA02,6315,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6316SAA02,6316,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+6316WAA02,6316,A,FT,LAD,Buffed,144,NORMAL,No,Bright
+7153YAC02/2N,7153,C,SO,GEN,Buffed,144,JUMBO,No,Bright
+8169EAA02/LCR,8169,A,SO,LAD,Buffed,0,NORMAL,No,Bright
+8186EAA02/IBL,8186,A,SO,LAD,Buffed,0,NORMAL,No,Bright
+8186EAA02/LCR,8186,A,SO,LAD,Buffed,0,NORMAL,No,Bright
+8190YAD02/2N,8190,D,SO,LAD,Buffed,144,NORMAL,No,Bright
+9798QAH02/BRN,9798,H,TI,LAD,Buffed,180,NORMAL,No,Bright
+9798SAH02,9798,H,TI,LAD,Buffed,180,NORMAL,No,Bright
+9798WAH02,9798,H,TI,LAD,Buffed,180,NORMAL,No,Bright

@@ -52,6 +52,8 @@ DATA = [
     ("1805QSP02/GUN", "Cylindrical", 98),
 
     ("B1805SAA02", "Cylindrical", 98),  # NEW STOCK NUMBER
+
+    ("1824WAA02", "Cylindrical", 144),
 ]
 
 
@@ -73,7 +75,9 @@ BRIGHT_STOCK_NOS = {
     "1805SAK02", "1805WAK02", "1805YAK02/2N",
     "1805NAR02",
 
-    "B1805SAA02"
+    "B1805SAA02",
+
+    "1824WAA02"
 }
 
 

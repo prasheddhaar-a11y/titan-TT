@@ -5,6 +5,7 @@ from Brass_QC.models import *
 from BrassAudit.models import *
 from Nickel_Audit.models import *
 from Nickel_Inspection.models import *
+from Jig_Loading.models import JigLoadingMaster
 from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.utils import timezone
@@ -118,6 +119,35 @@ class TrayTypeSerializer(serializers.ModelSerializer):
         # Ensure date_time is set to current time when creating
         validated_data['date_time'] = timezone.now()
         return super().create(validated_data)
+
+class JigCapacitySerializer(serializers.ModelSerializer):
+    """JigLoadingMaster, keyed by Model Master (Jig Capacity tab).
+
+    model_stock_no, jig_type, jig_capacity, forging_info are editable;
+    model_no / plating_stk_no are derived display-only fields.
+    """
+    model_no = serializers.CharField(source='model_stock_no.model_no', read_only=True)
+    plating_stk_no = serializers.CharField(source='model_stock_no.plating_stk_no', read_only=True)
+
+    class Meta:
+        model = JigLoadingMaster
+        fields = ['id', 'model_stock_no', 'model_no', 'plating_stk_no', 'jig_type', 'jig_capacity', 'forging_info']
+
+    def validate_jig_capacity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Jig capacity must be greater than 0.")
+        return value
+
+    def validate(self, data):
+        model_stock_no = data.get('model_stock_no') or (self.instance.model_stock_no if self.instance else None)
+        qs = JigLoadingMaster.objects.all()
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if model_stock_no and qs.filter(model_stock_no=model_stock_no).exists():
+            raise serializers.ValidationError({
+                'model_stock_no': "A jig capacity record already exists for this model. Please edit that record instead."
+            })
+        return data
 
 class ModelImageSerializer(serializers.ModelSerializer):
     # Allowed image MIME types and extensions (Issue #24).

@@ -495,6 +495,9 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
 .mm-tag-del:hover { color: #ef4444; }
 .mm-tag-sub { font-size: .72rem; font-weight: 400; color: var(--mm-muted); }
 .mm-tag-badge { font-size: .66rem; background: #f0fdfa; color: #0f766e; border-radius: 4px; padding: 1px 5px; font-weight: 700; border: 1px solid #99f6e4; }
+/* ── Compact icon-only row action buttons (Edit/Save/Cancel) ── */
+.jc-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: 6px; font-size: .8rem; line-height: 1; }
+.jc-icon-btn + .jc-icon-btn { margin-left: 4px; }
 /* ── Image gallery ── */
 .mm-gallery { min-height: 315px; overflow: hidden; }
 .mm-album-shell { display: grid; grid-template-columns: minmax(145px, 185px) minmax(0, 1fr); gap: 14px; min-height: 315px; }
@@ -831,6 +834,36 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
             Model Master
           </button>
         </li>
+        <!-- Jig Capacity Tab (read-only view of Jig_Loading.JigLoadingMaster, backend-driven) -->
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="jigcapacity-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#jigcapacity"
+            type="button"
+            role="tab"
+            aria-controls="jigcapacity"
+            aria-selected="false"
+          >
+            Jig Capacity
+          </button>
+        </li>
+        <!-- Jig Unloading Tray Code Tab (sets ModelMaster.tray_code, reuses Model Master update API) -->
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="traycode-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#traycode"
+            type="button"
+            role="tab"
+            aria-controls="traycode"
+            aria-selected="false"
+          >
+            Jig Unloading Tray Code
+          </button>
+        </li>
         <!-- Groups Tab (Jig Loading eligibility combinations) -->
         <li class="nav-item" role="presentation">
           <button
@@ -1016,6 +1049,68 @@ input[type="number"].form-control::-webkit-outer-spin-button { opacity: .5; }
                 </div>
               </section>
             </div>
+          </div>
+        </div>
+
+        <!-- Jig Capacity (sourced from Jig_Loading.JigLoadingMaster; edit inline, in-row) -->
+        <div class="tab-pane fade" id="jigcapacity" role="tabpanel" aria-labelledby="jigcapacity-tab">
+          <div class="tab-content-frame">
+            <div id="jigcapacity-message-area" class="message-area"></div>
+            <section class="mm-list-panel mm-model-list-panel" style="width:100%;">
+              <div class="mm-list-header">
+                <p class="mm-panel-title">Jig Capacity <span id="jigcapacity-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="text" class="form-control form-control-sm" id="jigcapacity-search" placeholder="Search model no / stock no / jig type…" style="width:240px;" />
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="jigcapacity-refresh-btn">↺ Refresh</button>
+                </div>
+              </div>
+              <div class="mm-table-scroll">
+                <table class="mm-master-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Model No</th>
+                      <th>Plating Stock No</th>
+                      <th>Jig Type</th>
+                      <th>Jig Capacity</th>
+                      <th>Forging Info</th>
+                      <th style="text-align:center;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="jigcapacity-list-body">
+                    <tr><td colspan="7" class="mm-list-empty">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Jig Unloading Tray Code (sets ModelMaster.tray_code per model) -->
+        <div class="tab-pane fade" id="traycode" role="tabpanel" aria-labelledby="traycode-tab">
+          <div class="tab-content-frame">
+            <div id="traycode-message-area" class="message-area"></div>
+            <section class="mm-list-panel mm-model-list-panel" style="width:100%;">
+              <div class="mm-list-header">
+                <p class="mm-panel-title">Jig Unloading Tray Code <span id="traycode-count-badge" class="badge bg-secondary mm-count-badge">0</span></p>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="traycode-refresh-btn">↺ Refresh</button>
+              </div>
+              <div class="mm-table-scroll">
+                <table class="mm-master-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Model No</th>
+                      <th>Plating Stock No</th>
+                      <th>Tray Code</th>
+                    </tr>
+                  </thead>
+                  <tbody id="traycode-list-body">
+                    <tr><td colspan="4" class="mm-list-empty">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -2661,6 +2756,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Init refresh buttons and load all existing-data lists
     initListRefreshButtons();
+    initJigCapacitySearch();
     loadAllLists();
 
     // Groups board
@@ -3995,6 +4091,195 @@ async function refreshModelMasterList() {
     } catch (e) { console.error('refreshModelMasterList:', e); }
 }
 
+let _jigCapacityEditingId = null;
+let _jigCapacitySearchTerm = '';
+
+function jigCapacityDisplayRow(j, i) {
+    return `<tr data-row-id="${j.id}">
+        <td>${i + 1}</td>
+        <td>${escapeHtml(j.model_no || '-')}</td>
+        <td>${escapeHtml(j.plating_stk_no || '-')}</td>
+        <td>${escapeHtml(j.jig_type || '-')}</td>
+        <td>${escapeHtml(String(j.jig_capacity ?? '-'))}</td>
+        <td>${escapeHtml(j.forging_info || '-')}</td>
+        <td style="text-align:center;">
+            <button type="button" class="btn btn-outline-secondary btn-sm jc-icon-btn jigcapacity-edit-btn" data-id="${j.id}" title="Edit"><i class="fa fa-pencil"></i></button>
+        </td>
+    </tr>`;
+}
+
+function jigCapacityEditRow(j) {
+    const models = window._modelMasterData || [];
+    const modelOptions = models.map(m =>
+        `<option value="${m.id}" ${String(m.id) === String(j.model_stock_no) ? 'selected' : ''}>${escapeHtml(m.model_no || '')} (${escapeHtml(m.plating_stk_no || '')})</option>`
+    ).join('');
+    return `<tr data-row-id="${j.id}" class="jigcapacity-edit-row">
+        <td>-</td>
+        <td colspan="2">
+            <select class="form-select form-select-sm jc-edit-model">${modelOptions}</select>
+        </td>
+        <td><input type="text" class="form-control form-control-sm jc-edit-type" value="${escapeHtml(j.jig_type || '')}" /></td>
+        <td><input type="number" class="form-control form-control-sm jc-edit-capacity" min="1" value="${j.jig_capacity ?? ''}" /></td>
+        <td><input type="text" class="form-control form-control-sm jc-edit-forging" value="${escapeHtml(j.forging_info || '')}" /></td>
+        <td style="text-align:center;white-space:nowrap;">
+            <button type="button" class="btn btn-elegant-primary btn-sm jc-icon-btn jigcapacity-save-btn" data-id="${j.id}" title="Save"><i class="fa fa-check"></i></button>
+            <button type="button" class="btn btn-outline-secondary btn-sm jc-icon-btn jigcapacity-cancel-btn" data-id="${j.id}" title="Cancel"><i class="fa fa-times"></i></button>
+        </td>
+    </tr>`;
+}
+
+function renderJigCapacityTable() {
+    const tbody = document.getElementById('jigcapacity-list-body');
+    const badge = document.getElementById('jigcapacity-count-badge');
+    if (!tbody) return;
+    const all = window._jigCapacityData || [];
+    const term = _jigCapacitySearchTerm.trim().toLowerCase();
+    const rows = term
+        ? all.filter(j => [j.model_no, j.plating_stk_no, j.jig_type].some(v => (v || '').toLowerCase().includes(term)))
+        : all;
+    if (badge) badge.textContent = all.length;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="mm-list-empty">${term ? 'No matching records.' : 'No jig capacity records yet.'}</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map((j, i) => String(j.id) === String(_jigCapacityEditingId) ? jigCapacityEditRow(j) : jigCapacityDisplayRow(j, i)).join('');
+
+    tbody.querySelectorAll('.jigcapacity-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            _jigCapacityEditingId = this.getAttribute('data-id');
+            showInlineMessage('jigcapacity-message-area', '', true);
+            renderJigCapacityTable();
+        });
+    });
+    tbody.querySelectorAll('.jigcapacity-cancel-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            _jigCapacityEditingId = null;
+            renderJigCapacityTable();
+        });
+    });
+    tbody.querySelectorAll('.jigcapacity-save-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const id = this.getAttribute('data-id');
+            const row = this.closest('tr');
+            const payload = {
+                model_stock_no: row.querySelector('.jc-edit-model').value,
+                jig_type: row.querySelector('.jc-edit-type').value,
+                jig_capacity: row.querySelector('.jc-edit-capacity').value,
+                forging_info: row.querySelector('.jc-edit-forging').value,
+            };
+            this.disabled = true;
+            try {
+                const resp = await fetch(`/adminportal/jig-capacity/${id}/`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    showInlineMessage('jigcapacity-message-area', result.message || 'Jig capacity updated successfully!', true);
+                    _jigCapacityEditingId = null;
+                    await refreshJigCapacityList();
+                } else {
+                    const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Update failed.');
+                    showInlineMessage('jigcapacity-message-area', errorMsg, false);
+                    this.disabled = false;
+                }
+            } catch (err) {
+                showInlineMessage('jigcapacity-message-area', 'Error updating jig capacity: ' + err.message, false);
+                this.disabled = false;
+            }
+        });
+    });
+}
+
+async function refreshJigCapacityList() {
+    try {
+        const [jigResp, modelResp] = await Promise.all([
+            fetch('/adminportal/jig-capacity/'),
+            (window._modelMasterData && window._modelMasterData.length) ? null : fetch('/adminportal/model-master/'),
+        ]);
+        const jigData = await jigResp.json();
+        window._jigCapacityData = (jigData && jigData.success && jigData.data) ? jigData.data : [];
+        if (modelResp) {
+            const modelData = await modelResp.json();
+            window._modelMasterData = (modelData && modelData.success && modelData.data) ? modelData.data : [];
+        }
+        renderJigCapacityTable();
+    } catch (e) { console.error('refreshJigCapacityList:', e); }
+}
+
+function initJigCapacitySearch() {
+    const input = document.getElementById('jigcapacity-search');
+    if (!input) return;
+    input.addEventListener('input', function() {
+        _jigCapacitySearchTerm = this.value;
+        renderJigCapacityTable();
+    });
+}
+
+// Jig Unloading Tray Code choices mirror modelmasterapp.tray_code_mapping.TRAY_CODE_CHOICES
+// (display-only list for the dropdown; the actual valid-choice enforcement happens
+// server-side on ModelMaster.tray_code via ModelMasterSerializer).
+const TRAY_CODE_OPTIONS = ['NR', 'ND', 'NB', 'NL', 'JR', 'JD', 'JB', 'JL'];
+
+async function refreshTrayCodeList() {
+    try {
+        const r = await fetch('/adminportal/model-master/');
+        const data = await r.json();
+        const tbody = document.getElementById('traycode-list-body');
+        const badge = document.getElementById('traycode-count-badge');
+        if (!tbody) return;
+        window._modelMasterDataForTrayCode = (data && data.success && data.data) ? data.data : [];
+        if (!data || !data.success || !data.data || !data.data.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="mm-list-empty">No models yet.</td></tr>';
+            if (badge) badge.textContent = '0';
+            return;
+        }
+        if (badge) badge.textContent = data.data.length;
+        tbody.innerHTML = data.data.map((m, i) => `<tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(m.model_no || '')}</td>
+            <td>${escapeHtml(m.plating_stk_no || '-')}</td>
+            <td>
+                <select class="form-select form-select-sm traycode-select" data-id="${m.id}" style="display:inline-block;width:auto;">
+                    <option value="">-- None --</option>
+                    ${TRAY_CODE_OPTIONS.map(code => `<option value="${code}" ${m.tray_code === code ? 'selected' : ''}>${escapeHtml(code)}</option>`).join('')}
+                </select>
+                <button type="button" class="btn btn-outline-primary btn-sm traycode-save-btn" data-id="${m.id}" style="margin-left:6px;">Save</button>
+            </td>
+        </tr>`).join('');
+        tbody.querySelectorAll('.traycode-save-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.getAttribute('data-id');
+                const select = tbody.querySelector(`.traycode-select[data-id="${id}"]`);
+                const original = (window._modelMasterDataForTrayCode || []).find(m => String(m.id) === String(id));
+                if (!select || !original) return;
+                this.disabled = true;
+                try {
+                    const payload = { ...original, tray_code: select.value || null };
+                    const resp = await fetch(`/adminportal/model-master/${id}/`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await resp.json();
+                    if (result.success) {
+                        showInlineMessage('traycode-message-area', `Tray code updated for ${escapeHtml(original.model_no || '')}.`, true);
+                        refreshTrayCodeList();
+                    } else {
+                        const errorMsg = result.errors ? formatValidationErrors(result.errors) : (result.message || 'Update failed.');
+                        showInlineMessage('traycode-message-area', errorMsg, false);
+                        this.disabled = false;
+                    }
+                } catch (e) {
+                    showInlineMessage('traycode-message-area', 'Error updating tray code: ' + e.message, false);
+                    this.disabled = false;
+                }
+            });
+        });
+    } catch (e) { console.error('refreshTrayCodeList:', e); }
+}
+
 function initListRefreshButtons() {
     const btnMap = {
         'polish-refresh-btn': refreshPolishList,
@@ -4007,6 +4292,8 @@ function initListRefreshButtons() {
         'brassiqf-refresh-btn': refreshBrassIQFList,
         'nickelrejection-refresh-btn': refreshNickelRejectionList,
         'model-refresh-btn': refreshModelMasterList,
+        'jigcapacity-refresh-btn': refreshJigCapacityList,
+        'traycode-refresh-btn': refreshTrayCodeList,
     };
     Object.entries(btnMap).forEach(([id, fn]) => {
         const btn = document.getElementById(id);
@@ -4026,6 +4313,8 @@ async function loadAllLists() {
         refreshBrassIQFList(),
         refreshNickelRejectionList(),
         refreshModelMasterList(),
+        refreshJigCapacityList(),
+        refreshTrayCodeList(),
     ]);
 }
 // ── End Master List Refresh Functions ─────────────────────────────────────────────

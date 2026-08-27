@@ -325,31 +325,35 @@ class SSZ2CompletedView(APIView):
 
 class SSZ2AddSpiderAPIView(APIView):
     """Add Spider: auto-fetch all trays from upstream, link them, mark completed."""
+    # Terminal action for Z2 — pulls trays via the upstream cascade (Nickel Audit Z2 →
+    # Nickel Inspection → Nickel Audit → Jig Unload → IP verification) since
+    # JigUnloadAfterTable itself holds no tray records, then frees those trays for reuse.
 
     def post(self, request):
         lot_id = request.data.get('lot_id')
         if not lot_id:
             return Response({'error': 'lot_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        jig_obj = JigUnloadAfterTable.objects.filter(lot_id=lot_id, ss_z2_completed=False).first()
-        if not jig_obj:
-            return Response({'error': 'Lot not found or already completed.'}, status=status.HTTP_404_NOT_FOUND)
-
-        upstream_tray_ids = _get_upstream_tray_ids(lot_id, jig_obj)
-
-        if not upstream_tray_ids:
-            return Response({'error': 'No trays found for this lot.'}, status=status.HTTP_404_NOT_FOUND)
-
         try:
             with transaction.atomic():
+                jig_obj = JigUnloadAfterTable.objects.select_for_update().filter(
+                    lot_id=lot_id, ss_z2_completed=False
+                ).first()
+                if not jig_obj:
+                    return Response({'error': 'Lot not found or already completed.'}, status=status.HTTP_404_NOT_FOUND)
+
+                upstream_tray_ids = _get_upstream_tray_ids(lot_id, jig_obj)
+
+                if not upstream_tray_ids:
+                    return Response({'error': 'No trays found for this lot.'}, status=status.HTTP_404_NOT_FOUND)
+
                 linked_tray_ids = []
                 for tid in upstream_tray_ids:
-                    if not SpiderSpindleZ2TrayId.objects.filter(lot_id=lot_id, tray_id=tid).exists():
-                        SpiderSpindleZ2TrayId.objects.create(
-                            lot_id=lot_id,
-                            tray_id=tid,
-                            linked_by=request.user if request.user.is_authenticated else None,
-                        )
+                    SpiderSpindleZ2TrayId.objects.get_or_create(
+                        lot_id=lot_id,
+                        tray_id=tid,
+                        defaults={'linked_by': request.user if request.user.is_authenticated else None},
+                    )
                     linked_tray_ids.append(tid)
 
                 released_count = _release_spider_trays_for_reuse(lot_id, linked_tray_ids)

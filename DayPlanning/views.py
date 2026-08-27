@@ -3938,58 +3938,46 @@ class ValidatePlatingStockNoAPIView(APIView):
     API endpoint to validate plating stock number against ModelMaster database.
     Checks if the plating stock number exists in the database.
     """
-    # Simple in-memory cache for plating stock numbers
-    _cache = {}
-    
+
     def get(self, request):
         plating_stk_no = request.GET.get('plating_stk_no', '').strip()
-        
+
         if not plating_stk_no:
             return JsonResponse({
                 'success': False,
                 'is_valid': False,
                 'message': 'Plating stock number is required'
             })
-        
-        # Check cache first
-        if plating_stk_no in self._cache:
-            cached_result = self._cache[plating_stk_no]
-            return JsonResponse(cached_result)
-        
+
         try:
-            # Check if plating stock number exists in ModelMaster
-            model = ModelMaster.objects.get(plating_stk_no=plating_stk_no)
-            result = {
-                'success': True,
-                'is_valid': True,
-                'message': 'Plating stock number found',
-                'data': {
-                    'model_no': model.model_no,
-                    'version': model.version,
-                    'brand': model.brand,
-                    'ep_bath_type': model.ep_bath_type,
-                }
-            }
-            # Cache the result
-            self._cache[plating_stk_no] = result
-            return JsonResponse(result)
-        except ModelMaster.DoesNotExist:
-            result = {
+            # Always read the current DB state — ModelMaster rows are added/edited
+            # via Model Master admin at any time, so a cached negative result here
+            # would incorrectly block valid stock numbers forever.
+            model = ModelMaster.objects.filter(plating_stk_no=plating_stk_no).order_by('-id').first()
+            if model:
+                return JsonResponse({
+                    'success': True,
+                    'is_valid': True,
+                    'message': 'Plating stock number found',
+                    'data': {
+                        'model_no': model.model_no,
+                        'version': model.version,
+                        'brand': model.brand,
+                        'ep_bath_type': model.ep_bath_type,
+                    }
+                })
+
+            return JsonResponse({
                 'success': True,
                 'is_valid': False,
                 'message': f'Plating stock number "{plating_stk_no}" not found in database. Please check the number or add it via Django Admin.'
-            }
-            # Cache the result
-            self._cache[plating_stk_no] = result
-            return JsonResponse(result)
-                
+            })
         except Exception as e:
-            result = {
+            return JsonResponse({
                 'success': False,
                 'is_valid': False,
                 'message': 'Unable to process the request. Please verify the submitted data and try again.'
-            }
-            return JsonResponse(result)
+            })
 
 from django.http import HttpResponse
 from io import BytesIO
