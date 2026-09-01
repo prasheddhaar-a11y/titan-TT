@@ -82,8 +82,12 @@
   #order-listing td:nth-child(1) {
     position: sticky;
     left: 0 !important;
-    min-width: 90px !important;
-    max-width: 90px !important;
+    min-width: 124px !important;
+    max-width: 124px !important;
+    width: 124px !important;
+    overflow: visible !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
     background: #f7fafd;
     z-index: 30;
   }
@@ -92,7 +96,7 @@
   #order-listing th:nth-child(2),
   #order-listing td:nth-child(2) {
     position: sticky;
-    left: 90px !important;   /* = width of col1 */
+    left: 124px !important;   /* = width of col1 */
     min-width: 125px !important;
     max-width: 125px !important;
     background: #f7fafd;
@@ -103,7 +107,7 @@
   #order-listing th:nth-child(3),
   #order-listing td:nth-child(3) {
     position: sticky;
-    left: 215px !important;  /* 75 (col1) + 100 (col2 min) */
+    left: 249px !important;  /* 124 (col1) + 125 (col2) */
     min-width: 140px !important;
     max-width: 140px !important;
     background: #f7fafd;
@@ -118,6 +122,80 @@
     background: #028084 !important;
     color: #e5fcff !important;
   }
+}
+
+#order-listing .na-sno-cell-content {
+  display: grid;
+  grid-template-columns: 40px 16px minmax(12px, auto);
+  align-items: center;
+  justify-content: start;
+  column-gap: 2px;
+  white-space: nowrap;
+  width: max-content;
+  overflow: visible;
+}
+
+#order-listing .na-sno-toggle,
+#order-listing .na-sno-eye,
+#order-listing .na-sno-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+
+#order-listing .na-sno-toggle {
+  width: 40px;
+  min-width: 40px;
+}
+
+#order-listing .na-sno-eye {
+  width: 16px;
+  min-width: 16px;
+}
+
+#order-listing .na-sno-toggle .hold-toggle-switch {
+  margin-right: 0 !important;
+  width: 40px !important;
+  min-width: 40px !important;
+}
+
+#order-listing .na-sno-toggle .hold-slider {
+  margin: 0 !important;
+}
+
+#order-listing .na-sno-eye .hold-release-info-icon {
+  color: #028084;
+  cursor: help;
+  font-size: 13px;
+  line-height: 1;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+#order-listing .na-sno-number {
+  min-width: 12px;
+  text-align: center;
+  white-space: nowrap;
+  justify-content: flex-start;
+}
+
+#order-listing .na-sno-number .sno-value {
+  display: inline-block;
+  min-width: 12px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+#order-listing td:first-child.row-inactive-blur {
+  filter: none !important;
+  pointer-events: auto !important;
 }
 
 @media (pointer: coarse) and (min-width: 680px) and (max-width: 1400px) {
@@ -427,26 +505,30 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
   left: 0 !important;
   z-index: 12; /* Above header */
   background: #f7fafd;
-  min-width: 75px;
-  max-width: 75px;
+  min-width: 124px;
+  max-width: 124px;
+  width: 124px;
+  overflow: visible !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
 }
 
 /* Freeze 2nd column - Last Updated*/
 #order-listing th:nth-child(2),
 #order-listing td:nth-child(2) {
   position: sticky;
-  left: 75px; /* Match min-width of 1st col */
+  left: 124px; /* Match min-width of 1st col */
   z-index: 12;
   background: #f7fafd;
-  min-width: 100px; /* Increased width */
-  max-width: 110px; /* Increased width */
+  min-width: 125px; /* Match primary sticky column width */
+  max-width: 125px; /* Match primary sticky column width */
 }
 
 /* Freeze 3rd column */
 #order-listing th:nth-child(3),
 #order-listing td:nth-child(3) {
   position: sticky;
-  left: 175px; /* 100px (1st) + 90px (2nd) */
+  left: 249px; /* 124px (1st) + 125px (2nd) */
   z-index: 12;
   background: #f7fafd;
   min-width: 130px; /* Increased width 100 - old value*/
@@ -775,11 +857,12 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     data-aql-limit="{{ data.aql_limit }}"
     data-sample-qty="{{ data.sample_qty }}">
                       <td {% if data.na_hold_lot %} class="row-inactive-blur"{% endif %}>
-                    <span style="display:flex; align-items:center; gap:3px;">
+                    <span class="na-sno-cell-content">
+                      <span class="na-sno-toggle">
                       {% if can_hold_release %}
                         <!-- Admin users: Show toggle switch -->
                         <label class="hold-toggle-switch" style="margin-bottom:0;">
-                          {% if not data.na_hold_lot %}
+                          {% if data.na_hold_lot %}
                             <input type="checkbox" class="hold-toggle-btn" checked />
                             <span class="hold-slider"></span>
                           {% else %}
@@ -787,25 +870,25 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                             <span class="hold-slider"></span>
                           {% endif %}
                         </label>
-                        <!-- Hold remark icon -->
-                        <span class="hold-remark-icon" 
-                              style="display:{% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}inline-block{% else %}none{% endif %}; cursor:pointer;" 
-                              title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }}{% endif %}">
-                          {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}
-                            <img src="{% static 'assets/icons/view2.png' %}" alt="Remark" style="width:12px; height:12px;" />
-                          {% endif %}
-                        </span>
+                      {% endif %}
+                      </span>
+                      <span class="na-sno-eye">
+                        <!-- Hold/Release reason indicator -->
+                      {% if can_hold_release %}
+                        {% if data.na_holding_reason or data.na_release_reason %}
+                          <i class="fa fa-info-circle hold-release-info-icon"
+                             data-bs-toggle="tooltip" data-placement="right"
+                             data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }}{% endif %}"></i>
+                        {% endif %}
                       {% else %}
-                        <!-- Non-admin: Only show view icon if there's a holding/release reason -->
-                        {% if data.na_hold_lot or data.na_release_lot or data.na_holding_reason or data.brass_audit_release_reason %}
-                          <span class="hold-remark-icon" 
-                                style="display:inline-block; cursor:pointer;" 
-                                title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.brass_audit_release_reason %}&#10;{% endif %}{% if data.brass_audit_release_reason %}Release Reason: {{ data.brass_audit_release_reason }}{% endif %}">
-                            <img src="{% static 'assets/icons/view2.png' %}" alt="View Reason" style="width:18px; height:18px;" />
-                          </span>
+                        {% if data.na_holding_reason or data.na_release_reason %}
+                          <i class="fa fa-info-circle hold-release-info-icon"
+                             data-bs-toggle="tooltip" data-placement="right"
+                             data-bs-original-title="{% if data.na_holding_reason %}Holding Reason: {{ data.na_holding_reason }}{% endif %}{% if data.na_holding_reason and data.na_release_reason %}&#10;{% endif %}{% if data.na_release_reason %}Release Reason: {{ data.na_release_reason }}{% endif %}"></i>
                         {% endif %}
                       {% endif %}
-                      <span class="sno-value">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+                      </span>
+                      <span class="na-sno-number"><span class="sno-value">{{ page_obj.start_index|add:forloop.counter0 }}</span></span>
                     </span>
                     {% if data.na_qc_acceptance or data.send_brass_qc %}
                       <i class="fa fa-info-circle" style="color: #028084; font-size:13px;" data-bs-toggle="tooltip" data-placement="right" data-bs-original-title="IQF"></i>
@@ -1319,6 +1402,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
     <h5 style="margin-bottom:16px; color:#028084;">Row Hold Remark</h5>
     <textarea id="holdRemarkInput" maxlength="50" style="width:100%; height:60px; border:1px solid #ccc; border-radius:6px; padding:8px; font-size:15px; resize:none;" placeholder="Enter remark (max 50 chars)"></textarea>
     <div style="text-align:right; margin-top:10px;">
+      <button id="cancelHoldRemarkBtn" style="background:#6c757d; color:#fff; border:none; border-radius:20px; padding:6px 18px; font-size:15px; cursor:pointer; margin-right:8px;">Cancel</button>
       <button id="saveHoldRemarkBtn" style="background:#007bff; color:#fff; border:none; border-radius:20px; padding:6px 18px; font-size:15px; cursor:pointer;">Save</button>
     </div>
     <div id="holdRemarkError" style="color:red; font-size:13px; min-height:18px; margin-top:6px;"></div>
@@ -1453,16 +1537,6 @@ document.addEventListener("DOMContentLoaded", function() {
   });
   window.naRestoreRowPosition = restoreRowPosition;
 
-  // Hold/Unhold view icon click handler
-  document.querySelectorAll('.hold-remark-icon').forEach(function(icon) {
-    icon.addEventListener('click', function() {
-      var title = this.getAttribute('data-bs-original-title') || '';
-      if (title) {
-        Swal.fire({ icon: 'info', title: 'Hold / Release Remark', html: '<div style="text-align:left;">' + title.replace(/&#10;/g, '<br>') + '</div>', confirmButtonColor: '#028084' });
-      }
-    });
-  });
-
   // Hold / Unhold Toggle with Remark
   (function initHoldToggle() {
     const holdModal = document.getElementById('holdRemarkModal');
@@ -1471,6 +1545,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const holdTitle = holdModal ? holdModal.querySelector('h5') : null;
     const saveBtn = document.getElementById('saveHoldRemarkBtn');
     const closeBtn = document.getElementById('closeHoldRemarkModal');
+    const cancelBtn = document.getElementById('cancelHoldRemarkBtn');
 
     if (!holdModal || !holdInput || !saveBtn) return;
 
@@ -1484,8 +1559,9 @@ document.addEventListener("DOMContentLoaded", function() {
           const lotId = row ? row.getAttribute('data-stock-lot-id') : null;
           if (!lotId) return;
 
-          // checked = active (not held), unchecked = held
-          const intendedHold = !this.checked;
+          // checked = held, unchecked = active/released
+          const originalChecked = !this.checked;
+          const intendedHold = this.checked;
           const action = intendedHold ? 'hold' : 'unhold';
 
           window.naHoldToggleState = {
@@ -1493,10 +1569,10 @@ document.addEventListener("DOMContentLoaded", function() {
             row: row,
             lotId: lotId,
             action: action,
-            originalChecked: !intendedHold
+            originalChecked: originalChecked
           };
           // Revert toggle visually until modal confirms
-          this.checked = !intendedHold;
+          this.checked = originalChecked;
 
           if (holdTitle) holdTitle.textContent = action === 'hold' ? 'Hold Reason' : 'Release Reason';
           holdInput.value = '';
@@ -1540,6 +1616,7 @@ document.addEventListener("DOMContentLoaded", function() {
         saveBtn.disabled = false;
         if (data.success) {
           holdModal.style.display = 'none';
+          window.naHoldToggleState = null;
           Swal.fire({
             icon: 'success',
             title: state.action === 'hold' ? 'Lot Held' : 'Lot Released',
@@ -1549,25 +1626,43 @@ document.addEventListener("DOMContentLoaded", function() {
           });
           setTimeout(function() { location.reload(); }, 1500);
         } else {
+          if (state.toggle) state.toggle.checked = state.originalChecked;
           if (holdError) holdError.textContent = data.error || 'Failed to save.';
         }
       })
       .catch(function(err) {
         saveBtn.disabled = false;
+        if (state.toggle) state.toggle.checked = state.originalChecked;
         if (holdError) holdError.textContent = 'Network error.';
         console.error('[NickelAuditZ2] Hold/Unhold error:', err);
       });
     });
 
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function() {
-        holdModal.style.display = 'none';
-        window.naHoldToggleState = null;
-        if (typeof window.naRestoreRowPosition === 'function') {
-          window.naRestoreRowPosition();
-        }
-      });
+    function closePendingHoldModal() {
+      const state = window.naHoldToggleState;
+      if (state && state.toggle) state.toggle.checked = state.originalChecked;
+      holdModal.style.display = 'none';
+      holdInput.value = '';
+      if (holdError) holdError.textContent = '';
+      saveBtn.disabled = false;
+      window.naHoldToggleState = null;
+      if (typeof window.naRestoreRowPosition === 'function') {
+        window.naRestoreRowPosition();
+      }
     }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closePendingHoldModal);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closePendingHoldModal);
+    }
+    holdModal.addEventListener('click', function(e) {
+      if (e.target === holdModal) closePendingHoldModal();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && holdModal.style.display === 'flex') closePendingHoldModal();
+    });
 
     attachHoldToggleListeners();
   })();

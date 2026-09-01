@@ -1,5 +1,5 @@
 """
-Brass QC Validators — input validation only.
+Brass QC Validators â€” input validation only.
 
 All submission and tray scan validation lives here.
 Returns (is_valid: bool, error_str: str | None).
@@ -190,6 +190,40 @@ def _snapshot_has_tray(snapshot_data, tid):
     return False
 
 
+def _is_brass_qc_reject_tray_explicitly_released(tray_id):
+    """True only when a BQC reject-history tray was explicitly released."""
+    tid = _norm_tray_id(tray_id)
+    if not tid:
+        return False
+
+    tray = TrayId.objects.filter(tray_id__iexact=tid).first()
+    return bool(tray and tray.delink_tray and not tray.scanned)
+
+
+def _has_brass_qc_tray_level_rejection_evidence(tray_id):
+    """Return True for tray-level BQC reject rows that still look active."""
+    from ..models import Brass_QC_Rejected_TrayScan, BrassTrayId
+
+    tid = _norm_tray_id(tray_id)
+    if not tid:
+        return False
+
+    if Brass_QC_Rejected_TrayScan.objects.filter(
+        rejected_tray_id__iexact=tid,
+    ).exclude(
+        rejected_tray_id__isnull=True,
+    ).exclude(
+        rejected_tray_id="",
+    ).exists():
+        return True
+
+    return BrassTrayId.objects.filter(
+        tray_id__iexact=tid,
+        rejected_tray=True,
+        delink_tray=False,
+    ).exists()
+
+
 def is_tray_rejected_in_brass_qc(tray_id):
     """
     Return True when this tray was rejected during Brass QC processing and has
@@ -198,7 +232,7 @@ def is_tray_rejected_in_brass_qc(tray_id):
     Brass QC does not flag rejected trays on a live tray table (rejected trays
     are recorded only inside Brass_QC_Submission's reject snapshots and the
     BrassQC_PartialRejectLot snapshot), so those snapshots are the source of
-    truth here — a downstream module like Brass Audit must check them before
+    truth here â€” a downstream module like Brass Audit must check them before
     letting a scanned tray_id be accepted.
     """
     from ..models import Brass_QC_Submission, BrassQC_PartialRejectLot
@@ -206,7 +240,7 @@ def is_tray_rejected_in_brass_qc(tray_id):
     tid = _norm_tray_id(tray_id)
     if not tid:
         return False
-    if is_tray_released_for_reuse(tid):
+    if _is_brass_qc_reject_tray_explicitly_released(tid):
         return False
 
     for submission in Brass_QC_Submission.objects.exclude(
@@ -224,12 +258,15 @@ def is_tray_rejected_in_brass_qc(tray_id):
             if _norm_tray_id(tray.get("tray_id")) == tid and _safe_int(tray.get("qty")) > 0:
                 return True
 
+    if _has_brass_qc_tray_level_rejection_evidence(tid):
+        return True
+
     return False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Submission validators
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def validate_not_duplicate_submit(lot_id, is_iqf_reentry=False):
     """
@@ -256,11 +293,11 @@ def validate_full_reject_reasons(rejection_reasons, total_qty):
     Returns error string or None.
     """
     if not rejection_reasons:
-        return None  # ✅ Allow empty — backend will auto-fill
+        return None  # âœ… Allow empty â€” backend will auto-fill
     
     total = sum(int(r.get("qty", 0)) for r in rejection_reasons)
     
-    # ✅ FIX: Allow reasons to sum to <= total_qty (not must equal)
+    # âœ… FIX: Allow reasons to sum to <= total_qty (not must equal)
     # Missing qty will be auto-filled by backend
     if total > total_qty:
         return (
@@ -293,7 +330,7 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
     Also handles:
     - New reject trays not in this lot (validates against TrayId master)
     - IS-rejected tray blocking
-    - Delink actions (writes BrassTrayId, TrayId delink flags — side effect only here)
+    - Delink actions (writes BrassTrayId, TrayId delink flags â€” side effect only here)
     """
     from ..models import BrassTrayId
     if not tray_actions:
@@ -324,16 +361,17 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
             if ta_action == "ACCEPT":
                 return [], [], validate_accept_tray_current_lot(tid, active_trays)
             if ta_action == "REJECT":
-                # New tray (not in this lot) scanned into a reject slot — validate master
+                # New tray (not in this lot) scanned into a reject slot â€” validate master
                 if not TrayId.objects.filter(tray_id=tid).exists():
                     return [], [], f"Reject tray '{tid}' not found in master tray list"
 
-                # Block only true IS rejects. Released/delink-only trays remain reusable.
-                if is_tray_rejected_in_input_screening(tid):
-                    return [], [], (
-                        f"Tray '{tid}' was rejected in Input Screening — "
-                        f"permanently ineligible for reuse"
-                    )
+                # Brass QC-specific cross-module occupancy guard.  Keep the
+                # existing shared validator unchanged because it is also consumed
+                # by other modules; this wrapper adds Nickel Wiping/Audit coverage
+                # only for Brass QC scan/submission paths.
+                occupied_module, _occupied_error = validate_brass_qc_tray_occupancy(tid, lot_id)
+                if occupied_module:
+                    return [], [], "Tray is occupied."
 
                 slot_qty = int(ta.get("qty") or 0)
                 if slot_qty <= 0:
@@ -355,7 +393,7 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
             rejected_trays.append({"tray_id": tid, "qty": slot_qty, "is_top": is_top})
 
         elif ta_action == "DELINK":
-            # Write delink flags — this is the only write in validators (necessary side effect)
+            # Write delink flags â€” this is the only write in validators (necessary side effect)
             BrassTrayId.objects.filter(lot_id=lot_id, tray_id=tid).update(delink_tray=True)
             TrayId.objects.filter(lot_id=lot_id, tray_id=tid).update(delink_tray=True)
 
@@ -370,9 +408,9 @@ def validate_process_tray_actions(tray_actions, active_trays, stock, lot_id):
     return accepted_trays, rejected_trays, None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Tray scan validators
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def validate_tray_not_rejected_in_is(tray_id):
     """
@@ -396,7 +434,7 @@ def validate_tray_not_rejected_in_brass_qc(tray_id):
     Returns None if tray is eligible.
 
     Covers Brass_QC_Submission reject snapshots and BrassQC_PartialRejectLot
-    snapshots — the only places Brass QC records a rejected tray_id.
+    snapshots â€” the only places Brass QC records a rejected tray_id.
     """
     if is_tray_rejected_in_brass_qc(tray_id):
         return (
@@ -603,5 +641,117 @@ def validate_tray_cross_module_occupancy(tray_id, lot_id):
         # If the owning lot no longer has a resolvable stage, keep a clear
         # occupancy message without exposing an unrelated lot ID.
         return "Assigned Lot", "Tray is currently occupied in an assigned lot"
+
+    return None, None
+def validate_brass_qc_tray_occupancy(tray_id, lot_id=None):
+    """
+    Brass QC-only occupancy wrapper used by tray scan and PROCESS submit.
+
+    It deliberately leaves ``validate_tray_cross_module_occupancy`` unchanged
+    because that shared helper is consumed by other modules.  This wrapper adds
+    the missing Nickel Wiping / Nickel Audit checks while preserving each
+    module's release-aware lifecycle and the current-lot exception.
+
+    Returns (module_name, error_str) when blocked, otherwise (None, None).
+    """
+    tid = _norm_tray_id(tray_id)
+    current_lot = str(lot_id or "").strip()
+    if not tid:
+        return None, None
+
+    # Nickel Wiping Z1/Z2 share one backend lifecycle helper.  It only treats
+    # historical reject snapshots as blocking while their owner lot is active,
+    # so legitimately released/delinked trays remain reusable.
+    try:
+        from Nickel_Inspection.services import validate_nickel_wiping_rejection_tray_available
+
+        nw_available, _nw_message = validate_nickel_wiping_rejection_tray_available(
+            tid,
+            current_lot_id=current_lot or None,
+        )
+        if not nw_available:
+            return "Nickel Wiping", "Tray is occupied."
+    except ImportError:
+        logger.exception(
+            "[Brass QC] Nickel Wiping tray validator import failed for tray_id=%s",
+            tid,
+        )
+
+    # Nickel Audit Z1/Z2 share the same backend models.  Do NOT rely only on
+    # Nickel_AuditTrayId here: after a partial rejection the live mirror/master
+    # row can be cleared while the physical reject tray is still represented by
+    # Nickel Audit reject scans/submission snapshots.  A reject snapshot remains
+    # blocking until the tray is explicitly delinked/released in the master.
+    try:
+        from Nickel_Audit.models import (
+            Nickel_AuditTrayId,
+            Nickel_Audit_Rejected_TrayScan,
+            NickelAudit_Submission,
+            NickelAudit_PartialRejectLot,
+        )
+
+        master_tray = TrayId.objects.filter(tray_id__iexact=tid).first()
+        explicitly_released = bool(
+            master_tray
+            and master_tray.delink_tray
+            and not master_tray.scanned
+        )
+
+        if not explicitly_released:
+            # Live Nickel Audit ownership (both zones use the same model).
+            na_qs = Nickel_AuditTrayId.objects.filter(
+                tray_id__iexact=tid,
+                delink_tray=False,
+                lot_id__isnull=False,
+            )
+            if na_qs.exists():
+                return "Nickel Audit", "Tray is occupied."
+
+            # Reject scan rows are the direct physical reject-tray record.
+            if Nickel_Audit_Rejected_TrayScan.objects.filter(
+                rejected_tray_id__iexact=tid,
+            ).exists():
+                return "Nickel Audit", "Tray is occupied."
+
+            # Current submission snapshots are also checked because some Nickel
+            # Audit paths persist reject tray identity there even when the mirror
+            # row has already been cleaned up.
+            for submission in NickelAudit_Submission.objects.filter(
+                submission_type__in=["PARTIAL", "FULL_REJECT"],
+            ).only("reject_trays_data"):
+                for row in submission.reject_trays_data or []:
+                    if not isinstance(row, dict):
+                        continue
+                    if (
+                        _norm_tray_id(row.get("tray_id") or row.get("rejected_tray_id")) == tid
+                        and _safe_int(row.get("qty") or row.get("tray_quantity")) > 0
+                    ):
+                        return "Nickel Audit", "Tray is occupied."
+
+            # Partial-reject child snapshots provide the same protection for
+            # split-lot records.
+            for reject_lot in NickelAudit_PartialRejectLot.objects.exclude(
+                trays_snapshot__isnull=True,
+            ).only("trays_snapshot"):
+                for row in reject_lot.trays_snapshot or []:
+                    if not isinstance(row, dict):
+                        continue
+                    if (
+                        _norm_tray_id(row.get("tray_id") or row.get("rejected_tray_id")) == tid
+                        and _safe_int(row.get("qty") or row.get("tray_quantity")) > 0
+                    ):
+                        return "Nickel Audit", "Tray is occupied."
+    except ImportError:
+        logger.exception(
+            "[Brass QC] Nickel Audit tray model import failed for tray_id=%s",
+            tid,
+        )
+
+    # Existing shared validation remains the authority for Input Screening,
+    # Brass QC, Brass Audit, IQF, Brass Audit drafts, Jig Loading excess and
+    # master ownership.  We intentionally do not alter that helper's behavior.
+    module_name, error = validate_tray_cross_module_occupancy(tid, current_lot)
+    if module_name:
+        return module_name, error or "Tray is occupied."
 
     return None, None

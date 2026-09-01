@@ -701,44 +701,32 @@ class SecurityHeadersMiddleware:
 
 class AdminIPRestrictionMiddleware:
     """
-    Security Middleware: Django Admin Interface IP Restriction (VAPT Fix #35).
-    
+    Security Middleware: Django Admin Interface Role Restriction (VAPT Fix #35, revised).
+
     Purpose:
-    Restricts access to the Django admin interface (/admin/) to an explicit
-    IP allow-list. Blocks access from all other IPs with an intentional 404
-    response (security by obscurity—don't reveal that /admin/ exists).
-    
-    Configuration:
-    Set settings.ADMIN_IP_ALLOWLIST to a list of allowed IPv4/IPv6 addresses.
-    Example: ADMIN_IP_ALLOWLIST = ['127.0.0.1', '::1', '192.168.1.0/24']
-    Default (if not set): ['127.0.0.1', '::1'] (localhost only)
-    
-    How it Works:
-    - Intercepts all /admin/* requests
-    - Extracts client IP from request (respects X-Forwarded-For for proxy scenarios)
-    - Returns 404 (not 403) if IP is not in allow-list to avoid confirming existence
-    - Logs all blocked attempts for security monitoring
-    
-    Note:
-    The 404 response is intentional—it prevents attackers from discovering that
-    an admin interface exists at this path.
+    Restricts access to the Django admin interface (/admin/) to users who
+    hold this application's Admin role, per adminportal.services.is_admin_user
+    — the same check ModuleAccessMiddleware already uses elsewhere. Anyone
+    else — an anonymous visitor, or a logged-in non-admin (Day Planning,
+    Input Screening, Brass QC, or any other module user) — receives an
+    intentional HTTP 404 instead of the Django admin login form, so the
+    existence of the admin interface is never revealed to anyone who isn't
+    actually an admin (security by obscurity as a secondary layer, OWASP A01).
 
-    Any request to a path under ``/admin/`` whose source IP is not in the
-    allow-list is rejected with HTTP 404 (deliberately not 403 to avoid
-    confirming that an admin interface exists at that path — security by
-    obscurity as a secondary layer, OWASP A01).
+    History:
+    An earlier version of this middleware gated /admin/ by source IP
+    (settings.ADMIN_IP_ALLOWLIST) instead of role. That had two problems:
+    a legitimate admin connecting from any IP not on the list was locked
+    out entirely, while anyone else on a trusted network segment (e.g. the
+    loopback address the app itself normally runs on) got waved straight
+    through regardless of who they actually were. Gating by role instead
+    means a real admin can always reach /admin/ from wherever they already
+    log in from, and no non-admin user — regardless of IP — ever can.
 
-    The allow-list is read from ``settings.ADMIN_IP_ALLOWLIST`` which must be
-    a list/tuple of IPv4 (or IPv6) address strings.  Example setting::
-
-        ADMIN_IP_ALLOWLIST = ['127.0.0.1', '::1', '192.168.1.0/24']
-
-    If the setting is absent or empty the middleware blocks all non-localhost
-    access to ``/admin/`` as a safe default.
-
-    IP extraction respects the ``X-Forwarded-For`` header when the request
-    has been forwarded through a trusted proxy (IIS → Django). Only the
-    left-most address (the real client IP) is evaluated.
+    Ordering requirement:
+    Must run AFTER django.contrib.auth.middleware.AuthenticationMiddleware
+    (and session middleware) in settings.MIDDLEWARE, since it depends on
+    request.user having already been resolved from the session.
     """
 
     _ADMIN_PREFIX = '/admin/'
@@ -750,30 +738,31 @@ class AdminIPRestrictionMiddleware:
         if not request.path.startswith(self._ADMIN_PREFIX):
             return self.get_response(request)
 
-        client_ip = self._get_client_ip(request)
-        allowed_ips = getattr(settings, 'ADMIN_IP_ALLOWLIST', ['127.0.0.1', '::1'])
+        user = getattr(request, 'user', None)
 
-        if client_ip in allowed_ips:
-            return self.get_response(request)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            # Lazy import to avoid circular imports at module load time,
+            # same pattern used by ModuleAccessMiddleware above.
+            from adminportal.services import is_admin_user
 
-        logger.warning(
-            'ADMIN_IP_BLOCKED: ip=%s path=%s method=%s',
-            client_ip,
-            request.path,
-            request.method,
-        )
-        # Return 404 — do not reveal that the admin panel exists at this path.
+            if is_admin_user(user):
+                return self.get_response(request)
+
+            logger.warning(
+                'ADMIN_ACCESS_DENIED: user=%s path=%s method=%s (authenticated, non-admin)',
+                user.username,
+                request.path,
+                request.method,
+            )
+        else:
+            logger.warning(
+                'ADMIN_ACCESS_DENIED: anonymous path=%s method=%s',
+                request.path,
+                request.method,
+            )
+
+        # Return 404 — do not reveal that the admin panel exists at this
+        # path, and do not reveal whether the visitor was authenticated.
         from django.http import Http404
         from django.views.defaults import page_not_found
         return page_not_found(request, Http404())
-
-    @staticmethod
-    def _get_client_ip(request):
-        """
-        Return the real client IP, honouring X-Forwarded-For when present.
-        Only the left-most (originating) address is trusted.
-        """
-        forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
-        if forwarded_for:
-            return forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', '')

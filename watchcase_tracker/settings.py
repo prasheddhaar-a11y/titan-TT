@@ -129,8 +129,6 @@ MIDDLEWARE = [
     'adminportal.middleware.BlockOptionsMiddleware',
     # VAPT #13/#33: strip version-disclosure headers (Server, X-Powered-By, etc.)
     'adminportal.middleware.SecurityHeadersMiddleware',
-    # VAPT #35: restrict /admin/ to ADMIN_IP_ALLOWLIST
-    'adminportal.middleware.AdminIPRestrictionMiddleware', # Django admin panel restricted in Titan Server
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # SafeSessionMiddleware = Django's SessionMiddleware + graceful handling of
@@ -140,6 +138,14 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # VAPT #35 (revised): restrict /admin/ to users whose role is Admin
+    # (adminportal.services.is_admin_user). Must run here, after
+    # AuthenticationMiddleware, because it needs request.user resolved
+    # from the session to check the caller's role — an IP-based check run
+    # earlier in the chain can't do that, and either blocks legitimate
+    # admins from other locations or lets any device on a trusted network
+    # segment through regardless of who's using it.
+    'adminportal.middleware.AdminIPRestrictionMiddleware',
     # Idle-session fix: convert login-page redirects into JSON 401
     # (code=SESSION_EXPIRED) for fetch/AJAX requests so scan/validate calls
     # show a proper "session expired" alert instead of "Validation Error".
@@ -166,15 +172,15 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 AUTH_LOGIN_TEMPLATE = 'login.html'
 
 # ---------------------------------------------------------------------------
-# VAPT Fix #35 — Admin IP Allow-List
-# Only IPs listed here can reach the Django /admin/ interface.
-# In production, restrict this to your management network / VPN CIDR.
-# An empty list blocks everyone except localhost (safe default).
+# VAPT Fix #35 — superseded, kept for reference only.
+# AdminIPRestrictionMiddleware no longer reads this setting: /admin/ access
+# is now gated by role (adminportal.services.is_admin_user) rather than by
+# source IP, so a real admin isn't locked out just for connecting from an
+# IP that isn't on this list, while non-admin users (Day Planning, Input
+# Screening, etc.) are still denied regardless of where they connect from.
 # ---------------------------------------------------------------------------
 ADMIN_IP_ALLOWLIST = [
-    '127.0.0.1',
-    '::1',
-    '192.168.1.2',   # local management workstation — change for production
+    '192.168.1.2',   # local management workstation — no longer enforced
 ]
 
 ROOT_URLCONF = 'watchcase_tracker.urls'

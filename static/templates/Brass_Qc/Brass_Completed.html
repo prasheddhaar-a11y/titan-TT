@@ -4289,10 +4289,12 @@ document.addEventListener('DOMContentLoaded', function() {
         (data.accept_lots || []).forEach(function(acceptLot) {
             html += renderAcceptPanel(acceptLot, !!data.is_full_accept);
         });
-        (data.reject_lots || []).forEach(function(rejectLot) {
+        const shouldRenderRejectLots = data.is_full_reject === true || data.is_partial_reject === true;
+        const visibleRejectLots = shouldRenderRejectLots ? (data.reject_lots || []) : [];
+        visibleRejectLots.forEach(function(rejectLot) {
             html += renderRejectPanel(rejectLot, !!data.is_full_reject);
         });
-        if ((!data.accept_lots || !data.accept_lots.length) && (!data.reject_lots || !data.reject_lots.length)) {
+        if ((!data.accept_lots || !data.accept_lots.length) && !visibleRejectLots.length) {
             html += '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">No lot data found.</div>';
         }
         html += '</div>';

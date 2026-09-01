@@ -1854,45 +1854,9 @@ document.addEventListener("DOMContentLoaded", function () {
       
         let rowCounter = 1;
       
-        // --- ACCEPTED TRAYS ---
-        const acceptedTrays = traysData.filter(tray => !tray.rejected_tray && !tray.delink_tray);
-        if (acceptedTrays.length > 0) {
-          html += `
-            <tr style="background-color: #e8f5e8; font-weight: bold;">
-              <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #2e7d32; padding: 8px;">
-                ACCEPTED TRAYS
-              </td>
-            </tr>
-          `;
-          acceptedTrays.forEach(tray => {
-            html += `
-              <tr>
-                <td>${rowCounter}</td>
-                <td>
-                  <input type="text" class="form-control" value="${tray.tray_id || ''}" readonly style="width: 100%;" />
-                  <span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">ACCEPTED</span>
-                </td>
-                <td>
-                  <input type="number" class="form-control" value="${tray.tray_quantity || ''}" readonly style="width: 100%;" />
-                </td>
-                ${showValidationColumn ? `
-                  <td>
-                    <div class="validation-status">
-                      <div class="status-icon fail">
-                        <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" style="width:18px; height:18px;" />
-                      </div>
-                      <div class="status-icon pass">
-                        <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" style="width:18px; height:18px;" />
-                      </div>
-                    </div>
-                  </td>
-                ` : ''}
-              </tr>
-            `;
-            rowCounter++;
-          });
-        }
-      
+        // NWZ1 Reject Table view: show only rejected trays.
+        // Accepted and delinked tray data may still exist in the API response,
+        // but this modal intentionally does not render those sections.
         // --- REJECTED TRAYS ---
         const rejectedTrays = traysData.filter(tray => tray.rejected_tray && !tray.delink_tray);
         if (rejectedTrays.length > 0) {
@@ -1913,45 +1877,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 </td>
                 <td>
                   <input type="number" class="form-control" value="${tray.tray_quantity || ''}" readonly style="width: 100%;" />
-                </td>
-                ${showValidationColumn ? `
-                  <td>
-                    <div class="validation-status">
-                      <div class="status-icon fail">
-                        <img src="/static/assets/icons/fail.png" alt="Fail" title="Fail" style="width:18px; height:18px;" />
-                      </div>
-                      <div class="status-icon pass">
-                        <img src="/static/assets/icons/pass.png" alt="Pass" title="Pass" style="width:18px; height:18px;" />
-                      </div>
-                    </div>
-                  </td>
-                ` : ''}
-              </tr>
-            `;
-            rowCounter++;
-          });
-        }
-      
-        // --- DELINKED TRAYS ---
-        const delinkedTrays = traysData.filter(tray => tray.delink_tray);
-        if (delinkedTrays.length > 0) {
-          html += `
-            <tr style="background-color: #f8f9fa; font-weight: bold;">
-              <td colspan="${showValidationColumn ? '4' : '3'}" style="text-align: center; color: #6c757d; padding: 8px;">
-                DELINKED TRAYS
-              </td>
-            </tr>
-          `;
-          delinkedTrays.forEach(tray => {
-            html += `
-              <tr>
-                <td>${rowCounter}</td>
-                <td>
-                  <input type="text" class="form-control" value="${tray.tray_id || ''}" readonly style="width: 100%;" />
-                  <span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">DELINKED</span>
-                </td>
-                <td>
-                  <span style="display:block; text-align:center; color:#6c757d; font-size:12px;">-</span>
                 </td>
                 ${showValidationColumn ? `
                   <td>

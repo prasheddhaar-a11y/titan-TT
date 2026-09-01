@@ -1038,6 +1038,156 @@ def _norm(tid: str) -> str:
     return (tid or "").strip().upper()
 
 
+def _reject_snapshot_contains_tray(snapshot, tray_id: str) -> bool:
+    """Return True when a reject-only snapshot contains ``tray_id`` with qty > 0."""
+    tid = _norm(tray_id)
+    if not tid or not snapshot:
+        return False
+
+    if isinstance(snapshot, dict):
+        rows = (
+            snapshot.get("trays")
+            or snapshot.get("reject_trays")
+            or snapshot.get("tray_data")
+            or []
+        )
+    elif isinstance(snapshot, list):
+        rows = snapshot
+    else:
+        return False
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_tid = _norm(row.get("tray_id") or row.get("rejected_tray_id"))
+        if row_tid != tid:
+            continue
+        qty = row.get("qty", row.get("tray_quantity", row.get("rejected_tray_quantity", 0)))
+        try:
+            qty = int(qty or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        if qty > 0:
+            return True
+    return False
+
+
+def _is_rejected_in_other_module(tray_id: str) -> bool:
+    """
+    Return True when ``tray_id`` is still represented as a rejected tray in a
+    downstream module.  This is used only for NEW reject-tray scans in Input
+    Screening; current-lot trays are handled before this helper is called.
+
+    Explicit delink/release state remains reusable.  A merely free-looking
+    master row is not treated as release evidence because historical data can
+    leave the master cleared while a module reject snapshot is still active.
+    """
+    tid = _norm(tray_id)
+    if not tid:
+        return False
+
+    from modelmasterapp.models import TrayId
+    from Brass_QC.models import (
+        BrassTrayId,
+        Brass_QC_Rejected_TrayScan,
+        Brass_QC_Submission,
+    )
+    from BrassAudit.models import (
+        BrassAuditTrayId,
+        Brass_Audit_Rejected_TrayScan,
+        Brass_Audit_Submission,
+    )
+    from IQF.models import IQFTrayId, IQF_Rejected_TrayScan, IQF_Submitted
+    from Nickel_Inspection.models import NickelQcTrayId, NickelQC_Submission
+    from Nickel_Inspection.services import validate_nickel_wiping_rejection_tray_available
+    from Nickel_Audit.models import (
+        Nickel_AuditTrayId,
+        Nickel_Audit_Rejected_TrayScan,
+        NickelAudit_Submission,
+    )
+
+    master = TrayId.objects.filter(tray_id__iexact=tid).first()
+    explicitly_released = bool(master and master.delink_tray and not master.scanned)
+
+    # Live/current module rows are authoritative blockers even when the master
+    # row is stale or incomplete.
+    live_reject_checks = (
+        BrassTrayId.objects.filter(tray_id__iexact=tid, rejected_tray=True, delink_tray=False),
+        BrassAuditTrayId.objects.filter(tray_id__iexact=tid, rejected_tray=True, delink_tray=False),
+        IQFTrayId.objects.filter(tray_id__iexact=tid, rejected_tray=True, delink_tray=False),
+        NickelQcTrayId.objects.filter(tray_id__iexact=tid, rejected_tray=True, delink_tray=False),
+        Nickel_AuditTrayId.objects.filter(tray_id__iexact=tid, rejected_tray=True, delink_tray=False),
+    )
+    if any(qs.exists() for qs in live_reject_checks):
+        return True
+
+    # Nickel Wiping Z1/Z2 share the same lifecycle-aware backend helper.
+    nw_available, _ = validate_nickel_wiping_rejection_tray_available(
+        tid, current_lot_id=None
+    )
+    if not nw_available:
+        return True
+
+    # Once explicitly delinked/released, historical reject snapshots must not
+    # create a false occupied state.
+    if explicitly_released:
+        return False
+
+    # Reject scan tables cover explicit reject-tray scans that may outlive the
+    # master ownership flags.
+    if Brass_QC_Rejected_TrayScan.objects.filter(rejected_tray_id__iexact=tid).exists():
+        return True
+    if Brass_Audit_Rejected_TrayScan.objects.filter(rejected_tray_id__iexact=tid).exists():
+        return True
+    if IQF_Rejected_TrayScan.objects.filter(tray_id__iexact=tid).exists():
+        return True
+    if Nickel_Audit_Rejected_TrayScan.objects.filter(rejected_tray_id__iexact=tid).exists():
+        return True
+
+    # Full/partial reject snapshots cover flows where the tray is recorded only
+    # in the submitted JSON snapshot instead of a live tray row.
+    for submission in Brass_QC_Submission.objects.filter(
+        submission_type__in=["FULL_REJECT", "PARTIAL"]
+    ).only("full_reject_data", "partial_reject_data"):
+        if (
+            _reject_snapshot_contains_tray(submission.full_reject_data, tid)
+            or _reject_snapshot_contains_tray(submission.partial_reject_data, tid)
+        ):
+            return True
+
+    for submission in Brass_Audit_Submission.objects.filter(
+        submission_type__in=["FULL_REJECT", "PARTIAL"]
+    ).only("full_reject_data", "partial_reject_data"):
+        if (
+            _reject_snapshot_contains_tray(submission.full_reject_data, tid)
+            or _reject_snapshot_contains_tray(submission.partial_reject_data, tid)
+        ):
+            return True
+
+    for submission in IQF_Submitted.objects.filter(
+        submission_type__in=["FULL_REJECT", "PARTIAL", "LOT_REJECTION"]
+    ).only("full_reject_data", "partial_reject_data"):
+        if (
+            _reject_snapshot_contains_tray(submission.full_reject_data, tid)
+            or _reject_snapshot_contains_tray(submission.partial_reject_data, tid)
+        ):
+            return True
+
+    for submission in NickelQC_Submission.objects.filter(
+        submission_type__in=["FULL_REJECT", "PARTIAL"]
+    ).only("reject_trays_data"):
+        if _reject_snapshot_contains_tray(submission.reject_trays_data, tid):
+            return True
+
+    for submission in NickelAudit_Submission.objects.filter(
+        submission_type__in=["FULL_REJECT", "PARTIAL"]
+    ).only("reject_trays_data"):
+        if _reject_snapshot_contains_tray(submission.reject_trays_data, tid):
+            return True
+
+    return False
+
+
 def validate_scanned_tray(
     lot_id: str,
     slot_type: str,
@@ -1173,6 +1323,13 @@ def validate_scanned_tray(
             master = TrayId.objects.get(tray_id=tid)
         except TrayId.DoesNotExist:
             return {"valid": False, "reason": f"Tray {tid} not found in master."}
+
+        # A tray rejected in any downstream module must not be reused as a new
+        # Input Screening reject tray.  Current-lot trays were already handled
+        # above, and explicit delink/release remains reusable.
+        if _is_rejected_in_other_module(tid):
+            return {"valid": False, "reason": "Tray is occupied."}
+
         from .models import IS_AllocationTray
         released_for_reuse = bool(master.delink_tray) or IS_AllocationTray.objects.filter(
             tray_id=tid,

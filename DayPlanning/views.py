@@ -35,6 +35,44 @@ _RE_STOCK = re.compile(r'^(\d+)([A-Z])([A-Z][A-Z]02)$')
 _RE_SUFFIX = re.compile(r'^[A-Z][A-Z]02$')
 
 
+def _validate_dp_nickel_reject_tray_available(tray_id, current_lot_id=None):
+    """
+    Day Planning guard for active Nickel Wiping/Audit rejected-tray occupancy.
+
+    Returns (True, '') when Day Planning may continue, otherwise a generic
+    Day Planning-facing occupied message. Non-master tray handling remains with
+    existing DP validation paths.
+    """
+    normalized_tray_id = str(tray_id or '').strip().upper()
+    if not normalized_tray_id:
+        return True, ''
+
+    from modelmasterapp.models import TrayId
+
+    if not TrayId.objects.filter(tray_id__iexact=normalized_tray_id).exists():
+        return True, ''
+
+    try:
+        from Nickel_Inspection.services import (
+            validate_nickel_wiping_rejection_tray_available,
+        )
+    except ImportError:
+        logger.warning(
+            "Nickel rejection tray validator unavailable during Day Planning validation"
+        )
+        return True, ''
+
+    is_available, _message = validate_nickel_wiping_rejection_tray_available(
+        normalized_tray_id,
+        current_lot_id=current_lot_id or None,
+        lock_master=False,
+    )
+    if not is_available:
+        return False, 'Tray is occupied.'
+
+    return True, ''
+
+
 def _extract_dp_completed_lot_id(raw_lot_id):
     """Normalize stored lot tokens used by downstream Jig Unloading rows."""
     if not raw_lot_id:
@@ -2038,6 +2076,19 @@ class TrayIdScanAPIView(APIView):
                     })
                     continue
 
+                nickel_available, nickel_error = _validate_dp_nickel_reject_tray_available(
+                    tray_id,
+                    current_lot_id=lot_id,
+                )
+                if not nickel_available:
+                    occupied_tray_errors.append({
+                        'tray_id': tray_id,
+                        'position': i + 1,
+                        'occupied_module': 'Nickel',
+                        'error': nickel_error,
+                    })
+                    continue
+
                 # ✅ Check if tray is already scanned (and not delinked)
                 if existing_tray.scanned and not existing_tray.delink_tray:
                     already_scanned_errors.append({
@@ -2096,6 +2147,7 @@ class TrayIdScanAPIView(APIView):
                 return JsonResponse({
                     'success': False,
                     'error': 'Some trays are occupied in another module',
+                    'message': occupied_tray_errors[0].get('error') or 'Tray is occupied.',
                     'occupied_tray_errors': occupied_tray_errors,
                     'error_details': error_messages
                 }, status=400)
@@ -2698,6 +2750,47 @@ class DraftTrayIdAPIView(APIView):
 
             lot_id = data.get('lot_id') or f"DRAFT-{batch_id}"
 
+            occupied_tray_errors = []
+            seen_tray_ids = set()
+            for i, tray in enumerate(trays):
+                tray_id = str(tray.get('tray_id', '') or '').strip()
+                if not tray_id:
+                    continue
+                try:
+                    tray_quantity = int(tray.get('tray_quantity') or 0)
+                except (TypeError, ValueError):
+                    tray_quantity = 0
+                if tray_quantity <= 0:
+                    continue
+                tray_key = tray_id.upper()
+                if tray_key in seen_tray_ids:
+                    continue
+                seen_tray_ids.add(tray_key)
+
+                nickel_available, nickel_error = _validate_dp_nickel_reject_tray_available(
+                    tray_key,
+                    current_lot_id=lot_id,
+                )
+                if not nickel_available:
+                    occupied_tray_errors.append({
+                        'tray_id': tray_key,
+                        'position': i + 1,
+                        'occupied_module': 'Nickel',
+                        'error': nickel_error,
+                    })
+
+            if occupied_tray_errors:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Some trays are occupied in another module',
+                    'message': occupied_tray_errors[0].get('error') or 'Tray is occupied.',
+                    'occupied_tray_errors': occupied_tray_errors,
+                    'error_details': [
+                        f"Position {error['position']}: {error['tray_id']} - {error['error']}"
+                        for error in occupied_tray_errors
+                    ],
+                }, status=400)
+
             with transaction.atomic():
                 # Always clear all existing draft entries for this batch before saving new ones
                 DraftTrayId.objects.filter(batch_id=batch_instance).delete()
@@ -2968,6 +3061,20 @@ class TrayIdUniqueCheckAPIView(APIView):
                     'error': f'Tray ID "{tray_id}" is already drafted in another batch.',
                     'message': 'This tray has already been reserved in another batch. Cannot reuse until that batch is submitted.'
                 })
+
+        nickel_available, nickel_error = _validate_dp_nickel_reject_tray_available(
+            tray_id,
+            current_lot_id=lot_id or None,
+        )
+        if not nickel_available:
+            return JsonResponse({
+                'exists': True,
+                'available': False,
+                'occupied_in_other_module': True,
+                'occupied_module': 'Nickel',
+                'error': nickel_error,
+                'message': nickel_error,
+            })
 
         # Check if tray is delinked (can be reused regardless of scanned status)
         if existing_tray.delink_tray:

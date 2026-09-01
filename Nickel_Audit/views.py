@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import TemplateHTMLRenderer
 from django.shortcuts import render
+from django.db import transaction
 from django.db.models import OuterRef, Subquery, Exists, F
 from django.core.paginator import Paginator
 from django.templatetags.static import static
@@ -38,6 +39,7 @@ from Nickel_Inspection.services import (
     release_tray_master_for_reuse,
     tray_qty_total,
     validate_original_tray_coverage,
+    validate_nickel_wiping_rejection_tray_available,
 )
 import logging
 logger = logging.getLogger(__name__)
@@ -112,6 +114,45 @@ def _na_tray_has_current_ownership(master_tray, current_lot_id=None):
     if getattr(master_tray, 'scanned', False) and not getattr(master_tray, 'delink_tray', False):
         return True
     return False
+
+
+def _na_validate_external_reject_tray_available(tray_id, current_lot_id=None):
+    """
+    Validate a Nickel Audit reject-tray scan against active ownership/rejection
+    outside Nickel Audit.
+
+    Zone 1 and Zone 2 both use ``na_action`` and the same models, so this one
+    helper protects both zones while preserving current-lot and delink/reuse
+    behavior.
+    """
+    tid = str(tray_id or '').strip().upper()
+    current_lot = str(current_lot_id or '').strip()
+    if not tid:
+        return False, 'Tray ID required'
+
+    from Brass_QC.services.validators import (
+        validate_tray_cross_module_occupancy,
+        validate_tray_not_rejected_in_brass_qc,
+    )
+
+    occupied_module, occupancy_error = validate_tray_cross_module_occupancy(
+        tid,
+        current_lot,
+    )
+    if occupancy_error:
+        return False, 'Tray is occupied.'
+
+    if validate_tray_not_rejected_in_brass_qc(tid):
+        return False, 'Tray is occupied.'
+
+    nw_available, _nw_message = validate_nickel_wiping_rejection_tray_available(
+        tid,
+        current_lot_id=None,
+    )
+    if not nw_available:
+        return False, 'Tray is occupied.'
+
+    return True, ''
 
 
 def _na_normalize_active_trays(rows):
@@ -548,7 +589,7 @@ def _na_completed_filter_q():
 
 
 def _na_completed_source_lot_ids(allowed_color_ids):
-    completed_sources = set()
+    completed_sources = {}
     completed_rows = (
         JigUnloadAfterTable.objects.filter(
             total_case_qty__gt=0,
@@ -563,11 +604,27 @@ def _na_completed_source_lot_ids(allowed_color_ids):
         # (fresh partial-accept child) is wrongly hidden from the Audit pick
         # table as a "duplicate" of an already-completed source.
         .exclude(_na_fresh_nw_reacceptance_q())
-        .only('lot_id', 'combine_lot_ids', 'current_stage')
+        .only('lot_id', 'combine_lot_ids', 'current_stage', 'na_last_process_date_time', 'created_at')
     )
     for completed_row in completed_rows:
-        completed_sources.update(_na_source_lot_ids(completed_row))
+        completed_at = completed_row.na_last_process_date_time or completed_row.created_at
+        for source_lot_id in _na_source_lot_ids(completed_row):
+            previous_completed_at = completed_sources.get(source_lot_id)
+            if not previous_completed_at or (
+                completed_at and completed_at > previous_completed_at
+            ):
+                completed_sources[source_lot_id] = completed_at
     return completed_sources
+
+
+def _na_source_completed_for_current_cycle(source_lots, completed_source_lots, nq_last_process_date_time):
+    for source_lot_id in source_lots:
+        completed_at = completed_source_lots.get(source_lot_id)
+        if not completed_at:
+            continue
+        if not nq_last_process_date_time or completed_at >= nq_last_process_date_time:
+            return True
+    return False
 
 
 def _na_partial_accept_child_maps(rows):
@@ -638,7 +695,11 @@ def _na_active_pick_rows(queryset, completed_source_lots, zone_label):
                 source_lots,
             )
             continue
-        if any(lot_id in completed_source_lots for lot_id in source_lots):
+        if _na_source_completed_for_current_cycle(
+            source_lots,
+            completed_source_lots,
+            jig_unload_obj.nq_last_process_date_time,
+        ):
             completed_source_excluded += 1
             logger.info(
                 "[AUDIT_PICKTABLE_FILTER] zone=%s exclude lot=%s sources=%s reason=completed_source",
@@ -1160,29 +1221,38 @@ def na_hold_unhold(request):
     if len(remark) > 50:
         return Response({"success": False, "error": "Remark must be 50 characters or less"}, status=400)
 
-    juat = JigUnloadAfterTable.objects.filter(lot_id=lot_id).first()
-    if not juat:
-        return Response({"success": False, "error": "Lot not found"}, status=404)
+    with transaction.atomic():
+        juat = JigUnloadAfterTable.objects.select_for_update().filter(lot_id=lot_id).first()
+        if not juat:
+            return Response({"success": False, "error": "Lot not found"}, status=404)
 
-    now = timezone.now()
-    if action == 'hold':
-        juat.na_hold_lot = True
-        juat.na_holding_reason = remark
-        juat.na_hold_by = request.user
-        juat.na_hold_at = now
-        juat.na_release_lot = False
-        juat.na_release_reason = ''
-    else:
-        juat.na_hold_lot = False
-        juat.na_release_reason = remark
-        juat.na_release_by = request.user
-        juat.na_release_at = now
-        juat.na_release_lot = True
+        now = timezone.now()
+        if action == 'hold':
+            if juat.na_hold_lot:
+                return Response({"success": False, "error": "Lot is already on hold"}, status=400)
+            juat.na_hold_lot = True
+            juat.na_holding_reason = remark
+            juat.na_hold_by = request.user
+            juat.na_hold_at = now
+            juat.na_release_lot = False
+            update_fields = [
+                'na_hold_lot', 'na_holding_reason', 'na_hold_by', 'na_hold_at',
+                'na_release_lot',
+            ]
+        else:
+            if not juat.na_hold_lot:
+                return Response({"success": False, "error": "Lot is not on hold"}, status=400)
+            juat.na_hold_lot = False
+            juat.na_release_reason = remark
+            juat.na_release_by = request.user
+            juat.na_release_at = now
+            juat.na_release_lot = True
+            update_fields = [
+                'na_hold_lot',
+                'na_release_lot', 'na_release_reason', 'na_release_by', 'na_release_at',
+            ]
 
-    juat.save(update_fields=[
-        'na_hold_lot', 'na_holding_reason', 'na_hold_by', 'na_hold_at',
-        'na_release_lot', 'na_release_reason', 'na_release_by', 'na_release_at',
-    ])
+        juat.save(update_fields=update_fields)
     logger.info("[na_hold_unhold] lot=%s action=%s user=%s", lot_id, action, request.user)
     return Response({
         "success": True, "lot_id": lot_id, "action": action,
@@ -1253,7 +1323,13 @@ def na_action(request):
         if not master_tray:
             return Response({'success': True, 'valid': False, 'message': 'Tray not found in master'})
         if _na_tray_has_current_ownership(master_tray, current_lot_id=lot_id):
-            return Response({'success': True, 'valid': False, 'message': 'Tray id already occupied'})
+            return Response({'success': True, 'valid': False, 'message': 'Tray is occupied.'})
+        external_available, _external_message = _na_validate_external_reject_tray_available(
+            tray_id_val,
+            current_lot_id=lot_id,
+        )
+        if not external_available:
+            return Response({'success': True, 'valid': False, 'message': 'Tray is occupied.'})
         if len(tray_id_val) > 9:
             return Response({'success': True, 'valid': False, 'message': 'Tray ID cannot exceed 9 characters'})
         return Response({'success': True, 'valid': True, 'message': 'Valid tray'})
@@ -1718,6 +1794,15 @@ def _na_do_submit_reject(request, lot_id, juat):
         if int(rt.get('qty', 0)) > rej_cap:
             return Response(
                 {'success': False, 'error': f'Reject tray {tid} qty exceeds max {rej_cap}'},
+                status=400,
+            )
+        external_available, _external_message = _na_validate_external_reject_tray_available(
+            tid,
+            current_lot_id=lot_id,
+        )
+        if not external_available:
+            return Response(
+                {'success': False, 'error': 'Tray is occupied.'},
                 status=400,
             )
     logger.info(

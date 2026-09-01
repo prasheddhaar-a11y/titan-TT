@@ -522,7 +522,7 @@ def get_brass_qc_submitted_detail(lot_id):
         .filter(parent_submission=submission)
         .order_by("created_at")
     )
-    if reject_children:
+    if submission.submission_type == "PARTIAL" and reject_children:
         for child in reject_children:
             trays = _append_delink_rows(_snapshot_trays(child.trays_snapshot), delinked_tray_ids)
             reject_lots.append({
@@ -536,7 +536,10 @@ def get_brass_qc_submitted_detail(lot_id):
                 "remarks": child.remarks or "",
                 "created_at": _fmt_dt(child.created_at),
             })
-    elif submission.rejected_qty > 0 or delinked_tray_ids:
+    elif (
+        submission.submission_type in ("PARTIAL", "FULL_REJECT") and
+        (submission.rejected_qty > 0 or delinked_tray_ids)
+    ):
         reject_snapshot = submission.full_reject_data or submission.partial_reject_data or {}
         trays = _append_delink_rows(
             _snapshot_trays(reject_snapshot or snapshot_data.get("rejected", [])),

@@ -2077,10 +2077,10 @@ document.addEventListener("DOMContentLoaded", function () {
           // ===== Build modal HTML =====
           function esc(s) { return s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-          function buildSection(title, bgColor, textColor, badgeBg, badgeLabel, trays, startRow, hideQty) {
+          function buildSection(title, bgColor, textColor, badgeBg, badgeLabel, trays, startRow, hideQty, preserveOrder) {
             if (!trays.length) return { html: '', row: startRow };
             let h = '<tr style="background-color:'+bgColor+';font-weight:bold;"><td colspan="3" style="text-align:center;color:'+textColor+';padding:8px;">'+title+'</td></tr>';
-            let sorted = trays.slice().sort(function(a,b){ if(a.top_tray && !b.top_tray) return -1; if(!a.top_tray && b.top_tray) return 1; return (a.tray_id||'').localeCompare(b.tray_id||''); });
+            let sorted = preserveOrder ? trays.slice() : trays.slice().sort(function(a,b){ if(a.top_tray && !b.top_tray) return -1; if(!a.top_tray && b.top_tray) return 1; return (a.tray_id||'').localeCompare(b.tray_id||''); });
             let row = startRow;
             sorted.forEach(function(t){
               row++;
@@ -2125,7 +2125,7 @@ document.addEventListener("DOMContentLoaded", function () {
             sec = buildSection('\u2705 ACCEPTED TRAYS', '#e8f5e8', '#2e7d32', '#4caf50', 'ACCEPTED', accepted, row, false);
             html += sec.html; row = sec.row;
 
-            sec = buildSection('\u274c REJECTED TRAYS', '#ffebee', '#c62828', '#f44336', 'REJECTED', rejected, row, false);
+            sec = buildSection('\u274c REJECTED TRAYS', '#ffebee', '#c62828', '#f44336', 'REJECTED', rejected, row, false, true);
             html += sec.html; row = sec.row;
 
             sec = buildSection('\ud83d\udd17 DELINKED TRAYS', '#f8f9fa', '#6c757d', '#9e9e9e', 'DELINKED', delinked, row, false);

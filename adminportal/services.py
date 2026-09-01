@@ -29,6 +29,29 @@ try:
     _permissions_cache = caches['permissions']
 except Exception:
     _permissions_cache = cache
+def _safe_cache_get(key):
+    """
+    Read from the shared 'permissions' cache without letting a broken/missing
+    cache backend (e.g. a DatabaseCache table that hasn't been created on this
+    environment) turn an authorization check into an HTTP 500. On any cache
+    error this just tells the caller "not cached" so it falls through to a
+    fresh DB lookup, at the cost of a cache miss rather than a crashed request.
+    """
+    try:
+        return _permissions_cache.get(key)
+    except Exception:
+        logger.exception('PERMISSIONS_CACHE_GET_FAILED: key=%s', key)
+        return None
+
+
+def _safe_cache_set(key, value, timeout):
+    """Write to the shared 'permissions' cache; swallow (and log) backend errors."""
+    try:
+        _permissions_cache.set(key, value, timeout=timeout)
+    except Exception:
+        logger.exception('PERMISSIONS_CACHE_SET_FAILED: key=%s', key)
+
+
 MODULE_REGISTRY_CACHE_KEY = 'adminportal_module_registry_seeded_v4'
 MODULE_REGISTRY_NAMES = [entry['name'] for entry in MODULE_REGISTRY]
 
@@ -109,12 +132,12 @@ def is_admin_user(user):
         return False
 
     cache_key = f'user_is_admin_{user.id}'
-    cached_value = _permissions_cache.get(cache_key)
+    cached_value = _safe_cache_get(cache_key)
     if cached_value is not None:
         return cached_value
 
     if user.is_superuser:
-        _permissions_cache.set(cache_key, True, timeout=USER_MODULE_CACHE_TTL)
+        _safe_cache_set(cache_key, True, USER_MODULE_CACHE_TTL)
         return True
 
     group_names = _get_cached_user_group_names(user)
@@ -129,7 +152,7 @@ def is_admin_user(user):
         department_name = ''
 
     is_admin = is_admin_group or department_name.lower() == 'admin'
-    _permissions_cache.set(cache_key, is_admin, timeout=USER_MODULE_CACHE_TTL)
+    _safe_cache_set(cache_key, is_admin, USER_MODULE_CACHE_TTL)
     return is_admin
 
 
@@ -139,12 +162,12 @@ def _get_cached_user_group_names(user):
         return []
 
     cache_key = f'user_group_names_{user.id}'
-    cached_group_names = _permissions_cache.get(cache_key)
+    cached_group_names = _safe_cache_get(cache_key)
     if cached_group_names is not None:
         return cached_group_names
 
     group_names = list(user.groups.values_list('name', flat=True))
-    _permissions_cache.set(cache_key, group_names, timeout=USER_GROUP_NAMES_CACHE_TTL)
+    _safe_cache_set(cache_key, group_names, USER_GROUP_NAMES_CACHE_TTL)
     return group_names
 
 
@@ -202,7 +225,7 @@ def get_user_allowed_module_names(user):
         return []
 
     cache_key = f'user_modules_{user.id}'
-    cached_modules = _permissions_cache.get(cache_key)
+    cached_modules = _safe_cache_get(cache_key)
     if cached_modules is not None:
         return cached_modules
 
@@ -231,7 +254,7 @@ def get_user_allowed_module_names(user):
                 )
                 modules = _expand_legacy_module_names(provisioned_modules) if provisioned_modules else []
 
-        _permissions_cache.set(cache_key, modules, timeout=USER_MODULE_CACHE_TTL)
+        _safe_cache_set(cache_key, modules, USER_MODULE_CACHE_TTL)
         return modules
     except Exception:
         logger.exception('Error resolving user module access for user_id=%s', getattr(user, 'id', None))

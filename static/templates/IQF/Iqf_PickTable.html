@@ -2804,6 +2804,7 @@
         // Show summary section when there's rejection data
         if(totalIqfQty > 0){
           document.getElementById('iqf-summary-badges') && (document.getElementById('iqf-summary-badges').style.display = 'block');
+          syncExistingTrayCards();
         } else {
           document.getElementById('iqf-summary-badges') && (document.getElementById('iqf-summary-badges').style.display = 'none');
         }
@@ -3290,6 +3291,28 @@
       card.style.boxShadow = 'none';
     });
   }
+
+  function syncExistingTrayCards(){
+    var usedTrayIds = {};
+    document.querySelectorAll('#iqf-accepted-tray-slots-body .tray-scan-input, #iqf-reject-tbody .rej-scan-input').forEach(function(inp){
+      var val = (inp.value || '').trim().toUpperCase();
+      if(val){ usedTrayIds[val] = true; }
+    });
+    document.querySelectorAll('.iqf-existing-tray-card').forEach(function(card){
+      var trayId = (card.getAttribute('data-tray-id') || '').trim().toUpperCase();
+      var isUsed = !!usedTrayIds[trayId];
+      var origBorder = card.getAttribute('data-original-border') || '#e0e0e0';
+      var origBg = card.getAttribute('data-original-bg') || '#fff';
+      card.classList.toggle('iqf-tray-used', isUsed);
+      card.style.borderColor = isUsed ? '#2e7d32' : origBorder;
+      card.style.background = isUsed ? '#e8f5e9' : origBg;
+      card.style.cursor = isUsed ? 'not-allowed' : 'pointer';
+      card.style.opacity = isUsed ? '0.7' : '1';
+      card.style.boxShadow = 'none';
+    });
+  }
+
+  window._iqfSyncExistingTrayCards = syncExistingTrayCards;
   // Exposed globally: accepted-tray-slots script calls this whenever the slot table
   // is rebuilt (i.e. on every rejection-qty change), so "tap to fill" cards used
   // against the OLD slots don't stay permanently blurred once those slots are gone.
@@ -3511,6 +3534,13 @@
       var _totalIqfEl = document.getElementById('modalIqfTotal');
       var _rwQty = _rwQtyEl ? parseInt(_rwQtyEl.textContent || '0', 10) : 0;
       var _totalIqf = _totalIqfEl ? parseInt(_totalIqfEl.textContent || '0', 10) : 0;
+      var _isFullAccept = (_totalIqf === 0 && _rwQty > 0);
+
+      if(_isFullAccept){
+        console.log('[IQF FULL ACCEPT] Submitting without tray scans for lot_id=' + _currentAuditLotId);
+        submitAudit(_currentAuditLotId, 'proceed');
+        return;
+      }
       
       if(_totalIqf > 0 && _totalIqf < _rwQty){
         // PARTIAL: validate all tray scans complete
@@ -4219,6 +4249,7 @@ document.addEventListener('click', function(evt){
       }
       if(_targetRejInput){
         _targetRejInput.value = trayId.toUpperCase();
+        if(typeof window._iqfSyncExistingTrayCards === 'function'){ window._iqfSyncExistingTrayCards(); }
         _targetRejInput.dispatchEvent(new Event('input', { bubbles: true }));
         return;
       }
@@ -4334,6 +4365,7 @@ document.addEventListener('click', function(evt){
     // ERR3 FIX: Always uppercase on every keystroke
     inp.value = inp.value.toUpperCase();
     var val = (inp.value || '').trim();
+    if(typeof window._iqfSyncExistingTrayCards === 'function'){ window._iqfSyncExistingTrayCards(); }
     var slotNo = inp.getAttribute('data-rej-slot');
     var statusEl = document.querySelector('.rej-scan-status[data-rej-slot="' + slotNo + '"]');
 
@@ -4370,24 +4402,49 @@ document.addEventListener('click', function(evt){
       return;
     }
 
-    // Valid
-    inp.classList.add('rej-scan-valid'); inp.style.borderColor = '#b71c1c'; inp.style.background = '#ffebee';
-    if(statusEl){ statusEl.textContent = '\u2713 Scanned'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600'; }
-
-    // Update badge
-    var _rDone = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input.rej-scan-valid').length;
-    var _rTotal = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').length;
-    var _rb = document.getElementById('iqfRejScannedBadge');
-    if(_rb) _rb.textContent = 'Scanned: ' + _rDone + '/' + _rTotal;
-
-    var _foundNextRej = _iqfFocusNextRejectInput();
-
-    // Update delink section
-    _iqfUpdateDelinkFromReject();
-
-    if(!_foundNextRej && typeof Swal !== 'undefined'){
-      Swal.fire({ icon:'success', title:'Reject Scan Complete', text:'Delink trays auto-allocated below', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+    var lotId = _validationLotId;
+    if(!lotId){
+      inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
+      if(statusEl){ statusEl.textContent = 'Lot Missing'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; }
+      _iqfSelectInvalidInput(inp);
+      return;
     }
+
+    if(statusEl){ statusEl.textContent = 'Checking...'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#666'; statusEl.style.fontWeight = ''; }
+
+    fetch('/iqf/iqf_validate_tray_scan/?lot_id=' + encodeURIComponent(lotId) + '&tray_id=' + encodeURIComponent(val), { credentials: 'same-origin' })
+      .then(function(res){ return res.json().catch(function(){ return { success: false }; }); })
+      .then(function(data){
+        if(!data || !data.success || (data.status !== 'valid_lot' && data.status !== 'delink')){
+          inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
+          if(statusEl){ statusEl.textContent = (data && data.message) ? data.message : 'Invalid'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; statusEl.style.fontWeight = ''; }
+          _iqfSelectInvalidInput(inp);
+          return;
+        }
+
+        inp.classList.add('rej-scan-valid'); inp.style.borderColor = '#b71c1c'; inp.style.background = '#ffebee';
+        if(statusEl){ statusEl.textContent = '\u2713 Scanned'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600'; }
+
+        // Update badge
+        var _rDone = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input.rej-scan-valid').length;
+        var _rTotal = document.querySelectorAll('#iqf-reject-tbody .rej-scan-input').length;
+        var _rb = document.getElementById('iqfRejScannedBadge');
+        if(_rb) _rb.textContent = 'Scanned: ' + _rDone + '/' + _rTotal;
+
+        var _foundNextRej = _iqfFocusNextRejectInput();
+
+        // Update delink section
+        _iqfUpdateDelinkFromReject();
+
+        if(!_foundNextRej && typeof Swal !== 'undefined'){
+          Swal.fire({ icon:'success', title:'Reject Scan Complete', text:'Delink trays auto-allocated below', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+        }
+      })
+      .catch(function(){
+        inp.classList.add('rej-scan-invalid'); inp.style.borderColor = '#c62828'; inp.style.background = '#fff5f5';
+        if(statusEl){ statusEl.textContent = 'Error'; statusEl.className = 'rej-scan-status'; statusEl.style.color = '#c62828'; statusEl.style.fontWeight = ''; }
+        _iqfSelectInvalidInput(inp);
+      });
   }
 
   // ── Auto-compute delink once ALL reject slots are scanned ──
@@ -4594,6 +4651,7 @@ document.addEventListener('click', function(evt){
         }
       });
       window._iqfDraftRejectedTrays = [];
+      if(typeof window._iqfSyncExistingTrayCards === 'function'){ window._iqfSyncExistingTrayCards(); }
     }
 
     // Show scanned badge

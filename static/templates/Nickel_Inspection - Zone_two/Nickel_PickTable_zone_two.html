@@ -2598,7 +2598,28 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             if (!totalRej) dd.reason_qtys.forEach(function (rq) { totalRej += (parseInt(rq.qty, 10) || 0); });
           }
-          if (totalRej > 0 && totalRej <= state.totalQty) {
+          if (fullRejCb && fullRejCb.checked) {
+            // Drafted full-lot rejection must reopen in the same locked,
+            // no-tray-scan state.
+            reasonsGrid.querySelectorAll('.nq-reason-qty').forEach(function (inp) {
+              inp.value = '';
+              inp.disabled = true;
+              inp.style.background = '#f5f5f5';
+              inp.style.cursor = 'not-allowed';
+            });
+            state.pendingRestore = null;
+            state.rejectSlots = [];
+            state.acceptSlots = [];
+            state.acceptAutoTrays = [];
+            state.autoDelinkIds = [];
+            state.delinkSlots = [];
+            state.origAllTrays = [];
+            state.reuseTrays = [];
+            state.allocDone = false;
+            allocSection.style.display = 'none';
+            totalQtyDisp.textContent = state.totalQty;
+            remainingDisp.textContent = '0';
+          } else if (totalRej > 0 && totalRej <= state.totalQty) {
             totalQtyDisp.textContent = totalRej;
             remainingDisp.textContent = Math.max(0, state.totalQty - totalRej);
             fetchAllocation(totalRej);
@@ -2626,17 +2647,38 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       if (fullRejCb) {
         fullRejCb.onchange = function () {
-          if (fullRejCb.checked) {
-            reasonsGrid.querySelectorAll('.nq-reason-qty').forEach(function (inp) { inp.value = ''; });
-            // Full lot rejection: do NOT auto-fill lot qty into reason fields; directly allocate
+          var isFullReject = fullRejCb.checked;
+
+          // Full-lot rejection is a lot-level action: no reason quantities and
+          // no Reject / Delink / Accept tray allocation or tray scanning.
+          reasonsGrid.querySelectorAll('.nq-reason-qty').forEach(function (inp) {
+            inp.value = '';
+            inp.disabled = isFullReject;
+            inp.style.background = isFullReject ? '#f5f5f5' : '';
+            inp.style.cursor = isFullReject ? 'not-allowed' : '';
+          });
+
+          // Never keep stale tray allocation values when switching to full reject.
+          rejectSlotsCont.innerHTML = '';
+          acceptSlotsCont.innerHTML = '';
+          delinkList.innerHTML = '';
+          origContainer.innerHTML = '';
+          state.rejectSlots = [];
+          state.acceptSlots = [];
+          state.acceptAutoTrays = [];
+          state.autoDelinkIds = [];
+          state.delinkSlots = [];
+          state.origAllTrays = [];
+          state.reuseTrays = [];
+          state.allocDone = false;
+          allocSection.style.display = 'none';
+
+          if (isFullReject) {
             totalQtyDisp.textContent = state.totalQty;
             remainingDisp.textContent = '0';
-            fetchAllocation(state.totalQty);
           } else {
             totalQtyDisp.textContent = '0';
             remainingDisp.textContent = state.totalQty;
-            allocSection.style.display = 'none';
-            state.allocDone = false;
           }
         };
       }
@@ -2884,7 +2926,12 @@ document.addEventListener("DOMContentLoaded", function () {
           skippedExpectedDelinkIds
             .filter(function (id) { return origById.hasOwnProperty(id); })
             .map(function (id) { return { tray_id: id, qty: origById[id].qty }; })
-        );
+        )
+        // Keep accept trays in deterministic tray-ID order even when a tray that
+        // was originally planned for Delink falls back into the Accept pool.
+        .sort(function (a, b) {
+          return String(a.tray_id || '').localeCompare(String(b.tray_id || ''));
+        });
       var accInputs = Array.from(acceptSlotsCont.querySelectorAll('.nq-acc-tray-input'));
       var slot0Val = accInputs.length > 0 ? accInputs[0].value.trim().toUpperCase() : '';
       if (!slot0Val) {
@@ -2902,19 +2949,25 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // Strike out every original-tray chip that is currently accounted for
-      // anywhere in the form — delinked, reused as its own reject container,
-      // or auto-filled/typed into an accept slot — so the chip list always
-      // mirrors what's actually been allocated instead of only showing delink.
-      var usedOriginalIds = delinkedIdSet
-        .concat(Array.from(rejectSlotsCont.querySelectorAll('.nq-rej-tray-input')).map(function (inp) { return inp.value.trim().toUpperCase(); }))
-        .concat(Array.from(accInputs).map(function (inp) { return inp.value.trim().toUpperCase(); }))
-        .filter(Boolean);
-      origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
-        setChipDelinkState(chip.dataset.trayId, usedOriginalIds.indexOf(chip.dataset.trayId) !== -1);
-      });
+      // Re-sync tappable original-tray chips from the values that are currently
+      // present in Reject / Delink / Accept rows. If a tray ID is cleared or
+      // replaced in any row, that tray immediately becomes tappable again.
+      syncOriginalTrayChipStates();
 
       applyScanLockAndOrder();
+    }
+
+    function syncOriginalTrayChipStates() {
+      var usedOriginalIds = []
+        .concat(Array.from(rejectSlotsCont.querySelectorAll('.nq-rej-tray-input')).map(function (inp) { return inp.value.trim().toUpperCase(); }))
+        .concat(Array.from(delinkList.querySelectorAll('.nq-delink-tray-input')).map(function (inp) { return inp.value.trim().toUpperCase(); }))
+        .concat(Array.from(acceptSlotsCont.querySelectorAll('.nq-acc-tray-input')).map(function (inp) { return inp.value.trim().toUpperCase(); }))
+        .filter(Boolean);
+
+      origContainer.querySelectorAll('span[data-tray-id]').forEach(function (chip) {
+        var trayId = (chip.dataset.trayId || '').trim().toUpperCase();
+        setChipDelinkState(trayId, usedOriginalIds.indexOf(trayId) !== -1);
+      });
     }
 
     // Two valid scan sequences are supported:
@@ -3239,8 +3292,14 @@ document.addEventListener("DOMContentLoaded", function () {
         inp.addEventListener('input', updateDelinkSection);
       });
       acceptSlotsCont.querySelectorAll('.nq-acc-tray-input').forEach(function (inp) {
-        inp.addEventListener('input', applyScanLockAndOrder);
+        inp.addEventListener('input', function () {
+          // Keep tapping availability in sync even when an Accept tray ID is
+          // manually removed/replaced. Do not auto-refill the cleared row here.
+          syncOriginalTrayChipStates();
+          applyScanLockAndOrder();
+        });
       });
+      syncOriginalTrayChipStates();
       applyScanLockAndOrder();
     }
 

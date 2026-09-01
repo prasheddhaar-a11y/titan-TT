@@ -159,7 +159,7 @@ def _na_completed_filter_q():
 
 
 def _na_completed_source_lot_ids(allowed_color_ids):
-    completed_sources = set()
+    completed_sources = {}
     completed_rows = (
         JigUnloadAfterTable.objects.filter(
             total_case_qty__gt=0,
@@ -176,11 +176,27 @@ def _na_completed_source_lot_ids(allowed_color_ids):
         # Nickel_Audit._na_fresh_nw_reacceptance_q for why this uses a
         # timestamp comparison instead of current_stage.
         .exclude(_na_fresh_nw_reacceptance_q())
-        .only('lot_id', 'combine_lot_ids', 'current_stage')
+        .only('lot_id', 'combine_lot_ids', 'current_stage', 'na_last_process_date_time', 'created_at')
     )
     for completed_row in completed_rows:
-        completed_sources.update(_source_lot_ids(completed_row))
+        completed_at = completed_row.na_last_process_date_time or completed_row.created_at
+        for source_lot_id in _source_lot_ids(completed_row):
+            previous_completed_at = completed_sources.get(source_lot_id)
+            if not previous_completed_at or (
+                completed_at and completed_at > previous_completed_at
+            ):
+                completed_sources[source_lot_id] = completed_at
     return completed_sources
+
+
+def _source_completed_for_current_cycle(source_lots, completed_source_lots, nq_last_process_date_time):
+    for source_lot_id in source_lots:
+        completed_at = completed_source_lots.get(source_lot_id)
+        if not completed_at:
+            continue
+        if not nq_last_process_date_time or completed_at >= nq_last_process_date_time:
+            return True
+    return False
 
 
 def _active_audit_zone_pick_rows(queryset, completed_source_lots):
@@ -219,7 +235,11 @@ def _active_audit_zone_pick_rows(queryset, completed_source_lots):
                 source_lots,
             )
             continue
-        if any(lot_id in completed_source_lots for lot_id in source_lots):
+        if _source_completed_for_current_cycle(
+            source_lots,
+            completed_source_lots,
+            jig_unload_obj.nq_last_process_date_time,
+        ):
             completed_source_excluded += 1
             logger.info(
                 "[AUDIT_PICKTABLE_FILTER] zone=Z2 exclude lot=%s sources=%s reason=completed_source",

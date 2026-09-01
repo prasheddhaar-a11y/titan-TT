@@ -34,6 +34,7 @@ from Jig_Unloading.tray_utils import (
     is_valid_jig_unload_tray_id_format,
     normalize_jig_unload_tray_id,
     normalize_combine_lot_id,
+    validate_jig_unload_nickel_reject_tray,
 )
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -2686,6 +2687,19 @@ def JU_Zone_save_jig_unload_tray_ids(request):
                     'source': tray_conflict.get('source', ''),
                     'tray_index': i,
                 }, status=400)
+            nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                tray_id,
+                current_lot_id=tray.get('lot_id') or main_lot_id or None,
+            )
+            if nickel_conflict:
+                return JsonResponse({
+                    'success': False,
+                    'error': nickel_conflict['message'],
+                    'validation_type': 'tray_occupied',
+                    'linked_lot': nickel_conflict.get('linked_lot', ''),
+                    'source': nickel_conflict.get('source', ''),
+                    'tray_index': i,
+                }, status=400)
 
         # Collect tray data
         all_lot_ids_from_trays = set()
@@ -3509,6 +3523,19 @@ def JU_Zone_save_jig_unload_draft(request):
                     'source': tray_conflict.get('source', ''),
                     'tray_index': i,
                 }, status=400)
+            nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                tray_id,
+                current_lot_id=tray.get('lot_id') or main_lot_id or None,
+            )
+            if nickel_conflict:
+                return JsonResponse({
+                    'success': False,
+                    'error': nickel_conflict['message'],
+                    'validation_type': 'tray_occupied',
+                    'linked_lot': nickel_conflict.get('linked_lot', ''),
+                    'source': nickel_conflict.get('source', ''),
+                    'tray_index': i,
+                }, status=400)
         
         # Prepare draft data JSON
         draft_data = {
@@ -3693,6 +3720,18 @@ def JU_Zone_validate_tray_id(request):
             'validation_type': 'tray_occupied',
             'linked_lot': tray_conflict.get('linked_lot', ''),
             'source': tray_conflict.get('source', ''),
+        })
+    nickel_conflict = validate_jig_unload_nickel_reject_tray(
+        tray_id,
+        current_lot_id=lot_id or None,
+    )
+    if nickel_conflict:
+        return JsonResponse({
+            'success': False,
+            'error': nickel_conflict['message'],
+            'validation_type': 'tray_occupied',
+            'linked_lot': nickel_conflict.get('linked_lot', ''),
+            'source': nickel_conflict.get('source', ''),
         })
 
     try:
@@ -4015,6 +4054,21 @@ def JU_Zone_validate_tray_id_dynamic(request):
                 'details': {
                     'linked_lot': tray_conflict.get('linked_lot', ''),
                     'source': tray_conflict.get('source', '')
+                }
+            }, status=400)
+        nickel_conflict = validate_jig_unload_nickel_reject_tray(
+            tray_id,
+            current_lot_id=lot_id or None,
+        )
+        if nickel_conflict:
+            return JsonResponse({
+                'success': False,
+                'error': nickel_conflict['message'],
+                'message': f'❌ {tray_id} - Already reserved for another lot',
+                'validation_type': 'tray_occupied',
+                'details': {
+                    'linked_lot': nickel_conflict.get('linked_lot', ''),
+                    'source': nickel_conflict.get('source', '')
                 }
             }, status=400)
 
@@ -5826,6 +5880,19 @@ def JU_Zone_autosave_jig_unload(request):
                         'validation_type': 'tray_occupied',
                         'linked_lot': tray_conflict.get('linked_lot', ''),
                         'source': tray_conflict.get('source', ''),
+                        'tray_index': i,
+                    }, status=400)
+                nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                    tray_id,
+                    current_lot_id=main_lot_id or None,
+                )
+                if nickel_conflict:
+                    return JsonResponse({
+                        'success': False,
+                        'error': nickel_conflict['message'],
+                        'validation_type': 'tray_occupied',
+                        'linked_lot': nickel_conflict.get('linked_lot', ''),
+                        'source': nickel_conflict.get('source', ''),
                         'tray_index': i,
                     }, status=400)
             

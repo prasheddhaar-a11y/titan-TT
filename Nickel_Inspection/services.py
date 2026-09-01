@@ -26,22 +26,50 @@ def extract_tray_series_from_tray_id(tray_id):
     return match.group(1) if match else ''
 
 
-def get_nickel_wiping_rejection_tray_allocation(tray_type):
+def _resolve_nickel_wiping_tray_type(tray_type, plating_stk_no=None):
+    """
+    Return the authoritative model tray type for a Nickel Wiping lot.
+
+    JigUnloadAfterTable.tray_type is only a snapshot captured at jig-unload
+    time. For models added or re-classified in ModelMaster afterwards (e.g. the
+    pilot-model bulk load) that snapshot can be blank or stale, which previously
+    caused the rejection allocation to silently default to Normal (NB) for a
+    Jumbo model. ModelMaster is the source of truth (CLAUDE.md - "Backend is the
+    only source of truth"), so resolve from it by plating stock number first and
+    fall back to the snapshot only when the master lookup yields nothing.
+    """
+    resolved = str(tray_type or '').strip()
+    if plating_stk_no:
+        try:
+            from Jig_Unloading.tray_utils import get_model_master_tray_info
+            master_type, _ = get_model_master_tray_info(plating_stk_no, resolved)
+            if master_type:
+                resolved = str(master_type).strip()
+        except Exception:  # pragma: no cover - defensive, never block on lookup
+            pass
+    return resolved
+
+
+def get_nickel_wiping_rejection_tray_allocation(tray_type, plating_stk_no=None):
     """
     Resolve Nickel Wiping rejection tray allocation from model master tray type.
 
     Nickel Wiping receives the configured model tray type from the upstream
     model master flow via JigUnloadAfterTable.tray_type. Normal-family models
     use NB rejection trays; Jumbo-family models use JB rejection trays.
+
+    When plating_stk_no is supplied the tray type is re-resolved from ModelMaster
+    so a blank/stale JigUnloadAfterTable.tray_type snapshot cannot downgrade a
+    Jumbo model to Normal reject trays.
     """
-    tray_type_key = str(tray_type or '').strip().upper()
+    tray_type_key = _resolve_nickel_wiping_tray_type(tray_type, plating_stk_no).upper()
     if 'JUMBO' in tray_type_key or tray_type_key in _JUMBO_TRAY_TYPE_CODES:
         return 'JB', 12
     return 'NB', 16
 
 
-def validate_nickel_wiping_rejection_tray_series(tray_id, tray_type):
-    allowed_prefix, _ = get_nickel_wiping_rejection_tray_allocation(tray_type)
+def validate_nickel_wiping_rejection_tray_series(tray_id, tray_type, plating_stk_no=None):
+    allowed_prefix, _ = get_nickel_wiping_rejection_tray_allocation(tray_type, plating_stk_no)
     scanned_prefix = extract_tray_series_from_tray_id(tray_id)
 
     if not scanned_prefix:
@@ -164,6 +192,122 @@ def validate_nickel_wiping_rejection_tray_available(
     if not master_tray:
         return False, f'Tray {tray_key} not found in master'
 
+    # Cross-module guard for Nickel Wiping Z1/Z2. Both zones use this same
+    # service through the shared nq_action handler, so one lifecycle-aware
+    # check protects scan-time validation and final reject submission.
+    #
+    # Keep the current-lot exception: an original tray already belonging to
+    # this Nickel Wiping lot may legitimately be reused as its own reject
+    # container. Explicitly delinked/released trays also remain reusable.
+    current_lot = str(current_lot_id or '').strip()
+
+    try:
+        from Brass_QC.services.validators import (
+            validate_tray_cross_module_occupancy,
+            is_tray_rejected_in_brass_qc,
+        )
+
+        occupied_module, occupancy_error = validate_tray_cross_module_occupancy(
+            tray_key, current_lot or None
+        )
+        if occupancy_error:
+            return False, 'Tray is occupied.'
+
+        # Brass QC reject identity is snapshot-backed, so it can outlive the
+        # module mirror/master assignment. Reuse its release-aware helper.
+        if is_tray_rejected_in_brass_qc(tray_key):
+            return False, 'Tray is occupied.'
+    except ImportError:
+        # Preserve existing Nickel Wiping behavior if Brass QC services are not
+        # importable during an isolated app-management operation.
+        pass
+
+    # Brass Audit rejected trays can likewise be represented only in completed
+    # submission / partial-reject snapshots. Do not let a free-looking master
+    # row make such a tray reusable unless it was explicitly released/delinked.
+    explicitly_released = bool(
+        master_tray.delink_tray and not master_tray.scanned
+    )
+    if not explicitly_released:
+        try:
+            from BrassAudit.models import (
+                Brass_Audit_Submission,
+                BrassAudit_PartialRejectLot,
+            )
+
+            ba_submissions = Brass_Audit_Submission.objects.filter(
+                submission_type__in=['PARTIAL', 'FULL_REJECT'],
+                is_completed=True,
+            )
+            if current_lot:
+                ba_submissions = ba_submissions.exclude(lot_id=current_lot)
+            for submission in ba_submissions.only(
+                'lot_id', 'partial_reject_data', 'full_reject_data'
+            ):
+                snapshot = submission.partial_reject_data or submission.full_reject_data or {}
+                if _tray_rows_contain_tray_id(snapshot.get('trays'), tray_key):
+                    return False, 'Tray is occupied.'
+
+            ba_reject_lots = BrassAudit_PartialRejectLot.objects.exclude(
+                trays_snapshot__isnull=True
+            )
+            if current_lot:
+                ba_reject_lots = ba_reject_lots.exclude(new_lot_id=current_lot)
+            for reject_lot in ba_reject_lots.only('new_lot_id', 'trays_snapshot'):
+                if _tray_rows_contain_tray_id(reject_lot.trays_snapshot, tray_key):
+                    return False, 'Tray is occupied.'
+        except ImportError:
+            pass
+
+        # Nickel Audit Z1 and Z2 share these models. Exclude the current lot so
+        # an intentional NA -> NW rework return can continue, while reject trays
+        # owned by any other Nickel Audit lot remain unavailable.
+        try:
+            from Nickel_Audit.models import (
+                Nickel_AuditTrayId,
+                Nickel_Audit_Rejected_TrayScan,
+                NickelAudit_Submission,
+                NickelAudit_PartialRejectLot,
+            )
+
+            na_live = Nickel_AuditTrayId.objects.filter(
+                tray_id__iexact=tray_key,
+                delink_tray=False,
+                lot_id__isnull=False,
+            )
+            if current_lot:
+                na_live = na_live.exclude(lot_id=current_lot)
+            if na_live.exists():
+                return False, 'Tray is occupied.'
+
+            na_scans = Nickel_Audit_Rejected_TrayScan.objects.filter(
+                rejected_tray_id__iexact=tray_key
+            )
+            if current_lot:
+                na_scans = na_scans.exclude(lot_id=current_lot)
+            if na_scans.exists():
+                return False, 'Tray is occupied.'
+
+            na_submissions = NickelAudit_Submission.objects.filter(
+                submission_type__in=['PARTIAL', 'FULL_REJECT']
+            )
+            if current_lot:
+                na_submissions = na_submissions.exclude(lot_id=current_lot)
+            for submission in na_submissions.only('lot_id', 'reject_trays_data'):
+                if _tray_rows_contain_tray_id(submission.reject_trays_data, tray_key):
+                    return False, 'Tray is occupied.'
+
+            na_reject_lots = NickelAudit_PartialRejectLot.objects.exclude(
+                trays_snapshot__isnull=True
+            )
+            if current_lot:
+                na_reject_lots = na_reject_lots.exclude(new_lot_id=current_lot)
+            for reject_lot in na_reject_lots.only('new_lot_id', 'trays_snapshot'):
+                if _tray_rows_contain_tray_id(reject_lot.trays_snapshot, tray_key):
+                    return False, 'Tray is occupied.'
+        except ImportError:
+            pass
+
     active_lot_ids = _nickel_wiping_active_lot_ids(current_lot_id)
     if not active_lot_ids:
         return True, ''
@@ -279,16 +423,127 @@ def build_reject_slots(rejected_qty, reject_capacity):
     ]
 
 
-def build_nq_rejection_allocation(original_trays, rejected_qty, reject_capacity):
+def _build_accept_slot_quantities(accepted_qty, accept_capacity):
+    accepted_qty = _nq_int(accepted_qty)
+    accept_capacity = _nq_int(accept_capacity)
+    if accepted_qty <= 0 or accept_capacity <= 0:
+        return []
+
+    full_count, remainder = divmod(accepted_qty, accept_capacity)
+    quantities = []
+    if remainder:
+        quantities.append(remainder)
+    quantities.extend([accept_capacity] * full_count)
+    return quantities
+
+
+def _sort_accept_candidates_for_capacity(rows):
+    if not rows:
+        return []
+
+    top_row = min(
+        rows,
+        key=lambda row: (
+            row.get('source_qty', row['qty']),
+            _tray_sort_key(row['tray_id']),
+            row.get('_index', 0),
+        ),
+    )
+    top_tray_id = top_row['tray_id']
+    sorted_rows = [row for row in rows if row['tray_id'] == top_tray_id]
+    sorted_rows.extend(
+        sorted(
+            [row for row in rows if row['tray_id'] != top_tray_id],
+            key=lambda row: (
+                bool(row.get('_partial_remainder', False)),
+                _tray_sort_key(row['tray_id']),
+                row.get('_index', 0),
+            ),
+        )
+    )
+    return sorted_rows
+
+
+def _apply_accept_capacity_shape(accept_rows, accepted_qty, accept_capacity):
+    quantities = _build_accept_slot_quantities(accepted_qty, accept_capacity)
+    if not quantities:
+        return [], []
+
+    ordered_rows = _sort_accept_candidates_for_capacity(accept_rows)
+    selected_rows = ordered_rows[:len(quantities)]
+    surplus_rows = ordered_rows[len(quantities):]
+
+    shaped_rows = []
+    for index, (row, qty) in enumerate(zip(selected_rows, quantities)):
+        item = {
+            'tray_id': row['tray_id'],
+            'qty': qty,
+            'is_top': index == 0,
+        }
+        item['top_tray'] = item['is_top']
+        shaped_rows.append(item)
+
+    surplus_delink_slots = [
+        {
+            'tray_id': row['tray_id'],
+            'qty': row.get('source_qty', row['qty']),
+            'is_required': True,
+        }
+        for row in surplus_rows
+    ]
+    return shaped_rows, surplus_delink_slots
+
+
+def _validate_accept_capacity_shape(rows, accepted_qty=None, accept_capacity=None):
+    clean_rows = _mark_top_by_smallest_qty(rows)
+    accept_capacity = _nq_int(accept_capacity)
+    if not clean_rows or accept_capacity <= 0:
+        return clean_rows
+
+    top_seen = False
+    for row in clean_rows:
+        qty = _nq_int(row.get('qty'))
+        if qty > accept_capacity:
+            raise ValueError(f"Accept tray {row['tray_id']} qty exceeds max {accept_capacity}.")
+        if row.get('is_top'):
+            top_seen = True
+        elif qty != accept_capacity:
+            raise ValueError('Only the accept top tray may have a partial quantity.')
+
+    if clean_rows and not top_seen:
+        raise ValueError('Accept top tray is required.')
+
+    if accepted_qty is not None and tray_qty_total(clean_rows) != _nq_int(accepted_qty):
+        raise ValueError('Accept tray total does not match accepted qty.')
+
+    return clean_rows
+
+
+def build_nq_rejection_allocation(
+    original_trays,
+    rejected_qty,
+    reject_capacity,
+    accept_capacity=None,
+    accepted_qty=None,
+):
     original_rows = _clean_tray_rows(original_trays)
     rejected_qty = _nq_int(rejected_qty)
+    accepted_qty = _nq_int(accepted_qty)
+    accept_capacity = _nq_int(accept_capacity)
+    if accepted_qty <= 0:
+        accepted_qty = max(sum(row['qty'] for row in original_rows) - rejected_qty, 0)
     remaining_reject_qty = rejected_qty
     delink_slots = []
     accept_auto_trays = []
 
     for row in original_rows:
         if remaining_reject_qty <= 0:
-            accept_auto_trays.append({'tray_id': row['tray_id'], 'qty': row['qty']})
+            accept_auto_trays.append({
+                'tray_id': row['tray_id'],
+                'qty': row['qty'],
+                'source_qty': row['qty'],
+                '_index': row.get('_index', 0),
+            })
         elif row['qty'] <= remaining_reject_qty:
             delink_slots.append({
                 'tray_id': row['tray_id'],
@@ -300,10 +555,22 @@ def build_nq_rejection_allocation(original_trays, rejected_qty, reject_capacity)
             accept_auto_trays.append({
                 'tray_id': row['tray_id'],
                 'qty': row['qty'] - remaining_reject_qty,
+                'source_qty': row['qty'],
+                '_index': row.get('_index', 0),
+                '_partial_remainder': True,
             })
             remaining_reject_qty = 0
 
-    accept_auto_trays = _mark_top_by_smallest_qty(accept_auto_trays)
+    if accept_capacity > 0:
+        accept_auto_trays, surplus_delink_slots = _apply_accept_capacity_shape(
+            accept_auto_trays,
+            accepted_qty,
+            accept_capacity,
+        )
+        delink_slots.extend(surplus_delink_slots)
+    else:
+        accept_auto_trays = _mark_top_by_smallest_qty(accept_auto_trays)
+
     accept_slots = [
         {
             'qty': row['qty'],
@@ -428,7 +695,14 @@ def normalize_operator_delink_trays(delink_trays, expected_delink_slots, origina
     return normalized
 
 
-def normalize_accept_trays(accept_trays, expected_accept_trays, original_trays=None, delink_trays=None):
+def normalize_accept_trays(
+    accept_trays,
+    expected_accept_trays,
+    original_trays=None,
+    delink_trays=None,
+    accepted_qty=None,
+    accept_capacity=None,
+):
     rows = _clean_tray_rows(accept_trays)
     expected_rows = _clean_tray_rows(expected_accept_trays)
     expected_qty_by_id = {row['tray_id']: row['qty'] for row in expected_rows}
@@ -456,7 +730,7 @@ def normalize_accept_trays(accept_trays, expected_accept_trays, original_trays=N
             if tray_id not in original_qty_by_id:
                 raise ValueError(f"Accept tray {tray_id} is not an original tray for this lot.")
             seen_trays.add(tray_id)
-        return _mark_top_by_smallest_qty(rows)
+        return _validate_accept_capacity_shape(rows, accepted_qty, accept_capacity)
 
     if expected_rows:
         if len(rows) != len(expected_rows):
@@ -481,7 +755,7 @@ def normalize_accept_trays(accept_trays, expected_accept_trays, original_trays=N
         if row['tray_id'] in seen_trays:
             raise ValueError(f"Duplicate accept tray {row['tray_id']} scanned.")
         seen_trays.add(row['tray_id'])
-    return _mark_top_by_smallest_qty(rows)
+    return _validate_accept_capacity_shape(rows, accepted_qty, accept_capacity)
 
 
 def validate_original_tray_coverage(accept_trays, delink_trays, original_trays, reject_trays=None):

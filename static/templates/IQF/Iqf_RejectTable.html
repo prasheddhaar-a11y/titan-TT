@@ -984,7 +984,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                          data-batch-id="{{ data.batch_id }}"
                          data-model-no="{{ data.plating_stk_no }}"
                          data-no-of-trays="{{ data.no_of_trays }}"
-                         data-total-batch-quantity="{{ data.brass_rejection_total_qty }}"
+                         data-total-batch-quantity="{{ data.reject_lot_qty }}"
                          data-missing-qty="{{ data.iqf_missing_qty }}">
                         <img src="{% static 'assets/icons/view.png' %}"
                              alt="View"
@@ -992,13 +992,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                       </a>
                     </td>
                     <td>
-                      {% if data.original_lot_qty %}
-                        {{ data.original_lot_qty }}
-                      {% elif data.brass_rejection_total_qty %}
-                        {{ data.brass_rejection_total_qty }}
-                      {% else %}
-                        0
-                      {% endif %}
+                      {{ data.reject_lot_qty|default:0 }}
                     </td>
                     <td>
                       {{data.iqf_rejection_total_qty}}

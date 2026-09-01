@@ -121,6 +121,283 @@ def validate_unique_tray_assignments(accepted_tray_ids, rejected_tray_ids, delin
     return normalized, None
 
 
+def _normalize_tray_id(tray_id):
+    return str(tray_id or "").strip().upper()
+
+
+def _normalize_lot_id(lot_id):
+    return str(lot_id or "").strip()
+
+
+def _rows_contain_tray_id(rows, tray_key):
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        row_tray_id = _normalize_tray_id(row.get("tray_id") or row.get("rejected_tray_id"))
+        if row_tray_id != tray_key:
+            continue
+        try:
+            qty = int(row.get("qty") or row.get("rejected_tray_quantity") or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        if qty > 0:
+            return True
+    return False
+
+
+def _snapshot_contains_tray(snapshot_data, tray_key):
+    if not isinstance(snapshot_data, dict):
+        return False
+    return _rows_contain_tray_id(snapshot_data.get("trays"), tray_key)
+
+
+def _is_iqf_tray_explicitly_released(tray_key):
+    from modelmasterapp.models import TrayId
+
+    return TrayId.objects.filter(
+        tray_id__iexact=tray_key,
+        delink_tray=True,
+        scanned=False,
+        rejected_tray=False,
+    ).exists()
+
+
+def _is_input_screening_rejected_tray_active(tray_key):
+    """Match the existing IQF view-level Input Screening rejected-tray semantics."""
+    if not tray_key:
+        return False
+
+    from django.db.models import Q
+    from modelmasterapp.models import TrayId
+    from InputScreening.models import IPTrayId, IP_Rejected_TrayScan, IS_AllocationTray
+
+    released_for_reuse = (
+        TrayId.objects.filter(
+            tray_id=tray_key,
+            delink_tray=True,
+            rejected_tray=False,
+        ).exists() or
+        IPTrayId.objects.filter(
+            tray_id=tray_key,
+            delink_tray=True,
+            rejected_tray=False,
+        ).exists()
+    )
+
+    reason_exists = (
+        Q(rejection_reason_id__isnull=False) |
+        (Q(rejection_reason_text__isnull=False) & ~Q(rejection_reason_text=''))
+    )
+    active_partial_reject = (
+        IS_AllocationTray.objects
+        .filter(
+            tray_id=tray_key,
+            reject_lot__isnull=False,
+            qty__gt=0,
+            is_delinked=False,
+        )
+        .filter(reason_exists)
+        .exists()
+    )
+    if active_partial_reject and not released_for_reuse:
+        return True
+
+    if IPTrayId.objects.filter(
+        tray_id=tray_key,
+        rejected_tray=True,
+        delink_tray=False,
+    ).exists():
+        return True
+
+    if TrayId.objects.filter(
+        tray_id=tray_key,
+        rejected_tray=True,
+        delink_tray=False,
+    ).exists():
+        return True
+
+    legacy_reject_scan_exists = IP_Rejected_TrayScan.objects.filter(
+        rejected_tray_id=tray_key,
+    ).exists()
+    return legacy_reject_scan_exists and not released_for_reuse
+
+
+def _is_current_lot_iqf_input_tray(tray_key, current_lot_id):
+    if not tray_key or not current_lot_id:
+        return False
+
+    from Brass_QC.models import (
+        Brass_QC_Rejected_TrayScan,
+        Brass_QC_Submission,
+        BrassQC_PartialRejectLot,
+        BrassTrayId,
+    )
+    from BrassAudit.models import (
+        Brass_Audit_Rejected_TrayScan,
+        Brass_Audit_Submission,
+        BrassAudit_PartialRejectLot,
+        BrassAuditTrayId,
+    )
+    from .selectors import get_current_trays
+    from ..models import IQFTrayId
+
+    if IQFTrayId.objects.filter(
+        lot_id=current_lot_id,
+        tray_id__iexact=tray_key,
+        delink_tray=False,
+    ).exists():
+        return True
+
+    if BrassTrayId.objects.filter(
+        lot_id=current_lot_id,
+        tray_id__iexact=tray_key,
+        delink_tray=False,
+        rejected_tray=True,
+    ).exists():
+        return True
+
+    if BrassAuditTrayId.objects.filter(
+        lot_id=current_lot_id,
+        tray_id__iexact=tray_key,
+        delink_tray=False,
+    ).exists():
+        return True
+
+    current_trays, _source, _total_qty = get_current_trays(current_lot_id)
+    current_tray_ids = {
+        _normalize_tray_id(row.get("tray_id"))
+        for row in current_trays
+        if isinstance(row, dict)
+    }
+    if tray_key in current_tray_ids:
+        return True
+
+    if Brass_QC_Rejected_TrayScan.objects.filter(
+        lot_id=current_lot_id,
+        rejected_tray_id__iexact=tray_key,
+    ).exists():
+        return True
+
+    if Brass_Audit_Rejected_TrayScan.objects.filter(
+        lot_id=current_lot_id,
+        rejected_tray_id__iexact=tray_key,
+    ).exists():
+        return True
+
+    bqc_submissions = Brass_QC_Submission.objects.filter(
+        lot_id=current_lot_id,
+        is_completed=True,
+    ).only("partial_reject_data", "full_reject_data")
+    for submission in bqc_submissions:
+        if (
+            _snapshot_contains_tray(submission.partial_reject_data, tray_key) or
+            _snapshot_contains_tray(submission.full_reject_data, tray_key)
+        ):
+            return True
+
+    ba_submissions = Brass_Audit_Submission.objects.filter(
+        lot_id=current_lot_id,
+        is_completed=True,
+    ).only("partial_reject_data", "full_reject_data")
+    for submission in ba_submissions:
+        if (
+            _snapshot_contains_tray(submission.partial_reject_data, tray_key) or
+            _snapshot_contains_tray(submission.full_reject_data, tray_key)
+        ):
+            return True
+
+    bqc_reject_lots = BrassQC_PartialRejectLot.objects.filter(
+        new_lot_id=current_lot_id
+    ).exclude(trays_snapshot__isnull=True).only("trays_snapshot")
+    for reject_lot in bqc_reject_lots:
+        if _rows_contain_tray_id(reject_lot.trays_snapshot, tray_key):
+            return True
+
+    ba_reject_lots = BrassAudit_PartialRejectLot.objects.filter(
+        new_lot_id=current_lot_id
+    ).exclude(trays_snapshot__isnull=True).only("trays_snapshot")
+    for reject_lot in ba_reject_lots:
+        if _rows_contain_tray_id(reject_lot.trays_snapshot, tray_key):
+            return True
+
+    return False
+
+
+def _is_iqf_rejected_tray_active_elsewhere(tray_key, current_lot_id):
+    if not tray_key:
+        return False
+    if _is_iqf_tray_explicitly_released(tray_key):
+        return False
+
+    from ..models import IQFTrayId
+
+    iqf_reject_rows = IQFTrayId.objects.filter(
+        tray_id__iexact=tray_key,
+        rejected_tray=True,
+        delink_tray=False,
+        lot_id__isnull=False,
+    )
+    if current_lot_id:
+        iqf_reject_rows = iqf_reject_rows.exclude(lot_id=current_lot_id)
+    if iqf_reject_rows.exists():
+        return True
+
+    return False
+
+
+def validate_iqf_cross_module_tray_available(tray_id, current_lot_id=None):
+    """
+    Return None when IQF can use the tray; otherwise return an error message.
+
+    Same-lot IQF/upstream rejected-material evidence is allowed before global
+    cross-module rejected-tray blockers run.
+    """
+    tray_key = _normalize_tray_id(tray_id)
+    lot_key = _normalize_lot_id(current_lot_id)
+    if not tray_key:
+        return None
+
+    if _is_current_lot_iqf_input_tray(tray_key, lot_key):
+        return None
+
+    if _is_input_screening_rejected_tray_active(tray_key):
+        return "Tray rejected in Input Screening"
+
+    try:
+        from Brass_QC.services.validators import validate_tray_not_rejected_in_brass_qc
+
+        if validate_tray_not_rejected_in_brass_qc(tray_key):
+            return "Tray is occupied."
+    except ImportError:
+        logger.warning("Brass QC tray validator unavailable during IQF validation")
+
+    try:
+        from modelmasterapp.models import TrayId
+        from Nickel_Inspection.services import validate_nickel_wiping_rejection_tray_available
+
+        if TrayId.objects.filter(tray_id__iexact=tray_key).exists():
+            is_available, _message = validate_nickel_wiping_rejection_tray_available(
+                tray_key,
+                current_lot_id=lot_key or None,
+            )
+            if not is_available:
+                return "Tray is occupied."
+    except ImportError:
+        logger.warning("Nickel Wiping tray validator unavailable during IQF validation")
+
+    if _is_iqf_rejected_tray_active_elsewhere(tray_key, lot_key):
+        return "Tray is occupied."
+
+    occupied_module, occupancy_error = validate_tray_cross_module_occupancy(
+        tray_key,
+        lot_key or None,
+    )
+    if occupied_module or occupancy_error:
+        return "Tray is occupied."
+
+    return None
+
+
 def validate_tray_cross_module_occupancy(tray_id, lot_id):
     """
     Checks tray occupancy across IS, Brass QC, Brass Audit, and IQF modules.

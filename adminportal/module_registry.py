@@ -112,4 +112,3 @@ LEGACY_MODULE_NAME_MAP = {
     "Spider Spindle Z1": ["Spider Spindle Z1 Pick Table", "Spider Spindle Z1 Completed Table"],
     "Spider Spindle Z2": ["Spider Spindle Z2 Pick Table", "Spider Spindle Z2 Completed Table"],
 }
-

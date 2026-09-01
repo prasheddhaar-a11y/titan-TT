@@ -4069,20 +4069,66 @@ class JigSaveAPI(APIView):
 			if len(jig_id) != 9 or not jig_id[5:].isdigit():
 				return Response({'status': 'error', 'message': f'Invalid Jig ID format. Must be 9 characters: J###-####.'}, status=status.HTTP_400_BAD_REQUEST)
 
-			# Jig existence check — jig_id must exist in Jig master table
-			if not Jig.objects.filter(jig_qr_id=jig_id).exists():
+			# Jig existence check — jig_id must exist in Jig master table.
+			# select_for_update() takes the row lock immediately (cheap) so a
+			# retried/duplicate submit (e.g. the client re-clicking Submit after
+			# a network timeout) serializes HERE instead of after it has already
+			# minted delink/excess-lot records — see the idempotency guard below.
+			jig_obj = Jig.objects.select_for_update().filter(jig_qr_id=jig_id).first()
+			if not jig_obj:
 				return Response({'status': 'error', 'message': f'Jig {jig_id} does not exist. Please scan a valid Jig ID from the Jig master.'}, status=status.HTTP_400_BAD_REQUEST)
+
+			# IDEMPOTENCY GUARD (CLAUDE.md Security Rules: "Protect against duplicate
+			# submissions"). A slow request (e.g. the per-tray cross-module delink
+			# propagation below taking too long on a loaded server) can time out on
+			# the client while the transaction keeps running and commits server-side.
+			# The user then retries. Because the lock above makes this request wait
+			# for any in-flight submit of the same jig to finish, by the time we get
+			# here we are guaranteed to see the committed outcome — so if this exact
+			# submit already completed, replay its stored result instead of
+			# re-running the write pipeline (which would create a second excess lot
+			# / stock record for the same physical trays).
+			existing_submitted = JigCompleted.objects.filter(
+				lot_id=lot_id, batch_id=batch_id, user=user,
+				draft_status='submitted', jig_id=jig_id,
+			).first()
+			if existing_submitted:
+				prior_excess = ExcessLotRecord.objects.filter(jig_id=jig_id, parent_lot_id=lot_id).order_by('-id').first()
+				logging.info(json.dumps({
+					'event': 'JIG_SAVE_DUPLICATE_SUBMIT_SHORT_CIRCUIT',
+					'lot_id': lot_id, 'batch_id': batch_id, 'jig_id': jig_id,
+				}))
+				return Response({
+					'status': 'success',
+					'message': 'Submitted successfully',
+					'lot_status': 'Completed',
+					'record_id': existing_submitted.id,
+					'lot_id': lot_id,
+					'batch_id': batch_id,
+					'draft_status': 'submitted',
+					'jig_id': jig_id,
+					'loaded_cases_qty': existing_submitted.loaded_cases_qty,
+					'effective_capacity': existing_submitted.effective_capacity,
+					'total_delink_qty': existing_submitted.delink_tray_qty,
+					'total_excess_qty': existing_submitted.excess_qty,
+					'delink_records_created': JigDelinkRecord.objects.filter(jig_id=jig_id, lot_id=lot_id, batch_id=batch_id).count(),
+					'excess_lot_id': prior_excess.new_lot_id if prior_excess else None,
+					'excess_trays_created': ExcessLotTray.objects.filter(excess_lot=prior_excess).count() if prior_excess else 0,
+					'model_image_label': existing_submitted.plating_stock_num,
+					'lot_qty': existing_submitted.original_lot_qty,
+					'no_of_model_cases': existing_submitted.no_of_model_cases,
+				})
 
 			# Jig reuse validation — prevent using loaded/drafted jigs
 			cycle_info = get_next_jig_cycle(jig_id, lot_id)
-			
+
 			# Block only if jig is drafted by a DIFFERENT lot — same-lot draft → submit is allowed
 			if cycle_info['drafted_by_other_lot']:
 				return Response(
 					{'status': 'error', 'message': 'This Jig is currently drafted by another lot. Cannot submit.'},
 					status=status.HTTP_409_CONFLICT
 				)
-			
+
 			# Block if jig is currently loaded
 			if not cycle_info['can_reuse']:
 				return Response(
@@ -4092,18 +4138,14 @@ class JigSaveAPI(APIView):
 
 			# Jig occupancy check: submitted JigCompleted rows are historical records.
 			# Reuse is blocked only while the Jig master marks the jig as occupied/loaded.
-			jig_obj_loaded = Jig.objects.filter(
-				jig_qr_id=jig_id,
-				occupied_flag=True,
-			).exclude(
-				current_user=user, batch_id=batch_id, lot_id=lot_id
-			).exists()
+			jig_obj_loaded = jig_obj.occupied_flag and not (
+				jig_obj.current_user_id == user.id and jig_obj.batch_id == batch_id and jig_obj.lot_id == lot_id
+			)
 			if jig_obj_loaded:
 				return Response({'status': 'error', 'message': f'Jig {jig_id} is already in use.'}, status=status.HTTP_409_CONFLICT)
 
 			# Check jig not locked by another user
-			jig_obj = Jig.objects.filter(jig_qr_id=jig_id).first()
-			if jig_obj and jig_obj.is_locked_by_other_user(user):
+			if jig_obj.is_locked_by_other_user(user):
 				return Response({'status': 'error', 'message': f'Jig {jig_id} is locked by another user.'}, status=status.HTTP_409_CONFLICT)
 
 			# Loaded cases must be > 0 for submit (cannot submit an empty jig)
@@ -4377,7 +4419,17 @@ class JigSaveAPI(APIView):
 					'plating_stock_num': effective_plating_stock_num,
 					'remarks': remarks,
 				}
-				jlr_for_submit = None
+				# JigLoadingRecord is a single FK target shared by every delink row for
+				# this lot/batch/user — it was previously update_or_create'd on EVERY
+				# tray iteration (identical `defaults` each time), turning an N-tray
+				# submit into N redundant SELECT+UPDATE round trips. Resolve it once.
+				jlr_for_submit, _ = JigLoadingRecord.objects.update_or_create(
+					lot_id=lot_id, batch_id=batch_id, user=user,
+					defaults=jig_loading_record_defaults
+				)
+
+				delink_record_objs = []
+				propagate_tray_ids = []
 
 				for tray in tray_data:
 					d_qty = int(tray.get('delink_qty', 0) or 0)
@@ -4385,15 +4437,9 @@ class JigSaveAPI(APIView):
 					if d_qty <= 0:
 						continue
 					tray_id_val = tray.get('tray_id', '')
-					# Find the JigLoadingRecord for FK (create minimal one if needed)
-					jlr, _ = JigLoadingRecord.objects.update_or_create(
-						lot_id=lot_id, batch_id=batch_id, user=user,
-						defaults=jig_loading_record_defaults
-					)
-					jlr_for_submit = jlr
 
-					JigDelinkRecord.objects.create(
-						jig_loading_record=jlr,
+					delink_record_objs.append(JigDelinkRecord(
+						jig_loading_record=jlr_for_submit,
 						jig_id=jig_id,
 						lot_id=tray.get('source_lot_id', '') or lot_id,
 						batch_id=batch_id,
@@ -4402,7 +4448,7 @@ class JigSaveAPI(APIView):
 						original_qty=int(tray.get('original_qty', 0) or 0),
 						model_code=tray.get('model_code', '') or effective_plating_stock_num,
 						scanned_tray_id=tray_id_val,
-					)
+					))
 					delink_created += 1
 
 					if e_qty > 0:
@@ -4415,16 +4461,28 @@ class JigSaveAPI(APIView):
 						)
 						continue
 
-					# Propagate delink status to the shared tray master, Day Planning's tray
-					# history, AND every other module's own tray mirror table, so the tray
-					# reads as free everywhere — not just in Jig Loading's own records.
-					# Mirrors the exact cross-module propagation IQF already does for its
-					# own delink flow (IQF/views.py, LotDelinkAPIView: BrassTrayId /
-					# BrassAuditTrayId / IPTrayId updates after freeing the TrayId master).
-					# Jig Loading previously only updated the master + DPTrayId_History,
-					# leaving stale delink_tray=False rows in IS/Brass QC/Brass Audit/IQF's
-					# own tables — DayPlanning's validate_tray_cross_module_occupancy() reads
-					# those directly and blocked reuse even though the master was already free.
+					propagate_tray_ids.append(tray_id_val)
+
+				if delink_record_objs:
+					JigDelinkRecord.objects.bulk_create(delink_record_objs)
+
+				# Propagate delink status to the shared tray master, Day Planning's tray
+				# history, AND every other module's own tray mirror table, so the tray
+				# reads as free everywhere — not just in Jig Loading's own records.
+				# Mirrors the exact cross-module propagation IQF already does for its
+				# own delink flow (IQF/views.py, LotDelinkAPIView: BrassTrayId /
+				# BrassAuditTrayId / IPTrayId updates after freeing the TrayId master).
+				# Jig Loading previously only updated the master + DPTrayId_History,
+				# leaving stale delink_tray=False rows in IS/Brass QC/Brass Audit/IQF's
+				# own tables — DayPlanning's validate_tray_cross_module_occupancy() reads
+				# those directly and blocked reuse even though the master was already free.
+				#
+				# Batched across all trays in this submit (one query per table instead
+				# of one per tray per table) — this loop previously issued ~7 queries
+				# PER tray while holding the outer @transaction.atomic lock, which is
+				# what let a large multi-tray/multi-model submit run long enough to hit
+				# a client/gateway timeout under production load.
+				if propagate_tray_ids:
 					try:
 						from DayPlanning.models import DPTrayId_History
 						from InputScreening.models import IPTrayId
@@ -4432,16 +4490,10 @@ class JigSaveAPI(APIView):
 						from BrassAudit.models import BrassAuditTrayId
 						from IQF.models import IQFTrayId
 
-						tray_obj = TrayId.objects.filter(tray_id=tray_id_val).first()
-						if tray_obj:
-							tray_obj.delink_tray = True
-							tray_obj.lot_id = None
-							tray_obj.batch_id = None
-							tray_obj.scanned = False
-							tray_obj.top_tray = False
-							tray_obj.save(update_fields=[
-								'delink_tray', 'lot_id', 'batch_id', 'scanned', 'top_tray'
-							])
+						TrayId.objects.filter(tray_id__in=propagate_tray_ids).update(
+							delink_tray=True, lot_id=None, batch_id=None,
+							scanned=False, top_tray=False
+						)
 
 						# NOTE: all of the following are scoped to tray_id only (no lot_id
 						# filter). By the time a tray reaches Jig Loading it has typically
@@ -4453,22 +4505,22 @@ class JigSaveAPI(APIView):
 						# this must mirror that scope or the delink never actually clears and
 						# the tray stays permanently blocked from reuse.
 						DPTrayId_History.objects.filter(
-							tray_id=tray_id_val, delink_tray=False
+							tray_id__in=propagate_tray_ids, delink_tray=False
 						).update(delink_tray=True)
 						IPTrayId.objects.filter(
-							tray_id=tray_id_val, delink_tray=False
+							tray_id__in=propagate_tray_ids, delink_tray=False
 						).update(delink_tray=True)
 						BrassTrayId.objects.filter(
-							tray_id=tray_id_val, delink_tray=False
+							tray_id__in=propagate_tray_ids, delink_tray=False
 						).update(delink_tray=True)
 						BrassAuditTrayId.objects.filter(
-							tray_id=tray_id_val, delink_tray=False
+							tray_id__in=propagate_tray_ids, delink_tray=False
 						).update(delink_tray=True)
 						IQFTrayId.objects.filter(
-							tray_id=tray_id_val, delink_tray=False
+							tray_id__in=propagate_tray_ids, delink_tray=False
 						).update(delink_tray=True)
 					except Exception:
-						logging.exception(f'JigSaveAPI: tray delink propagation failed for tray_id={tray_id_val}')
+						logging.exception(f'JigSaveAPI: tray delink propagation failed for tray_ids={propagate_tray_ids}')
 				logging.info(json.dumps({'event': 'JIG_DELINK_RECORDS_CREATED', 'count': delink_created}))
 			except Exception as e:
 				logging.exception(f'JigSaveAPI: delink records failed: {e}')
@@ -4479,10 +4531,12 @@ class JigSaveAPI(APIView):
 				try:
 					import time
 					ts = int(time.time() * 1000) % 100000
-					excess_lot_id = f'EX-{lot_id}-{ts:05d}'
+					# Strip any existing EX- prefix so re-excessing an excess lot never stacks prefixes (varchar(50) column)
+					base_lot_id = lot_id[3:] if lot_id.startswith('EX-') else lot_id
+					excess_lot_id = f'EX-{base_lot_id}-{ts:05d}'[:50]
 					while ExcessLotRecord.objects.filter(new_lot_id=excess_lot_id).exists():
 						ts = (ts + 1) % 100000
-						excess_lot_id = f'EX-{lot_id}-{ts:05d}'
+						excess_lot_id = f'EX-{base_lot_id}-{ts:05d}'[:50]
 
 					if jlr_for_submit is None:
 						jlr_for_submit, _ = JigLoadingRecord.objects.update_or_create(
@@ -4563,9 +4617,9 @@ class JigSaveAPI(APIView):
 					logging.exception(f'JigSaveAPI: excess lot creation failed: {e}')
 					return Response({'status': 'error', 'message': 'Failed to create excess lot'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-			# Lock Jig
+			# Lock Jig (reuse the row-locked instance fetched above under
+			# select_for_update() rather than issuing a fresh unlocked query)
 			try:
-				jig_obj = Jig.objects.filter(jig_qr_id=jig_id).first()
 				if jig_obj:
 					jig_obj.is_loaded = True
 					jig_obj.occupied_flag = True

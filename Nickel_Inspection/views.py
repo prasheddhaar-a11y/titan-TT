@@ -967,6 +967,7 @@ def nq_action(request):
                 series_valid, series_message, _ = validate_nickel_wiping_rejection_tray_series(
                     tray_id_val,
                     check_juat.tray_type,
+                    check_juat.plating_stk_no,
                 )
                 if not series_valid:
                     return Response({'success': True, 'valid': False, 'message': series_message})
@@ -1045,9 +1046,17 @@ def nq_action(request):
             return Response({'success': False, 'error': 'rejected_qty out of range'}, status=400)
         accepted_qty = total_qty - rejected_qty
         orig_cap = _nq_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20
-        rej_prefix, rej_cap = get_nickel_wiping_rejection_tray_allocation(juat.tray_type)
+        rej_prefix, rej_cap = get_nickel_wiping_rejection_tray_allocation(
+            juat.tray_type, juat.plating_stk_no
+        )
         orig_trays = _nq_get_original_trays_for_allocation(lot_id, juat)
-        allocation = build_nq_rejection_allocation(orig_trays, rejected_qty, rej_cap)
+        allocation = build_nq_rejection_allocation(
+            orig_trays,
+            rejected_qty,
+            rej_cap,
+            accept_capacity=orig_cap,
+            accepted_qty=accepted_qty,
+        )
         return Response({
             'success': True,
             'accepted_qty': accepted_qty,
@@ -1346,68 +1355,90 @@ def _nq_do_submit_reject(request, lot_id, juat):
     # the non-rejected remainder is being split out.
     if is_partial and not reason_ids:
         return Response({'success': False, 'error': 'reason_ids required for partial rejection'}, status=400)
-    _allowed_prefix, rej_cap = get_nickel_wiping_rejection_tray_allocation(juat.tray_type)
+    _allowed_prefix, rej_cap = get_nickel_wiping_rejection_tray_allocation(
+        juat.tray_type, juat.plating_stk_no
+    )
+    orig_cap = _nq_tray_capacity(juat.tray_type or '') or juat.tray_capacity or 20
     orig_trays = _nq_get_original_trays_for_allocation(lot_id, juat, create_missing=True)
-    allocation = build_nq_rejection_allocation(orig_trays, rejected_qty, rej_cap)
 
-    # A freed original tray (one the allocation would otherwise require to be
-    # delinked) may instead be reused directly as its own reject container —
-    # scanned straight into a reject slot. Any such tray no longer needs a
-    # separate delink scan.
-    delink_slot_ids = {slot['tray_id'] for slot in allocation['delink_slots']}
-    reused_tray_ids = {
-        (rt.get('tray_id') or '').strip().upper()
-        for rt in reject_trays
-        if (rt.get('tray_id') or '').strip().upper() in delink_slot_ids
-    }
-    delink_slots_required = [
-        slot for slot in allocation['delink_slots']
-        if slot['tray_id'] not in reused_tray_ids
-    ]
-
-    try:
-        reject_trays = normalize_reject_trays(reject_trays, allocation['reject_slots'])
-        delink_trays_snapshot = normalize_operator_delink_trays(
-            submitted_delink_trays,
-            delink_slots_required,
+    if is_partial:
+        # Partial rejection still uses the existing tray allocation workflow.
+        allocation = build_nq_rejection_allocation(
             orig_trays,
-        )
-        accept_trays = normalize_accept_trays(
-            accept_trays,
-            allocation['accept_auto_trays'],
-            original_trays=orig_trays,
-            delink_trays=delink_trays_snapshot,
-        )
-        validate_original_tray_coverage(
-            accept_trays, delink_trays_snapshot, orig_trays, reject_trays=reject_trays,
-        )
-    except ValueError as exc:
-        return Response({'success': False, 'error': str(exc)}, status=400)
-
-    # A tray ID may be used in only one of reject / accept / delink for this
-    # submission — catches a tray double-booked across sections that each
-    # individual normalize_* call (which only checks duplicates within its own
-    # list) would miss.
-    reject_ids = {(rt.get('tray_id') or '').upper() for rt in reject_trays}
-    delink_ids = {(dt.get('tray_id') or '').upper() for dt in delink_trays_snapshot}
-    accept_ids = {(at.get('tray_id') or '').upper() for at in accept_trays}
-    cross_dupes = (reject_ids & delink_ids) | (reject_ids & accept_ids) | (delink_ids & accept_ids)
-    if cross_dupes:
-        return Response(
-            {'success': False, 'error': f"Tray(s) {', '.join(sorted(cross_dupes))} used in more than one section"},
-            status=400,
+            rejected_qty,
+            rej_cap,
+            accept_capacity=orig_cap,
+            accepted_qty=accepted_qty,
         )
 
-    if tray_qty_total(reject_trays) != rejected_qty:
-        return Response({'success': False, 'error': 'Reject tray total does not match rejected qty'}, status=400)
-    if tray_qty_total(accept_trays) != accepted_qty:
-        return Response({'success': False, 'error': 'Accept tray total does not match accepted qty'}, status=400)
+        # A freed original tray (one the allocation would otherwise require to be
+        # delinked) may instead be reused directly as its own reject container.
+        delink_slot_ids = {slot['tray_id'] for slot in allocation['delink_slots']}
+        reused_tray_ids = {
+            (rt.get('tray_id') or '').strip().upper()
+            for rt in reject_trays
+            if (rt.get('tray_id') or '').strip().upper() in delink_slot_ids
+        }
+        delink_slots_required = [
+            slot for slot in allocation['delink_slots']
+            if slot['tray_id'] not in reused_tray_ids
+        ]
+
+        try:
+            reject_trays = normalize_reject_trays(reject_trays, allocation['reject_slots'])
+            delink_trays_snapshot = normalize_operator_delink_trays(
+                submitted_delink_trays,
+                delink_slots_required,
+                orig_trays,
+            )
+            accept_trays = normalize_accept_trays(
+                accept_trays,
+                allocation['accept_auto_trays'],
+                original_trays=orig_trays,
+                delink_trays=delink_trays_snapshot,
+                accepted_qty=accepted_qty,
+                accept_capacity=orig_cap,
+            )
+            validate_original_tray_coverage(
+                accept_trays, delink_trays_snapshot, orig_trays, reject_trays=reject_trays,
+            )
+        except ValueError as exc:
+            return Response({'success': False, 'error': str(exc)}, status=400)
+
+        # A tray ID may be used in only one section for a partial submission.
+        reject_ids = {(rt.get('tray_id') or '').upper() for rt in reject_trays}
+        delink_ids = {(dt.get('tray_id') or '').upper() for dt in delink_trays_snapshot}
+        accept_ids = {(at.get('tray_id') or '').upper() for at in accept_trays}
+        cross_dupes = (reject_ids & delink_ids) | (reject_ids & accept_ids) | (delink_ids & accept_ids)
+        if cross_dupes:
+            return Response(
+                {'success': False, 'error': f"Tray(s) {', '.join(sorted(cross_dupes))} used in more than one section"},
+                status=400,
+            )
+
+        if tray_qty_total(reject_trays) != rejected_qty:
+            return Response({'success': False, 'error': 'Reject tray total does not match rejected qty'}, status=400)
+        if tray_qty_total(accept_trays) != accepted_qty:
+            return Response({'success': False, 'error': 'Accept tray total does not match accepted qty'}, status=400)
+    else:
+        # Full-lot rejection is a lot-level rejection. The operator must not be
+        # asked to allocate/scan Reject, Delink, or Accept trays. Keep the
+        # existing original trays attached to the lot and persist an empty tray
+        # allocation snapshot for this rejection event.
+        reject_trays = []
+        accept_trays = []
+        delink_trays_snapshot = []
+        reused_tray_ids = set()
+        reject_ids = set()
+        delink_ids = set()
+        accept_ids = set()
 
     for rt in reject_trays:
         tid = (rt.get('tray_id') or '').upper()
         series_valid, series_message, _ = validate_nickel_wiping_rejection_tray_series(
             tid,
             juat.tray_type,
+            juat.plating_stk_no,
         )
         if not series_valid:
             return Response(

@@ -141,6 +141,223 @@ def _make_tray_conflict(tray_id, source, linked_lot='', record_id=None):
     }
 
 
+def _jig_unload_safe_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _jig_unload_reject_conflict(tray_id, source):
+    return {
+        'occupied': True,
+        'tray_id': tray_id,
+        'source': source,
+        'linked_lot': '',
+        'message': 'Tray is occupied.',
+    }
+
+
+def _is_jig_unload_tray_master_released(tray_id):
+    from modelmasterapp.models import TrayId
+
+    return TrayId.objects.filter(
+        tray_id__iexact=tray_id,
+        delink_tray=True,
+        scanned=False,
+    ).exists()
+
+
+def _is_iqf_lot_active_for_jig_unload_reject(lot_id, current_lot_id=None):
+    lot_key = str(lot_id or '').strip()
+    current_lot = str(current_lot_id or '').strip()
+    if not lot_key or (current_lot and lot_key == current_lot):
+        return False
+
+    from modelmasterapp.models import TotalStockModel
+
+    return TotalStockModel.objects.filter(
+        Q(lot_id=lot_key) | Q(brass_qc_transition_reject_lot_id=lot_key),
+    ).filter(
+        Q(current_stage__iexact='IQF') | Q(iqf_onhold_picking=True)
+    ).exists()
+
+
+def _iqf_reject_snapshot_contains_tray(payload, tray_id):
+    tray_key = normalize_jig_unload_tray_id(tray_id)
+    if not tray_key:
+        return False
+
+    for entry in _iter_payload_dicts(payload):
+        entry_tray_id = (
+            entry.get('tray_id')
+            or entry.get('trayId')
+            or entry.get('rejected_tray_id')
+        )
+        if normalize_jig_unload_tray_id(entry_tray_id) != tray_key:
+            continue
+        if _jig_unload_safe_int(
+            entry.get('qty')
+            or entry.get('tray_qty')
+            or entry.get('tray_quantity')
+            or entry.get('rejected_tray_quantity')
+            or entry.get('remaining_qty')
+        ) > 0:
+            return True
+    return False
+
+
+def _is_iqf_reject_snapshot_active_for_jig_unload(tray_id, current_lot_id=None):
+    """Return True when IQF reject history still owns this tray for JU."""
+    tray_key = normalize_jig_unload_tray_id(tray_id)
+    if not tray_key:
+        return False
+
+    try:
+        from IQF.models import (
+            IQF_Submitted,
+            IQF_PartialRejectLot,
+            IQF_Rejected_TrayScan,
+        )
+    except ImportError:
+        logger.warning(
+            "IQF reject snapshot models unavailable for Jig Unloading tray_id=%s",
+            tray_key,
+        )
+        return False
+
+    if _is_jig_unload_tray_master_released(tray_key):
+        return False
+
+    submissions = IQF_Submitted.objects.filter(
+        is_completed=True,
+        rejected_qty__gt=0,
+    ).exclude(
+        full_reject_data__isnull=True,
+        partial_reject_data__isnull=True,
+    ).only('lot_id', 'full_reject_data', 'partial_reject_data')
+    for submission in submissions.iterator():
+        if not _is_iqf_lot_active_for_jig_unload_reject(
+            submission.lot_id,
+            current_lot_id=current_lot_id,
+        ):
+            continue
+        if (
+            _iqf_reject_snapshot_contains_tray(submission.full_reject_data, tray_key)
+            or _iqf_reject_snapshot_contains_tray(submission.partial_reject_data, tray_key)
+        ):
+            return True
+
+    reject_lots = IQF_PartialRejectLot.objects.filter(
+        rejected_qty__gt=0,
+    ).exclude(trays_snapshot__isnull=True).only(
+        'new_lot_id',
+        'parent_lot_id',
+        'trays_snapshot',
+    )
+    for reject_lot in reject_lots.iterator():
+        if not (
+            _is_iqf_lot_active_for_jig_unload_reject(
+                reject_lot.new_lot_id,
+                current_lot_id=current_lot_id,
+            )
+            or _is_iqf_lot_active_for_jig_unload_reject(
+                reject_lot.parent_lot_id,
+                current_lot_id=current_lot_id,
+            )
+        ):
+            continue
+        if _iqf_reject_snapshot_contains_tray(reject_lot.trays_snapshot, tray_key):
+            return True
+
+    rejected_scans = IQF_Rejected_TrayScan.objects.filter(
+        tray_id__iexact=tray_key,
+    ).only('lot_id', 'rejected_tray_quantity')
+    for rejected_scan in rejected_scans.iterator():
+        if not _is_iqf_lot_active_for_jig_unload_reject(
+            rejected_scan.lot_id,
+            current_lot_id=current_lot_id,
+        ):
+            continue
+        if _jig_unload_safe_int(rejected_scan.rejected_tray_quantity) > 0:
+            return True
+
+    return False
+
+
+def validate_jig_unload_nickel_reject_tray(raw_tray_id, current_lot_id=None):
+    """Return a JU-style conflict when an active reject tray is still owned."""
+    tray_id = normalize_jig_unload_tray_id(raw_tray_id)
+    if not tray_id:
+        return None
+
+    try:
+        from Brass_QC.services.validators import (
+            has_active_input_screening_reject_occupancy,
+            validate_tray_not_rejected_in_brass_qc,
+        )
+
+        if has_active_input_screening_reject_occupancy(
+            tray_id,
+            str(current_lot_id or '').strip() or None,
+        ):
+            return _jig_unload_reject_conflict(
+                tray_id,
+                'Input Screening reject tray',
+            )
+        if validate_tray_not_rejected_in_brass_qc(tray_id):
+            return _jig_unload_reject_conflict(tray_id, 'Brass QC reject tray')
+    except ImportError:
+        logger.warning(
+            "Brass QC/Input Screening validator unavailable for Jig Unloading tray_id=%s",
+            tray_id,
+        )
+
+    try:
+        from IQF.services.validators import _is_iqf_rejected_tray_active_elsewhere
+
+        if _is_iqf_rejected_tray_active_elsewhere(
+            tray_id,
+            str(current_lot_id or '').strip(),
+        ):
+            return _jig_unload_reject_conflict(tray_id, 'IQF reject tray')
+    except ImportError:
+        logger.warning(
+            "IQF reject tray validator unavailable for Jig Unloading tray_id=%s",
+            tray_id,
+        )
+
+    if _is_iqf_reject_snapshot_active_for_jig_unload(
+        tray_id,
+        current_lot_id=current_lot_id,
+    ):
+        return _jig_unload_reject_conflict(tray_id, 'IQF reject tray')
+
+    try:
+        from modelmasterapp.models import TrayId
+        from Nickel_Inspection.services import validate_nickel_wiping_rejection_tray_available
+
+        if TrayId.objects.filter(tray_id__iexact=tray_id).exists():
+            available, _message = validate_nickel_wiping_rejection_tray_available(
+                tray_id,
+                current_lot_id=current_lot_id,
+                lock_master=False,
+            )
+            if not available:
+                return _jig_unload_reject_conflict(
+                    tray_id,
+                    'Nickel reject tray',
+                )
+    except ImportError:
+        logger.exception(
+            "Nickel reject tray validator unavailable for Jig Unloading tray_id=%s",
+            tray_id,
+        )
+        return None
+
+    return None
+
+
 def _has_allowed_lot(record_lot_aliases, allowed_aliases):
     return bool(record_lot_aliases and allowed_aliases and record_lot_aliases & allowed_aliases)
 
@@ -162,6 +379,18 @@ def find_jig_unload_tray_conflict(raw_tray_id, allowed_lot_ids=None, include_tra
 
     from modelmasterapp.models import TrayId
     from Jig_Unloading.models import JigUnload_TrayId, JigUnloadDraft, JigUnloadAutoSave, JUSubmittedZ1
+
+    # A tray that has been officially delinked in the TrayId master (CLAUDE.md
+    # §7 "Delink Rules" — the authoritative state update) is free for reuse even
+    # if an older submitted/draft/autosave JSON payload still lists it. The
+    # JSON-backed branches below have no per-tray delink flag of their own
+    # (unlike the JigUnload_TrayId branch, which already skips delinked rows),
+    # so honour the master delink state and skip them to avoid blocking a
+    # legitimately released tray forever. Live occupancy is still enforced by
+    # the JigUnload_TrayId branch, which only matches non-delinked rows.
+    master_delinked = TrayId.objects.filter(
+        _variant_query('tray_id', tray_variants), delink_tray=True
+    ).exists()
 
     if include_tray_master:
         for tray in TrayId.objects.filter(_variant_query('tray_id', tray_variants)).only(
@@ -194,6 +423,11 @@ def find_jig_unload_tray_conflict(raw_tray_id, allowed_lot_ids=None, include_tra
             next(iter(record_lots), ''),
             tray.id,
         )
+
+    if master_delinked:
+        # Tray was officially released in the master — the stale JSON-backed
+        # references below no longer represent an active reservation.
+        return None
 
     submitted_rows = JUSubmittedZ1.objects.exclude(tray_data__isnull=True).only(
         'id', 'jig_completed_id', 'lot_id', 'tray_data', 'is_draft'

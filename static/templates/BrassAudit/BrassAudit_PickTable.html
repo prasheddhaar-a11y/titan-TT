@@ -1144,8 +1144,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
                           data-moved-to-d-picker="{{ data.Moved_to_D_Picker }}"
                           data-model-image="{{ data.model_images.0|default:'' }}"
                           data-tray-qty-list="{{ data.tray_qty_list|default:'[]'|safe }}"
-                            data-total-batch-quantity="{{ data.display_accepted_qty|default:0 }}"
-                            data-brass-missing-qty="{{ data.brass_audit_missing_qty|default:0 }}">
+                            data-total-batch-quantity="{{ data.display_accepted_qty|default:0 }}">
 
                           <img src="{% static 'assets/icons/view.png' %}"
                               alt="View"
@@ -1395,9 +1394,7 @@ box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 
                         </div>
                                     <p style="margin: 0 0 0 2px;">
-                            Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span> /
-                            Missing Qty: <span id="modalMissingQty" style="font-weight:bold; color:#d32f2f;"></span> /
-                            Physical Qty: <span id="modalPhysicalQty" style="font-weight:bold; color:#388e3c;"></span>
+                            Lot Qty: <span id="modalLotQty" style="font-weight:bold; color:#e67e22;"></span>
                           </p>
                       </div>
                     </div>
@@ -2444,19 +2441,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const detailsDiv = document.getElementById('trayScanDetails_DayPlanning');
       const modalModelNo = document.getElementById('modalModelNo_DayPlanning');
       const modalLotQty = document.getElementById('modalLotQty');
-      const modalMissingQty = document.getElementById('modalMissingQty');
-      const modalPhysicalQty = document.getElementById('modalPhysicalQty');
 
       const stockLotId = this.dataset.stockLotId || '';
       const modelNo = this.dataset.modelNo || '';
       const modelImage = this.dataset.modelImage || '';
       const totalBatchQty = this.dataset.totalBatchQuantity || '0';
-      const brassMissingQty = this.dataset.brassMissingQty || '0';
 
       // Set header info
       if (modalModelNo) modalModelNo.textContent = modelNo || '—';
       if (modalLotQty) modalLotQty.textContent = totalBatchQty;
-      if (modalMissingQty) modalMissingQty.textContent = brassMissingQty;
       setBrassAuditEyeModalImage(modal, modelNo, modelImage);
 
       // Hide validate/redo buttons (view-only mode)
@@ -2486,7 +2479,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const trays = result.trays || [];
-        if (modalPhysicalQty) modalPhysicalQty.textContent = result.total_qty || '0';
 
         if (trays.length === 0) {
           detailsDiv.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">No trays found for this lot.</div>';

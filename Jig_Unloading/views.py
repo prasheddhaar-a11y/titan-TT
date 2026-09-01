@@ -33,6 +33,7 @@ from Jig_Unloading.tray_utils import (
     is_valid_jig_unload_tray_id_format,
     normalize_jig_unload_tray_id,
     normalize_combine_lot_id,
+    validate_jig_unload_nickel_reject_tray,
 )
 from Recovery_DP.models import *
 from Inprocess_Inspection.models import InprocessInspectionTrayCapacity
@@ -3622,6 +3623,18 @@ class SaveModelUnloadZ1View(APIView):
                     'source': tray_conflict.get('source', ''),
                 }, status=400)
 
+            nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                tray_id,
+                current_lot_id=lot_id,
+            )
+            if nickel_conflict:
+                return Response({
+                    'error': nickel_conflict['message'],
+                    'validation_type': 'tray_occupied',
+                    'linked_lot': nickel_conflict.get('linked_lot', ''),
+                    'source': nickel_conflict.get('source', ''),
+                }, status=400)
+
             # Top tray ID is the primary identifier for a model's tray batch.
             # find_jig_unload_tray_conflict() above exempts records that belong to the
             # same lot family (allowed_lot_ids_for_trays), which is correct for cross-lot
@@ -4068,6 +4081,24 @@ class SubmitAllUnloadZ1View(APIView):
                 is_draft=False,
             )
         }
+        for submitted_lot_id, submitted_record in submitted_by_lot.items():
+            for tray in submitted_record.tray_data or []:
+                if not isinstance(tray, dict):
+                    continue
+                tray_id = normalize_jig_unload_tray_id(tray.get('tray_id', ''))
+                if not tray_id:
+                    continue
+                nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                    tray_id,
+                    current_lot_id=submitted_lot_id,
+                )
+                if nickel_conflict:
+                    return Response({
+                        'error': nickel_conflict['message'],
+                        'validation_type': 'tray_occupied',
+                        'linked_lot': nickel_conflict.get('linked_lot', ''),
+                        'source': nickel_conflict.get('source', ''),
+                    }, status=400)
 
         related_sources_by_lot = {
             lot_id: self._discover_related_sources(submitted_record, all_lot_ids)
@@ -4250,6 +4281,24 @@ class SubmitSingleModelZ1View(APIView):
                 'unload_lot_id': existing.unload_lot_id or '',
                 'message': f'Model already submitted as lot {existing.lot_id}',
             })
+
+        for tray in sub.tray_data or []:
+            if not isinstance(tray, dict):
+                continue
+            tray_id = normalize_jig_unload_tray_id(tray.get('tray_id', ''))
+            if not tray_id:
+                continue
+            nickel_conflict = validate_jig_unload_nickel_reject_tray(
+                tray_id,
+                current_lot_id=lot_id,
+            )
+            if nickel_conflict:
+                return Response({
+                    'error': nickel_conflict['message'],
+                    'validation_type': 'tray_occupied',
+                    'linked_lot': nickel_conflict.get('linked_lot', ''),
+                    'source': nickel_conflict.get('source', ''),
+                }, status=400)
 
         # Build list fields for the single lot
         plating_stk_no_list = []
@@ -4583,6 +4632,20 @@ def validate_tray_occupancy_z1(request):
                 'validation_type': 'tray_occupied',
                 'linked_lot': tray_conflict.get('linked_lot', ''),
                 'source': tray_conflict.get('source', '')
+            }, status=400)
+
+        nickel_conflict = validate_jig_unload_nickel_reject_tray(
+            tray_id,
+            current_lot_id=lot_id or None,
+        )
+        if nickel_conflict:
+            return JsonResponse({
+                'success': False,
+                'error': nickel_conflict['message'],
+                'message': f'âŒ {tray_id} - Already reserved for another lot',
+                'validation_type': 'tray_occupied',
+                'linked_lot': nickel_conflict.get('linked_lot', ''),
+                'source': nickel_conflict.get('source', '')
             }, status=400)
 
         # STEP 3: Check occupancy in TrayId table
