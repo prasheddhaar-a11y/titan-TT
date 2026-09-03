@@ -2726,13 +2726,6 @@ form.addEventListener("submit", async function (e) {
      tbody.innerHTML = "";
      let serial = 1;
      users.forEach((user) => {
-       // Skip users with no name and no email
-       if (
-         (!user.first_name && !user.last_name) &&
-         !user.email
-       ) {
-         return;
-       }
        // --- FIX: Normalize modules ---
        let modules = [];
        if (Array.isArray(user.modules)) {
@@ -2804,16 +2797,17 @@ form.addEventListener("submit", async function (e) {
         `;
 
        const tr = document.createElement("tr");
+       const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ");
        tr.innerHTML = `
          <td>${serial++}</td>
-         <td>${escapeHtml(user.username || "")}</td>
-         <td>${escapeHtml(user.first_name || "")} ${escapeHtml(user.last_name || "")}</td>
-         <td>${escapeHtml(user.email || "")}</td>
+         <td>${escapeHtml(user.username || "-")}</td>
+         <td>${escapeHtml(fullName || "-")}</td>
+         <td>${escapeHtml(user.email || "-")}</td>
          <!-- <td>${escapeHtml(user.user_category || user.group_name || "")}</td> -->
-         <td>${escapeHtml(user.manager || "")}</td>
-         <td>${escapeHtml(user.employment_status || "")}</td>
+         <td>${escapeHtml(user.manager || "-")}</td>
+         <td>${escapeHtml(user.employment_status || "-")}</td>
          <td>${lockStatusHtml}</td>
-         <td>${escapeHtml(user.created || "")}</td>
+         <td>${escapeHtml(user.created || "-")}</td>
          <td>${actionsHtml}</td>
        `;
        tbody.appendChild(tr);
@@ -2985,7 +2979,7 @@ form.addEventListener("submit", async function (e) {
          renderUsersTable(data.results);
          renderPaginationControls(data.current_page, data.num_pages);
          const userCount = document.getElementById("userCount");
-         if (userCount) userCount.textContent = data.count-1;
+         if (userCount) userCount.textContent = data.count;
        });
    }
 

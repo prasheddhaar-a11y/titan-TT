@@ -83,11 +83,8 @@ urlpatterns = [
     path('api/group-modules/', UserGroupListAPIView.as_view(), name='user-groups-api'),
     path('api/user-allowed-modules/', user_allowed_modules, name='user-allowed-modules'),
     path('api/my-allowed-modules-status/', my_allowed_modules_status, name='my-allowed-modules-status'),
-<<<<<<< HEAD
-    
-=======
+
     path('api/network-ping/', NetworkPingAPIView.as_view(), name='network-ping'),
->>>>>>> d8835fcc1c88601487a81edae00cb52a23a5d7a5
     path('api/group-modules/<int:group_id>/', GroupModulesAPIView.as_view(), name='group-modules-detail-api'),
     path('api/shortcuts/', ShortcutConfigurationAPIView.as_view(), name='shortcut-configurations-api'),
     path('api/session-heartbeat/', SessionHeartbeatAPIView.as_view(), name='session-heartbeat-api'),
