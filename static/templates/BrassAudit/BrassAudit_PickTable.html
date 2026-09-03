@@ -2785,12 +2785,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // AQL auto-trigger: if rejection qty exceeds AQL limit, force Full Lot Rejection
       if (_aqlLimit > 0 && totalReject > _aqlLimit && !fullLotCb.checked) {
         fullLotCb.checked = true;
-        // Clear reason inputs — full lot rejection does not use per-reason qty
-        reasonsGrid.querySelectorAll('.reject-qty-input').forEach(function(inp) { inp.value = ''; });
-        allocationSection.style.display = 'none';
-        _acceptSlots = [];
-        _rejectSlots = [];
-        _delinkSlots = [];
+
+        // Apply the same behavior as manually selecting Full Lot Rejection.
+        // The existing change handler clears/disables all rejection reason inputs,
+        // hides tray allocation, and clears any pending tray slot state.
+        fullLotCb.dispatchEvent(new Event('change'));
+
         // Show banner and focus remarks
         errorDiv.style.color = '#c62828';
         errorDiv.textContent =
@@ -2798,7 +2798,6 @@ document.addEventListener('DOMContentLoaded', function() {
           '). Full Lot Rejection has been auto-selected. Please enter a remark.';
         remarksInput.style.border = '2px solid #c62828';
         remarksInput.focus();
-        updateTotals(); // re-run with checkbox now checked to sync display
         return;
       }
 
@@ -3445,12 +3444,32 @@ document.addEventListener('DOMContentLoaded', function() {
           if (this.value !== val) { var pos = this.selectionStart; this.value = val; this.setSelectionRange(pos, pos); }
           var errSpan = this.closest('td').querySelector('.slot-scan-error');
           if (!errSpan) return;
-          if (!val) { errSpan.style.display = 'none'; return; }
-          if (val.length < 9) { errSpan.style.display = 'none'; return; }
           var idx = parseInt(this.getAttribute('data-idx'), 10);
           var slotType = this.getAttribute('data-type');
           var targetSlots = slotType === 'accept' ? _acceptSlots : _rejectSlots;
           var targetContainer = slotType === 'accept' ? acceptSlotsContainer : rejectSlotsContainer;
+
+          // Manual clear must release the tray immediately, same as Clear/Enter-empty.
+          if (!val) {
+            errSpan.style.display = 'none';
+            targetSlots[idx].tray_id = null;
+            if (slotType === 'reject') {
+              _delinkSlots = [];
+              _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+            }
+            if (slotType === 'accept' && targetSlots[idx].is_top) {
+              _acceptSlots.forEach(function(s) { if (!s.is_top) s.tray_id = null; });
+            }
+            renderSlots(targetContainer, targetSlots, slotType);
+            renderOriginalTrays();
+            if (slotType === 'reject') {
+              checkPhaseTransition();
+            } else {
+              updateSummary();
+            }
+            return;
+          }
+          if (val.length < 9) { errSpan.style.display = 'none'; return; }
           var originalVal = targetSlots[idx].tray_id;
           if (val === originalVal) { errSpan.style.display = 'none'; return; }
           // Check duplicate

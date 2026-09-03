@@ -538,14 +538,16 @@ class DPBulkUploadView(APIView):
             if not _RE_SUFFIX.match(polishing_suffix):
                 return None, None, f"❌ Invalid suffix pattern in Polishing Stk No: '{polishing_suffix}'. Expected pattern: [UPPERCASE][UPPERCASE]02 (e.g., AB02, not ab02 or Ab02)"
 
-            # STEP 2: Extract model number and validate in ModelMaster
-            model_no = plating_model
+            # STEP 2: Resolve exact plating stock number in ModelMaster
+            plating_lookup = plating_stock_no.strip().upper()
             if model_masters is not None:
-                model_stock = model_masters.get(model_no)
+                model_stock = model_masters.get(plating_lookup)
             else:
-                model_stock = ModelMaster.objects.filter(model_no=model_no).first()
+                model_stock = ModelMaster.objects.filter(
+                    plating_stk_no__iexact=plating_stock_no.strip()
+                ).first()
             if not model_stock:
-                return None, None, f"❌ Plating Stk No '{plating_stock_no}' - Model number '{model_no}' not available in Master Data."
+                return None, None, f"❌ Plating Stk No '{plating_stock_no}' not available in Model Master."
 
             # STEP 3: Determine plating color internal code
             if "/" in plating_stock_no:
@@ -727,7 +729,7 @@ class DPBulkUploadView(APIView):
 
             # ── Pre-fetch ALL master data once ─────────────────────────────────────
             # select_related('tray_type') prevents N+1 lazy FK queries per row
-            model_masters = {obj.model_no: obj for obj in ModelMaster.objects.select_related('tray_type').all()}
+            model_masters = {obj.plating_stk_no.strip().upper(): obj for obj in ModelMaster.objects.select_related('tray_type').all() if obj.plating_stk_no}
             polish_types = {obj.polish_internal: obj for obj in PolishFinishType.objects.all()}
             versions = {}
             for obj in Version.objects.all():
@@ -980,7 +982,7 @@ class DPBulkUploadView(APIView):
 
             # Pre-fetch all master data for performance optimization
             # select_related('tray_type') prevents N+1 lazy FK queries per row
-            model_masters = {obj.model_no: obj for obj in ModelMaster.objects.select_related('tray_type').all()}
+            model_masters = {obj.plating_stk_no.strip().upper(): obj for obj in ModelMaster.objects.select_related('tray_type').all() if obj.plating_stk_no}
             polish_types = {obj.polish_internal: obj for obj in PolishFinishType.objects.all()}
             versions = {}
             for obj in Version.objects.all():
@@ -2073,19 +2075,6 @@ class TrayIdScanAPIView(APIView):
                         'position': i + 1,
                         'occupied_module': occupied_module,
                         'error': f'Tray ID "{tray_id}" is occupied in {occupied_module} and cannot be assigned.'
-                    })
-                    continue
-
-                nickel_available, nickel_error = _validate_dp_nickel_reject_tray_available(
-                    tray_id,
-                    current_lot_id=lot_id,
-                )
-                if not nickel_available:
-                    occupied_tray_errors.append({
-                        'tray_id': tray_id,
-                        'position': i + 1,
-                        'occupied_module': 'Nickel',
-                        'error': nickel_error,
                     })
                     continue
 
